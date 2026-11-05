@@ -17,6 +17,12 @@ const { NotFoundError, ValidationError, ForbiddenError, ConflictError } = requir
 const auditLog = require('../services/auditLog');
 const communicationPreferences = require('../services/clientCommunicationPreferenceService');
 const { isGloballyRoutableIpv4, normalizeProtocol } = require('../services/cgnatAttributionService');
+const { canonicalIpv6, isGloballyRoutableIpv6 } = require('../utils/ipAddress');
+
+// An ip_traceability request names one subscriber address: a globally
+// routable IPv4 address, or IPv6 (stored canonical, matched by prefix).
+const traceableAddress = value => typeof value === 'string'
+  && (isGloballyRoutableIpv4(value) || isGloballyRoutableIpv6(value));
 const {
   governmentRequestRowHash,
   governmentRequestRowHashMatches,
@@ -656,16 +662,21 @@ router.post('/gov-data-requests', requireInteractiveUser, requirePermission('gov
       }
     }
 
-    const ip_address = req.body.ip_address || null;
+    let ip_address = req.body.ip_address || null;
     let public_port = null;
     let protocol = null;
     let observed_at = null;
     if (request_type === 'ip_traceability') {
-      if (typeof ip_address !== 'string' || !isGloballyRoutableIpv4(ip_address)) {
-        throw new ValidationError('ip_address must be a globally routable IPv4 address');
+      if (!traceableAddress(ip_address)) {
+        throw new ValidationError('ip_address must be a globally routable IPv4 or IPv6 unicast address');
       }
       const hasPort = req.body.public_port !== undefined && req.body.public_port !== null && req.body.public_port !== '';
       const hasProtocol = req.body.protocol !== undefined && req.body.protocol !== null && req.body.protocol !== '';
+      if (isGloballyRoutableIpv6(ip_address)) {
+        // IPv6 has no CGNAT: the address alone names the subscriber.
+        if (hasPort || hasProtocol) throw new ValidationError('public_port and protocol apply only to an IPv4 (CGNAT) request');
+        ip_address = canonicalIpv6(ip_address.trim());
+      }
       if (hasPort !== hasProtocol) throw new ValidationError('public_port and protocol must be supplied together or both omitted');
       if (hasPort) {
         public_port = positiveId(req.body.public_port, 'public_port', { nullable: false });
@@ -754,7 +765,7 @@ router.put('/gov-data-requests/:id/process', requireInteractiveUser,
         }
         if (row.request_type === 'traffic_mirror') throw new ValidationError('traffic_mirror is not supported by this workflow');
         if (row.request_type === 'ip_traceability'
-            && (!isGloballyRoutableIpv4(row.ip_address) || !row.observed_at || !row.row_hash
+            && (!traceableAddress(row.ip_address) || !row.observed_at || !row.row_hash
               || ((row.public_port === null) !== (row.protocol === null)))) {
           throw new ValidationError('IP traceability request has incomplete exact-tuple scope');
         }

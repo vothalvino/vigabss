@@ -20,6 +20,7 @@ const db = require('../config/database');
 const User = require('../models/User');
 const { resolveOrgPrincipal } = require('./orgPrincipalService');
 const { governmentRequestRowHashMatches } = require('../utils/govDataRequestIntegrity');
+const { canonicalIpv6, containingIpv6Prefixes, isGloballyRoutableIpv6 } = require('../utils/ipAddress');
 const {
   ValidationError, ForbiddenError, NotFoundError, ConflictError,
 } = require('../utils/errors');
@@ -50,7 +51,7 @@ const EXPORTER_FIELDS = new Set([
 ]);
 
 const LOOKUP_FIELDS = new Set([
-  'gov_data_request_id', 'public_ipv4', 'public_port', 'protocol', 'observed_at',
+  'gov_data_request_id', 'ip_address', 'public_ipv4', 'public_port', 'protocol', 'observed_at',
 ]);
 
 const PROTOCOLS = Object.freeze({ tcp: 6, udp: 17 });
@@ -935,10 +936,35 @@ function withRecordIndex(err, index) {
   return err;
 }
 
+/**
+ * The looked-up address: `ip_address` (IPv4 or IPv6) or, as before,
+ * `public_ipv4`. An IPv6 address is canonical and must be globally routable;
+ * IPv6 has no CGNAT, so it takes no port or protocol.
+ */
+function lookupAddress(value) {
+  const given = value.ip_address ?? value.public_ipv4;
+  if (value.ip_address !== undefined && value.public_ipv4 !== undefined && value.ip_address !== value.public_ipv4) {
+    throw new ValidationError('Conflicting addresses', [{ field: 'ip_address', message: 'send ip_address or public_ipv4, not two different addresses' }]);
+  }
+  if (typeof given === 'string' && net.isIP(given.trim()) === 6) {
+    if (!isGloballyRoutableIpv6(given)) {
+      throw new ValidationError('Invalid ip_address', [{ field: 'ip_address', message: 'ip_address must be a globally routable unicast IPv6 address' }]);
+    }
+    return { ip_version: 6, ip_address: canonicalIpv6(given.trim()), public_ipv4: null };
+  }
+  const field = value.ip_address !== undefined ? 'ip_address' : 'public_ipv4';
+  const address = publicIpv4(given, field);
+  return { ip_version: 4, ip_address: address, public_ipv4: address };
+}
+
 function normalizeLookup(value) {
   rejectUnknownFields(value, LOOKUP_FIELDS, 'body');
   const hasPort = value.public_port !== undefined && value.public_port !== null && value.public_port !== '';
   const hasProtocol = value.protocol !== undefined && value.protocol !== null && value.protocol !== '';
+  const address = lookupAddress(value);
+  if (address.ip_version === 6 && (hasPort || hasProtocol)) {
+    throw new ValidationError('No port for IPv6', [{ field: 'public_port', message: 'IPv6 attribution is by address: public_port and protocol apply only to CGNAT (IPv4)' }]);
+  }
   if (hasPort !== hasProtocol) {
     throw new ValidationError('Incomplete public tuple', [{ field: 'public_port', message: 'public_port and protocol must be supplied together for CGNAT attribution, or both omitted for direct public assignment' }]);
   }
@@ -948,7 +974,7 @@ function normalizeLookup(value) {
   }
   return {
     gov_data_request_id: positiveInteger(value.gov_data_request_id, 'gov_data_request_id'),
-    public_ipv4: publicIpv4(value.public_ipv4, 'public_ipv4'),
+    ...address,
     public_port: hasPort ? port(value.public_port, 'public_port') : null,
     protocol: hasProtocol ? normalizeProtocol(value.protocol) : null,
     observed_at: observedAt,
@@ -983,7 +1009,9 @@ async function loadAuthorizedCase(organizationId, lookup) {
   }
   const casePort = request.public_port === null || request.public_port === undefined
     ? null : Number(request.public_port);
-  if (request.ip_address !== lookup.public_ipv4
+  const caseAddress = typeof request.ip_address === 'string' && net.isIP(request.ip_address) === 6
+    ? canonicalIpv6(request.ip_address) : request.ip_address;
+  if (caseAddress !== lookup.ip_address
       || casePort !== lookup.public_port
       || caseProtocol !== lookup.protocol
       || !sameInstant(request.observed_at, lookup.observed_at)) {
@@ -1130,17 +1158,19 @@ async function pinCaseEvidence(organizationId, requestId, actorId, lookup, {
     public_port: lookup.public_port,
     protocol: lookup.protocol,
     observed_at: lookup.observed_at.toISOString(),
+    // An IPv4 key is unchanged; an IPv6 one names its address.
+    ...(lookup.ip_version === 6 ? { ip_address: lookup.ip_address, ip_version: 6 } : {}),
   })).digest('hex');
   await db.query(
     `INSERT INTO ip_attribution_case_evidence
       (organization_id, gov_data_request_id, evidence_type, binding_id,
        connection_log_id, source_integrity_hash, evidence_snapshot,
-       evidence_hash, query_key,
+       evidence_hash, query_key, ip_address,
        public_ipv4, public_port, protocol, observed_at, pinned_by, pinned_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))
      ON DUPLICATE KEY UPDATE id = id`,
     [organizationId, requestId, evidenceType, bindingId, connectionLogId,
-      sourceIntegrityHash, snapshotJson, evidenceHash, queryKey,
+      sourceIntegrityHash, snapshotJson, evidenceHash, queryKey, lookup.ip_address,
       lookup.public_ipv4, lookup.public_port, lookup.protocol, lookup.observed_at,
       actorId || null],
   );
@@ -1262,6 +1292,147 @@ async function countOverlappingUnverifiedSessions(organizationId, lookup, matche
   return Number(rows[0]?.blockers || 0);
 }
 
+// ---------------------------------------------------------------------------
+// IPv6: a subscriber holds the address when it is their WAN address
+// (Framed-IPv6-Address) or falls inside a prefix routed to them (the
+// delegated LAN prefix or the framed prefix). IPv6 has no CGNAT, so a match
+// is direct. The rules are the IPv4 ones: assignment evidence at or before
+// the instant, closure evidence after it or a live session, complete
+// attribution evidence, and no other session that could also have held it.
+// Prefixes are stored canonical with zero host bits, so containment is an
+// IN over the address's 129 containing prefixes.
+// ---------------------------------------------------------------------------
+
+function ipv6Containment(alias, { prefixColumns, addressColumn }, prefixes) {
+  const list = prefixes.map(() => '?').join(', ');
+  const clauses = prefixColumns.map(column => `${alias}.${column} IN (${list})`);
+  clauses.push(`${alias}.${addressColumn} = ?`);
+  return `(${clauses.join(' OR ')})`;
+}
+
+function ipv6ContainmentParams(lookup, prefixes, prefixColumnCount) {
+  return [...Array(prefixColumnCount).fill(prefixes).flat(), lookup.ip_address];
+}
+
+const SESSION_V6 = { prefixColumns: ['framed_ipv6_prefix', 'ipv6_delegated_prefix'], addressColumn: 'ipv6_address' };
+const EVIDENCE_V6 = { prefixColumns: ['framed_ipv6_prefix', 'delegated_ipv6_prefix'], addressColumn: 'framed_ipv6_address' };
+
+async function findDirectIpv6Assignments(organizationId, lookup) {
+  const liveness = Math.min(Math.max(
+    Number.parseInt(process.env.RADIUS_SESSION_LIVENESS_MINUTES || '60', 10) || 60,
+    1,
+  ), 1440);
+  const prefixes = containingIpv6Prefixes(lookup.ip_address);
+  const sessionMatch = ipv6Containment('cl', SESSION_V6, prefixes);
+  const assignmentMatch = ipv6Containment('assignment_pick', EVIDENCE_V6, prefixes);
+  const closureMatch = ipv6Containment('closure_pick', EVIDENCE_V6, prefixes);
+  const sessionParams = ipv6ContainmentParams(lookup, prefixes, 2);
+  const [rows] = await db.query(
+    `SELECT cl.id AS connection_log_id, cl.client_id, cl.contract_id, cl.username,
+            COALESCE(cl.acct_session_id, cl.session_id) AS radius_session_id,
+            cl.session_instance_id,
+            cl.framed_ipv6_prefix, cl.ipv6_delegated_prefix, cl.ipv6_address,
+            assignment_evidence.id AS assignment_evidence_id,
+            assignment_evidence.event_at AS assigned_at,
+            assignment_evidence.event_at AS assignment_evidence_event_at,
+            assignment_evidence.observed_at AS assignment_evidence_received_at,
+            assignment_evidence.integrity_hash AS assignment_evidence_integrity_hash,
+            closure_evidence.id AS closure_evidence_id,
+            closure_evidence.event_at AS released_at,
+            closure_evidence.observed_at AS closure_evidence_received_at,
+            closure_evidence.integrity_hash AS closure_evidence_integrity_hash,
+            cl.last_accounting_at, cl.last_accounting_received_at,
+            client_row.name AS client_name
+       FROM connection_logs cl
+       JOIN radius_accounting_events assignment_evidence
+         ON assignment_evidence.organization_id = cl.organization_id
+        AND assignment_evidence.session_instance_id = cl.session_instance_id
+        AND assignment_evidence.id = (
+          SELECT assignment_pick.id FROM radius_accounting_events assignment_pick
+           WHERE assignment_pick.organization_id = cl.organization_id
+             AND assignment_pick.session_instance_id = cl.session_instance_id
+             AND ${assignmentMatch}
+             AND assignment_pick.event_at <= ?
+             AND assignment_pick.observed_at <= ?
+           ORDER BY GREATEST(assignment_pick.event_at, assignment_pick.observed_at) ASC,
+                    assignment_pick.id ASC LIMIT 1
+        )
+       LEFT JOIN radius_accounting_events closure_evidence
+         ON cl.event_type = 'stop'
+        AND closure_evidence.organization_id = cl.organization_id
+        AND closure_evidence.session_instance_id = cl.session_instance_id
+        AND closure_evidence.id = (
+          SELECT closure_pick.id FROM radius_accounting_events closure_pick
+           WHERE closure_pick.organization_id = cl.organization_id
+             AND closure_pick.session_instance_id = cl.session_instance_id
+             AND closure_pick.status_type = 'stop'
+             AND ${closureMatch}
+           ORDER BY closure_pick.event_at DESC, closure_pick.id DESC LIMIT 1
+        )
+       /* includes deleted rows: an archived subscriber is still the one the evidence names */
+       LEFT JOIN clients client_row ON client_row.id = cl.client_id
+        AND client_row.organization_id = cl.organization_id
+      WHERE cl.organization_id = ?
+        AND ${sessionMatch}
+        AND cl.attribution_evidence_complete = 1
+        AND cl.client_id IS NOT NULL AND cl.client_id <> 0
+        AND cl.contract_id IS NOT NULL AND cl.contract_id <> 0
+        AND cl.session_instance_id IS NOT NULL
+        AND cl.username IS NOT NULL
+        AND COALESCE(cl.acct_session_id, cl.session_id) IS NOT NULL
+        AND (
+          (cl.event_type = 'stop' AND closure_evidence.event_at > ?
+             AND closure_evidence.observed_at > ?)
+          OR
+          (cl.event_type <> 'stop' AND cl.last_accounting_received_at IS NOT NULL
+             AND cl.last_accounting_received_at >= DATE_SUB(NOW(3), INTERVAL ${liveness} MINUTE)
+             AND cl.last_accounting_at >= ?
+             AND cl.last_accounting_received_at >= ?)
+        )
+      ORDER BY GREATEST(assignment_evidence.event_at, assignment_evidence.observed_at) DESC,
+               cl.id DESC`,
+    [...ipv6ContainmentParams(lookup, prefixes, 2), lookup.observed_at, lookup.observed_at,
+      ...ipv6ContainmentParams(lookup, prefixes, 2),
+      organizationId, ...sessionParams,
+      lookup.observed_at, lookup.observed_at, lookup.observed_at,
+      lookup.observed_at],
+  );
+  return rows;
+}
+
+// The IPv4 rule (REG-01) for IPv6: another session row whose address or
+// prefix contains the address, and whose life could reach the instant,
+// blocks a certain answer. A nested prefix routed to another session is such
+// a competing claim.
+async function countOverlappingUnverifiedIpv6Sessions(organizationId, lookup, matched) {
+  const prefixes = containingIpv6Prefixes(lookup.ip_address);
+  const [rows] = await db.query(
+    `SELECT COUNT(*) AS blockers
+       FROM connection_logs cl
+      WHERE cl.organization_id = ?
+        AND ${ipv6Containment('cl', SESSION_V6, prefixes)}
+        AND cl.id <> ?
+        AND cl.event_at <= ?
+        AND (
+          (cl.event_type = 'stop' AND COALESCE(cl.last_accounting_at, cl.event_at) >= ?)
+          OR (cl.event_type <> 'stop' AND cl.event_at >= ?)
+        )`,
+    [organizationId, ...ipv6ContainmentParams(lookup, prefixes, 2), Number(matched.connection_log_id),
+      lookup.observed_at, lookup.observed_at, matched.assignment_evidence_event_at],
+  );
+  return Number(rows[0]?.blockers || 0);
+}
+
+// Which part of the session held the address, most specific first: the name
+// of the attribution field that holds it.
+function ipv6MatchedBy(row, address) {
+  if (row.ipv6_address && canonicalIpv6(row.ipv6_address) === address) return 'ipv6_address';
+  const prefixes = new Set(containingIpv6Prefixes(address));
+  if (row.ipv6_delegated_prefix && prefixes.has(row.ipv6_delegated_prefix)) return 'ipv6_delegated_prefix';
+  if (row.framed_ipv6_prefix && prefixes.has(row.framed_ipv6_prefix)) return 'framed_ipv6_prefix';
+  return null;
+}
+
 function directAttribution(organizationId, row) {
   const certainFrom = new Date(Math.max(
     new Date(row.assignment_evidence_event_at).getTime(),
@@ -1280,7 +1451,15 @@ function directAttribution(organizationId, row) {
     username: row.username,
     radius_session_id: row.radius_session_id,
     session_instance_id: row.session_instance_id,
-    public_ipv4: row.public_ipv4,
+    public_ipv4: row.public_ipv4 ?? null,
+    ip_address: row.ip_address ?? row.public_ipv4,
+    ip_version: row.ip_version ?? 4,
+    ...(row.ip_version === 6 ? {
+      ipv6_matched_by: row.ipv6_matched_by,
+      ipv6_delegated_prefix: row.ipv6_delegated_prefix || null,
+      framed_ipv6_prefix: row.framed_ipv6_prefix || null,
+      ipv6_address: row.ipv6_address || null,
+    } : {}),
     assigned_at: new Date(row.assigned_at).toISOString(),
     released_at: row.released_at ? new Date(row.released_at).toISOString() : null,
     certain_from: certainFrom.toISOString(),
@@ -1310,9 +1489,16 @@ async function lookupAttribution(organizationId, body, { actorId = null, pin = t
   const authorizedCase = await loadAuthorizedCase(organizationId, lookup);
   // The approved case tuple selects exactly one evidence path. A tuple-less
   // case is direct-public; a complete port/protocol tuple is CGNAT.
-  const directRowsPromise = lookup.public_port === null
-    ? findDirectAssignments(organizationId, lookup)
-    : Promise.resolve([]);
+  // IPv6 has no CGNAT: its only evidence path is a direct assignment.
+  const directRowsPromise = lookup.ip_version === 6
+    ? findDirectIpv6Assignments(organizationId, lookup)
+      .then(found => found.map(row => ({
+        ...row, ip_version: 6, ip_address: lookup.ip_address, public_ipv4: null,
+        ipv6_matched_by: ipv6MatchedBy(row, lookup.ip_address),
+      })))
+    : lookup.public_port === null
+      ? findDirectAssignments(organizationId, lookup)
+      : Promise.resolve([]);
   let rows = [];
   if (lookup.public_port !== null) {
     const liveness = Math.min(Math.max(
@@ -1426,6 +1612,8 @@ async function lookupAttribution(organizationId, body, { actorId = null, pin = t
   const directRows = await directRowsPromise;
   const candidates = rows;
   const query = {
+    ip_address: lookup.ip_address,
+    ip_version: lookup.ip_version,
     public_ipv4: lookup.public_ipv4,
     public_port: lookup.public_port,
     protocol: lookup.protocol === null ? null : PROTOCOL_NAMES[lookup.protocol],
@@ -1452,22 +1640,25 @@ async function lookupAttribution(organizationId, body, { actorId = null, pin = t
     return { ...base, status: 'ambiguous', reason: 'multiple_attribution_candidates', candidate_count: totalCandidates, attributionMethod: null };
   }
   if (directRows.length === 1) {
-    const blockers = await countOverlappingUnverifiedSessions(organizationId, lookup, directRows[0]);
+    const blockers = lookup.ip_version === 6
+      ? await countOverlappingUnverifiedIpv6Sessions(organizationId, lookup, directRows[0])
+      : await countOverlappingUnverifiedSessions(organizationId, lookup, directRows[0]);
     if (blockers > 0) {
       return { ...base, status: 'ambiguous', reason: 'overlapping_unverified_session', candidate_count: 1 + blockers, attributionMethod: null };
     }
     const attribution = directAttribution(organizationId, directRows[0]);
     assertAuthorizedCaseSubject(authorizedCase, attribution);
     let evidenceSnapshotHash = null;
+    const directType = lookup.ip_version === 6 ? 'direct_ipv6_assignment' : 'direct_public_assignment';
     if (pin) evidenceSnapshotHash = await pinCaseEvidence(organizationId, lookup.gov_data_request_id, actorId, lookup, {
-      evidenceType: 'direct_public_assignment',
+      evidenceType: directType,
       connectionLogId: attribution.connection_log_id,
       sourceIntegrityHash: attribution.evidence_hash,
       evidenceSnapshot: attribution,
     });
     return {
       ...base, status: 'matched', reason: null, candidate_count: 1,
-      attributionMethod: 'direct_public_assignment', attribution,
+      attributionMethod: directType, attribution,
       evidence_snapshot_hash: evidenceSnapshotHash,
     };
   }
@@ -1577,7 +1768,8 @@ function attributionToCsv(result) {
     'attribution_method', 'evidence_snapshot_hash',
     'authority_name', 'authority_ref', 'legal_reviewed_at', 'legal_reviewed_by',
     'legal_basis_hash', 'request_row_hash',
-    'public_ipv4', 'public_port', 'protocol', 'observed_at',
+    'ip_address', 'ip_version', 'public_ipv4', 'public_port', 'protocol', 'observed_at',
+    'ipv6_matched_by', 'ipv6_delegated_prefix', 'framed_ipv6_prefix', 'ipv6_address',
     'connection_log_id', 'binding_id', 'binding_type', 'client_id',
     'client_name', 'contract_id', 'username', 'radius_session_id',
     'session_instance_id', 'private_ipv4', 'private_port_start', 'private_port_end',
@@ -2057,6 +2249,7 @@ module.exports = {
   normalizeLookup,
   normalizeProtocol,
   isGloballyRoutableIpv4,
+  isGloballyRoutableIpv6,
   ingestBatch,
   lookupAttribution,
   attributionToCsv,

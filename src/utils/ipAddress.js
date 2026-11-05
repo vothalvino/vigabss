@@ -20,7 +20,10 @@ function canonicalIpv6Prefix(value) {
   if (!Number.isInteger(prefixLength) || prefixLength < 0 || prefixLength > 128) {
     throw new TypeError('Invalid IPv6 prefix length');
   }
-  return `${canonicalIpv6(match[1])}/${prefixLength}`;
+  // A prefix is its network: bits past the length are zero (RFC 3162 and
+  // RFC 4818 require it). Normalizing them here means a NAS that sends host
+  // bits anyway still stores the prefix containingIpv6Prefixes() matches.
+  return `${networkOf(match[1], prefixLength)}/${prefixLength}`;
 }
 
 /** Canonicalize valid IPs for exact equality across equivalent text forms. */
@@ -60,6 +63,38 @@ function bigIntToIpv6(n) {
   return canonicalIpv6(groups.join(':'));
 }
 
+const ALL_ONES = (1n << 128n) - 1n;
+function maskOf(length) {
+  return length === 0 ? 0n : (ALL_ONES << BigInt(128 - length)) & ALL_ONES;
+}
+
+function networkOf(address, length) {
+  return bigIntToIpv6(ipv6ToBigInt(address) & maskOf(length));
+}
+
+function inPrefix(n, network, length) {
+  return (n & maskOf(length)) === (ipv6ToBigInt(network) & maskOf(length));
+}
+
+// Inside global unicast 2000::/3, ranges that never name one subscriber:
+// documentation (2001:db8::/32, 3fff::/20), IETF protocol assignments
+// (2001::/23, which holds Teredo and ORCHID), and 6to4 (2002::/16), whose
+// address embeds someone else's IPv4 address.
+const NOT_A_SUBSCRIBER_V6 = [['2001:db8::', 32], ['3fff::', 20], ['2001::', 23], ['2002::', 16]];
+
+/**
+ * Whether `value` is a globally routable IPv6 unicast address an ISP could
+ * have assigned to a subscriber: inside 2000::/3 and outside the ranges above.
+ * Link-local, unique-local, multicast, loopback and IPv4-mapped addresses are
+ * all outside 2000::/3.
+ */
+function isGloballyRoutableIpv6(value) {
+  if (typeof value !== 'string' || net.isIP(value.trim()) !== 6) return false;
+  const n = ipv6ToBigInt(value.trim());
+  if (!inPrefix(n, '2000::', 3)) return false;
+  return !NOT_A_SUBSCRIBER_V6.some(([network, length]) => inPrefix(n, network, length));
+}
+
 /**
  * Every canonical "network/length" prefix, for lengths minLength..maxLength,
  * that contains `address`. connection_logs stores IPv6 prefixes canonical, so
@@ -67,13 +102,13 @@ function bigIntToIpv6(n) {
  */
 function containingIpv6Prefixes(address, { minLength = 0, maxLength = 128 } = {}) {
   const n = ipv6ToBigInt(address);
-  const all = (1n << 128n) - 1n;
   const out = [];
   for (let len = minLength; len <= maxLength; len++) {
-    const mask = len === 0 ? 0n : (all << BigInt(128 - len)) & all;
-    out.push(`${bigIntToIpv6(n & mask)}/${len}`);
+    out.push(`${bigIntToIpv6(n & maskOf(len))}/${len}`);
   }
   return out;
 }
 
-module.exports = { canonicalIpv6, canonicalIpv6Prefix, normalizeIpAddress, containingIpv6Prefixes };
+module.exports = {
+  canonicalIpv6, canonicalIpv6Prefix, normalizeIpAddress, containingIpv6Prefixes, isGloballyRoutableIpv6,
+};
