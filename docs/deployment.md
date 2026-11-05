@@ -1799,7 +1799,7 @@ DB_POOL_SIZE=10
 **Rule of thumb:** `(DB_POOL_SIZE + DB_LOCK_POOL_SIZE + DB_ACCOUNTING_POOL_SIZE) × number_of_instances` should not exceed 80% of MySQL's `max_connections`.
 
 `DB_ACCOUNTING_POOL_SIZE` (default 5) is a separate pool for RADIUS
-accounting (`POST /api/v1/radius/accounting`). Accounting arrives in bursts
+accounting (`POST /api/v1/radius/accounting/tenant`). Accounting arrives in bursts
 (a NAS that reboots reports every session at once); from its own pool a burst
 waits for accounting connections only, instead of queueing staff requests
 behind it. An isolated tenant's accounting still uses that tenant's pool.

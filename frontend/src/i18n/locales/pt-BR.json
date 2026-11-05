@@ -2446,7 +2446,7 @@
         "accounting_embedded_not_running": "A contabilização RADIUS integrada está habilitada, mas o servidor não está em execução.",
         "accounting_waiting": "A ingestão de contabilização está configurada, mas nenhum registro foi recebido nas últimas 24 horas.",
         "accounting_not_configured_isolated": "Nenhum registro de contabilização chegou a este banco de dados isolado. Use um feed de contabilização local do tenant.",
-        "accounting_not_configured": "Nenhum feed de contabilização está configurado. Habilite o RADIUS integrado ou configure o endpoint de contabilização FreeRADIUS com segredo compartilhado."
+        "accounting_not_configured": "Nenhum feed de contabilização está configurado. Habilite o RADIUS integrado ou crie um token de API connection_logs:ingest para o FreeRADIUS."
       }
     },
     "reasons": {

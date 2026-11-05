@@ -1,16 +1,13 @@
 // =============================================================================
 // VigaBSS 5.0 — PPPoE Diagnostics + Event Ingest Routes
 // =============================================================================
-// Mixed-auth router:
-//   - POST /events: machine-to-machine shared-secret auth (no JWT), for an
-//     operator-run collector that serves the whole installation
+// Every route authenticates (JWT or organization API token) and is org-scoped:
 //   - POST /events/tenant: an organization API token holding only
 //     pppoe_events:ingest; the NAS must belong to the token's organization
 //   - GET  /events, /diagnostics/*: JWT authenticate + orgScope + requirePermission
 // =============================================================================
 
 const { Router } = require('express');
-const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
@@ -25,42 +22,6 @@ const PppoeEventLog = require('../models/PppoeEventLog');
 const { CacheStore, apiTokenConfiguredLimiter } = require('../middleware/rateLimit');
 
 const router = Router();
-
-// ---------------------------------------------------------------------------
-// Machine-to-machine secret auth helper
-// ---------------------------------------------------------------------------
-
-/**
- * Verify the shared secret for M2M event ingest.
- * Checks X-Pppoe-Secret header or Authorization: Bearer <secret>.
- */
-function verifyEventsSecret(req) {
-  // Its own secret only: sharing RADIUS_ACCOUNTING_SECRET would let every
-  // holder of the accounting secret write PPPoE events for any tenant.
-  const secret = process.env.PPPOE_EVENTS_SECRET;
-  if (!secret) return false;
-
-  const headerSecret = req.headers['x-pppoe-secret'];
-  const authHeader = req.headers['authorization'];
-  const expectedBuffer = Buffer.from(String(secret));
-  const candidates = [
-    headerSecret,
-    authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null,
-  ];
-  return candidates.some((candidate) => {
-    if (!candidate) return false;
-    const providedBuffer = Buffer.from(String(candidate));
-    return expectedBuffer.length === providedBuffer.length
-      && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
-  });
-}
-
-function requireEventsSecret(req, res, next) {
-  if (!verifyEventsSecret(req)) {
-    return res.status(401).json({ error: 'Invalid or missing X-Pppoe-Secret' });
-  }
-  next();
-}
 
 /** Store one validated event for a NAS whose organization is already known. */
 async function recordEvent(nas, body) {
@@ -94,39 +55,7 @@ function unknownNasError() {
 }
 
 // ---------------------------------------------------------------------------
-// POST /pppoe/events — M2M event log ingest (no JWT required)
-// ---------------------------------------------------------------------------
-
-router.post('/events', requireEventsSecret, validatePppoeEvent, async (req, res, next) => {
-  try {
-    const { nas_id: nasId } = req.body;
-    const [nasRows] = await db.query(
-      `SELECT n.id, n.organization_id
-         FROM nas n
-        WHERE n.id = ?
-          AND n.status = 'active'
-          AND n.deleted_at IS NULL
-          AND NOT EXISTS (
-            SELECT 1
-              FROM organization_database_configs odc
-             WHERE odc.organization_id = n.organization_id
-               AND odc.isolation_mode = 'isolated'
-          )
-        LIMIT 1`,
-      [nasId],
-    );
-    const nas = nasRows[0];
-    if (!nas || nas.organization_id === null) throw unknownNasError();
-
-    const record = await recordEvent(nas, req.body);
-    return res.status(201).json({ data: record });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Authenticated routes (JWT + orgScope) — must come after the M2M POST
+// Authenticated routes (JWT + orgScope)
 // ---------------------------------------------------------------------------
 
 router.use(authenticate);

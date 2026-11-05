@@ -145,9 +145,7 @@ currently requires active NAS addresses and RADIUS usernames to remain unique
 installation-wide because the embedded/source-only listeners and stock
 FreeRADIUS `radcheck`/`radreply` tables are not tenant-keyed. Physically isolated
 tenant databases may reuse those values safely through their tenant-bound
-token. The legacy shared-secret endpoint,
-`POST /api/v1/radius/accounting`, remains available only when
-`NAS-IP-Address` identifies exactly one active NAS across the installation.
+token.
 See the complete [`rlm_rest` example](freeradius/README.md#radius-accounting-ingest-rlm_rest).
 
 ---

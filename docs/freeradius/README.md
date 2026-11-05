@@ -207,12 +207,11 @@ Before enabling isolation, apply the complete schema and copy the organization's
 tenant-owned data; an empty schema is not a usable cutover. See
 [Per-tenant database isolation](../tenant-database-isolation.md).
 
-The embedded UDP listener and compatibility shared-secret HTTP endpoint scan
-the shared primary plus active isolated database contexts and accept a NAS
-address only when it has exactly one active match across the installation. This
-fails closed safely, but reused RFC1918 NAS addresses make those paths
-unavailable. Prefer the tenant-token endpoint; use a distinct public or
-WireGuard source address if the embedded listener is required.
+The embedded UDP listener scans the shared primary plus active isolated
+database contexts and accepts a NAS address only when it has exactly one active
+match across the installation. This fails closed safely, but reused RFC1918 NAS
+addresses make it unavailable. Use the tenant-token endpoint, or a distinct
+public or WireGuard source address if the embedded listener is required.
 
 ---
 
@@ -495,19 +494,7 @@ technician have it), and `nas_id` must be an active NAS of the token's
 organization. Each token has its own budget,
 `PPPOE_EVENTS_REQUESTS_PER_MINUTE` (default 6000).
 
-A connector the install operator runs for the whole installation can use the
-shared secret instead:
-
-```text
-POST /api/v1/pppoe/events
-X-Pppoe-Secret: <PPPOE_EVENTS_SECRET>
-Content-Type: application/json
-```
-
-`PPPOE_EVENTS_SECRET` is install-wide: whoever holds it can write events for
-any shared-database tenant's NAS, so never give it to a tenant. The endpoint
-fails closed when it is not set; it does not reuse `RADIUS_ACCOUNTING_SECRET`.
-Both paths share the collector limiter (`RATE_LIMIT_COLLECTOR_INGRESS_PER_MINUTE`)
+The endpoint uses the collector limiter (`RATE_LIMIT_COLLECTOR_INGRESS_PER_MINUTE`)
 instead of the general API budget.
 
 Raw-line payload (VigaBSS parses stage/severity/reason and derives username/MAC
@@ -547,9 +534,7 @@ accounting, plus configured RouterOS NAS coverage. An empty diagnostic list is
 trustworthy only when its source is `ready`; `waiting`/`not_configured` means
 the feed may be incomplete. The global RouterOS collector fans out through
 isolated tenant database contexts, as does the scheduled authentication-failure
-alert scan. The optional shared-secret `/pppoe/events` endpoint still resolves
-NAS IDs only in the primary database and is not an isolated-tenant ingest path;
-RADIUS accounting instead has the organization-token endpoint described below.
+alert scan.
 
 ---
 
@@ -582,17 +567,6 @@ RADIUS usernames must remain installation-wide unique inside one shared
 database because source-only listeners and the stock FreeRADIUS compatibility
 tables are not tenant-keyed. Those values may be reused across physically
 isolated tenant databases, where this token fixes the database context.
-
-### Compatibility shared-secret endpoint
-
-`POST /api/v1/radius/accounting` remains available for staged upgrades. It uses
-`X-Radius-Secret` or `Authorization: Bearer` with
-`RADIUS_ACCOUNTING_SECRET`, and is disabled with HTTP 503 when that setting is
-unset. The caller cannot name an organization: VigaBSS scans shared and active
-isolated database contexts and accepts the request only when
-`NAS-IP-Address` identifies exactly one active NAS installation-wide. Unknown
-or ambiguous addresses fail closed. Do not use this path where private NAS
-addresses may be reused.
 
 ### FreeRADIUS rlm_rest configuration
 
@@ -723,11 +697,9 @@ across the primary and active isolated database contexts.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `RADIUS_ACCOUNTING_SECRET` | _(unset)_ | Enables only the compatibility shared-secret endpoint |
 | `RADIUS_ACCOUNTING_RETENTION_MONTHS` | `24` | Calendar months for projections, lifecycle evidence, and usage rollups |
 | `RADIUS_ACCOUNTING_REQUESTS_PER_MINUTE` | `6000` | Tenant-endpoint requests per token/minute; clamped to 1–60,000 |
 | `RADIUS_ACCOUNTING_MAX_CLOCK_SKEW_SECONDS` | `300` | Accepted future Event-Timestamp skew; capped at 3,600 seconds |
-| `PPPOE_EVENTS_SECRET` | _(unset)_ | Install-wide secret for `POST /pppoe/events`; unset disables it |
 | `PPPOE_EVENTS_REQUESTS_PER_MINUTE` | `6000` | Per-token budget for `POST /pppoe/events/tenant` |
 | `PPPOE_EVENT_POLL_LIMIT` | `500` | Newest RouterOS log records considered per NAS poll (clamped 50–1,000) |
 | `RETENTION_RADPOSTAUTH_DAYS` | `90` | Days to retain post-authentication diagnostics (`radpostauth.authdate`) |

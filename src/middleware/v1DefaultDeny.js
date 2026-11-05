@@ -25,8 +25,6 @@ const PUBLIC_V1_ROUTES = [
   ['GET', /^\/firerelay\/health$/, 'relay agents: requireRelayToken'],
   ['*', /^\/sso\/[^/]+\/(saml|oidc)\//, 'SSO browser flow before a session exists'],
   ['GET', /^\/changelog$/, 'public release notes'],
-  ['POST', /^\/pppoe\/events$/, 'router event collector: requireEventsSecret'],
-  ['POST', /^\/radius\/accounting$/, 'RADIUS accounting collector, authenticated in the handler'],
 ];
 
 function isPublicV1Route(method, path) {

@@ -103,22 +103,5 @@ describe('radius_accounting_requests_total', () => {
       'radius_accounting_requests_total{status_type="other",result="rejected"} 1',
     ]));
   });
-
-  test('the accounting route records each answered request', async () => {
-    const spy = jest.spyOn(ops, 'noteRadiusAccounting');
-    const app = express();
-    app.use(express.json());
-    app.use('/radius', require('../src/routes/radiusAccounting'));
-    const previous = process.env.RADIUS_ACCOUNTING_SECRET;
-    process.env.RADIUS_ACCOUNTING_SECRET = 'right-secret';
-    try {
-      const res = await request(app).post('/radius/accounting').set('X-Radius-Secret', 'wrong').send({ 'Acct-Status-Type': 'Start' });
-      expect(res.status).toBe(401);
-      await new Promise(r => setImmediate(r));
-      expect(spy).toHaveBeenCalledWith('Start', 401);
-    } finally {
-      if (previous === undefined) delete process.env.RADIUS_ACCOUNTING_SECRET;
-      else process.env.RADIUS_ACCOUNTING_SECRET = previous;
-    }
-  });
+  // The route that records it: tests/radiusTenantAccounting.test.js.
 });
