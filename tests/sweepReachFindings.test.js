@@ -120,3 +120,16 @@ test('the coverage-zone list returns a boundary mysql2 already decoded', async (
   expect(res.body.data[0].boundary).toEqual(boundary);
 });
 
+test('a support channel\'s first save takes the column defaults for what was not sent', async () => {
+  rows.support_channel_configs = [{ id: 1, organization_id: ORG, channel: 'web' }];
+  const res = await call('put', '/support/channels/web', { webhookUrl: 'https://hooks.example.com/x' });
+  expect(res.status).toBe(200);
+  const upsert = inserts('support_channel_configs')[0];
+  expect(upsert.sql).toMatch(/VALUES \(\?, \?, COALESCE\(\?, 1\), \?, COALESCE\(\?, 'queue'\)/);
+  // The update half keeps stored values: it never reads VALUES(), which on
+  // a first save would be the defaults.
+  expect(upsert.sql).not.toMatch(/VALUES\(is_enabled\)/);
+  expect(upsert.params).toEqual([ORG, 'web', null, null, null, 'https://hooks.example.com/x', null,
+    null, null, null, 'https://hooks.example.com/x', null]);
+});
+
