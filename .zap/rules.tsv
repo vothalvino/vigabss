@@ -31,3 +31,11 @@
 # regenerator-runtime). These are reviewed via SBOM + Trivy (P1.5); they are
 # not in application code.
 10110	IGNORE	(Third-party bundle internals; covered by Trivy/SBOM scan)
+
+# 10049 — Storable and Cacheable Content / Non-Storable Content
+# Rationale: an informational rule that reports every response's cacheability
+# in one of three variants, so it raises something on every scan whatever the
+# headers say. INFO keeps it in the report without failing the build. The
+# policy it points at is pinned instead: API answers and the JSON 404 send
+# Cache-Control: private, no-store (tests/securityHeaders.test.js).
+10049	INFO	(Cacheability report; no-store pinned by securityHeaders.test.js)

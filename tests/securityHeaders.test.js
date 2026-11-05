@@ -159,4 +159,8 @@ describe('the DAST gate blocks', () => {
     const rules = read('.zap/rules.tsv').split('\n').filter(l => /^\d+\t/.test(l)).map(l => l.split('\t')[0]);
     expect(rules).not.toContain('10063');
   });
+
+  it('the cacheability report stays visible: INFO, not IGNORE', () => {
+    expect(read('.zap/rules.tsv')).toMatch(/\n10049\tINFO\t/);
+  });
 });
