@@ -8,12 +8,11 @@
 const crypto = require('crypto');
 const { noteAutopayCharge } = require('../utils/opsMetrics');
 const db = require('../config/database');
-const { creditAppliedSql } = require('../utils/invoiceBalance');
+const { paidOrCreditedSql } = require('../utils/invoiceBalance');
 
 // What is still owed: an online payment charges this, not the invoice total,
 // so a partly paid or credited invoice is not charged again for that part.
-const BALANCE_DUE_SQL = `(i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                          WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) - ${creditAppliedSql('i')}) AS balance_due`;
+const BALANCE_DUE_SQL = `(i.total - ${paidOrCreditedSql('i')}) AS balance_due`;
 const config = require('../config');
 const paymentGatewayService = require('./paymentGatewayService');
 const paymentRetryService = require('./paymentRetryService');
