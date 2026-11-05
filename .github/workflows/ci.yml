@@ -77,10 +77,17 @@ jobs:
         # stylesheet, pdfkit, fast-xml-parser) that crossed Node's 4GB default
         # heap. The 6 GiB ceiling was exhausted after migration 457; hosted
         # ubuntu-latest runners have 16 GiB, so leave headroom for the OS while
-        # giving the single coverage process 10 GiB.
+        # giving the coverage process 10 GiB.
+        #
+        # Three workers, not --detectOpenHandles: that flag forces jest to run
+        # every suite in one process, and with --forceExit it only prints what
+        # it finds, so it cost ~10 of this job's 14 minutes and could never
+        # fail it. The leak report runs weekly instead (test-diagnostics.yml).
+        # Workers recycle past 1 GB idle (jest.config.js), so the coverage
+        # process plus three workers stays well inside the runner's memory.
         env:
           NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169 --max-old-space-size=10240
-        run: pnpm exec jest --detectOpenHandles --forceExit --ci --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+        run: pnpm exec jest --forceExit --ci --maxWorkers=3 --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
       - name: Check coverage threshold
         # Reads the summary the main run already produced — this used to
