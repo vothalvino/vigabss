@@ -11,7 +11,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createSnmpProfile, updateSnmpProfile, createSnmpProfileOid } = require('../middleware/schemas/snmpProfiles');
 const db = require('../config/database');
-const { rejectOrgReassignment, adoptUnattributed } = require('../utils/orgAdoption');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const { AppError } = require('../utils/errors');
 
 const router = Router();
@@ -20,11 +20,12 @@ const ctrl = crudController(SnmpProfile);
 router.use(authenticate);
 router.use(orgScope);
 
-// A profile the tenant may SEE: its own, a system profile that ships with
-// VigaBSS, or an unattributed legacy row. BaseModel cannot express this — with
+// A profile the tenant may SEE: its own, or a system profile that ships with
+// VigaBSS (organization_id NULL, is_system = 1; migration 525 marked every
+// shipped profile). BaseModel cannot express this — with
 // hasOrgScope true it emits a bare `organization_id = ?`, which would hide the
 // whole vendor library and leave every install with an empty profile list.
-const VISIBLE = '(p.organization_id = ? OR p.organization_id IS NULL)';
+const VISIBLE = '(p.organization_id = ? OR (p.organization_id IS NULL AND p.is_system = 1))';
 
 router.get('/', requirePermission('snmp_profiles.view'), async (req, res, next) => {
   try {
@@ -39,10 +40,9 @@ router.get('/', requirePermission('snmp_profiles.view'), async (req, res, next) 
     const safePage = Math.max(1, parseInt(page, 10) || 1);
     const clause = `WHERE ${where.join(' AND ')}`;
 
-    // is_system tells the UI why a visible row cannot be edited, and
-    // is_unattributed why one has no owner — same idea as #566 / #582 / #599.
+    // is_system tells the UI why a visible row cannot be edited.
     const [rows] = await db.query(
-      `SELECT p.*, (p.organization_id IS NULL AND p.is_system = 0) AS is_unattributed
+      `SELECT p.*
          FROM snmp_profiles p ${clause}
         ORDER BY p.is_system DESC, p.name ASC
         LIMIT ${safeLimit} OFFSET ${(safePage - 1) * safeLimit}`,
@@ -61,8 +61,8 @@ router.get('/', requirePermission('snmp_profiles.view'), async (req, res, next) 
 router.get('/:id', requirePermission('snmp_profiles.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT p.*, (p.organization_id IS NULL AND p.is_system = 0) AS is_unattributed
-         FROM snmp_profiles p WHERE p.id = ? AND ${VISIBLE} AND p.deleted_at IS NULL LIMIT 1`,
+      `SELECT p.*
+         FROM snmp_profiles p WHERE p.id = ? AND (p.organization_id = ? OR (p.organization_id IS NULL AND p.is_system = 1)) AND p.deleted_at IS NULL LIMIT 1`,
       [req.params.id, req.orgId],
     );
     if (!rows[0]) {
@@ -100,13 +100,11 @@ async function rejectSystemProfile(req, res, next) {
   } catch (err) { next(err); }
 }
 
-const rejectMove = rejectOrgReassignment('SNMP profile');
-const adopt = adoptUnattributed('snmp_profiles', 'SNMP profile');
 
 router.post('/', requirePermission('snmp_profiles.create'), validate(createSnmpProfile, { strip: false }), ctrl.create);
-router.put('/:id', requirePermission('snmp_profiles.update'), rejectSystemProfile, rejectMove, validate(updateSnmpProfile, { strip: false }), adopt, ctrl.update);
-router.delete('/:id', requirePermission('snmp_profiles.delete'), rejectSystemProfile, adopt, ctrl.destroy);
-router.post('/:id/restore', requirePermission('snmp_profiles.update'), rejectSystemProfile, adopt, ctrl.restore);
+router.put('/:id', requirePermission('snmp_profiles.update'), rejectSystemProfile, rejectOrgReassignment, validate(updateSnmpProfile, { strip: false }), ctrl.update);
+router.delete('/:id', requirePermission('snmp_profiles.delete'), rejectSystemProfile, ctrl.destroy);
+router.post('/:id/restore', requirePermission('snmp_profiles.update'), rejectSystemProfile, ctrl.restore);
 
 // ---------------------------------------------------------------------------
 // OIDs belonging to a profile
@@ -126,7 +124,7 @@ async function requireVisibleProfile(req, res, next) {
   try {
     const [rows] = await db.query(
       `SELECT id FROM snmp_profiles p
-        WHERE p.id = ? AND ${VISIBLE} AND p.deleted_at IS NULL LIMIT 1`,
+        WHERE p.id = ? AND (p.organization_id = ? OR (p.organization_id IS NULL AND p.is_system = 1)) AND p.deleted_at IS NULL LIMIT 1`,
       [req.params.id, req.orgId],
     );
     if (!rows.length) {

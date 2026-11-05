@@ -254,8 +254,7 @@ function crudController(Model, _options = {}) {
     // The check belongs here, once, where every one of them passes through.
     //
     // Only `update` is guarded, never `create` — create legitimately injects
-    // organization_id a few lines below, and adoption of an unattributed row
-    // is a direct db.query that does not come through here.
+    // organization_id a few lines below.
     if (
       Model.hasOrgScope
       && req.body

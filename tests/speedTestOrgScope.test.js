@@ -10,10 +10,11 @@
 // another tenant's records — which are the SLA evidence for whether a service
 // met its contracted rate.
 //
-// Migration 438 adds organization_id, backfilled from client, then contract,
-// then device. Rows with none of the three stay NULL — legacy only, since
-// every new row is stamped at creation — and are ADOPTED by the first tenant
-// that writes to one.
+// Migration 438 added organization_id. Every row is stamped at creation (the
+// API with the caller's org, commissioning with the work order's), so reads
+// and writes are both strictly `organization_id = ?`. The NULL-org
+// "unattributed" rows a backfill could leave on an upgraded install, and the
+// adoption step for them, were removed before the first install.
 //
 // 438 also gives tested_at a DEFAULT. It was TIMESTAMP NOT NULL with no
 // default and MySQL 8 ships explicit_defaults_for_timestamp = ON, so
@@ -43,7 +44,6 @@ const token = () => jwt.sign({ sub: 1, email: 'a@b.c', role: 'admin', orgId: 1 }
 const auth = (r) => r.set('Authorization', `Bearer ${token()}`);
 
 const MINE = { id: 10, organization_id: 1, client_id: 5, download_mbps: '95.500', test_source: 'technician' };
-const LEGACY = { id: 11, organization_id: null, client_id: null, contract_id: null, device_id: null, download_mbps: '10.000', test_source: 'automated_probe' };
 
 function wireDb({ rows = [MINE], targetOrg = 1 } = {}) {
   db.query.mockImplementation(async (sql) => {
@@ -63,22 +63,12 @@ const listSql = () => db.query.mock.calls.find(([s]) => /FROM speed_tests st/.te
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('reads admit my org AND unattributed rows', () => {
-  it('never emits a bare organization_id = ?', async () => {
-    // The #582 anti-fix: a bare predicate hides every unattributed row, so a
-    // single-tenant install — where clients/contracts/devices legitimately
-    // carry a NULL org — sees an empty page and concludes it has no data.
+describe('reads are strictly scoped to my org', () => {
+  it('lists only my organization\'s speed tests', async () => {
     wireDb();
     await auth(request(app).get('/api/v1/speed-tests'));
-    expect(listSql()[0]).toMatch(/organization_id = \? OR st\.organization_id IS NULL/);
-    expect(listSql()[0]).not.toMatch(/WHERE st\.organization_id = \?[^ ]/);
-  });
-
-  it('flags an unattributed row so the UI can explain it', async () => {
-    wireDb({ rows: [LEGACY] });
-    const res = await auth(request(app).get('/api/v1/speed-tests'));
-    expect(res.status).toBe(200);
-    expect(listSql()[0]).toMatch(/IS NULL\) AS is_unattributed/);
+    expect(listSql()[0]).toMatch(/WHERE st\.organization_id = \? AND/);
+    expect(listSql()[0]).not.toMatch(/organization_id IS NULL|is_unattributed/);
   });
 
   it('binds the org before any filter, so the predicates cannot swap', async () => {
@@ -106,7 +96,8 @@ describe('reads admit my org AND unattributed rows', () => {
     const res = await auth(request(app).get('/api/v1/speed-tests/999'));
     expect(res.status).toBe(404);
     const one = db.query.mock.calls.find(([s]) => /FROM speed_tests st WHERE st\.id = \?/.test(s));
-    expect(one[0]).toMatch(/organization_id = \? OR st\.organization_id IS NULL/);
+    expect(one[0]).toMatch(/AND st\.organization_id = \? AND/);
+    expect(one[0]).not.toMatch(/organization_id IS NULL/);
   });
 });
 
@@ -119,7 +110,7 @@ describe('writes are strictly scoped', () => {
     expect(db.query.mock.calls.some(([s]) => /^UPDATE `?speed_tests`?/i.test(s))).toBe(false);
   });
 
-  it('nor made unattributed again by setting it null', async () => {
+  it('nor have its organization cleared', async () => {
     wireDb();
     const res = await auth(request(app).put('/api/v1/speed-tests/10')).send({ organization_id: null });
     expect(res.status).toBe(422);
@@ -169,25 +160,12 @@ describe('the WRITE predicate itself, not just the route guards', () => {
   });
 });
 
-describe('an unattributed legacy row is adopted, not blocked', () => {
-  it('writing to one stamps the acting org first', async () => {
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    await auth(request(app).put('/api/v1/speed-tests/11')).send({ notes: 'reviewed' });
-
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /^UPDATE speed_tests SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeDefined();
-    expect(adopt[1][0]).toBe(1);
-  });
-
-  it('does NOT touch a row that already has an owner', async () => {
-    // Adoption must never re-home another tenant's record.
+describe('nothing adopts a row', () => {
+  it('writes never re-home a speed test', async () => {
     wireDb({ rows: [MINE], targetOrg: 2 });
     await auth(request(app).put('/api/v1/speed-tests/10')).send({ notes: 'x' });
-    expect(db.query.mock.calls.some(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    )).toBe(false);
+    await auth(request(app).delete('/api/v1/speed-tests/10')).send();
+    expect(db.query.mock.calls.some(([s]) => /SET organization_id = \?/.test(s))).toBe(false);
   });
 });
 
@@ -331,33 +309,6 @@ describe('POST /speed-tests works at all', () => {
   });
 });
 
-describe('a REJECTED request must not transfer ownership', () => {
-  it('does not adopt when validation fails', async () => {
-    // Adoption is a committed write with no transaction around it. Mounted
-    // ahead of validate(), a request that then 422s STILL took the row: it
-    // vanishes from every other tenant's list, their PUT/DELETE 404, and no
-    // route can hand it back. A failed request must not have permanent side
-    // effects, least of all ownership ones.
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    const res = await auth(request(app).put('/api/v1/speed-tests/11')).send({ download_mbps: -1 });
-    expect(res.status).toBe(422);
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeUndefined();
-  });
-
-  it('still adopts when the request is valid', async () => {
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    await auth(request(app).put('/api/v1/speed-tests/11')).send({ notes: 'ok' });
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeDefined();
-  });
-});
-
-
 // ---------------------------------------------------------------------------
 // A measurement may only reference the caller's OWN client/contract/device
 // ---------------------------------------------------------------------------
@@ -410,8 +361,7 @@ describe('forged references are refused', () => {
     // predicate deleted — found by mutation testing, which is the whole reason
     // this line exists.
     expect(probe[0]).toMatch(/organization_id = \?/);
-    expect(probe[0]).toMatch(/\? IS NULL AND organization_id IS NULL/);
-    expect(probe[1]).toEqual([5, 1, 1]);
+    expect(probe[1]).toEqual([5, 1]);
   });
 
   it('accepts references the caller does own', async () => {

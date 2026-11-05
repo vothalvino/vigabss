@@ -788,8 +788,6 @@ describe('SNMP Profile Routes — /api/v1/snmp-profiles', () => {
       db.query
         // migration 440: rejectSystemProfile probe
         .mockResolvedValueOnce([[{ is_system: 0 }]])
-        // migration 440: adoptUnattributed probe (owned → no adopt write)
-        .mockResolvedValueOnce([[{ organization_id: 1 }]])
         .mockResolvedValueOnce([[mockSnmpProfile]])                                    // findByIdOrFail
         .mockResolvedValueOnce([{ affectedRows: 1 }])                                 // UPDATE
         .mockResolvedValueOnce([[{ ...mockSnmpProfile, name: 'MikroTik Default' }]])   // findById
@@ -812,8 +810,6 @@ describe('SNMP Profile Routes — /api/v1/snmp-profiles', () => {
       db.query
         // migration 440: rejectSystemProfile probe
         .mockResolvedValueOnce([[{ is_system: 0 }]])
-        // migration 440: adoptUnattributed probe (owned → no adopt write)
-        .mockResolvedValueOnce([[{ organization_id: 1 }]])
         .mockResolvedValueOnce([[mockSnmpProfile]])    // findByIdOrFail
         .mockResolvedValueOnce([{ affectedRows: 1 }])  // DELETE
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog
