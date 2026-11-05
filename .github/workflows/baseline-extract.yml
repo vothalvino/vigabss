@@ -90,6 +90,25 @@ jobs:
           docker exec db ${{ matrix.dump }} -uroot -pfireisp_test --no-create-info --skip-triggers \
             --complete-insert --skip-extended-insert --hex-blob --skip-comments --skip-dump-date \
             --ignore-table=fireisp_chain.schema_migrations fireisp_chain > out/data-${{ matrix.engine }}.sql
+          # Reviewed exceptions: the chain is wrong there and the baseline right.
+          #   mariadb speed_tests.tested_at: with explicit_defaults_for_timestamp
+          #   OFF (MariaDB 10.6's default) the column got an implicit
+          #   ON UPDATE CURRENT_TIMESTAMP, so 438's guarded MODIFY (explicit
+          #   DEFAULT, no auto-update) was skipped and editing a speed test
+          #   rewrote when it was measured. The baseline declares 438's column.
+          python3 - "${{ matrix.engine }}" out/chain-${{ matrix.engine }}.json <<'PY'
+          import json, sys
+          engine, path = sys.argv[1:]
+          snap = json.load(open(path))
+          if engine == 'mariadb':
+              for c in snap['columns']:
+                  if c['t'] == 'speed_tests' and c['name'] == 'tested_at':
+                      assert c['extra'] == 'on update current_timestamp()', c
+                      c['extra'] = ''
+                      c['comment'] = 'When the test measurement was taken; defaults to insert time for live-recorded tests'
+          json.dump(snap, open(path, 'w'), indent=1)
+          open(path, 'a').write('\n')
+          PY
           if diff -u out/chain-${{ matrix.engine }}.json out/baseline-${{ matrix.engine }}.json > out/diff-${{ matrix.engine }}.txt; then
             echo "✓ Identical: the baseline reproduces the chain on ${{ matrix.engine }}"
           else

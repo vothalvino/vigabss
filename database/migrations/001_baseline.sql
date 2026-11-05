@@ -102,7 +102,7 @@ CREATE TABLE `ai_policies` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `organization_id` bigint unsigned NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Master on/off switch for the AI assistant',
-  `enabled_channels` json NOT NULL DEFAULT (json_object(_utf8mb4'portal',false,_utf8mb4'email',false,_utf8mb4'whatsapp',false,_utf8mb4'sms',false)) COMMENT '{"portal":true,"email":true,"whatsapp":false,"sms":false}',
+  `enabled_channels` json NOT NULL DEFAULT (json_object('portal',false,'email',false,'whatsapp',false,'sms',false)) COMMENT '{"portal":true,"email":true,"whatsapp":false,"sms":false}',
   `mode` enum('draft_only','suggest','auto_send') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft_only',
   `auto_send_confidence` decimal(3,2) NOT NULL DEFAULT '0.85' COMMENT '0.00–1.00 confidence threshold for auto_send mode',
   `default_locale` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'es-MX',
@@ -850,7 +850,7 @@ CREATE TABLE `billing_periods` (
   KEY `idx_billing_periods_scheduled_at` (`scheduled_at`),
   CONSTRAINT `fk_billing_periods_contract` FOREIGN KEY (`contract_id`) REFERENCES `contracts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_billing_periods_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `chk_billing_periods_invoiced` CHECK (((`status` <> _utf8mb4'invoiced') or (`invoice_id` is not null)))
+  CONSTRAINT `chk_billing_periods_invoiced` CHECK (((`status` <> 'invoiced') or (`invoice_id` is not null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blackhole_routes` (
@@ -1242,7 +1242,7 @@ CREATE TABLE `cgnat_attribution_bindings` (
   KEY `idx_cgnat_retention` (`released_at`),
   KEY `idx_cgnat_integrity` (`organization_id`,`integrity_hash`),
   CONSTRAINT `chk_cgnat_interval` CHECK (((`released_at` is null) or (`released_at` > `allocated_at`))),
-  CONSTRAINT `chk_cgnat_private_ports` CHECK ((((`binding_type` = _utf8mb4'single_port') and (`private_port_start` between 1 and 65535) and (`private_port_end` = `private_port_start`) and (`public_port_end` = `public_port_start`)) or ((`binding_type` = _utf8mb4'port_block') and (`private_port_start` is null) and (`private_port_end` is null) and (`public_port_end` > `public_port_start`)))),
+  CONSTRAINT `chk_cgnat_private_ports` CHECK ((((`binding_type` = 'single_port') and (`private_port_start` between 1 and 65535) and (`private_port_end` = `private_port_start`) and (`public_port_end` = `public_port_start`)) or ((`binding_type` = 'port_block') and (`private_port_start` is null) and (`private_port_end` is null) and (`public_port_end` > `public_port_start`)))),
   CONSTRAINT `chk_cgnat_protocol` CHECK ((`protocol` in (6,17))),
   CONSTRAINT `chk_cgnat_public_ports` CHECK (((`public_port_start` between 1 and 65535) and (`public_port_end` between `public_port_start` and 65535)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Privacy-minimal current CGNAT allocation projection; no destinations, URLs, content or traffic flows';
@@ -1519,7 +1519,7 @@ CREATE TABLE `client_mx_profiles` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `client_id` bigint unsigned NOT NULL COMMENT 'References clients(id) — one profile per client',
   `rfc` varchar(13) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Registro Federal de Contribuyentes — 12 chars for companies, 13 for individuals; XAXX010101000 for público en general',
-  `rfc_unique_check` varchar(13) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`rfc` = _utf8mb4'XAXX010101000') then NULL else `rfc` end)) STORED COMMENT 'Generated column for conditional uniqueness — NULL for público en general (allows duplicates), non-NULL for real RFCs (enforces uniqueness)',
+  `rfc_unique_check` varchar(13) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`rfc` = 'XAXX010101000') then NULL else `rfc` end)) STORED COMMENT 'Generated column for conditional uniqueness — NULL for público en general (allows duplicates), non-NULL for real RFCs (enforces uniqueness)',
   `curp` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Clave Única de Registro de Población — personal clients only',
   `razon_social` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Legal name exactly as registered with SAT — must match for CFDI validation',
   `regimen_fiscal` varchar(3) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'SAT fiscal regime code from c_RegimenFiscal (e.g. 601, 612, 626)',
@@ -1924,7 +1924,7 @@ CREATE TABLE `contract_templates_mx` (
   KEY `idx_contract_templates_mx_org_environment_status` (`organization_id`,`environment`,`status`,`deleted_at`),
   CONSTRAINT `fk_contract_templates_mx_document` FOREIGN KEY (`document_file_id`) REFERENCES `files` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_contract_templates_mx_organization` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `chk_contract_templates_mx_environment_status` CHECK ((((`environment` = _utf8mb4'sandbox') and (`status` in (_utf8mb4'draft',_utf8mb4'sandbox_ready')) and (`ift_registration_number` is null) and (`registered_at` is null)) or ((`environment` = _utf8mb4'production') and (`status` in (_utf8mb4'draft',_utf8mb4'submitted',_utf8mb4'registered',_utf8mb4'expired',_utf8mb4'revoked')))))
+  CONSTRAINT `chk_contract_templates_mx_environment_status` CHECK ((((`environment` = 'sandbox') and (`status` in ('draft','sandbox_ready')) and (`ift_registration_number` is null) and (`registered_at` is null)) or ((`environment` = 'production') and (`status` in ('draft','submitted','registered','expired','revoked')))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `contract_topology_paths` (
@@ -1946,7 +1946,7 @@ CREATE TABLE `contracts` (
   `site_id` bigint unsigned DEFAULT NULL,
   `start_date` date NOT NULL,
   `end_date` date DEFAULT NULL,
-  `billing_day` tinyint unsigned DEFAULT NULL COMMENT 'Day of month (1–28) on which invoices are generated; NULL = inherit from plan',
+  `billing_day` tinyint unsigned DEFAULT NULL COMMENT 'Day of month (1–28) on which invoices are generated; NULL = inherit from plan' CHECK (`billing_day` between 1 and 28),
   `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Static IPv4/IPv6 address assigned to this service; NULL = dynamic',
   `billing_cycle` enum('monthly','quarterly','semi_annual','annual') COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Override cycle; NULL means use the plan billing cycle',
   `price_override` decimal(10,2) DEFAULT NULL COMMENT 'Custom price; NULL means use plan price',
@@ -1997,8 +1997,7 @@ CREATE TABLE `contracts` (
   CONSTRAINT `fk_contracts_organization` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_contracts_plan` FOREIGN KEY (`plan_id`) REFERENCES `plans` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_contracts_site` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `chk_contracts_mx_environment_link` CHECK ((((`contract_template_mx_id` is null) and (`mx_contract_environment` is null)) or ((`contract_template_mx_id` is not null) and (`mx_contract_environment` is not null)))),
-  CONSTRAINT `contracts_chk_1` CHECK ((`billing_day` between 1 and 28))
+  CONSTRAINT `chk_contracts_mx_environment_link` CHECK ((((`contract_template_mx_id` is null) and (`mx_contract_environment` is null)) or ((`contract_template_mx_id` is not null) and (`mx_contract_environment` is not null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `coverage_zones` (
@@ -3036,7 +3035,7 @@ CREATE TABLE `document_templates` (
   CONSTRAINT `fk_document_templates_contract_template_mx` FOREIGN KEY (`contract_template_mx_id`) REFERENCES `contract_templates_mx` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_document_templates_creator` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_document_templates_org` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `chk_document_templates_mx_link_type` CHECK (((`contract_template_mx_id` is null) or (`template_type` = _utf8mb4'activation_contract')))
+  CONSTRAINT `chk_document_templates_mx_link_type` CHECK (((`contract_template_mx_id` is null) or (`template_type` = 'activation_contract')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `dr_drill_logs` (
@@ -3248,7 +3247,7 @@ CREATE TABLE `factura_publica_invoices` (
   KEY `idx_factura_publica_invoices_anio_meses` (`anio`,`meses`),
   CONSTRAINT `fk_factura_publica_invoices_cfdi_document` FOREIGN KEY (`cfdi_document_id`) REFERENCES `cfdi_documents` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_publica_invoices_organization` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `chk_factura_publica_invoices_meses` CHECK ((`meses` in (_utf8mb4'01',_utf8mb4'02',_utf8mb4'03',_utf8mb4'04',_utf8mb4'05',_utf8mb4'06',_utf8mb4'07',_utf8mb4'08',_utf8mb4'09',_utf8mb4'10',_utf8mb4'11',_utf8mb4'12',_utf8mb4'13',_utf8mb4'14',_utf8mb4'15',_utf8mb4'16',_utf8mb4'17',_utf8mb4'18')))
+  CONSTRAINT `chk_factura_publica_invoices_meses` CHECK ((`meses` in ('01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Factura pública (venta al público en general) — periodic aggregation of non-facturar sales per SAT CFDI 4.0 InformacionGlobal';
 
 CREATE TABLE `fiber_route_segments` (
@@ -3336,8 +3335,8 @@ CREATE TABLE `files` (
   KEY `idx_files_uploaded_by` (`uploaded_by`),
   KEY `idx_files_deleted_at` (`deleted_at`),
   CONSTRAINT `fk_files_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `chk_files_category_match` CHECK ((((`entity_type` = _utf8mb4'device') and (`category` in (_utf8mb4'device_history',_utf8mb4'evidence'))) or ((`entity_type` = _utf8mb4'client') and (`category` in (_utf8mb4'client_file',_utf8mb4'notification_log'))) or ((`entity_type` = _utf8mb4'ticket') and (`category` in (_utf8mb4'chat_history',_utf8mb4'document'))) or ((`entity_type` = _utf8mb4'organization') and (`category` in (_utf8mb4'isp_info',_utf8mb4'sat',_utf8mb4'online_payment',_utf8mb4'map',_utf8mb4'logo'))) or ((`entity_type` = _utf8mb4'backup') and (`category` = _utf8mb4'backup')))),
-  CONSTRAINT `chk_files_entity_id` CHECK (((`entity_type` = _utf8mb4'backup') or (`entity_id` is not null)))
+  CONSTRAINT `chk_files_category_match` CHECK ((((`entity_type` = 'device') and (`category` in ('device_history','evidence'))) or ((`entity_type` = 'client') and (`category` in ('client_file','notification_log'))) or ((`entity_type` = 'ticket') and (`category` in ('chat_history','document'))) or ((`entity_type` = 'organization') and (`category` in ('isp_info','sat','online_payment','map','logo'))) or ((`entity_type` = 'backup') and (`category` = 'backup')))),
+  CONSTRAINT `chk_files_entity_id` CHECK (((`entity_type` = 'backup') or (`entity_id` is not null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `firerelay_client_routing` (
@@ -3921,7 +3920,7 @@ CREATE TABLE `ip_assignments` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
   `active_flag` tinyint(1) GENERATED ALWAYS AS (if((`deleted_at` is null),1,NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
-  `live_flag` tinyint(1) GENERATED ALWAYS AS (if(((`deleted_at` is null) and (`status` <> _utf8mb4'expired')),1,NULL)) STORED COMMENT 'NULL when soft-deleted or expired; keeps those rows out of uq_ip_assignments_pool_ip (migration 486)',
+  `live_flag` tinyint(1) GENERATED ALWAYS AS (if(((`deleted_at` is null) and (`status` <> 'expired')),1,NULL)) STORED COMMENT 'NULL when soft-deleted or expired; keeps those rows out of uq_ip_assignments_pool_ip (migration 486)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ip_assignments_pool_ip` (`pool_id`,`ip_address`,`live_flag`),
   KEY `idx_ip_assignments_pool_id` (`pool_id`),
@@ -6646,7 +6645,7 @@ CREATE TABLE `recurring_payment_profiles` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
-  `default_guard` varchar(64) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when ((`is_default` = 1) and (`status` = _utf8mb4'active')) then concat(`client_id`,_utf8mb4'-',`payment_gateway_id`) else NULL end)) VIRTUAL COMMENT 'One active default per (client, gateway): unique key, NULL when not an active default — migration 423',
+  `default_guard` varchar(64) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when ((`is_default` = 1) and (`status` = 'active')) then concat(`client_id`,'-',`payment_gateway_id`) else NULL end)) VIRTUAL COMMENT 'One active default per (client, gateway): unique key, NULL when not an active default — migration 423',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_recurring_profiles_default_guard` (`default_guard`),
   KEY `idx_recurring_profiles_client_id` (`client_id`),
@@ -7557,8 +7556,8 @@ CREATE TABLE `signed_documents` (
   CONSTRAINT `fk_signed_documents_template` FOREIGN KEY (`template_id`) REFERENCES `document_templates` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_signed_documents_wo` FOREIGN KEY (`work_order_id`) REFERENCES `work_orders` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_signed_documents_evidence_format_version` CHECK ((`evidence_format_version` in (2,3))),
-  CONSTRAINT `chk_signed_documents_mx_environment_link` CHECK ((((`contract_template_mx_id` is null) and (`mx_contract_environment` is null)) or ((`contract_template_mx_id` is not null) and (`mx_contract_environment` is not null) and ((`mx_contract_environment` = _utf8mb4'production') or ((`mx_registration_number` is null) and (`mx_registered_at` is null) and (`evidence_format_version` = 3)))))),
-  CONSTRAINT `chk_signed_documents_mx_link_type` CHECK (((`contract_template_mx_id` is null) or (`template_type` = _utf8mb4'activation_contract')))
+  CONSTRAINT `chk_signed_documents_mx_environment_link` CHECK ((((`contract_template_mx_id` is null) and (`mx_contract_environment` is null)) or ((`contract_template_mx_id` is not null) and (`mx_contract_environment` is not null) and ((`mx_contract_environment` = 'production') or ((`mx_registration_number` is null) and (`mx_registered_at` is null) and (`evidence_format_version` = 3)))))),
+  CONSTRAINT `chk_signed_documents_mx_link_type` CHECK (((`contract_template_mx_id` is null) or (`template_type` = 'activation_contract')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sites` (
@@ -7681,11 +7680,11 @@ CREATE TABLE `snii_asset_registry` (
   KEY `idx_snii_registry_org_element` (`organization_id`,`element_type`),
   KEY `fk_snii_registry_profile_org` (`profile_id`,`organization_id`),
   CONSTRAINT `fk_snii_registry_profile_org` FOREIGN KEY (`profile_id`, `organization_id`) REFERENCES `snii_reporting_profiles` (`id`, `organization_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `chk_snii_registry_approval` CHECK (((`approval_status` <> _utf8mb4'approved') or ((`approved_by` is not null) and (`approved_at` is not null) and (`approved_by` <> `classified_by`)))),
-  CONSTRAINT `chk_snii_registry_exclusion` CHECK ((((`decision` = _utf8mb4'excluded') and (`exclusion_reason` is not null)) or ((`decision` <> _utf8mb4'excluded') and (`exclusion_reason` is null)))),
-  CONSTRAINT `chk_snii_registry_review` CHECK ((((`decision` = _utf8mb4'unreviewed') and (`approval_status` = _utf8mb4'not_required') and (`classified_by` is null) and (`classified_at` is null) and (`approved_by` is null) and (`approved_at` is null) and (`reviewed_payload` is null) and (`source_snapshot_hash` is null) and (`classification_hash` is null) and (`classification_revision` = 0)) or ((`decision` <> _utf8mb4'unreviewed') and (`approval_status` in (_utf8mb4'pending',_utf8mb4'approved')) and (`classified_by` is not null) and (`classified_at` is not null) and (`reviewed_payload` is not null) and (`source_snapshot_hash` is not null) and (`classification_hash` is not null) and (`classification_revision` >= 1) and (nullif(trim(`decision_evidence_reference`),_utf8mb4'') is not null)))),
-  CONSTRAINT `chk_snii_registry_source` CHECK ((((`source_type` = _utf8mb4'manual') and (`source_id` is null) and (`manual_payload` is not null)) or ((`source_type` <> _utf8mb4'manual') and (`source_id` is not null) and (`manual_payload` is null)))),
-  CONSTRAINT `chk_snii_registry_third_party_owner` CHECK (((`ownership` <> _utf8mb4'third_party') or (nullif(trim(`owner_name`),_utf8mb4'') is not null)))
+  CONSTRAINT `chk_snii_registry_approval` CHECK (((`approval_status` <> 'approved') or ((`approved_by` is not null) and (`approved_at` is not null) and (`approved_by` <> `classified_by`)))),
+  CONSTRAINT `chk_snii_registry_exclusion` CHECK ((((`decision` = 'excluded') and (`exclusion_reason` is not null)) or ((`decision` <> 'excluded') and (`exclusion_reason` is null)))),
+  CONSTRAINT `chk_snii_registry_review` CHECK ((((`decision` = 'unreviewed') and (`approval_status` = 'not_required') and (`classified_by` is null) and (`classified_at` is null) and (`approved_by` is null) and (`approved_at` is null) and (`reviewed_payload` is null) and (`source_snapshot_hash` is null) and (`classification_hash` is null) and (`classification_revision` = 0)) or ((`decision` <> 'unreviewed') and (`approval_status` in ('pending','approved')) and (`classified_by` is not null) and (`classified_at` is not null) and (`reviewed_payload` is not null) and (`source_snapshot_hash` is not null) and (`classification_hash` is not null) and (`classification_revision` >= 1) and (nullif(trim(`decision_evidence_reference`),'') is not null)))),
+  CONSTRAINT `chk_snii_registry_source` CHECK ((((`source_type` = 'manual') and (`source_id` is null) and (`manual_payload` is not null)) or ((`source_type` <> 'manual') and (`source_id` is not null) and (`manual_payload` is null)))),
+  CONSTRAINT `chk_snii_registry_third_party_owner` CHECK (((`ownership` <> 'third_party') or (nullif(trim(`owner_name`),'') is not null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Explicit SNII asset decisions; operational records are never auto-included';
 
 CREATE TABLE `snii_audit_events` (
@@ -7725,8 +7724,8 @@ CREATE TABLE `snii_element_applicability` (
   KEY `idx_snii_applicability_org_state` (`organization_id`,`applicability`),
   KEY `fk_snii_applicability_profile_org` (`profile_id`,`organization_id`),
   CONSTRAINT `fk_snii_applicability_profile_org` FOREIGN KEY (`profile_id`, `organization_id`) REFERENCES `snii_reporting_profiles` (`id`, `organization_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `chk_snii_applicability_population` CHECK ((((`applicability` <> _utf8mb4'applicable') and (`population_status` = _utf8mb4'unreviewed') and (`population_evidence_reference` is null) and (`population_reviewed_by` is null) and (`population_reviewed_at` is null)) or ((`applicability` = _utf8mb4'applicable') and (`population_status` in (_utf8mb4'has_assets',_utf8mb4'zero_population')) and (`population_reviewed_by` is not null) and (`population_reviewed_at` is not null) and ((`population_status` <> _utf8mb4'zero_population') or (nullif(trim(`population_evidence_reference`),_utf8mb4'') is not null))))),
-  CONSTRAINT `chk_snii_applicability_rationale` CHECK (((`applicability` <> _utf8mb4'not_applicable') or (nullif(trim(`rationale`),_utf8mb4'') is not null)))
+  CONSTRAINT `chk_snii_applicability_population` CHECK ((((`applicability` <> 'applicable') and (`population_status` = 'unreviewed') and (`population_evidence_reference` is null) and (`population_reviewed_by` is null) and (`population_reviewed_at` is null)) or ((`applicability` = 'applicable') and (`population_status` in ('has_assets','zero_population')) and (`population_reviewed_by` is not null) and (`population_reviewed_at` is not null) and ((`population_status` <> 'zero_population') or (nullif(trim(`population_evidence_reference`),'') is not null))))),
+  CONSTRAINT `chk_snii_applicability_rationale` CHECK (((`applicability` <> 'not_applicable') or (nullif(trim(`rationale`),'') is not null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Explicit per-element applicability decision; defaults fail-closed';
 
 CREATE TABLE `snii_evidence_uploads` (
@@ -7875,7 +7874,7 @@ CREATE TABLE `snii_report_batches` (
   CONSTRAINT `fk_snii_batches_supersedes_org` FOREIGN KEY (`supersedes_batch_id`, `organization_id`) REFERENCES `snii_report_batches` (`id`, `organization_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `chk_snii_batches_freshness` CHECK ((`source_freshness_days` between 1 and 3650)),
   CONSTRAINT `chk_snii_batches_full_load` CHECK ((`full_load` = 1)),
-  CONSTRAINT `chk_snii_batches_lineage` CHECK ((((`revision_no` = 1) and (`supersedes_batch_id` is null) and (`correction_root_batch_id` is null) and (`supersession_reason` is null)) or ((`revision_no` > 1) and (`supersedes_batch_id` is not null) and (nullif(trim(`supersession_reason`),_utf8mb4'') is not null)))),
+  CONSTRAINT `chk_snii_batches_lineage` CHECK ((((`revision_no` = 1) and (`supersedes_batch_id` is null) and (`correction_root_batch_id` is null) and (`supersession_reason` is null)) or ((`revision_no` > 1) and (`supersedes_batch_id` is not null) and (nullif(trim(`supersession_reason`),'') is not null)))),
   CONSTRAINT `chk_snii_batches_period` CHECK ((`period_end` >= `period_start`)),
   CONSTRAINT `chk_snii_batches_revision` CHECK ((`revision_no` >= 1)),
   CONSTRAINT `chk_snii_batches_separation` CHECK (((`approved_by` is null) or (`approved_by` <> `created_by`))),
@@ -7950,10 +7949,10 @@ CREATE TABLE `snii_reporting_profiles` (
   KEY `fk_snii_profiles_concession_org` (`concession_title_id`,`organization_id`),
   CONSTRAINT `fk_snii_profiles_concession_org` FOREIGN KEY (`concession_title_id`, `organization_id`) REFERENCES `concession_titles` (`id`, `organization_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_snii_profiles_org` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `chk_snii_profiles_applicability` CHECK (((`subject_applicability` = _utf8mb4'unreviewed') or ((nullif(trim(`applicability_basis`),_utf8mb4'') is not null) and (nullif(trim(`external_decision_reference`),_utf8mb4'') is not null) and (`applicability_decided_by` is not null) and (`applicability_decided_at` is not null)))),
-  CONSTRAINT `chk_snii_profiles_authority` CHECK ((`authority_code` = _utf8mb4'CRT')),
+  CONSTRAINT `chk_snii_profiles_applicability` CHECK (((`subject_applicability` = 'unreviewed') or ((nullif(trim(`applicability_basis`),'') is not null) and (nullif(trim(`external_decision_reference`),'') is not null) and (`applicability_decided_by` is not null) and (`applicability_decided_at` is not null)))),
+  CONSTRAINT `chk_snii_profiles_authority` CHECK ((`authority_code` = 'CRT')),
   CONSTRAINT `chk_snii_profiles_freshness` CHECK ((`source_freshness_days` between 1 and 3650)),
-  CONSTRAINT `chk_snii_profiles_legal_basis` CHECK ((`legal_basis` = _utf8mb4'LMTR_ARTICLES_174_181')),
+  CONSTRAINT `chk_snii_profiles_legal_basis` CHECK ((`legal_basis` = 'LMTR_ARTICLES_174_181')),
   CONSTRAINT `chk_snii_profiles_reconciliation_time` CHECK ((`adapter_reconciled_at` >= `official_sources_reviewed_at`)),
   CONSTRAINT `chk_snii_profiles_title_snapshot` CHECK ((((`concession_title_id` is null) and (`concession_title_snapshot` is null) and (`concession_title_sha256` is null)) or ((`concession_title_id` is not null) and (`concession_title_snapshot` is not null) and (`concession_title_sha256` is not null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MX-only SNII preparation profile; not proof of filing or compliance';
@@ -8394,7 +8393,7 @@ CREATE TABLE `snmp_trap_forwarding_deliveries` (
   CONSTRAINT `fk_stfd_trap` FOREIGN KEY (`trap_id`) REFERENCES `snmp_traps` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
   CONSTRAINT `fk_stfd_webhook` FOREIGN KEY (`webhook_id`) REFERENCES `webhooks` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `chk_stfd_attempts` CHECK (((`max_attempts` between 1 and 11) and (`attempt_number` <= `max_attempts`) and (`recovery_count` <= 1))),
-  CONSTRAINT `chk_stfd_target_shape` CHECK ((((`target_type` = _utf8mb4'email') and (`target_email` is not null) and (`target_url` is null) and (`webhook_id` is null)) or ((`target_type` = _utf8mb4'url') and (`target_url` is not null) and (`target_email` is null) and (`webhook_id` is null)) or ((`target_type` = _utf8mb4'webhook') and (`target_url` is not null) and (`target_email` is null) and (`webhook_id` is not null))))
+  CONSTRAINT `chk_stfd_target_shape` CHECK ((((`target_type` = 'email') and (`target_email` is not null) and (`target_url` is null) and (`webhook_id` is null)) or ((`target_type` = 'url') and (`target_url` is not null) and (`target_email` is null) and (`webhook_id` is null)) or ((`target_type` = 'webhook') and (`target_url` is not null) and (`target_email` is null) and (`webhook_id` is not null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `snmp_trap_forwarding_rules` (
@@ -8439,7 +8438,7 @@ CREATE TABLE `snmp_trap_ingest_daily_usage` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`usage_date`,`scope_type`,`scope_id`),
-  CONSTRAINT `chk_snmp_trap_ingest_scope` CHECK ((((`scope_type` = _utf8mb4'global') and (`scope_id` = 0)) or ((`scope_type` = _utf8mb4'organization') and (`scope_id` > 0))))
+  CONSTRAINT `chk_snmp_trap_ingest_scope` CHECK ((((`scope_type` = 'global') and (`scope_id` = 0)) or ((`scope_type` = 'organization') and (`scope_id` > 0))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Install-wide UTC-day SNMP ingest quota; transaction-locked before trap/outbox persistence';
 
 CREATE TABLE `snmp_traps` (
@@ -8791,7 +8790,7 @@ CREATE TABLE `tax_rates` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
-  `default_guard` bigint unsigned GENERATED ALWAYS AS ((case when ((`is_default` = 1) and (`status` = _utf8mb4'active') and (`deleted_at` is null)) then ifnull(`organization_id`,0) else NULL end)) VIRTUAL COMMENT 'One active default per org (0 = global): unique key, NULL when not an active default — migration 427',
+  `default_guard` bigint unsigned GENERATED ALWAYS AS ((case when ((`is_default` = 1) and (`status` = 'active') and (`deleted_at` is null)) then ifnull(`organization_id`,0) else NULL end)) VIRTUAL COMMENT 'One active default per org (0 = global): unique key, NULL when not an active default — migration 427',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tax_rates_default_guard` (`default_guard`),
   KEY `idx_tax_rates_organization_id` (`organization_id`),
@@ -9388,7 +9387,7 @@ CREATE TABLE `whatsapp_links` (
   `phone_e164` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Normalized E.164, e.g. +5215512345678',
   `bound_via` enum('portal','email_otp','staff') COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('active','revoked') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
-  `active_phone` varchar(20) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`status` = _utf8mb4'active') then `phone_e164` else NULL end)) VIRTUAL COMMENT 'phone_e164 while active, else NULL — powers the one-active-binding-per-phone UNIQUE without blocking revoked history',
+  `active_phone` varchar(20) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`status` = 'active') then `phone_e164` else NULL end)) VIRTUAL COMMENT 'phone_e164 while active, else NULL — powers the one-active-binding-per-phone UNIQUE without blocking revoked history',
   `bound_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `last_seen_at` datetime DEFAULT NULL COMMENT 'Last inbound message from this bound number',
   `revoked_at` datetime DEFAULT NULL,
@@ -15200,6 +15199,15 @@ END ;;
 DELIMITER ;
 
 -- -----------------------------------------------------------------------------
+-- Install-date maintenance (rolling partitions, rollup markers)
+-- -----------------------------------------------------------------------------
+
+CALL snmp_apply_retention();
+CALL snmp_rollup_to_1month();
+CALL connection_logs_maintain_partitions();
+CALL subscriber_logging_maintain_partitions();
+
+-- -----------------------------------------------------------------------------
 -- Events
 -- -----------------------------------------------------------------------------
 
@@ -15238,13 +15246,5 @@ DELIMITER ;;
 CREATE EVENT `evt_subscriber_logging_partition_maintenance` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE DO CALL subscriber_logging_maintain_partitions() ;;
 DELIMITER ;
 
--- -----------------------------------------------------------------------------
--- Install-date maintenance (rolling partitions, rollup markers)
--- -----------------------------------------------------------------------------
-
-CALL snmp_apply_retention();
-CALL snmp_rollup_to_1month();
-CALL connection_logs_maintain_partitions();
-CALL subscriber_logging_maintain_partitions();
 
 SET FOREIGN_KEY_CHECKS = 1;
