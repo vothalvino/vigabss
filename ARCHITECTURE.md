@@ -1031,9 +1031,14 @@ before completion:
 Plain backend Jest uses a mocked database and does not prove MySQL behavior.
 `tests/integration/db` is the exception: it runs only with `DB_INTEGRATION=1`
 against a migrated, disposable database (CI's `db-integration` job, on every
-PR), seeds two organizations, sweeps every `/api/v1` GET route as one with the
+PR), seeds two organizations, sweeps every `/api/v1` route as one with the
 other's ids, and races the numbering, billing-period, allocation and webhook
-paths. Point it only at a throwaway database: it writes freely.
+paths. The job runs twice in parallel, with the organizations' locale set by
+`DB_SWEEP_LOCALE`: as MX, which seeds and sweeps the Mexican tables, and as
+global, which sweeps the global path of routes that branch on locale. Every
+parameterised route must resolve to a seeded row, or be listed as
+install-wide or (global only) MX-only. Point it only at a throwaway database:
+it writes freely.
 Frontend tests run in `America/Mexico_City` (vite.config.ts), and the
 coverage floor gates CI. A page test that needs the real token, refresh and
 retry path stubs only `fetch` with `src/test/fakeServer.ts` and uses
