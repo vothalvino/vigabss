@@ -88,7 +88,20 @@ const COLUMN_VALUES = {
   'factura_publica_invoices.meses': () => '01',
   // Exactly one case: the DSAR, not the government request.
   'preservation_holds.gov_data_request_id': () => SKIP,
+  // At most one source document per CFDI: the invoice.
+  'cfdi_documents.credit_note_id': () => SKIP,
+  'cfdi_documents.payment_id': () => SKIP,
+  // A first revision without a concession title or an approver.
+  'snii_report_batches.revision_no': () => 1,
+  'snii_report_batches.filing_year': () => 2026,
+  'snii_report_batches.concession_title_id': () => SKIP,
+  'snii_report_batches.supersession_reason': () => SKIP,
+  'snii_report_batches.approved_by': () => SKIP,
+  // A manual asset carries its payload instead of a source row.
+  'snii_asset_registry.source_type': () => 'manual',
+  'snii_asset_registry.manual_payload': () => '{}',
   // target_type 'email': the address and nothing else.
+  'snmp_trap_forwarding_deliveries.target_type': () => 'email',
   'snmp_trap_forwarding_deliveries.target_url': () => SKIP,
   'snmp_trap_forwarding_deliveries.webhook_id': () => SKIP,
   // A link joins two devices; the second is the organization's spare.
@@ -231,7 +244,9 @@ async function seedGeneric(db, tables, users, prior = null) {
               error = null;
               break;
             } catch (err) {
-              error = `${err.code || ''} ${err.sqlMessage || err.message}`.trim();
+              // Both attempts' errors: the fallback's often only hides the first.
+              const message = `${err.code || ''} ${err.sqlMessage || err.message}`.trim();
+              error = full ? message : `${message} (full row: ${error})`;
             }
           }
           if (!ids[org]) break;
