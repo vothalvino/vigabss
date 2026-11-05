@@ -133,3 +133,7 @@ test('a support channel\'s first save takes the column defaults for what was not
     null, null, null, 'https://hooks.example.com/x', null]);
 });
 
+test('an unknown report name answers 404', async () => {
+  const res = await call('get', '/reports/no-such-report/export?format=csv');
+  expect({ status: res.status, code: res.body?.error?.code }).toEqual({ status: 404, code: 'NOT_FOUND' });
+});
