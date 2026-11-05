@@ -9,6 +9,10 @@ const { NotFoundError } = require('../utils/errors');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { validate } = require('../middleware/validate');
+const {
+  createUsoObligation, updateUsoObligation, reportUsoObligation, createRuralCoverage, updateRuralCoverage,
+} = require('../middleware/schemas/universalService');
 
 const router = Router();
 
@@ -47,14 +51,14 @@ router.get('/uso-obligations', requirePermission('uso_obligations.view'), async 
   }
 });
 
-router.post('/uso-obligations', requirePermission('uso_obligations.manage'), async (req, res, next) => {
+router.post('/uso-obligations', requirePermission('uso_obligations.manage'), validate(createUsoObligation), async (req, res, next) => {
   try {
     const { obligation_type, description, target_metric, target_value, period_start, period_end, authority_ref, notes } = req.body;
 
     const [result] = await db.query(
       `INSERT INTO uso_obligations (organization_id, obligation_type, description, target_metric, target_value, period_start, period_end, authority_ref, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.orgId, obligation_type, description || null, target_metric || null, target_value || null, period_start || null, period_end || null, authority_ref || null, notes || null],
+      [req.orgId, obligation_type, description, target_metric || null, target_value ?? null, period_start, period_end, authority_ref || null, notes || null],
     );
 
     res.status(201).json({ id: result.insertId });
@@ -79,16 +83,17 @@ router.get('/uso-obligations/:id', requirePermission('uso_obligations.view'), as
   }
 });
 
-router.put('/uso-obligations/:id', requirePermission('uso_obligations.manage'), async (req, res, next) => {
+router.put('/uso-obligations/:id', requirePermission('uso_obligations.manage'), validate(updateUsoObligation), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { obligation_type, description, target_metric, target_value, period_start, period_end, authority_ref, status, notes } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE uso_obligations SET obligation_type = ?, description = ?, target_metric = ?, target_value = ?, period_start = ?, period_end = ?, authority_ref = ?, status = ?, notes = ?, updated_at = NOW()
        WHERE id = ? AND organization_id = ?`,
-      [obligation_type, description || null, target_metric || null, target_value || null, period_start || null, period_end || null, authority_ref || null, status || 'pending', notes || null, id, req.orgId],
+      [obligation_type, description, target_metric || null, target_value ?? null, period_start, period_end, authority_ref || null, status || 'pending', notes || null, id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('USO obligation');
 
     res.json({ success: true });
   } catch (err) {
@@ -96,7 +101,7 @@ router.put('/uso-obligations/:id', requirePermission('uso_obligations.manage'), 
   }
 });
 
-router.put('/uso-obligations/:id/report', requirePermission('uso_obligations.manage'), async (req, res, next) => {
+router.put('/uso-obligations/:id/report', requirePermission('uso_obligations.manage'), validate(reportUsoObligation), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { actual_value } = req.body;
@@ -163,7 +168,7 @@ router.get('/rural-coverage', requirePermission('rural_coverage.view'), async (r
   }
 });
 
-router.post('/rural-coverage', requirePermission('rural_coverage.manage'), async (req, res, next) => {
+router.post('/rural-coverage', requirePermission('rural_coverage.manage'), validate(createRuralCoverage), async (req, res, next) => {
   try {
     const {
       report_period, locality_name, inegi_code, state, municipality,
@@ -174,7 +179,7 @@ router.post('/rural-coverage', requirePermission('rural_coverage.manage'), async
     const [result] = await db.query(
       `INSERT INTO rural_coverage_reports (organization_id, report_period, locality_name, inegi_code, state, municipality, homes_passed, homes_connected, service_type, download_speed_mbps, upload_speed_mbps, is_underserved, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.orgId, report_period, locality_name, inegi_code || null, state || null, municipality || null, homes_passed || 0, homes_connected || 0, service_type || null, download_speed_mbps || null, upload_speed_mbps || null, is_underserved ? 1 : 0, notes || null],
+      [req.orgId, report_period, locality_name, inegi_code || null, state || null, municipality || null, homes_passed || 0, homes_connected || 0, service_type, download_speed_mbps || null, upload_speed_mbps || null, is_underserved ? 1 : 0, notes || null],
     );
 
     res.status(201).json({ id: result.insertId });
@@ -199,7 +204,7 @@ router.get('/rural-coverage/:id', requirePermission('rural_coverage.view'), asyn
   }
 });
 
-router.put('/rural-coverage/:id', requirePermission('rural_coverage.manage'), async (req, res, next) => {
+router.put('/rural-coverage/:id', requirePermission('rural_coverage.manage'), validate(updateRuralCoverage), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -208,11 +213,12 @@ router.put('/rural-coverage/:id', requirePermission('rural_coverage.manage'), as
       upload_speed_mbps, is_underserved, notes,
     } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE rural_coverage_reports SET report_period = ?, locality_name = ?, inegi_code = ?, state = ?, municipality = ?, homes_passed = ?, homes_connected = ?, service_type = ?, download_speed_mbps = ?, upload_speed_mbps = ?, is_underserved = ?, notes = ?, updated_at = NOW()
        WHERE id = ? AND organization_id = ?`,
-      [report_period, locality_name, inegi_code || null, state || null, municipality || null, homes_passed || 0, homes_connected || 0, service_type || null, download_speed_mbps || null, upload_speed_mbps || null, is_underserved ? 1 : 0, notes || null, id, req.orgId],
+      [report_period, locality_name, inegi_code || null, state || null, municipality || null, homes_passed || 0, homes_connected || 0, service_type, download_speed_mbps || null, upload_speed_mbps || null, is_underserved ? 1 : 0, notes || null, id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('Rural coverage report');
 
     res.json({ success: true });
   } catch (err) {

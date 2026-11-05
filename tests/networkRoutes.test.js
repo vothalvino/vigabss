@@ -444,6 +444,7 @@ describe('VLAN Routes — /api/vlans', () => {
     test('creates a VLAN and returns 201', async () => {
       mockAuthUser();
       db.query
+        .mockResolvedValueOnce([[{ id: 3 }]])                        // site_id is this org's
         .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])  // INSERT
         .mockResolvedValueOnce([[{ ...mockVlan, id: 2 }]])           // findById
         .mockResolvedValueOnce([{ affectedRows: 1 }]);               // auditLog
@@ -451,7 +452,7 @@ describe('VLAN Routes — /api/vlans', () => {
       const res = await request(app)
         .post('/api/vlans')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ vlan_id: 100, name: 'Management', description: 'Management VLAN' });
+        .send({ vlan_id: 100, name: 'Management', site_id: 3, description: 'Management VLAN' });
 
       expect(res.status).toBe(201);
       expect(res.body.data.id).toBe(2);

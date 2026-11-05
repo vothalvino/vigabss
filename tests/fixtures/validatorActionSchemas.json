@@ -67,9 +67,8 @@
   "supportConversations.js:kbSearch",
   "suspension.js:suspend",
   "suspension.js:reconnect",
-  "transitionMechanisms.js:createTransitionMechanism",
-  "transitionMechanisms.js:updateTransitionMechanism",
   "twoFactor.js:verifyCode",
   "twoFactor.js:setup",
+  "universalService.js:reportUsoObligation",
   "wgPeers.js:wgPeers_updateAssignments"
 ]

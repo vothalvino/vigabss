@@ -469,7 +469,7 @@ describe('Expense validation schemas', () => {
   });
 
   test('createExpense accepts valid data', () => {
-    const next = run(createExpense, { category: 'office', amount: 500 });
+    const next = run(createExpense, { category: 'office', amount: 500, expense_date: '2026-06-15' });
     expectPass(next);
   });
 
@@ -603,7 +603,7 @@ describe('SlaDefinition validation schemas', () => {
 
   test('createSlaDefinition accepts valid data', () => {
     const next = run(createSlaDefinition, {
-      name: 'Gold SLA', uptime_pct: 99.9, measurement_period: 'monthly',
+      plan_id: 2, name: 'Gold SLA', uptime_pct: 99.9, measurement_period: 'monthly',
       compensation_type: 'credit_percentage', priority: 'high',
     });
     expectPass(next);
@@ -725,7 +725,7 @@ describe('VLAN validation schemas', () => {
   });
 
   test('createVlan accepts valid data', () => {
-    const next = run(createVlan, { vlan_id: 100, name: 'Management', status: 'active' });
+    const next = run(createVlan, { vlan_id: 100, name: 'Management', site_id: 3, status: 'active' });
     expectPass(next);
   });
 
@@ -862,7 +862,10 @@ describe('ServiceArea validation schemas', () => {
   });
 
   test('createServiceArea accepts valid data', () => {
-    const next = run(createServiceArea, { name: 'Centro', status: 'active', color: '#FF0000' });
+    const next = run(createServiceArea, {
+      name: 'Centro', status: 'active', color: '#FF0000',
+      boundary: { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]] },
+    });
     expectPass(next);
   });
 

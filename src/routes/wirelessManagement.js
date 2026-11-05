@@ -23,6 +23,11 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { ownedReferences } = require('../utils/ownedReferences');
+const { createLinkPlanningCalc, updateLinkPlanningCalc } = require('../middleware/schemas/linkPlanning');
+
+// Link endpoints: the organization's sites or installation-shared ones, as
+// the calculator reads them.
+const LINK_SITE_REFS = { site_a_id: { table: 'sites', allowShared: true }, site_b_id: { table: 'sites', allowShared: true } };
 const {
   createApSectorConfig,
   updateApSectorConfig,
@@ -430,7 +435,7 @@ router.get('/link-planning', requirePermission('link_planning.view'), async (req
  * POST /wireless/link-planning
  * Save a new link planning calculator run (computes results automatically).
  */
-router.post('/link-planning', requirePermission('link_planning.create'), async (req, res, next) => {
+router.post('/link-planning', requirePermission('link_planning.create'), validate(createLinkPlanningCalc), ownedReferences(LINK_SITE_REFS), async (req, res, next) => {
   try {
     const record = await wirelessService.saveCalc(req.body, req.orgId);
     res.status(201).json({ data: record });
@@ -451,7 +456,7 @@ router.get('/link-planning/:id', requirePermission('link_planning.view'), async 
 /**
  * PUT /wireless/link-planning/:id
  */
-router.put('/link-planning/:id', requirePermission('link_planning.update'), async (req, res, next) => {
+router.put('/link-planning/:id', requirePermission('link_planning.update'), validate(updateLinkPlanningCalc), ownedReferences(LINK_SITE_REFS), async (req, res, next) => {
   try {
     const record = await wirelessService.updateCalc(req.params.id, req.orgId, req.body);
     res.json({ data: record });

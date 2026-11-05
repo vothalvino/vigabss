@@ -134,18 +134,23 @@ describe('coverageZoneService.createZone()', () => {
 
   test('inserts zone and returns it with parsed GeoJSON boundary', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]])     // the service area is org 10's
       .mockResolvedValueOnce([{ insertId: 1 }]) // INSERT
       .mockResolvedValueOnce([[DB_ROW]]);        // SELECT after insert
 
     const zone = await coverageZoneService.createZone(10, {
+      service_area_id: 3,
       name: 'Zone Alpha',
       zone_type: 'fiber',
       boundary: POLYGON_GEOJSON,
       status: 'active',
     }, 5);
 
+    // The service area was checked against the organization.
+    expect(db.query.mock.calls[0][0]).toMatch(/SELECT id FROM service_areas WHERE id = \? AND organization_id <=> \?/);
+    expect(db.query.mock.calls[0][1]).toEqual([3, 10]);
     // Verify INSERT used ST_GeomFromGeoJSON
-    const [insertSql, insertParams] = db.query.mock.calls[0];
+    const [insertSql, insertParams] = db.query.mock.calls[1];
     expect(insertSql).toMatch(/ST_GeomFromGeoJSON/);
     expect(insertParams).toContain(JSON.stringify(POLYGON_GEOJSON));
     expect(insertParams).toContain('Zone Alpha');

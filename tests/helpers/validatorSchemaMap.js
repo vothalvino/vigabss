@@ -74,4 +74,47 @@ function mapSchemas(tables = loadTables()) {
   return { mapped, unmapped };
 }
 
-module.exports = { mapSchemas, loadTables, fieldsOf, TABLE_OVERRIDES };
+// Split a CREATE TABLE body at its top-level commas (not inside parentheses
+// or quotes), one entry per column or key definition.
+function definitions(body) {
+  const out = [];
+  let depth = 0;
+  let quote = null;
+  let current = '';
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    current += ch;
+    if (quote) {
+      if (ch === quote && body[i + 1] === quote) current += body[++i];
+      else if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    else if (ch === ',' && depth === 0) { out.push(current.slice(0, -1)); current = ''; }
+  }
+  if (current.trim()) out.push(current);
+  return out.map(d => d.trim());
+}
+
+// table → the columns an INSERT must name: NOT NULL with no DEFAULT, not
+// AUTO_INCREMENT or generated.
+function requiredColumns() {
+  const schema = fs.readFileSync(path.join(ROOT, 'database', 'schema.sql'), 'utf8').replace(/--[^\n]*/g, '');
+  const out = new Map();
+  const re = /CREATE TABLE IF NOT EXISTS `?([a-z_][a-z0-9_]*)`? \(/g;
+  let m;
+  while ((m = re.exec(schema))) {
+    const body = schema.slice(m.index + m[0].length, schema.indexOf(') ENGINE', m.index));
+    const columns = new Set();
+    for (const def of definitions(body)) {
+      const col = def.match(/^`?([a-z_][a-z0-9_]*)`?\s/i);
+      if (!col || /^(PRIMARY|KEY|UNIQUE|CONSTRAINT|INDEX|FULLTEXT|SPATIAL|CHECK|FOREIGN)$/i.test(col[1])) continue;
+      const bare = def.replace(/COMMENT\s+'(?:[^']|'')*'/gi, '');
+      if (/\bNOT NULL\b/i.test(bare) && !/\bDEFAULT\b|AUTO_INCREMENT|GENERATED|\bAS\s*\(/i.test(bare)) columns.add(col[1]);
+    }
+    out.set(m[1], columns);
+  }
+  return out;
+}
+
+module.exports = { mapSchemas, loadTables, fieldsOf, requiredColumns, TABLE_OVERRIDES };

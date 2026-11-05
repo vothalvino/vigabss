@@ -976,7 +976,7 @@ describe('POST /api/v1/universal-service/uso-obligations', () => {
       .post('/api/v1/universal-service/uso-obligations')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ obligation_type: 'coverage', description: 'Rural coverage target' });
+      .send({ obligation_type: 'rural_deployment', description: 'Rural coverage target', period_start: '2026-01-01', period_end: '2026-12-31' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
@@ -1876,7 +1876,7 @@ describe('PUT /api/v1/universal-service/uso-obligations/:id', () => {
       .put('/api/v1/universal-service/uso-obligations/1')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ obligation_type: 'coverage', description: 'Updated target', status: 'in_progress' });
+      .send({ obligation_type: 'rural_deployment', description: 'Updated target', period_start: '2026-01-01', period_end: '2026-12-31', status: 'in_progress' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });
@@ -1931,7 +1931,7 @@ describe('POST /api/v1/universal-service/rural-coverage', () => {
       .post('/api/v1/universal-service/rural-coverage')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ report_period: '2026-Q1', locality_name: 'La Paloma', homes_passed: 200, homes_connected: 150, is_underserved: true });
+      .send({ report_period: '2026-03', locality_name: 'La Paloma', service_type: 'fixed_wireless', homes_passed: 200, homes_connected: 150, is_underserved: true });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
@@ -2006,7 +2006,7 @@ describe('PUT /api/v1/universal-service/rural-coverage/:id', () => {
       .put('/api/v1/universal-service/rural-coverage/1')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ report_period: '2026-Q1', locality_name: 'La Paloma', homes_passed: 250, homes_connected: 180, is_underserved: false });
+      .send({ report_period: '2026-03', locality_name: 'La Paloma', service_type: 'fixed_wireless', homes_passed: 250, homes_connected: 180, is_underserved: false });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });

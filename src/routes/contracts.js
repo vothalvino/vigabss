@@ -17,6 +17,7 @@ const {
   prepareContractActivation, activateContract,
 } = require('../middleware/schemas/contracts');
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const suspensionService = require('../services/suspensionService');
 const radiusService = require('../services/radiusService');
 const inventorySerialService = require('../services/inventorySerialService');
@@ -1108,7 +1109,7 @@ router.post('/:id/addons', requirePermission('contracts.update'), validate(creat
     // contract or reference another tenant's catalog.
     await Contract.findByIdOrFail(req.params.id, req.orgId);
     const [addonRows] = await db.query(
-      `SELECT id FROM plan_addons
+      `SELECT id, price FROM plan_addons
        WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL`,
       [plan_addon_id, req.orgId],
     );
@@ -1120,7 +1121,10 @@ router.post('/:id/addons', requirePermission('contracts.update'), validate(creat
     const [result] = await db.query(
       `INSERT INTO contract_addons (contract_id, plan_addon_id, quantity, unit_price, start_date, end_date, status)
        VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [req.params.id, plan_addon_id, quantity || 1, unit_price, start_date, end_date],
+      // Both columns are NOT NULL: an omitted price is the catalog price and an
+      // omitted start is today (they were bound as undefined, a 500).
+      [req.params.id, plan_addon_id, quantity || 1, unit_price ?? addonRows[0].price,
+        start_date || businessToday(), end_date ?? null],
     );
     const [rows] = await db.query('SELECT * FROM contract_addons WHERE id = ?', [result.insertId]);
     res.status(201).json({ data: rows[0] });

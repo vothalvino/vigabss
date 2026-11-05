@@ -3,7 +3,8 @@
 // =============================================================================
 
 const createSlaDefinition = {
-  plan_id: { type: 'number', min: 1 },
+  // sla_definitions.plan_id is NOT NULL: a create without it failed with a 500.
+  plan_id: { type: 'number', required: true, min: 1 },
   name: { type: 'string', required: true, min: 1, max: 255 },
   uptime_pct: { type: 'number', min: 0, max: 100 },
   max_response_minutes: { type: 'number', min: 0 },

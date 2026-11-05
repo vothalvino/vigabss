@@ -48,6 +48,8 @@ const STORED = {
 
 function wireDb({ liveCfdi = false, stored = STORED } = {}) {
   db.query.mockImplementation(async (sql) => {
+    // The credit note number sequence (migration 520).
+    if (/SELECT LAST_INSERT_ID\(\) AS id/.test(sql)) return [[{ id: 1 }]];
     if (isUserLookup(sql)) return [[ADMIN]];
     if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return [[{ id: 1 }]];
     if (/FROM cfdi_documents/.test(sql)) return [liveCfdi ? [{ id: 31, sat_status: 'vigente' }] : []];
@@ -78,7 +80,7 @@ describe('create consults the tax resolver', () => {
   it('passes the tax figure that is about to be written', async () => {
     wireDb();
     await auth(request(app).post('/api/v1/credit-notes'))
-      .send({ client_id: 9, subtotal: 1000, tax_amount: 160, total: 1160 });
+      .send({ client_id: 9, reason: 'other', subtotal: 1000, tax_amount: 160, total: 1160 });
     expect(billingService.assertTaxCoherent).toHaveBeenCalledWith(
       expect.any(Function),
       expect.objectContaining({ clientId: 9, taxAmount: 160, docType: 'credit note' }),
@@ -89,7 +91,7 @@ describe('create consults the tax resolver', () => {
     // The exact shape of the bug: {subtotal: 1160, total: 1160} with no tax.
     wireDb();
     await auth(request(app).post('/api/v1/credit-notes'))
-      .send({ client_id: 9, subtotal: 1160, total: 1160 });
+      .send({ client_id: 9, reason: 'other', subtotal: 1160, total: 1160 });
     expect(billingService.assertTaxCoherent).toHaveBeenCalledWith(
       expect.any(Function), expect.objectContaining({ taxAmount: 0 }),
     );
@@ -101,7 +103,7 @@ describe('create consults the tax resolver', () => {
       new AppError('This credit note carries no tax, but 16% applies to this client.', 422, 'TAX_REQUIRED'),
     );
     const res = await auth(request(app).post('/api/v1/credit-notes'))
-      .send({ client_id: 9, subtotal: 1160, total: 1160 });
+      .send({ client_id: 9, reason: 'other', subtotal: 1160, total: 1160 });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('TAX_REQUIRED');
     expect(db.query.mock.calls.some(c => /INSERT INTO `?credit_notes`?/.test(c[0]))).toBe(false);

@@ -19,7 +19,7 @@ const paymentGatewayService = require('./paymentGatewayService');
 const paymentRetryService = require('./paymentRetryService');
 const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
-const { ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { parseJsonColumn } = require('../utils/jsonColumn');
 
@@ -81,7 +81,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     `SELECT i.*, ${BALANCE_DUE_SQL} FROM invoices i WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL`,
     [invoiceId, organizationId],
   );
-  if (invoices.length === 0) throw new Error('Invoice not found');
+  if (invoices.length === 0) throw new NotFoundError('Invoice');
 
   const invoice = invoices[0];
   // Only payable invoices — never capture money for an invoice that can't be
@@ -292,10 +292,10 @@ async function generatePaymentLink({ organizationId, invoiceId }) {
     'SELECT i.*, c.name, c.email FROM invoices i JOIN clients c ON c.id = i.client_id WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL',
     [invoiceId, organizationId],
   );
-  if (invoices.length === 0) throw new Error('Invoice not found');
+  if (invoices.length === 0) throw new NotFoundError('Invoice');
 
   const invoice = invoices[0];
-  if (invoice.status === 'paid') throw new Error('Invoice already paid');
+  if (invoice.status === 'paid') throw new ValidationError('Invoice already paid');
 
   // Reuse checkout session creation
   const session = await createCheckoutSession({
@@ -350,7 +350,7 @@ async function chargeRecurringProfile(profileId, organizationId) {
     organizationId ? [profileId, organizationId] : [profileId],
   );
 
-  if (profiles.length === 0) throw new Error('Active recurring profile not found');
+  if (profiles.length === 0) throw new NotFoundError('Active recurring profile');
   const profile = profiles[0];
 
   // The oldest payable invoice with money still owed. Soft-deleted invoices

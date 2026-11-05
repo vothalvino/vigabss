@@ -38,6 +38,8 @@ const NOTE = { id: 40, organization_id: 5, client_id: 42, invoice_id: 60, total:
 
 function wire({ liveCfdi, invoiceClient = 42 }) {
   db.query.mockImplementation(async (sql, params = []) => {
+    // The credit note number sequence (migration 520).
+    if (/SELECT LAST_INSERT_ID\(\) AS id/.test(sql)) return [[{ id: 1 }]];
     if (/FROM cfdi_documents/.test(sql)) return [liveCfdi ? [{ id: 9, sat_status: 'vigente' }] : []];
     if (/SELECT id FROM clients/.test(sql)) return [[{ id: Number(params[0]) }]];
     if (/SELECT client_id FROM invoices/.test(sql)) return [[{ client_id: invoiceClient }]];

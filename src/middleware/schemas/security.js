@@ -6,12 +6,13 @@ const createFirewallRule = {
   action: { required: true, enum: ['allow', 'deny', 'log'] },
   protocol: { required: true, enum: ['tcp', 'udp', 'icmp', 'any'] },
   priority: { type: 'integer' },
-  name: {},
-  description: {},
-  src_ip: {},
-  src_port: {},
-  dst_ip: {},
-  dst_port: {},
+  // firewall_rules.name is NOT NULL; a rule without one failed with a 500.
+  name: { type: 'string', required: true, min: 1, max: 150 },
+  description: { type: 'string', max: 65535 },
+  src_ip: { type: 'string', max: 50 },
+  src_port: { type: 'string', max: 50 },
+  dst_ip: { type: 'string', max: 50 },
+  dst_port: { type: 'string', max: 50 },
   direction: { enum: ['inbound', 'outbound', 'both'] },
 };
 

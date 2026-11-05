@@ -38,7 +38,7 @@ const OWNED_TABLES = new Set([
   'odf_frames', 'odf_ports', 'inventory_items', 'warehouses', 'vendors',
   'assets', 'purchase_orders', 'cpe_devices', 'onu_profiles', 'plans',
   'nas', 'payment_gateways', 'invoices', 'service_orders', 'ip_pools', 'payments',
-  'client_groups', 'message_templates', 'ap_sector_configs',
+  'client_groups', 'message_templates', 'ap_sector_configs', 'service_areas',
 ]);
 
 // Tables whose organization_id NULL rows are installation-wide defaults every
