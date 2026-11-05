@@ -11,12 +11,6 @@
 # header has no effect and browsers ignore it. The TLS edge is what to check.
 10035	IGNORE	(HSTS sent by the app; ignored over the plain-HTTP scan)
 
-# 10063 — Permissions-Policy Header Not Set
-# Rationale: The Permissions-Policy header is an optional hardening header;
-# helmet@8 does not set it by default. It has no security impact for an API-only
-# backend. Track for a future helmet upgrade.
-10063	IGNORE	(Optional hardening header; API-only backend)
-
 # 10096 — Timestamp Disclosure
 # Rationale: created_at / updated_at timestamps in API responses are expected
 # and documented in OpenAPI. Disclosing record timestamps is not a vulnerability.

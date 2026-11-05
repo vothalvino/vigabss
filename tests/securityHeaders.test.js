@@ -129,3 +129,34 @@ describe('no proxy config re-adds an app-owned header', () => {
     for (const f of configs) expect(read(f).length).toBeGreaterThan(500);
   });
 });
+
+// API answers carry tenant data and the JSON 404 had no caching directive at
+// all, so a browser or shared proxy could store them heuristically (ZAP
+// 10049, the one warning that kept the DAST gate advisory). A route that
+// needs another policy still sets its own.
+describe('API and JSON error answers are not stored', () => {
+  it.each([
+    ['an API answer', '/api/v1/no-such-route'],
+    ['an unauthenticated API answer', '/api/v1/clients'],
+    ['the JSON 404', '/health-no-such-route'],
+  ])('%s says Cache-Control: private, no-store', async (_label, url) => {
+    const res = await request(app).get(url);
+    expect(res.headers['cache-control']).toBe('private, no-store');
+  });
+
+});
+
+describe('the DAST gate blocks', () => {
+  it('ZAP fails the build on a new warning', () => {
+    const ci = read('.github/workflows/ci.yml');
+    const dast = ci.slice(ci.indexOf('\n  dast:'), ci.indexOf('\n  shell-scripts:'));
+    expect(dast).toMatch(/\n {10}fail_action: true\n/);
+    expect(dast).not.toMatch(/fail_action: false/);
+  });
+
+  it('every ZAP suppression names a rule the scan would otherwise raise', () => {
+    // Permissions-Policy is sent (above), so its old IGNORE only hid a regression.
+    const rules = read('.zap/rules.tsv').split('\n').filter(l => /^\d+\t/.test(l)).map(l => l.split('\t')[0]);
+    expect(rules).not.toContain('10063');
+  });
+});
