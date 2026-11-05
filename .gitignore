@@ -63,3 +63,6 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# Generated on demand by `pnpm postman` (from docs/openapi.json)
+docs/postman-collection.json
