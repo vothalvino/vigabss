@@ -61,7 +61,8 @@ jobs:
         run: |
           docker run -d --name db -e ${{ matrix.rootenv }}=fireisp_test \
             -p 3306:3306 ${{ matrix.image }} ${{ matrix.server }} \
-            --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci \
+            --event-scheduler=OFF
           for i in $(seq 1 90); do
             docker exec db ${{ matrix.client }} -uroot -pfireisp_test -e 'SELECT 1' >/dev/null 2>&1 && break
             sleep 2
@@ -80,45 +81,67 @@ jobs:
       - name: Apply this branch's migrations
         run: DB_NAME=fireisp_baseline node src/scripts/migrate.js
 
-      - name: Snapshot, dump and compare
+      # The scheduler is off: an event fires when it is created, at a moment
+      # that differs between the two installs. The second comparison runs
+      # every event's job once on both, the state after the first day.
+      - name: Write the comparison script
         run: |
-          mkdir -p out
-          DB_NAME=fireisp_chain node src/scripts/schema-snapshot.js out/chain-${{ matrix.engine }}.json
-          DB_NAME=fireisp_baseline node src/scripts/schema-snapshot.js out/baseline-${{ matrix.engine }}.json
-          docker exec db ${{ matrix.dump }} -uroot -pfireisp_test --no-data --routines --triggers --events \
-            --skip-comments --skip-dump-date --skip-add-drop-table fireisp_chain > out/schema-${{ matrix.engine }}.sql
-          docker exec db ${{ matrix.dump }} -uroot -pfireisp_test --no-create-info --skip-triggers \
-            --complete-insert --skip-extended-insert --hex-blob --skip-comments --skip-dump-date \
-            --ignore-table=fireisp_chain.schema_migrations fireisp_chain > out/data-${{ matrix.engine }}.sql
-          # Reviewed exceptions: the chain is wrong there and the baseline right.
-          #   mariadb speed_tests.tested_at: with explicit_defaults_for_timestamp
-          #   OFF (MariaDB 10.6's default) the column got an implicit
-          #   ON UPDATE CURRENT_TIMESTAMP, so 438's guarded MODIFY (explicit
-          #   DEFAULT, no auto-update) was skipped and editing a speed test
-          #   rewrote when it was measured. The baseline declares 438's column.
-          python3 - "${{ matrix.engine }}" out/chain-${{ matrix.engine }}.json out/baseline-${{ matrix.engine }}.json <<'PY'
+          cat > /tmp/compare.py <<'PY'
           import json, sys
-          engine, chain_path, baseline_path = sys.argv[1:]
-          chain = json.load(open(chain_path, encoding='utf-8'))
+          engine, chain_path, baseline_path, out_path = sys.argv[1:]
+          load = lambda p: json.load(open(p, encoding='utf-8'))
+          chain, baseline = load(chain_path), load(baseline_path)
+          # Reviewed exception, the chain is wrong there: on MariaDB 10.6
+          # (explicit_defaults_for_timestamp OFF) speed_tests.tested_at got
+          # an implicit ON UPDATE CURRENT_TIMESTAMP, so 438's guarded MODIFY
+          # was skipped and editing a speed test rewrote when it was taken.
           if engine == 'mariadb':
               for c in chain['columns']:
                   if c['t'] == 'speed_tests' and c['name'] == 'tested_at':
                       assert c['extra'] == 'on update current_timestamp()', c
                       c['extra'] = ''
                       c['comment'] = 'When the test measurement was taken; defaults to insert time for live-recorded tests'
-          baseline = json.load(open(baseline_path, encoding='utf-8'))
-          for path, snap in ((chain_path, chain), (baseline_path, baseline)):
-              with open(path, 'w', encoding='utf-8') as f:
-                  json.dump(snap, f, indent=1, ensure_ascii=False, sort_keys=True)
-                  f.write('\n')
+          # Join rows whose auto-increment id nothing references: INSERT ...
+          # SELECT numbers them in the engine's row order.
+          for snap in (chain, baseline):
+              for table in ('role_permissions', 'snmp_profile_oids'):
+                  snap['data'][table] = sorted(json.dumps([kv for kv in json.loads(r) if kv[0] != 'id'])
+                                               for r in snap['data'].get(table, []))
+          dump = lambda s: json.dumps(s, indent=1, ensure_ascii=False, sort_keys=True).splitlines()
+          import difflib
+          diff = list(difflib.unified_diff(dump(chain), dump(baseline), 'chain', 'baseline', lineterm=''))
+          open(out_path, 'w', encoding='utf-8').write('\n'.join(diff) + '\n')
+          print('\n'.join(diff[:200]))
+          sys.exit(1 if diff else 0)
           PY
-          if diff -u out/chain-${{ matrix.engine }}.json out/baseline-${{ matrix.engine }}.json > out/diff-${{ matrix.engine }}.txt; then
-            echo "✓ Identical: the baseline reproduces the chain on ${{ matrix.engine }}"
-          else
-            head -200 out/diff-${{ matrix.engine }}.txt
-            echo "::error::baseline differs from the chain on ${{ matrix.engine }} ($(grep -c '^[-+] ' out/diff-${{ matrix.engine }}.txt) lines)"
-            exit 1
-          fi
+
+      - name: Compare right after install
+        run: |
+          mkdir -p out
+          for db in chain baseline; do
+            DB_NAME=fireisp_$db node src/scripts/schema-snapshot.js out/$db-${{ matrix.engine }}.json
+          done
+          docker exec db ${{ matrix.dump }} -uroot -pfireisp_test --no-data --routines --triggers --events \
+            --skip-comments --skip-dump-date --skip-add-drop-table fireisp_chain > out/schema-${{ matrix.engine }}.sql
+          docker exec db ${{ matrix.dump }} -uroot -pfireisp_test --no-create-info --skip-triggers \
+            --complete-insert --skip-extended-insert --hex-blob --skip-comments --skip-dump-date \
+            --ignore-table=fireisp_chain.schema_migrations fireisp_chain > out/data-${{ matrix.engine }}.sql
+          python3 /tmp/compare.py ${{ matrix.engine }} out/chain-${{ matrix.engine }}.json \
+            out/baseline-${{ matrix.engine }}.json out/diff-${{ matrix.engine }}.txt \
+            && echo "✓ Identical after install on ${{ matrix.engine }}"
+
+      - name: Compare after every scheduled job has run once
+        run: |
+          for db in fireisp_chain fireisp_baseline; do
+            docker exec db ${{ matrix.client }} -uroot -pfireisp_test "$db" -e "
+              CALL snmp_maintain_partitions(); CALL snmp_apply_retention();
+              CALL snmp_rollup_to_1hr(); CALL snmp_rollup_to_1day(); CALL snmp_rollup_to_1month();
+              CALL connection_logs_maintain_partitions(); CALL subscriber_logging_maintain_partitions();"
+            DB_NAME=$db node src/scripts/schema-snapshot.js out/steady-${db#fireisp_}-${{ matrix.engine }}.json
+          done
+          python3 /tmp/compare.py ${{ matrix.engine }} out/steady-chain-${{ matrix.engine }}.json \
+            out/steady-baseline-${{ matrix.engine }}.json out/steady-diff-${{ matrix.engine }}.txt \
+            && echo "✓ Identical after the scheduled jobs on ${{ matrix.engine }}"
 
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

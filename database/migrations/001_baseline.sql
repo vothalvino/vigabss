@@ -15202,10 +15202,41 @@ DELIMITER ;
 -- Install-date maintenance (rolling partitions, rollup markers)
 -- -----------------------------------------------------------------------------
 
+-- snmp_metrics partitions for this month .. +3 months, creation only (as
+-- migration 248 did); the daily event adds later ones and drops expired ones.
+DROP PROCEDURE IF EXISTS baseline_ensure_snmp_partitions;
+DELIMITER ;;
+CREATE PROCEDURE baseline_ensure_snmp_partitions()
+BEGIN
+  DECLARE v_month DATE;
+  DECLARE v_pname VARCHAR(32);
+  DECLARE v_next_ts BIGINT;
+  DECLARE v_exists INT DEFAULT 0;
+  SET v_month = DATE_FORMAT(CURDATE(), '%Y-%m-01');
+  WHILE v_month <= DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 3 MONTH), '%Y-%m-01') DO
+    SET v_pname = CONCAT('p', DATE_FORMAT(v_month, '%Y_%m'));
+    SET v_next_ts = UNIX_TIMESTAMP(DATE_ADD(v_month, INTERVAL 1 MONTH));
+    SELECT COUNT(*) INTO v_exists FROM information_schema.PARTITIONS
+     WHERE table_schema = DATABASE() AND table_name = 'snmp_metrics'
+       AND partition_name = v_pname;
+    IF v_exists = 0 THEN
+      SET @sql = CONCAT(
+        'ALTER TABLE snmp_metrics REORGANIZE PARTITION p_future INTO (',
+        'PARTITION ', v_pname, ' VALUES LESS THAN (', v_next_ts, '), ',
+        'PARTITION p_future VALUES LESS THAN MAXVALUE)');
+      PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+    END IF;
+    SET v_month = DATE_ADD(v_month, INTERVAL 1 MONTH);
+  END WHILE;
+END ;;
+DELIMITER ;
+
+CALL baseline_ensure_snmp_partitions();
 CALL snmp_apply_retention();
 CALL snmp_rollup_to_1month();
 CALL connection_logs_maintain_partitions();
 CALL subscriber_logging_maintain_partitions();
+DROP PROCEDURE IF EXISTS baseline_ensure_snmp_partitions;
 
 -- -----------------------------------------------------------------------------
 -- Events
