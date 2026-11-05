@@ -663,19 +663,19 @@ function generateSpec() {
       // ---- Facturas Publicas ----
       // Explicit rather than crudPaths: there is no DELETE route (CFD-14).
       '/facturas-publicas': {
-        get: { tags: ['Facturas Publicas'], summary: 'List facturas-publicas', operationId: 'listFacturaPublicas', security: [{ bearerAuth: [] }], responses: r200('FacturaPublica[]') },
-        post: { tags: ['Facturas Publicas'], summary: 'Create a FacturaPublica', operationId: 'createFacturaPublica', security: [{ bearerAuth: [] }], requestBody: jsonBody('FacturaPublica'), responses: r201('FacturaPublica') },
+        get: { tags: ['Facturas Publicas'], summary: 'List facturas-publicas', operationId: 'listFacturaPublicas', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200('FacturaPublica[]') },
+        post: { tags: ['Facturas Publicas'], summary: 'Create a FacturaPublica', operationId: 'createFacturaPublica', security: [{ bearerAuth: [] }], requestBody: jsonBody('FacturaPublica'), responses: { ...r201('FacturaPublica'), 422: errorResponse('A period SAT cannot file, or an invalid field') } },
       },
       '/facturas-publicas/{id}': {
         get: { tags: ['Facturas Publicas'], summary: 'Get a FacturaPublica', operationId: 'getFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('FacturaPublica') },
         put: { tags: ['Facturas Publicas'], summary: 'Update a FacturaPublica', operationId: 'updateFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('FacturaPublica'), responses: r200('FacturaPublica') },
       },
       '/facturas-publicas/{id}/stamp': {
-        post: { tags: ['Facturas Publicas'], summary: 'Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices', description: 'One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).', operationId: 'stampFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 201: { description: 'Stamped' }, 202: { description: 'Created, stamp pending' }, 409: { description: 'Not a draft' }, 422: { description: 'Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file' } } },
+        post: { tags: ['Facturas Publicas'], summary: 'Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices', description: 'One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).', operationId: 'stampFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r201('Stamped: { data: { stamped, cfdi_document_id, uuid } }'), ...r202('Created, stamp pending'), 409: errorResponse('Not a draft'), 422: errorResponse('Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file') } },
       },
       '/facturas-publicas/{id}/items': {
-        get: { tags: ['Facturas Publicas'], summary: 'List linked invoices', operationId: 'listFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Item[]') },
-        post: { tags: ['Facturas Publicas'], summary: 'Link an invoice', operationId: 'addFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: r201('Item') },
+        get: { tags: ['Facturas Publicas'], summary: 'List linked invoices, with each invoice\'s number, total, currency and payment date', operationId: 'listFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: r200('Item[]') },
+        post: { tags: ['Facturas Publicas'], summary: 'Link an invoice', operationId: 'addFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: { ...r201('Item'), 404: errorResponse('Factura pública not found'), 422: errorResponse('Not a draft, or the invoice is not this organization\'s') } },
       },
       '/facturas-publicas/{id}/items/{itemId}': {
         delete: { tags: ['Facturas Publicas'], summary: 'Unlink an invoice from a draft factura pública', operationId: 'removeFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'itemId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 404: errorResponse('Factura or item not found'), 422: errorResponse('Not a draft (FACTURA_PUBLICA_NOT_DRAFT)') } },
