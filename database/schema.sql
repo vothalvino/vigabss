@@ -12151,7 +12151,7 @@ CREATE TABLE IF NOT EXISTS cpe_tasks (
     cpe_device_id       BIGINT UNSIGNED NOT NULL,
     task_type           ENUM('get_parameter_values','set_parameter_values','get_parameter_names','download','reboot','factory_reset','add_object','delete_object','ping_diagnostic','traceroute_diagnostic','wifi_diagnostics','wan_diagnostics') NOT NULL,
     parameters          JSON            NULL COMMENT 'For set: [{path, value}], for get: [path,...], for download: {url, fileType, fileSize}',
-    status              ENUM('queued','in_progress','done','failed') NOT NULL DEFAULT 'queued',
+    status              ENUM('queued','in_progress','awaiting_transfer','done','failed') NOT NULL DEFAULT 'queued',
     priority            TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT '1=highest 10=lowest',
     result              JSON            NULL,
     error_message       TEXT            NULL,

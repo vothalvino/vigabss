@@ -205,7 +205,9 @@ async function reapStuckTasks(organizationId, { olderThanMinutes = 30 } = {}) {
     }
     if (r.affectedRows === 1) await require('./cpeFirmwareCampaignService').afterTaskSettled(task);
   }
-  return { reaped: stuck.length };
+  // Downloads that a CPE accepted but never confirmed installing.
+  const unconfirmed = await require('./cpeFirmwareCampaignService').reapUnconfirmedDownloads(organizationId);
+  return { reaped: stuck.length, unconfirmed: unconfirmed.reaped };
 }
 
 // ---------------------------------------------------------------------------
@@ -426,6 +428,27 @@ async function handleCwmpRequest(req, res) {
 
     // 5. Handle task responses — only a device's own credentials identify it
     if (!cpeDevice) return challenge(res);
+
+    // A TransferComplete is the CPE's request, not an answer to ours: it
+    // reports a Download it applied later. It is answered at once, or the CPE
+    // sends it again at every session (migration 523).
+    if (messageType === 'TransferComplete') {
+      await require('./cpeFirmwareCampaignService').onTransferComplete(cpeDevice, payload);
+      cpeSessionLogService.logSessionEvent({
+        orgId: cpeDevice.organization_id,
+        cpeDeviceId: cpeDevice.id,
+        eventType: 'task_response',
+        messageType: 'TransferComplete',
+        taskType: 'download',
+        faultCode: payload.faultCode !== '0' ? payload.faultCode : null,
+        faultString: payload.faultString || null,
+        remoteIp: req.ip || null,
+      }).catch(() => {});
+      return res
+        .status(200)
+        .set('Content-Type', 'text/xml; charset=utf-8')
+        .send(buildCwmpResponse(msgId, 'TransferCompleteResponse'));
+    }
 
     // Find in-progress task for this device
     const [inProgress] = await db.query(
