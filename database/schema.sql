@@ -2791,6 +2791,9 @@ CREATE TABLE IF NOT EXISTS connection_logs (
     KEY idx_conn_logs_username (username, event_at),
     KEY idx_conn_logs_ip_address (ip_address, event_at),
     KEY idx_connection_logs_ipv6_address (ipv6_address),
+    KEY idx_conn_logs_org_framed_ipv6_prefix (organization_id, framed_ipv6_prefix),
+    KEY idx_conn_logs_org_delegated_ipv6_prefix (organization_id, ipv6_delegated_prefix),
+    KEY idx_conn_logs_org_ipv6_address (organization_id, ipv6_address),
     KEY idx_conn_logs_session_id (session_id),
     KEY idx_conn_logs_acct_session_id (acct_session_id),
     KEY idx_conn_logs_org_time (organization_id, event_at),
@@ -16082,6 +16085,8 @@ CREATE TABLE IF NOT EXISTS radius_accounting_events (
     calling_station_id     VARCHAR(100)    NULL,
     framed_ip              VARCHAR(45)     NULL,
     framed_ipv6_prefix     VARCHAR(64)     NULL,
+    delegated_ipv6_prefix  VARCHAR(64)     NULL COMMENT 'Delegated-IPv6-Prefix (DHCPv6-PD) at this event (migration 524)',
+    framed_ipv6_address    VARCHAR(45)     NULL COMMENT 'Framed-IPv6-Address (the WAN address) at this event (migration 524)',
     bytes_in               BIGINT UNSIGNED NULL,
     bytes_out              BIGINT UNSIGNED NULL,
     packets_in             BIGINT UNSIGNED NULL,
@@ -16278,14 +16283,15 @@ CREATE TABLE IF NOT EXISTS ip_attribution_case_evidence (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL,
     gov_data_request_id BIGINT UNSIGNED NOT NULL,
-    evidence_type ENUM('cgnat_binding','direct_public_assignment') NOT NULL,
+    evidence_type ENUM('cgnat_binding','direct_public_assignment','direct_ipv6_assignment') NOT NULL,
     binding_id BIGINT UNSIGNED NULL,
     connection_log_id BIGINT UNSIGNED NULL,
     source_integrity_hash CHAR(64) NOT NULL,
     evidence_snapshot JSON NOT NULL,
     evidence_hash CHAR(64) NOT NULL,
     query_key CHAR(64) NOT NULL,
-    public_ipv4 VARCHAR(15) NOT NULL,
+    ip_address VARCHAR(45) NULL COMMENT 'The looked-up address, IPv4 or IPv6, canonical (migration 524)',
+    public_ipv4 VARCHAR(15) NULL,
     public_port SMALLINT UNSIGNED NULL,
     protocol TINYINT UNSIGNED NULL,
     observed_at TIMESTAMP(3) NOT NULL,
@@ -16429,6 +16435,8 @@ BEGIN
     SET v_raw = JSON_OBJECT('event_type', NEW.event_type,
       'ip_address', COALESCE(NEW.framed_ip, NEW.ip_address),
       'ipv6_prefix', COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+      'ipv6_delegated_prefix', NEW.ipv6_delegated_prefix,
+      'ipv6_address', NEW.ipv6_address,
       'acct_delay_seconds', NEW.acct_delay_seconds);
     SET v_dedupe = SHA2(CAST(JSON_ARRAY(
       NEW.organization_id, NULLIF(NEW.contract_id, 0), NULLIF(NEW.client_id, 0),
@@ -16438,6 +16446,7 @@ BEGIN
       NEW.nas_port_id, NEW.called_station_id, NEW.calling_station_id,
       COALESCE(NEW.framed_ip, NEW.ip_address),
       COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+      NEW.ipv6_delegated_prefix, NEW.ipv6_address,
       NEW.bytes_in, NEW.bytes_out, NEW.packets_in, NEW.packets_out,
       NEW.session_duration, NEW.terminate_cause, NEW.acct_delay_seconds
     ) AS CHAR), 256);
@@ -16447,7 +16456,8 @@ BEGIN
       (organization_id, connection_log_id, contract_id, client_id, nas_id,
        username, acct_session_id, session_instance_id, status_type, event_at, observed_at, nas_ip_address,
        nas_port_id, called_station_id, calling_station_id, framed_ip,
-       framed_ipv6_prefix, bytes_in, bytes_out, packets_in, packets_out,
+       framed_ipv6_prefix, delegated_ipv6_prefix, framed_ipv6_address,
+       bytes_in, bytes_out, packets_in, packets_out,
        session_duration, terminate_cause, acct_delay_seconds, source, dedupe_key, integrity_hash,
        raw_attributes)
     VALUES (NEW.organization_id, NEW.id, NULLIF(NEW.contract_id, 0), NULLIF(NEW.client_id, 0), NEW.nas_id,
@@ -16455,6 +16465,7 @@ BEGIN
        NEW.event_type, v_event_at, v_observed_at, NEW.nas_ip_address, NEW.nas_port_id, NEW.called_station_id,
        NEW.calling_station_id, COALESCE(NEW.framed_ip, NEW.ip_address),
        COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+       NEW.ipv6_delegated_prefix, NEW.ipv6_address,
        NEW.bytes_in, NEW.bytes_out, NEW.packets_in, NEW.packets_out,
        NEW.session_duration, NEW.terminate_cause, NEW.acct_delay_seconds,
        'connection_log_trigger', v_dedupe, v_integrity, v_raw)
@@ -16476,6 +16487,8 @@ BEGIN
        NOT (NEW.event_type <=> OLD.event_type)
     OR NOT (NEW.framed_ip <=> OLD.framed_ip)
     OR NOT (NEW.framed_ipv6_prefix <=> OLD.framed_ipv6_prefix)
+    OR NOT (NEW.ipv6_delegated_prefix <=> OLD.ipv6_delegated_prefix)
+    OR NOT (NEW.ipv6_address <=> OLD.ipv6_address)
     OR NOT (NEW.calling_station_id <=> OLD.calling_station_id)
     OR (NEW.event_type = 'stop' AND OLD.event_type = 'stop'
         AND (NOT (NEW.bytes_in <=> OLD.bytes_in)
@@ -16486,6 +16499,8 @@ BEGIN
           OR NOT (NEW.terminate_cause <=> OLD.terminate_cause)
           OR NOT (NEW.framed_ip <=> OLD.framed_ip)
           OR NOT (NEW.framed_ipv6_prefix <=> OLD.framed_ipv6_prefix)
+          OR NOT (NEW.ipv6_delegated_prefix <=> OLD.ipv6_delegated_prefix)
+          OR NOT (NEW.ipv6_address <=> OLD.ipv6_address)
           OR NOT (NEW.acct_delay_seconds <=> OLD.acct_delay_seconds)))
   ) THEN
     SET v_event_at = COALESCE(NEW.last_accounting_at, NEW.event_at);
@@ -16493,6 +16508,8 @@ BEGIN
     SET v_raw = JSON_OBJECT('event_type', NEW.event_type,
       'ip_address', COALESCE(NEW.framed_ip, NEW.ip_address),
       'ipv6_prefix', COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+      'ipv6_delegated_prefix', NEW.ipv6_delegated_prefix,
+      'ipv6_address', NEW.ipv6_address,
       'acct_delay_seconds', NEW.acct_delay_seconds);
     SET v_dedupe = SHA2(CAST(JSON_ARRAY(
       NEW.organization_id, NULLIF(NEW.contract_id, 0), NULLIF(NEW.client_id, 0),
@@ -16502,6 +16519,7 @@ BEGIN
       NEW.nas_port_id, NEW.called_station_id, NEW.calling_station_id,
       COALESCE(NEW.framed_ip, NEW.ip_address),
       COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+      NEW.ipv6_delegated_prefix, NEW.ipv6_address,
       NEW.bytes_in, NEW.bytes_out, NEW.packets_in, NEW.packets_out,
       NEW.session_duration, NEW.terminate_cause, NEW.acct_delay_seconds
     ) AS CHAR), 256);
@@ -16511,7 +16529,8 @@ BEGIN
       (organization_id, connection_log_id, contract_id, client_id, nas_id,
        username, acct_session_id, session_instance_id, status_type, event_at, observed_at, nas_ip_address,
        nas_port_id, called_station_id, calling_station_id, framed_ip,
-       framed_ipv6_prefix, bytes_in, bytes_out, packets_in, packets_out,
+       framed_ipv6_prefix, delegated_ipv6_prefix, framed_ipv6_address,
+       bytes_in, bytes_out, packets_in, packets_out,
        session_duration, terminate_cause, acct_delay_seconds, source, dedupe_key, integrity_hash,
        raw_attributes)
     VALUES (NEW.organization_id, NEW.id, NULLIF(NEW.contract_id, 0), NULLIF(NEW.client_id, 0), NEW.nas_id,
@@ -16519,6 +16538,7 @@ BEGIN
        NEW.event_type, v_event_at, v_observed_at, NEW.nas_ip_address, NEW.nas_port_id, NEW.called_station_id,
        NEW.calling_station_id, COALESCE(NEW.framed_ip, NEW.ip_address),
        COALESCE(NEW.framed_ipv6_prefix, NEW.ipv6_delegated_prefix),
+       NEW.ipv6_delegated_prefix, NEW.ipv6_address,
        NEW.bytes_in, NEW.bytes_out, NEW.packets_in, NEW.packets_out,
        NEW.session_duration, NEW.terminate_cause, NEW.acct_delay_seconds,
        'connection_log_trigger', v_dedupe, v_integrity, v_raw)

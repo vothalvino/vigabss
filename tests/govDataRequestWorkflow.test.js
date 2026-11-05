@@ -204,6 +204,44 @@ describe('government-request case creation', () => {
     }));
   });
 
+  // IPv6 traceability (migration 524): the address is stored canonical, so the
+  // lookup's exact-match check compares like with like, and it takes no port.
+  test('accepts a globally routable IPv6 case, stored canonical and without a port', async () => {
+    db.query.mockImplementation(async (sql) => {
+      if (/SELECT id FROM clients/.test(sql)) return [[{ id: 101 }]];
+      if (/SELECT id, client_id FROM contracts/.test(sql)) return [[{ id: 201, client_id: 101 }]];
+      if (/INSERT INTO gov_data_requests/.test(sql)) return [{ insertId: 22, affectedRows: 1 }];
+      return [[]];
+    });
+
+    const response = await request(app)
+      .post('/api/v1/regulatory-compliance/gov-data-requests')
+      .send(createBody({ ip_address: '2806:02F0:0001:0002:0000:0000:0000:0005', public_port: null, protocol: null }));
+
+    expect(response.status).toBe(201);
+    const [, insertParams] = db.query.mock.calls.find(([sql]) => /INSERT INTO gov_data_requests/.test(sql));
+    expect(insertParams.slice(6, 9)).toEqual(['2806:2f0:1:2::5', null, null]);
+  });
+
+  test.each([
+    ['an IPv6 case with a port', { ip_address: '2806:2f0:1:2::5' }],
+    ['a link-local IPv6 address', { ip_address: 'fe80::1', public_port: null, protocol: null }],
+    ['a documentation IPv6 address', { ip_address: '2001:db8::1', public_port: null, protocol: null }],
+  ])('refuses %s before inserting a case', async (_label, overrides) => {
+    db.query.mockImplementation(async (sql) => {
+      if (/SELECT id FROM clients/.test(sql)) return [[{ id: 101 }]];
+      if (/SELECT id, client_id FROM contracts/.test(sql)) return [[{ id: 201, client_id: 101 }]];
+      return [[]];
+    });
+
+    const response = await request(app)
+      .post('/api/v1/regulatory-compliance/gov-data-requests')
+      .send(createBody(overrides));
+
+    expect(response.status).toBe(422);
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO gov_data_requests/.test(sql))).toBe(false);
+  });
+
   test('rejects a client outside the authenticated tenant before inserting a case', async () => {
     db.query.mockImplementation(async (sql) => {
       if (/SELECT id FROM clients/.test(sql)) return [[]];

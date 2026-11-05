@@ -21,11 +21,38 @@ identifier, assigned IPv4/IPv6 address, MAC/circuit identifiers, NAS, traffic
 counters, start/last-seen/end state, duration, and termination cause.
 
 IPv6: ingest records Framed-IPv6-Prefix, Delegated-IPv6-Prefix (DHCPv6-PD) and
-Framed-IPv6-Address in canonical form. The session list's `ip_address` filter
-accepts an IPv6 address or prefix and matches the sessions whose prefix contains
-it, or whose WAN address it is. The case-gated legal IP attribution lookup and
-government requests accept routable IPv4 only; IPv6 attribution through them is
-**not yet supported** and must be answered from the session search and NAS logs.
+Framed-IPv6-Address in canonical form; a prefix is stored as its network, with
+the bits past its length zeroed (RFC 3162 and RFC 4818 require them to be zero,
+and a NAS that sends them anyway is normalized). The session list's
+`ip_address` filter accepts an IPv6 address or prefix and matches the sessions
+whose prefix contains it, or whose WAN address it is.
+
+The case-gated legal IP attribution lookup and government `ip_traceability`
+requests accept a globally routable IPv6 address as well as IPv4 (migration
+524). Routable means global unicast `2000::/3` outside the documentation
+(`2001:db8::/32`, `3fff::/20`), IETF special-purpose (`2001::/23`) and 6to4
+(`2002::/16`, which embeds someone else's IPv4 address) ranges; link-local,
+unique-local, multicast and IPv4-mapped addresses are refused. The address is
+stored canonical, so the lookup's exact-match check against the approved case
+compares one text form. IPv6 has no CGNAT: a request and a lookup take no port
+or protocol, and the evidence type is `direct_ipv6_assignment`.
+
+A subscriber holds an IPv6 address when it is their WAN address
+(Framed-IPv6-Address) or falls inside the delegated or framed prefix routed to
+them. The lookup applies the IPv4 direct rules with prefix containment: the
+session's append-only assignment evidence must carry that address or a
+containing prefix at or before the instant, the session must have closed after
+it (closure evidence carrying it) or still be live, its attribution evidence
+must be complete, and no other session whose address or prefix contains the
+address may also reach the instant. Two sessions with containing prefixes, a
+nested one routed elsewhere included, make the answer **ambiguous**; the lookup
+never picks the more specific one. The result says which field held the
+address (`ipv6_matched_by`). For this, the evidence rows record the delegated
+prefix and the WAN address next to the existing prefix column, both in the
+dedupe key the integrity hash covers, and a change of either writes new
+evidence. Evidence recorded before migration 524 carries one prefix only, so
+an address on a delegated LAN may be found only from sessions accounted after
+it.
 
 Date filters on the session list, the session export, the CDR export and the
 binding report select sessions **active during** the window: a session that

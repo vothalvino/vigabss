@@ -21,3 +21,14 @@
 # Remove this entry once the runtime image has stably carried the fixed liblzma5 for a while
 # (i.e. no red container-scan recurrence) — it is inert while the installed package is patched.
 CVE-2026-34743 exp:2027-02-01
+
+# CVE-2026-109518 — apt / libapt-pkg6.0 2.6.1, the Debian bookworm package manager in the
+# node:24-bookworm-slim runtime base image; fixed in 2.6.2. An on-path attacker can tamper
+# with what apt downloads, so it matters only while apt runs. The running application never
+# runs apt: the container runs as uid 10001 with no package installs, and apt runs only in
+# the image build (Dockerfile apt-get update/upgrade/install) on CI runners against signed
+# Debian repositories. Same repo-lag window as CVE-2026-34743: Trivy knows the fix before
+# bookworm publishes it, and the Dockerfile's `apt-get upgrade` picks it up once it does.
+# Remove this entry once the runtime image carries apt 2.6.2; it is inert after that. The
+# short expiry makes the scan report it again if bookworm has not shipped the fix by then.
+CVE-2026-109518 exp:2026-12-15
