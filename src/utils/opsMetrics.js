@@ -146,6 +146,39 @@ registry.collected({
 const noteOutboxMessage = (channel, result) => outboxMessages.inc({ channel, result });
 const noteOutboxBacklog = (rows, oldestQueuedSeconds) => { outboxBacklog = { rows, oldestQueuedSeconds }; };
 
+// Jobs per queue and state (waiting, active, delayed, failed), read from the
+// queue when /metrics is scraped. A queue whose waiting count only grows has
+// workers that cannot keep up or have stopped.
+const QUEUE_STATES = ['waiting', 'active', 'delayed', 'failed'];
+let queueDepth = [];
+registry.collected({
+  name: 'job_queue_jobs',
+  help: 'Background jobs per queue and state, as of the last scrape',
+  collect: () => queueDepth,
+});
+function noteQueueDepth(queues) {
+  queueDepth = (queues || []).flatMap(q => QUEUE_STATES
+    .filter(state => typeof q[state] === 'number')
+    .map(state => ({ labels: { queue: q.name, state }, value: q[state] })));
+}
+
+// RADIUS accounting requests by Acct-Status-Type and how they were answered:
+// accepted (2xx), rejected (4xx), unauthorized (bad shared secret) or error
+// (5xx). A NAS whose accounting is rejected bills and attributes nothing.
+const radiusAccounting = registry.counter({
+  name: 'radius_accounting_requests_total',
+  help: 'RADIUS accounting requests by Acct-Status-Type and result',
+  labelNames: ['status_type', 'result'],
+});
+const ACCOUNTING_STATUS_TYPES = new Set(['Start', 'Stop', 'Interim-Update', 'Accounting-On', 'Accounting-Off']);
+function noteRadiusAccounting(statusType, httpStatus) {
+  const result = httpStatus === 401 ? 'unauthorized'
+    : httpStatus >= 500 ? 'error'
+      : httpStatus >= 400 ? 'rejected'
+        : 'accepted';
+  radiusAccounting.inc({ status_type: ACCOUNTING_STATUS_TYPES.has(statusType) ? statusType : 'other', result });
+}
+
 // SNMP traps dropped because their community or SNMPv3 user did not
 // authenticate them as the device they came from (NET-24).
 const snmpTrapAuthDrops = registry.counter({
@@ -158,7 +191,7 @@ const noteSnmpTrapAuthDrop = reason => snmpTrapAuthDrops.inc({ reason });
 
 module.exports = {
   noteSnmpTrapAuthDrop,
-  noteOutboxMessage, noteOutboxBacklog,
+  noteOutboxMessage, noteOutboxBacklog, noteQueueDepth, noteRadiusAccounting,
   noteBackupSuccess, noteTaskRun, noteAuditWriteFailure, scheduledTaskRuns, auditWriteFailures,
   noteInvoiceRun, noteBillingEmail, noteAutopayCharge, notePaymentRetry, notePaymentWebhook,
   noteReconcileFailure, notePacError,

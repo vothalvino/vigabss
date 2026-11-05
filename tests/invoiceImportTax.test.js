@@ -17,9 +17,6 @@
 //      stamp with CFDI_UNSUPPORTED_CURRENCY.
 // =============================================================================
 
-const request = require('supertest');
-const jwt = require('./helpers/staffJwt');
-
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), execute: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
 }));
@@ -30,20 +27,27 @@ jest.mock('../src/models/Organization', () => ({
   findById: jest.fn(),
 }));
 
-const config = require('../src/config');
 const db = require('../src/config/database');
 const Organization = require('../src/models/Organization');
-const app = require('../src/app');
 
-const token = () => jwt.sign({ sub: 1, email: 'a@b.c', role: 'admin', orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
 const isUserLookup = (sql) => typeof sql === 'string' && sql.includes('`users`');
 const ADMIN = { id: 1, email: 'a@b.c', role: 'admin', status: 'active', organization_id: 1 };
 
 const HEADER = 'client_id,invoice_number,issue_date,due_date,subtotal,tax_rate,total,status';
-const importCsv = (csv) => request(app)
-  .post('/api/v1/import/invoices')
-  .set('Authorization', `Bearer ${token()}`)
-  .send({ csv });
+// Imports run as a background job (migration 522): the route queues the CSV
+// and the worker runs this handler on it with exactly this request shape
+// (importJobService). These cases are about the rows, so they call it the
+// way the worker does; tests/importJobs.test.js covers the route and queue.
+const importController = require('../src/controllers/importController');
+const importCsv = async (csv) => {
+  let status = 200;
+  let body;
+  let thrown;
+  const res = { status(code) { status = code; return res; }, json(payload) { body = payload; return res; } };
+  await importController.importInvoices({ orgId: 1, user: { id: 1 }, body: { csv } }, res, (err) => { thrown = err; });
+  if (thrown) throw thrown;
+  return { status, body };
+};
 
 /** exempt=false client, and an org default rate of 16%. */
 function wireDb({ exempt = false, defaultRate = '0.1600' } = {}) {

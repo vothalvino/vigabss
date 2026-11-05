@@ -163,6 +163,7 @@ const PromotionList = lazy(() => import('@/pages/PromotionList').then((m) => ({ 
 const TaxRuleList = lazy(() => import('@/pages/TaxRuleList').then((m) => ({ default: m.TaxRuleList })));
 const TaxRateList = lazy(() => import('@/pages/TaxRateList').then((m) => ({ default: m.TaxRateList })));
 const PaymentGatewayList = lazy(() => import('@/pages/PaymentGatewayList').then((m) => ({ default: m.PaymentGatewayList })));
+const PaymentProblems = lazy(() => import('@/pages/PaymentProblems').then((m) => ({ default: m.PaymentProblems })));
 const PaymentTransactionList = lazy(() => import('@/pages/PaymentTransactionList').then((m) => ({ default: m.PaymentTransactionList })));
 const RecurringPaymentProfileList = lazy(() => import('@/pages/RecurringPaymentProfileList').then((m) => ({ default: m.RecurringPaymentProfileList })));
 const PaymentPlanList = lazy(() => import('@/pages/PaymentPlanList').then((m) => ({ default: m.PaymentPlanList })));
@@ -372,6 +373,7 @@ export function App() {
                 <Route path="tax-rules" element={<TaxRuleList />} />
                 <Route path="tax-rates" element={<TaxRateList />} />
                 <Route path="payment-gateways" element={<PaymentGatewayList />} />
+                <Route path="payment-problems" element={<PaymentProblems />} />
                 <Route path="payment-transactions" element={<PaymentTransactionList />} />
                 <Route path="recurring-payment-profiles" element={<RecurringPaymentProfileList />} />
                 <Route path="payment-plans" element={<PaymentPlanList />} />

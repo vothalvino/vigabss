@@ -24,12 +24,9 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { apiFetch } from '@/api/apiFetch';
+import { uploadImport, type ImportResult } from '@/api/importJob';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
-
-interface ImportError { row: number; error: string }
-interface ImportResult { imported: number; total: number; errors: ImportError[] }
 
 interface EntitySpec {
   key: string;
@@ -93,11 +90,9 @@ function downloadTemplate(spec: EntitySpec): void {
   URL.revokeObjectURL(url);
 }
 
-async function uploadCsv(spec: EntitySpec, file: File): Promise<ImportResult> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const body = await apiFetch<{ data: ImportResult }>(`/import/${spec.path}/upload`, { method: 'POST', body: formData });
-  return body.data;
+// The server imports in the background; this waits for the job's result.
+function uploadCsv(spec: EntitySpec, file: File): Promise<ImportResult> {
+  return uploadImport(spec.path, file);
 }
 
 export function DataImport() {

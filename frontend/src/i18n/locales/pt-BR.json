@@ -315,6 +315,7 @@
     "taxRules": "Regras de Impostos",
     "taxRates": "Taxas de Impostos",
     "paymentGateways": "Gateways de Pagamento",
+    "paymentProblems": "Problemas de pagamentos",
     "paymentTransactions": "Transações de Pagamento",
     "recurringPaymentProfiles": "Pagamentos Recorrentes",
     "users": "Usuários",
@@ -9702,6 +9703,50 @@
       "16": "16 · Julho–Agosto",
       "17": "17 · Setembro–Outubro",
       "18": "18 · Novembro–Dezembro"
+    }
+  },
+  "paymentProblems": {
+    "title": "Problemas de pagamentos",
+    "description": "O que deu errado entre seus provedores de pagamento e a contabilidade: eventos que não puderam ser processados, cobranças sem pagamento lançado e reembolsos que um complemento de pagamento (REP) ainda informa ao SAT.",
+    "tab": {
+      "webhooks": "Eventos de webhook",
+      "unsettled": "Cobranças não lançadas",
+      "refunds": "Reembolsos com REP vigente"
+    },
+    "webhooksHelp": "Um evento com falha é processado novamente quando o provedor o reenvia; a maioria tenta de novo por vários dias. Um evento sem transação pode ser de outra conta ou um teste.",
+    "unsettledHelp": "O provedor cobrou estes, mas nenhum pagamento foi lançado. A tarefa reconcile_gateway_payments tenta de novo; se um ainda aparecer depois de um dia, verifique-o.",
+    "refundsHelp": "Reembolsados no painel do provedor depois que um REP informou o pagamento ao SAT. Cancele cada REP no SAT (motivo 02); ele sai desta lista quando o SAT confirma.",
+    "status": "Status",
+    "webhookStatus": {
+      "failed": "Falhou",
+      "no_match": "Sem transação",
+      "all": "Todos",
+      "received": "Recebido",
+      "processing": "Processando",
+      "processed": "Processado",
+      "ignored": "Ignorado"
+    },
+    "noWebhooks": "Nenhum evento de webhook nesta visão.",
+    "noUnsettled": "Toda cobrança bem-sucedida tem seu pagamento.",
+    "noRefunds": "Nenhum pagamento reembolsado é informado por um REP vigente.",
+    "loadError": "Não foi possível carregar esta lista.",
+    "prev": "← Anterior",
+    "next": "Próxima →",
+    "pageOf": "Página {{page}} de {{total}}",
+    "col": {
+      "received": "Recebido",
+      "provider": "Provedor",
+      "event": "Evento",
+      "transaction": "Transação",
+      "error": "Erro",
+      "charged": "Cobrado",
+      "reference": "Referência do provedor",
+      "client": "Cliente",
+      "invoice": "Fatura",
+      "amount": "Valor",
+      "payment": "Pagamento",
+      "rep": "REP",
+      "satStatus": "Status SAT"
     }
   }
 }

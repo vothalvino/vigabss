@@ -139,7 +139,20 @@ function normalizeAccountingBody(body = {}) {
  * Tenant ownership is resolved from the live NAS row. A caller can never name
  * or override organizationId in the JSON body.
  */
-router.post('/accounting', async (req, res, next) => {
+// The whole ingest runs on the accounting pool (database.js): a burst of
+// accounting waits for its own connections, not the API's.
+router.post('/accounting', (req, res, next) => {
+  // Counted once answered: radius_accounting_requests_total{status_type,result}.
+  res.on('finish', () => {
+    const statusType = String(normalizeAccountingBody(req.body || {}).acctStatusType || '').trim();
+    require('../utils/opsMetrics').noteRadiusAccounting(statusType, res.statusCode);
+  });
+  return typeof db.withAccountingPool === 'function'
+    ? db.withAccountingPool(() => ingest(req, res, next))
+    : ingest(req, res, next);
+});
+
+async function ingest(req, res, next) {
   try {
     const secret = process.env.RADIUS_ACCOUNTING_SECRET;
     if (!secret) {
@@ -231,7 +244,7 @@ router.post('/accounting', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
 module.exports = router;
 module.exports.normalizeAccountingBody = normalizeAccountingBody;
