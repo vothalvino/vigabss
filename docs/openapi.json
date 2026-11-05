@@ -24754,6 +24754,50 @@
         }
       }
     },
+    "/payment-gateways/refunded-with-live-rep": {
+      "get": {
+        "tags": [
+          "Payment Gateways"
+        ],
+        "summary": "List refunded payments a live REP still reports to SAT (cancel the REP, motivo 02)",
+        "operationId": "listRefundedPaymentsWithLiveRep",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refunded payment and REP rows with pagination meta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/payment-transactions": {
       "get": {
         "tags": [

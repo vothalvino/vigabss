@@ -1610,6 +1610,7 @@ async function reverseRefund(transactionId) {
       }
       await conn.commit();
       logger.info({ transactionId, paymentId: payment.id }, 'Refund reversed the gateway payment and its allocations');
+      await flagLiveRep(payment);
       return;
     }
 
@@ -1651,6 +1652,35 @@ async function reverseRefund(transactionId) {
     logger.error({ err, transactionId }, 'Refund reversal failed');
   } finally {
     conn.release();
+  }
+}
+
+// A REP reported to SAT a payment the provider has now refunded. A staff
+// refund is refused while one is live (PAYMENT_HAS_REP), but a refund made in
+// the provider's dashboard has already happened: the REP must be cancelled at
+// SAT (motivo 02). Say so at once; listRefundedPaymentsWithLiveRep keeps it
+// on the admin list until it is.
+async function flagLiveRep(payment) {
+  try {
+    const [[rep]] = await db.query(
+      `SELECT id, uuid, sat_status FROM cfdi_documents
+        WHERE payment_id = ? AND organization_id <=> ? AND tipo_comprobante = 'P'
+          AND sat_status IN ('draft', 'vigente', 'cancel_pending')
+        LIMIT 1`,
+      [payment.id, payment.organization_id],
+    );
+    if (!rep) return;
+    logger.warn(
+      { paymentId: payment.id, repId: rep.id, repUuid: rep.uuid, satStatus: rep.sat_status },
+      'Gateway refund reversed a payment that a live REP reports to SAT: cancel the REP (motivo 02)',
+    );
+    require('./eventBus').emit('payment.refunded_with_live_rep', {
+      organizationId: payment.organization_id,
+      payment: { id: payment.id, client_id: payment.client_id, amount: payment.amount, currency: payment.currency },
+      rep: { id: rep.id, uuid: rep.uuid, sat_status: rep.sat_status },
+    });
+  } catch (err) {
+    logger.error({ err, paymentId: payment.id }, 'Could not check the refunded payment for a live REP');
   }
 }
 
@@ -1714,6 +1744,28 @@ async function listUnsettledTransactions(orgId, { page, limit } = {}) {
     [orgId],
   );
   const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM payment_transactions pt WHERE ${unsettled}`, [orgId]);
+  return { data: rows, meta: { total: Number(total), page: pageNum, limit: limitNum, totalPages: Math.ceil(Number(total) / limitNum) } };
+}
+
+/**
+ * Refunded payments that a live REP (draft, vigente or cancel_pending) still
+ * reports to SAT, newest first. Each needs its REP cancelled (motivo 02); the
+ * row leaves the list once SAT confirms the cancellation.
+ */
+async function listRefundedPaymentsWithLiveRep(orgId, { page, limit } = {}) {
+  const { limitNum, pageNum, offset } = pageOf({ page, limit });
+  const from = `FROM payments p
+       JOIN cfdi_documents d ON d.payment_id = p.id AND d.organization_id = p.organization_id
+        AND d.tipo_comprobante = 'P' AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')
+      WHERE p.organization_id = ? AND p.status = 'refunded'`;
+  const [rows] = await db.query(
+    `SELECT p.id AS payment_id, p.client_id, p.amount, p.currency, p.reference_number, p.updated_at,
+            d.id AS rep_id, d.uuid AS rep_uuid, d.sat_status AS rep_sat_status
+       ${from}
+      ORDER BY p.id DESC, d.id DESC LIMIT ${limitNum} OFFSET ${offset}`,
+    [orgId],
+  );
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total ${from}`, [orgId]);
   return { data: rows, meta: { total: Number(total), page: pageNum, limit: limitNum, totalPages: Math.ceil(Number(total) / limitNum) } };
 }
 
@@ -1837,6 +1889,7 @@ module.exports = {
   handleWebhookEvent,
   listWebhookEvents,
   listUnsettledTransactions,
+  listRefundedPaymentsWithLiveRep,
   isAllowedGatewayTransition,
   resolveGatewayPaymentMethod,
   reconcilePayment,

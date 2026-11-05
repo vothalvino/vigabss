@@ -1180,6 +1180,9 @@ function generateSpec() {
       '/payment-gateways/unsettled-transactions': {
         get: { tags: ['Payment Gateways'], summary: 'List succeeded gateway transactions with no payment or ledger credit', operationId: 'listUnsettledPaymentTransactions', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200('PaymentTransaction[] with pagination meta') },
       },
+      '/payment-gateways/refunded-with-live-rep': {
+        get: { tags: ['Payment Gateways'], summary: 'List refunded payments a live REP still reports to SAT (cancel the REP, motivo 02)', operationId: 'listRefundedPaymentsWithLiveRep', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200('Refunded payment and REP rows with pagination meta') },
+      },
 
       // ---- Payment Transactions ----
       '/payment-transactions': { get: { tags: ['Payment Transactions'], summary: 'List payment transactions', operationId: 'listPaymentTransactions', security: [{ bearerAuth: [] }], responses: r200('PaymentTransaction[]') } },
