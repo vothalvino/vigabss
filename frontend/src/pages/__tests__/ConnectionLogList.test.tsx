@@ -311,7 +311,7 @@ describe('ConnectionLogList', () => {
 
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.type(screen.getByLabelText('Government request ID'), '73');
-    await user.type(screen.getByLabelText('Public IPv4'), '198.51.100.8');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '198.51.100.8');
     await user.type(screen.getByLabelText('Public source port'), '62001');
     await user.selectOptions(screen.getByLabelText('Transport protocol'), 'tcp');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
@@ -366,7 +366,7 @@ describe('ConnectionLogList', () => {
     expect(mocks.apiGet).not.toHaveBeenCalled();
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.type(screen.getByLabelText('Government request ID'), '73');
-    await user.type(screen.getByLabelText('Public IPv4'), '198.51.100.8');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '198.51.100.8');
     await user.type(screen.getByLabelText('Public source port'), '62001');
     await user.selectOptions(screen.getByLabelText('Transport protocol'), 'tcp');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
@@ -419,7 +419,7 @@ describe('ConnectionLogList', () => {
     renderPage();
     await screen.findByRole('tab', { name: 'IP attribution' });
     fireEvent.change(screen.getByLabelText('Government request ID'), { target: { value: '73' } });
-    fireEvent.change(screen.getByLabelText('Public IPv4'), { target: { value: '198.51.100.8' } });
+    fireEvent.change(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), { target: { value: '198.51.100.8' } });
     fireEvent.change(screen.getByLabelText('Public source port'), { target: { value: '62001' } });
     fireEvent.change(screen.getByLabelText('Transport protocol'), { target: { value: 'tcp' } });
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
@@ -482,7 +482,7 @@ describe('ConnectionLogList', () => {
 
     await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
     await user.type(screen.getByLabelText('Government request ID'), '74');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.9');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.9');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
     expect(await screen.findByText('One assignment found')).toBeInTheDocument();
@@ -552,7 +552,7 @@ describe('ConnectionLogList', () => {
     expect(screen.queryByLabelText('Public source port')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Transport protocol')).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('Government request ID'), '74');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.9');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.9');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
 
@@ -577,6 +577,61 @@ describe('ConnectionLogList', () => {
     });
   });
 
+  // IPv6 has no CGNAT: it is looked up by address alone, sent as ip_address,
+  // and the match shows the delegated prefix that held it.
+  it('looks up an IPv6 address directly and shows the prefix that held it', async () => {
+    mocks.user.current.permissions = ['connection_logs.view', 'ip_attribution.view', 'gov_data_requests.view'];
+    installDefaultApi({ lookupResponse: {
+      data: {
+        status: 'matched', candidate_count: 1, gov_data_request_id: 80,
+        attributionMethod: 'direct_ipv6_assignment',
+        query: { ip_address: '2806:2f0:1:2::5', ip_version: 6, public_ipv4: null, public_port: null, protocol: null, observed_at: '2026-08-14T10:15:01.000Z' },
+        attribution: {
+          connection_log_id: 52, client_id: 7, client_name: 'Ada Subscriber', contract_id: 9,
+          username: 'ada@isp', radius_session_id: 'radius-6', public_ipv4: null,
+          ip_address: '2806:2f0:1:2::5', ip_version: 6, ipv6_matched_by: 'ipv6_delegated_prefix',
+          ipv6_delegated_prefix: '2806:2f0:1::/48', framed_ipv6_prefix: null, ipv6_address: '2806:2f0:ff::2',
+          assigned_at: '2026-08-14T10:00:00.000Z', released_at: null,
+          assignment_evidence_received_at: '2026-08-14T10:00:00.100Z', evidence_hash: 'v6-hash',
+        },
+      },
+    } });
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
+    await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
+    await user.type(screen.getByLabelText('Government request ID'), '80');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '2806:2f0:1:2::5');
+    fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
+    await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
+
+    expect(await screen.findByText('Direct IPv6 assignment')).toBeInTheDocument();
+    expect(screen.getByText('2806:2f0:1:2::5 ∈ 2806:2f0:1::/48')).toBeInTheDocument();
+    const call = mocks.authedFetch.mock.calls.find(([input]) => String(input).includes('/ip-attribution/lookup'));
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+      gov_data_request_id: 80,
+      ip_address: '2806:2f0:1:2::5',
+      observed_at: new Date('2026-08-14T10:15:01').toISOString(),
+    });
+  });
+
+  it('refuses a CGNAT lookup for an IPv6 address before calling the server', async () => {
+    mocks.user.current.permissions = ['connection_logs.view', 'ip_attribution.view', 'gov_data_requests.view'];
+    installDefaultApi({});
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
+    await user.type(screen.getByLabelText('Government request ID'), '80');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '2806:2f0:1:2::5');
+    await user.type(screen.getByLabelText('Public source port'), '443');
+    await user.selectOptions(screen.getByLabelText('Transport protocol'), 'tcp');
+    fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
+    await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
+
+    expect(await screen.findByText(/IPv6 is looked up by address alone/)).toBeInTheDocument();
+    expect(mocks.authedFetch.mock.calls.some(([input]) => String(input).includes('/ip-attribution/lookup'))).toBe(false);
+  });
+
   it('fails closed when no exact attribution evidence is available', async () => {
     mocks.user.current.permissions = ['connection_logs.view', 'ip_attribution.view', 'gov_data_requests.view'];
     installDefaultApi({ lookupResponse: {
@@ -591,7 +646,7 @@ describe('ConnectionLogList', () => {
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
     await user.type(screen.getByLabelText('Government request ID'), '76');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.11');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.11');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
 
@@ -615,7 +670,7 @@ describe('ConnectionLogList', () => {
     renderPage();
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.type(screen.getByLabelText('Government request ID'), '77');
-    await user.type(screen.getByLabelText('Public IPv4'), '198.51.100.8');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '198.51.100.8');
     await user.type(screen.getByLabelText('Public source port'), '62001');
     await user.selectOptions(screen.getByLabelText('Transport protocol'), 'tcp');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
@@ -645,7 +700,7 @@ describe('ConnectionLogList', () => {
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
     await user.type(screen.getByLabelText('Government request ID'), '78');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.12');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.12');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
 
@@ -667,7 +722,7 @@ describe('ConnectionLogList', () => {
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
     await user.type(screen.getByLabelText('Government request ID'), '75');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.10');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.10');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
 
@@ -850,7 +905,7 @@ describe('ConnectionLogList', () => {
     await user.click(await screen.findByRole('tab', { name: 'IP attribution' }));
     await user.selectOptions(screen.getByLabelText('Assignment mode'), 'direct');
     await user.type(screen.getByLabelText('Government request ID'), '75');
-    await user.type(screen.getByLabelText('Public IPv4'), '203.0.113.10');
+    await user.type(screen.getByLabelText('Public IP address (IPv4 or IPv6)'), '203.0.113.10');
     fireEvent.change(screen.getByLabelText('Exact timestamp'), { target: { value: '2026-08-14T10:15:01' } });
     await user.click(screen.getByRole('button', { name: 'Run exact lookup' }));
 

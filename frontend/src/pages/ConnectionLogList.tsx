@@ -14,12 +14,12 @@ import { can } from '@/auth/permissions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { Pagination } from '@/components/Pagination';
 import { styles } from './crudStyles';
+import { attributionRequestPayload, validateAttributionLookup } from './connectionLogAttributionInput';
 
 type JsonRecord = Record<string, unknown>;
 type Tab = 'sessions' | 'attribution';
 type FilterState = Record<string, string>;
 type SessionExportValidation = 'datesRequired' | 'invalidDates' | 'dateOrder' | 'windowTooLong';
-type AttributionValidation = 'caseRequired' | 'ipv4Invalid' | 'portInvalid' | 'protocolRequired' | 'timestampRequired';
 type AttributionExportFailure = 'error' | 'checksumInvalid' | 'checksumMismatch' | 'verificationUnavailable';
 type SessionApiQuery = NonNullable<operations['listConnectionLogs']['parameters']['query']>;
 
@@ -71,6 +71,8 @@ interface AttributionEvidence {
   privatePortStart: number | null;
   privatePortEnd: number | null;
   publicIpv4: string | null;
+  /** IPv6: the delegated or framed prefix that held the address, if not the WAN address itself. */
+  ipv6Prefix: string | null;
   publicPortStart: number | null;
   publicPortEnd: number | null;
   protocol: string | null;
@@ -322,6 +324,10 @@ function normalizeAttributionEvidence(raw: unknown): AttributionEvidence {
       ?? stringValue(first(session, 'username', 'radius_username')),
     radiusSessionId: stringValue(first(row, 'radius_session_id', 'session_id', 'acct_session_id'))
       ?? stringValue(first(session, 'id', 'radius_session_id', 'acct_session_id')),
+    ipv6Prefix: (() => {
+      const by = stringValue(first(row, 'ipv6_matched_by'));
+      return by === 'ipv6_delegated_prefix' || by === 'framed_ipv6_prefix' ? stringValue(first(row, by)) : null;
+    })(),
     privateIp: stringValue(first(row, 'private_ipv4', 'private_ip', 'source_ip', 'inside_ip'))
       ?? stringValue(first(mapping, 'private_ipv4', 'private_ip', 'source_ip', 'inside_ip')),
     privatePortStart: numberValue(first(row, 'private_port_start', 'source_port_start'))
@@ -330,7 +336,7 @@ function normalizeAttributionEvidence(raw: unknown): AttributionEvidence {
     privatePortEnd: numberValue(first(row, 'private_port_end', 'source_port_end'))
       ?? numberValue(first(mapping, 'private_port_end', 'source_port_end'))
       ?? privatePort,
-    publicIpv4: stringValue(first(row, 'public_ipv4', 'public_ip', 'translated_source_ip', 'nat_ip'))
+    publicIpv4: stringValue(first(row, 'public_ipv4', 'ip_address', 'public_ip', 'translated_source_ip', 'nat_ip'))
       ?? stringValue(first(mapping, 'public_ipv4', 'public_ip', 'translated_source_ip', 'nat_ip')),
     publicPortStart: numberValue(first(row, 'public_port_start', 'translated_port_start', 'nat_port_start'))
       ?? numberValue(first(mapping, 'public_port_start', 'translated_port_start', 'nat_port_start'))
@@ -392,7 +398,7 @@ function hasCompleteAttributionEvidence(match: AttributionEvidence): boolean {
     && match.integrityHash,
   );
   if (!commonEvidence) return false;
-  if (['direct_public_assignment', 'direct_public'].includes(match.attributionMethod ?? '')) return true;
+  if (['direct_public_assignment', 'direct_ipv6_assignment', 'direct_public'].includes(match.attributionMethod ?? '')) return true;
   if (!['cgnat_binding', 'cgnat_mapping', 'cgnat'].includes(match.attributionMethod ?? '')) return false;
   return Boolean(
     match.privateIp
@@ -489,23 +495,6 @@ function validateSessionExport(filters: FilterState): SessionExportValidation | 
   return null;
 }
 
-function validateAttributionLookup(values: FilterState): AttributionValidation | null {
-  const caseId = Number(values.gov_data_request_id);
-  if (!Number.isSafeInteger(caseId) || caseId <= 0) return 'caseRequired';
-  const octets = values.public_ipv4.trim().split('.');
-  if (
-    octets.length !== 4
-    || octets.some((octet) => !/^\d{1,3}$/.test(octet) || Number(octet) > 255)
-  ) return 'ipv4Invalid';
-  if (values.attribution_mode !== 'direct') {
-    const port = Number(values.public_port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) return 'portInvalid';
-    if (!['tcp', 'udp'].includes(values.protocol)) return 'protocolRequired';
-  }
-  if (!values.observed_at.trim() || !Number.isFinite(new Date(values.observed_at).getTime())) return 'timestampRequired';
-  return null;
-}
-
 function numericFilter(value: string): number | undefined {
   if (!value.trim()) return undefined;
   const number = Number(value);
@@ -557,18 +546,6 @@ class AttributionExportError extends Error {
   constructor(public readonly code: AttributionExportFailure) {
     super(code);
   }
-}
-
-function attributionRequestPayload(values: FilterState): JsonRecord {
-  return {
-    gov_data_request_id: Number(values.gov_data_request_id),
-    public_ipv4: values.public_ipv4.trim(),
-    observed_at: new Date(values.observed_at).toISOString(),
-    ...(values.attribution_mode === 'direct' ? {} : {
-      public_port: Number(values.public_port),
-      protocol: values.protocol,
-    }),
-  };
 }
 
 async function lookupAttribution(values: FilterState): Promise<AttributionResult> {
@@ -1288,8 +1265,8 @@ function EvidenceItem({ label, children, mono = false }: { label: string; childr
 
 function AttributionResultPanel({ result, locale, t }: { result: AttributionResult; locale: string; t: TFunction }) {
   const match = result.match;
-  const directAssignment = match?.attributionMethod === 'direct_public_assignment'
-    || match?.attributionMethod === 'direct_public';
+  const directAssignment = ['direct_public_assignment', 'direct_ipv6_assignment', 'direct_public']
+    .includes(match?.attributionMethod ?? '');
   const colors: Record<AttributionStatus, { border: string; background: string }> = {
     unique: { border: '#16a34a', background: 'var(--success-soft, #f0fdf4)' },
     unavailable: { border: '#6b7280', background: 'var(--bg-subtle, #f9fafb)' },
@@ -1341,7 +1318,7 @@ function AttributionResultPanel({ result, locale, t }: { result: AttributionResu
               ? 'connection_logs.attribution.evidence.publicAssignment'
               : 'connection_logs.attribution.evidence.publicMapping')} mono>
               {directAssignment
-                ? match.publicIpv4 ?? '—'
+                ? `${match.publicIpv4 ?? '—'}${match.ipv6Prefix ? ` ∈ ${match.ipv6Prefix}` : ''}`
                 : portRangeEndpoint(match.publicIpv4, match.publicPortStart, match.publicPortEnd)}
             </EvidenceItem>
             <EvidenceItem label={t('connection_logs.attribution.evidence.allocationWindow')}>
