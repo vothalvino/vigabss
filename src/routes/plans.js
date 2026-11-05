@@ -12,7 +12,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createPlan, updatePlan, patchPlan, createPlanAddon, createSpeedWindow, createAccessWindow } = require('../middleware/schemas/plans');
 const { httpCache } = require('../middleware/httpCache');
-const { ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
 const db = require('../config/database');
 
 const router = Router();
@@ -151,10 +151,11 @@ router.put('/:id/speed-windows/:windowId', requirePermission('plans.update'), va
 
 router.delete('/:id/speed-windows/:windowId', requirePermission('plans.update'), async (req, res, next) => {
   try {
-    await db.query(
+    const [result] = await db.query(
       'UPDATE plan_speed_windows SET deleted_at = NOW() WHERE id = ? AND plan_id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.windowId, req.params.id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('Speed window');
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -220,10 +221,11 @@ router.put('/:id/access-windows/:windowId', requirePermission('plan_access_windo
 
 router.delete('/:id/access-windows/:windowId', requirePermission('plan_access_windows.delete'), async (req, res, next) => {
   try {
-    await db.query(
+    const [result] = await db.query(
       'UPDATE plan_access_windows SET deleted_at = NOW() WHERE id = ? AND plan_id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.windowId, req.params.id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('Access window');
     res.status(204).end();
   } catch (err) {
     next(err);

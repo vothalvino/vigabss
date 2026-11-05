@@ -375,6 +375,12 @@ that inevitably fail, but they never replace server-side authorization.
   (`src/models/ownedForeignKeys.json`, regenerated with
   `node src/scripts/generate-owned-fks.js --write`). It runs after the route's
   own hooks; a route that checks a field itself sets `ownedRefs: { field: null }`.
+  A target in `SHARED_TABLES` (NULL-organization defaults such as system
+  message templates) is checked with `allowShared`. Hand-written writes use the
+  same map or `ownedReferences(...)` after `validate()`.
+- An action or delete on a path id answers 404 when its org-scoped statement
+  matched no row (`affectedRows === 0`), never a 2xx; the real-database write
+  sweep (`tests/integration/db/tenantIsolationSweep.test.js`) fails on either.
 - `crudController.js` centralizes common list/get/create/update/delete behavior,
   audit logging, cache invalidation, serializers, hooks, and optional locked
   transactions. Use its extension points before forking a second CRUD pattern.

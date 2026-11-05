@@ -5,6 +5,7 @@
 
 const { Router } = require('express');
 const db = require('../config/database');
+const { NotFoundError } = require('../utils/errors');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
@@ -100,10 +101,12 @@ router.put('/uso-obligations/:id/report', requirePermission('uso_obligations.man
     const { id } = req.params;
     const { actual_value } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE uso_obligations SET status = \'reported\', actual_value = ?, reported_at = NOW(), updated_at = NOW() WHERE id = ? AND organization_id = ?',
       [actual_value || null, id, req.orgId],
     );
+    // Another organization's obligation is not found (TNA-37).
+    if (!result.affectedRows) throw new NotFoundError('USO obligation');
 
     res.json({ success: true });
   } catch (err) {

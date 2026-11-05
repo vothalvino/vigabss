@@ -22,6 +22,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const {
   createApSectorConfig,
   updateApSectorConfig,
@@ -137,7 +138,7 @@ router.get('/channel-plans/:id', requirePermission('ap_channel_plans.view'), asy
 /**
  * POST /wireless/channel-plans
  */
-router.post('/channel-plans', requirePermission('ap_channel_plans.create'), validate(createApChannelPlan, { strip: false }), async (req, res, next) => {
+router.post('/channel-plans', requirePermission('ap_channel_plans.create'), validate(createApChannelPlan, { strip: false }), ownedReferences({ site_id: 'sites' }), async (req, res, next) => {
   try {
     const record = await wirelessService.createApChannelPlan(req.orgId, req.body);
     res.status(201).json({ data: record });
@@ -147,7 +148,7 @@ router.post('/channel-plans', requirePermission('ap_channel_plans.create'), vali
 /**
  * PUT /wireless/channel-plans/:id
  */
-router.put('/channel-plans/:id', requirePermission('ap_channel_plans.update'), validate(updateApChannelPlan, { strip: false }), async (req, res, next) => {
+router.put('/channel-plans/:id', requirePermission('ap_channel_plans.update'), validate(updateApChannelPlan, { strip: false }), ownedReferences({ site_id: 'sites' }), async (req, res, next) => {
   try {
     const record = await wirelessService.updateApChannelPlan(req.params.id, req.orgId, req.body);
     res.json({ data: record });
@@ -284,7 +285,7 @@ router.get('/channel-interference', requirePermission('wireless_channels.view'),
 /**
  * POST /wireless/channel-interference
  */
-router.post('/channel-interference', requirePermission('wireless_channels.manage'), validate(createChannelInterference, { strip: false }), async (req, res, next) => {
+router.post('/channel-interference', requirePermission('wireless_channels.manage'), validate(createChannelInterference, { strip: false }), ownedReferences({ ap_sector_config_id: 'ap_sector_configs', site_id: 'sites' }), async (req, res, next) => {
   try {
     const record = await wirelessService.createChannelInterference(req.orgId, req.body);
     res.status(201).json({ data: record });
@@ -294,7 +295,7 @@ router.post('/channel-interference', requirePermission('wireless_channels.manage
 /**
  * PUT /wireless/channel-interference/:id
  */
-router.put('/channel-interference/:id', requirePermission('wireless_channels.manage'), validate(updateChannelInterference, { strip: false }), async (req, res, next) => {
+router.put('/channel-interference/:id', requirePermission('wireless_channels.manage'), validate(updateChannelInterference, { strip: false }), ownedReferences({ ap_sector_config_id: 'ap_sector_configs', site_id: 'sites' }), async (req, res, next) => {
   try {
     const record = await wirelessService.updateChannelInterference(req.params.id, req.orgId, req.body);
     res.json({ data: record });

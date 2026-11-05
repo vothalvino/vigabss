@@ -13,6 +13,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { NotFoundError } = require('../utils/errors');
 const rolloverService = require('./rolloverService');
 
 // ---------------------------------------------------------------------------
@@ -99,11 +100,13 @@ async function updatePack(id, organizationId, body) {
 }
 
 async function deletePack(id, organizationId) {
-  await db.query(
+  const [result] = await db.query(
     `UPDATE data_packs SET deleted_at = NOW()
      WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
     [id, organizationId],
   );
+  // Another organization's pack, or one already deleted, is not found.
+  if (!result.affectedRows) throw new NotFoundError('Data pack');
 }
 
 async function restorePack(id, organizationId) {
@@ -111,7 +114,9 @@ async function restorePack(id, organizationId) {
     'UPDATE data_packs SET deleted_at = NULL WHERE id = ? AND organization_id = ?',
     [id, organizationId],
   );
-  return getPack(id, organizationId);
+  const pack = await getPack(id, organizationId);
+  if (!pack) throw new NotFoundError('Data pack');
+  return pack;
 }
 
 // ---------------------------------------------------------------------------

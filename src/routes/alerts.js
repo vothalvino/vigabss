@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const alertSchemas = require('../middleware/schemas/alerts');
 const alertService = require('../services/alertService');
 const db = require('../config/database');
@@ -303,7 +304,7 @@ router.get('/maintenance-windows', requirePermission('maintenance_windows.view')
   } catch (err) { next(err); }
 });
 
-router.post('/maintenance-windows', requirePermission('maintenance_windows.create'), validate(maintenanceSchemas.createWindow, { strip: false }), async (req, res, next) => {
+router.post('/maintenance-windows', requirePermission('maintenance_windows.create'), validate(maintenanceSchemas.createWindow, { strip: false }), ownedReferences({ device_id: 'devices', site_id: 'sites' }), async (req, res, next) => {
   try {
     const [result] = await db.query(
       'INSERT INTO maintenance_windows (organization_id, name, description, device_id, site_id, starts_at, ends_at, is_recurring, recurrence_cron, recurrence_duration_minutes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -318,7 +319,7 @@ router.post('/maintenance-windows', requirePermission('maintenance_windows.creat
   } catch (err) { next(err); }
 });
 
-router.put('/maintenance-windows/:id', requirePermission('maintenance_windows.update'), validate(maintenanceSchemas.updateWindow, { strip: false }), async (req, res, next) => {
+router.put('/maintenance-windows/:id', requirePermission('maintenance_windows.update'), validate(maintenanceSchemas.updateWindow, { strip: false }), ownedReferences({ device_id: 'devices', site_id: 'sites' }), async (req, res, next) => {
   try {
     const allowed = ['name', 'description', 'device_id', 'site_id', 'starts_at', 'ends_at', 'is_recurring', 'recurrence_cron', 'recurrence_duration_minutes', 'status'];
     const fields = [];

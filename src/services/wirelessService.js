@@ -16,6 +16,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { NotFoundError } = require('../utils/errors');
 const { buildInsert, buildUpdate, buildBulkValues, columnsOf } = require('../utils/sqlBuild');
 const schemas = require('../middleware/schemas/wirelessSectors');
 
@@ -454,10 +455,12 @@ async function updateChannelInterference(id, orgId, data) {
  * Soft-delete a channel interference record.
  */
 async function deleteChannelInterference(id, orgId) {
-  await db.query(
-    'UPDATE wireless_channel_interference SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?',
+  const [result] = await db.query(
+    'UPDATE wireless_channel_interference SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
     [id, orgId],
   );
+  // Another organization's record, or one already deleted, is not found.
+  if (!result.affectedRows) throw new NotFoundError('Channel interference record');
 }
 
 // ---------------------------------------------------------------------------

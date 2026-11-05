@@ -71,6 +71,15 @@
   "client_mx_profiles": {
     "client_id": "clients"
   },
+  "clients": {
+    "client_group_id": "client_groups"
+  },
+  "communication_campaigns": {
+    "template_id": {
+      "table": "message_templates",
+      "allowShared": true
+    }
+  },
   "config_backup_schedules": {
     "device_id": "devices"
   },
@@ -166,7 +175,11 @@
     "client_id": "clients"
   },
   "email_logs": {
-    "client_id": "clients"
+    "client_id": "clients",
+    "template_id": {
+      "table": "message_templates",
+      "allowShared": true
+    }
   },
   "factura_publica_invoice_items": {
     "invoice_id": "invoices"
@@ -473,7 +486,11 @@
     "plan_id": "plans"
   },
   "sms_logs": {
-    "client_id": "clients"
+    "client_id": "clients",
+    "template_id": {
+      "table": "message_templates",
+      "allowShared": true
+    }
   },
   "snmp_metrics_1day": {
     "device_id": "devices"
@@ -557,7 +574,14 @@
   "whatsapp_verifications": {
     "client_id": "clients"
   },
+  "winback_campaigns": {
+    "message_template_id": {
+      "table": "message_templates",
+      "allowShared": true
+    }
+  },
   "wireless_channel_interference": {
+    "ap_sector_config_id": "ap_sector_configs",
     "site_id": "sites"
   },
   "wireless_client_sessions": {

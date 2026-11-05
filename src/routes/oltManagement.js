@@ -28,6 +28,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const { writableRow } = require('../utils/writableRow');
 const {
@@ -261,7 +262,7 @@ router.get('/splitters/:splitterId', requirePermission('olt_splitters.view'), as
 /**
  * POST /splitters — create splitter
  */
-router.post('/splitters', requirePermission('olt_splitters.create'), validate(createOltSplitter, { strip: false }), async (req, res, next) => {
+router.post('/splitters', requirePermission('olt_splitters.create'), validate(createOltSplitter, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports', site_id: 'sites' }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOltSplitter, 'organization_id'));
@@ -277,7 +278,7 @@ router.post('/splitters', requirePermission('olt_splitters.create'), validate(cr
 /**
  * PUT /splitters/:splitterId — full update
  */
-router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(updateOltSplitter, { strip: false }), async (req, res, next) => {
+router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(updateOltSplitter, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports', site_id: 'sites' }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -292,7 +293,7 @@ router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), 
 /**
  * PATCH /splitters/:splitterId — partial update
  */
-router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(patchOltSplitter, { strip: false }), async (req, res, next) => {
+router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(patchOltSplitter, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports', site_id: 'sites' }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
