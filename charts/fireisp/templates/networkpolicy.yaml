@@ -15,7 +15,8 @@ spec:
   podSelector:
     matchLabels:
       {{- include "fireisp.selectorLabels" . | nindent 6 }}
-  policyTypes: [Ingress]
+  {{- $egress := .Values.networkPolicy.egress }}
+  policyTypes: [Ingress{{ if $egress.enabled }}, Egress{{ end }}]
   ingress:
     - from:
         {{- range (concat .Values.networkPolicy.ingressNamespaces .Values.networkPolicy.metricsNamespaces) }}
@@ -29,4 +30,51 @@ spec:
     - ports:
         - port: snmp-trap
           protocol: UDP
+  {{- if $egress.enabled }}
+  {{- /*
+  Opt-in: devices, NAS, payment, fiscal (PAC) and messaging providers live
+  anywhere, so egress is open unless the operator lists where the app may go.
+  Everything not listed here is dropped, including the Kubernetes API.
+  */}}
+  egress:
+    {{- if $egress.allowDns }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- end }}
+    {{- $namespaces := $egress.namespaces }}
+    {{- if $egress.allowReleaseNamespace }}
+    {{- $namespaces = prepend $namespaces .Release.Namespace }}
+    {{- end }}
+    {{- if $namespaces }}
+    - to:
+        {{- range $namespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+        {{- end }}
+    {{- end }}
+    {{- range $egress.cidrs }}
+    - to:
+        - ipBlock:
+            cidr: {{ .cidr | quote }}
+            {{- with .except }}
+            except:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+      {{- with .ports }}
+      ports:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}

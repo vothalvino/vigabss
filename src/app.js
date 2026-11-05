@@ -310,6 +310,15 @@ app.use((_req, res, next) => {
   next();
 });
 
+// API answers carry tenant data: no browser or proxy may store them. Set
+// before the routes, so a route with its own policy (SSE's no-cache) replaces
+// it. The JSON 404 below sets the same; the SPA's static files keep theirs.
+const NO_STORE = 'private, no-store';
+app.use('/api/', (_req, res, next) => {
+  res.setHeader('Cache-Control', NO_STORE);
+  next();
+});
+
 app.use(requestId);
 
 // Request timeout — prevent long-running requests from hanging the server
@@ -917,6 +926,7 @@ errorTracking.setupExpressErrorHandler(app);
 // 404 handler
 // ---------------------------------------------------------------------------
 app.use((req, res) => {
+  res.setHeader('Cache-Control', NO_STORE);
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',

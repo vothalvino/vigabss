@@ -11,12 +11,6 @@
 # header has no effect and browsers ignore it. The TLS edge is what to check.
 10035	IGNORE	(HSTS sent by the app; ignored over the plain-HTTP scan)
 
-# 10063 — Permissions-Policy Header Not Set
-# Rationale: The Permissions-Policy header is an optional hardening header;
-# helmet@8 does not set it by default. It has no security impact for an API-only
-# backend. Track for a future helmet upgrade.
-10063	IGNORE	(Optional hardening header; API-only backend)
-
 # 10096 — Timestamp Disclosure
 # Rationale: created_at / updated_at timestamps in API responses are expected
 # and documented in OpenAPI. Disclosing record timestamps is not a vulnerability.
@@ -37,3 +31,11 @@
 # regenerator-runtime). These are reviewed via SBOM + Trivy (P1.5); they are
 # not in application code.
 10110	IGNORE	(Third-party bundle internals; covered by Trivy/SBOM scan)
+
+# 10049 — Storable and Cacheable Content / Non-Storable Content
+# Rationale: an informational rule that reports every response's cacheability
+# in one of three variants, so it raises something on every scan whatever the
+# headers say. INFO keeps it in the report without failing the build. The
+# policy it points at is pinned instead: API answers and the JSON 404 send
+# Cache-Control: private, no-store (tests/securityHeaders.test.js).
+10049	INFO	(Cacheability report; no-store pinned by securityHeaders.test.js)

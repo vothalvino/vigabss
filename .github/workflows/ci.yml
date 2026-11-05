@@ -179,11 +179,14 @@ jobs:
         # calls (HTTP 410 "This endpoint is being retired"), so `pnpm audit` can no
         # longer function. Trivy scans the pnpm lockfile against its own regularly
         # updated vuln DB, with no dependency on npm's audit API — a real, blocking
-        # gate again. Reuses the same pinned action, DB version, HIGH,CRITICAL
-        # threshold, ignore-unfixed policy and .trivyignore file as the image scan
-        # below, so suppressions live in one place. Scoped to PRODUCTION
-        # dependencies (Trivy's default for lockfiles), matching the shipped-image
-        # scan; dev/build-tooling advisories are out of this gate's scope.
+        # gate again. Reuses the same pinned action, DB version, ignore-unfixed
+        # policy and .trivyignore file as the image scan below, so suppressions
+        # live in one place. Scoped to PRODUCTION dependencies (Trivy's default
+        # for lockfiles); dev/build-tooling advisories are out of this gate's
+        # scope. Unlike the image scan it also blocks on MEDIUM: eight moderate
+        # advisories in production packages (Sentry's OpenTelemetry
+        # instrumentations, glob, minimatch) passed a HIGH,CRITICAL gate
+        # unnoticed, and a fixed library advisory is a version bump away.
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
@@ -191,7 +194,7 @@ jobs:
           format: table
           version: v0.71.1
           scanners: vuln
-          severity: HIGH,CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
           trivyignores: .trivyignore
@@ -1269,9 +1272,9 @@ jobs:
           rules_file_name: '.zap/rules.tsv'
           artifact_name: 'zap-report-${{ github.sha }}'
           allow_issue_writing: 'false'
-          # fail_action: false — baseline run; review the report, suppress
-          # accepted risks in .zap/rules.tsv, then flip to true.
-          fail_action: false
+          # Blocking: a new WARN or FAIL alert fails the build. Accept a risk
+          # in .zap/rules.tsv with its rationale, never by turning this off.
+          fail_action: true
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -1355,6 +1358,24 @@ jobs:
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
+
+      - name: Template Helm chart with egress restricted
+        run: |
+          helm template fireisp charts/fireisp \
+            --set-string image.tag=${{ github.sha }} \
+            --set ingress.tls.secretName=fireisp-tls \
+            --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
+            --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            --set networkPolicy.egress.enabled=true \
+            --set networkPolicy.egress.namespaces[0]=monitoring \
+            --set networkPolicy.egress.cidrs[0].cidr=0.0.0.0/0 \
+            --set networkPolicy.egress.cidrs[0].except[0]=10.0.0.0/8 \
+            --set networkPolicy.egress.cidrs[0].ports[0].port=443 \
+            --set networkPolicy.egress.cidrs[0].ports[0].protocol=TCP \
+            > egress.yaml
+          grep -q 'policyTypes: \[Ingress, Egress\]' egress.yaml
+          grep -q 'cidr: "0.0.0.0/0"' egress.yaml
+          grep -q 'k8s-app: kube-dns' egress.yaml
 
   helm-install:
     # helm lint/template never install, so a chart that rendered its own
