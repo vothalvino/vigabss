@@ -1359,6 +1359,24 @@ jobs:
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
 
+      - name: Template Helm chart with egress restricted
+        run: |
+          helm template fireisp charts/fireisp \
+            --set-string image.tag=${{ github.sha }} \
+            --set ingress.tls.secretName=fireisp-tls \
+            --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
+            --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            --set networkPolicy.egress.enabled=true \
+            --set networkPolicy.egress.namespaces[0]=monitoring \
+            --set networkPolicy.egress.cidrs[0].cidr=0.0.0.0/0 \
+            --set networkPolicy.egress.cidrs[0].except[0]=10.0.0.0/8 \
+            --set networkPolicy.egress.cidrs[0].ports[0].port=443 \
+            --set networkPolicy.egress.cidrs[0].ports[0].protocol=TCP \
+            > egress.yaml
+          grep -q 'policyTypes: \[Ingress, Egress\]' egress.yaml
+          grep -q 'cidr: "0.0.0.0/0"' egress.yaml
+          grep -q 'k8s-app: kube-dns' egress.yaml
+
   helm-install:
     # helm lint/template never install, so a chart that rendered its own
     # release Namespace (breaking the documented --create-namespace) and a

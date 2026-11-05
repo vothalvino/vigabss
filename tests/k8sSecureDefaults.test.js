@@ -28,7 +28,7 @@ test('ingress TLS is on by default and the chart refuses to render without a sec
 test('a NetworkPolicy limits HTTP to the ingress and metrics namespaces', () => {
   const np = read('charts/fireisp/templates/networkpolicy.yaml');
   expect(np).toMatch(/kind: NetworkPolicy/);
-  expect(np).toMatch(/policyTypes: \[Ingress\]/);
+  expect(np).toMatch(/policyTypes: \[Ingress/);
   expect(np).toMatch(/- port: http\n\s+protocol: TCP/);
   expect(read('charts/fireisp/values.yaml')).toMatch(/networkPolicy:\n {2}enabled: true/);
   expect(read('k8s/networkpolicy.yaml')).toMatch(/kubernetes\.io\/metadata\.name: ingress-nginx/);
@@ -61,4 +61,18 @@ test('the pod runs as the image user, a fixed uid above 10000', () => {
     expect([file, text.match(new RegExp(`\\n${pad}runAsGroup: (\\d+)`))?.[1]]).toEqual([file, String(gid)]);
     expect([file, text.match(new RegExp(`\\n${pad}fsGroup: (\\d+)`))?.[1]]).toEqual([file, String(gid)]);
   }
+});
+
+// Egress stays open by default (providers and devices live anywhere), but an
+// operator who knows where the app must reach can now drop everything else.
+test('the chart can restrict egress, off by default, with DNS and the release namespace allowed', () => {
+  const values = read('charts/fireisp/values.yaml');
+  expect(values).toMatch(/\n {2}egress:\n(?: {4}#[^\n]*\n)* {4}enabled: false\n/);
+  expect(values).toMatch(/\n {4}allowDns: true\n/);
+  expect(values).toMatch(/\n {4}allowReleaseNamespace: true\n/);
+  const np = read('charts/fireisp/templates/networkpolicy.yaml');
+  expect(np).toMatch(/policyTypes: \[Ingress\{\{ if \$egress\.enabled \}\}, Egress\{\{ end \}\}\]/);
+  expect(np).toMatch(/k8s-app: kube-dns/);
+  expect(np).toMatch(/ipBlock:\n\s+cidr: \{\{ \.cidr \| quote \}\}/);
+  expect(read('.github/workflows/ci.yml')).toMatch(/--set networkPolicy\.egress\.enabled=true/);
 });
