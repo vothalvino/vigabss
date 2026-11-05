@@ -145,6 +145,8 @@ function attributionAuditParameters(body, result = null, error = null, exportChe
     public_port: normalized.public_port ?? null,
     protocol: normalized.protocol ?? null,
     observed_at: normalized.observed_at || null,
+    // An IPv4 hash is unchanged; an IPv6 (or ip_address) lookup names it.
+    ...(normalized.ip_address ? { ip_address: normalized.ip_address } : {}),
   })).digest('hex');
   return {
     query_hash: queryHash,

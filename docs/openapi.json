@@ -17333,7 +17333,7 @@
           "Connection Logs"
         ],
         "summary": "Resolve one approved-case public-IP attribution",
-        "description": "Interactive JWT only. Requires gov_data_requests.view and ip_attribution.view plus a same-organization processing ip_traceability case whose exact public IPv4/time and optional TCP/UDP port tuple match. No routine binding browser is exposed.",
+        "description": "Interactive JWT only. Requires gov_data_requests.view and ip_attribution.view plus a same-organization processing ip_traceability case whose exact address/time and optional TCP/UDP port tuple match. IPv4: direct assignment, or CGNAT with port and protocol. IPv6: direct only, the session whose WAN address it is or whose delegated or framed prefix contains it; no port. No routine binding browser is exposed.",
         "operationId": "lookupIpAttribution",
         "security": [
           {
@@ -87833,6 +87833,29 @@
             "additionalProperties": false,
             "required": [
               "gov_data_request_id",
+              "ip_address",
+              "observed_at"
+            ],
+            "properties": {
+              "gov_data_request_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "ip_address": {
+                "type": "string",
+                "description": "Globally routable unicast IPv4 or IPv6 (2000::/3, not documentation, 6to4 or IETF special-purpose)"
+              },
+              "observed_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "gov_data_request_id",
               "public_ipv4",
               "public_port",
               "protocol",
@@ -87975,8 +87998,49 @@
             "type": "string"
           },
           "public_ipv4": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "ipv4",
+            "description": "null for IPv6"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "ip_version": {
+            "type": "integer",
+            "enum": [
+              4,
+              6
+            ]
+          },
+          "ipv6_matched_by": {
             "type": "string",
-            "format": "ipv4"
+            "enum": [
+              "ipv6_address",
+              "ipv6_delegated_prefix",
+              "framed_ipv6_prefix"
+            ],
+            "description": "IPv6 only: the field that held the address (the WAN address, the delegated prefix or the framed prefix)"
+          },
+          "ipv6_delegated_prefix": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "framed_ipv6_prefix": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ipv6_address": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "assigned_at": {
             "type": "string",
@@ -88463,15 +88527,31 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "ip_address",
+              "ip_version",
               "public_ipv4",
               "public_port",
               "protocol",
               "observed_at"
             ],
             "properties": {
+              "ip_address": {
+                "type": "string"
+              },
+              "ip_version": {
+                "type": "integer",
+                "enum": [
+                  4,
+                  6
+                ]
+              },
               "public_ipv4": {
-                "type": "string",
-                "format": "ipv4"
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "ipv4",
+                "description": "null for IPv6"
               },
               "public_port": {
                 "type": [
@@ -88516,6 +88596,7 @@
             ],
             "enum": [
               "direct_public_assignment",
+              "direct_ipv6_assignment",
               "cgnat_binding",
               null
             ]

@@ -849,7 +849,7 @@ function generateSpec() {
       '/connection-logs/cgnat-attribution/exporters/{id}/release-recovery': {
         post: { tags: ['Connection Logs'], summary: 'Approve a release-only collector for a faulted exporter epoch', description: 'Interactive cgnat_attribution.manage only. Available only when the frozen collector is no longer valid and open allocations remain. The replacement token may close existing mappings but cannot allocate; approval permanently faults the old epoch so it can never produce positive attribution.', operationId: 'approveCgnatExporterReleaseRecovery', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ $ref: '#/components/schemas/CgnatExporterReleaseRecoveryRequest' }, 'Audited incident reference and unbound exact-scope recovery token'), responses: { 200: dataResponse('CgnatExporterConfig'), 403: errorResponse('Interactive manage permission required'), 404: errorResponse('Exporter configuration not found'), 409: errorResponse('Recovery is unnecessary, already approved, or no open allocations remain'), 422: errorResponse('Invalid recovery token or request') } },
       },
-      '/connection-logs/ip-attribution/lookup': { post: { tags: ['Connection Logs'], summary: 'Resolve one approved-case public-IP attribution', description: 'Interactive JWT only. Requires gov_data_requests.view and ip_attribution.view plus a same-organization processing ip_traceability case whose exact public IPv4/time and optional TCP/UDP port tuple match. No routine binding browser is exposed.', operationId: 'lookupIpAttribution', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/IpAttributionLookupRequest' }, 'Direct assignment omits port/protocol; shared CGNAT supplies both'), responses: { 200: dataResponse('IpAttributionLookupResult'), 403: errorResponse('Case, permission, subject, or interactive-session gate failed'), 404: errorResponse('Government data request not found'), 422: errorResponse('Invalid exact lookup') } } },
+      '/connection-logs/ip-attribution/lookup': { post: { tags: ['Connection Logs'], summary: 'Resolve one approved-case public-IP attribution', description: 'Interactive JWT only. Requires gov_data_requests.view and ip_attribution.view plus a same-organization processing ip_traceability case whose exact address/time and optional TCP/UDP port tuple match. IPv4: direct assignment, or CGNAT with port and protocol. IPv6: direct only, the session whose WAN address it is or whose delegated or framed prefix contains it; no port. No routine binding browser is exposed.', operationId: 'lookupIpAttribution', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/IpAttributionLookupRequest' }, 'Direct assignment omits port/protocol; shared CGNAT supplies both'), responses: { 200: dataResponse('IpAttributionLookupResult'), 403: errorResponse('Case, permission, subject, or interactive-session gate failed'), 404: errorResponse('Government data request not found'), 422: errorResponse('Invalid exact lookup') } } },
       '/connection-logs/ip-attribution/export': { post: { tags: ['Connection Logs'], summary: 'Export one approved-case public-IP attribution as CSV', description: 'Interactive JWT only. Requires gov_data_requests.view and ip_attribution.export. Access is audited before disclosure and the response carries X-Evidence-SHA256.', operationId: 'exportIpAttribution', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/IpAttributionLookupRequest' }, 'Exact approved-case lookup'), responses: csvExportResponses('One case-bound IP-attribution result') } },
       '/connection-logs/readiness': { get: { tags: ['Connection Logs'], summary: 'Get operational IP-attribution readiness', description: 'Operational evidence health, not a legal certification or proof of a human action. CGNAT detail is visible only with ip_attribution.view or cgnat_attribution.manage.', operationId: 'getConnectionLoggingReadiness', security: [{ bearerAuth: [] }], responses: { 200: dataResponse('ConnectionLoggingReadiness'), 403: errorResponse('Permission denied') } } },
 
@@ -3856,6 +3856,15 @@ function ipAttributionLookupRequestSchema() {
   return { oneOf: [
     { type: 'object', additionalProperties: false,
       required: ['gov_data_request_id', 'public_ipv4', 'observed_at'], properties: common },
+    // IPv4 or IPv6 by ip_address; IPv6 is matched by address or containing
+    // prefix and never takes a port (no CGNAT).
+    { type: 'object', additionalProperties: false,
+      required: ['gov_data_request_id', 'ip_address', 'observed_at'],
+      properties: {
+        gov_data_request_id: common.gov_data_request_id,
+        ip_address: { type: 'string', description: 'Globally routable unicast IPv4 or IPv6 (2000::/3, not documentation, 6to4 or IETF special-purpose)' },
+        observed_at: common.observed_at,
+      } },
     { type: 'object', additionalProperties: false,
       required: ['gov_data_request_id', 'public_ipv4', 'public_port', 'protocol', 'observed_at'],
       properties: { ...common, public_port: { type: 'integer', minimum: 1, maximum: 65535 },
@@ -3889,7 +3898,11 @@ function directPublicAttributionSchema() {
       connection_log_id: { type: 'integer' }, client_id: { type: 'integer' },
       client_name: nullableString(), contract_id: { type: 'integer' },
       username: { type: 'string' }, radius_session_id: { type: 'string' },
-      session_instance_id: { type: 'string' }, public_ipv4: { type: 'string', format: 'ipv4' },
+      session_instance_id: { type: 'string' },
+      public_ipv4: { type: ['string', 'null'], format: 'ipv4', description: 'null for IPv6' },
+      ip_address: { type: 'string' }, ip_version: { type: 'integer', enum: [4, 6] },
+      ipv6_matched_by: { type: 'string', enum: ['ipv6_address', 'ipv6_delegated_prefix', 'framed_ipv6_prefix'], description: 'IPv6 only: the field that held the address (the WAN address, the delegated prefix or the framed prefix)' },
+      ipv6_delegated_prefix: nullableString(), framed_ipv6_prefix: nullableString(), ipv6_address: nullableString(),
       assigned_at: { type: 'string', format: 'date-time' }, released_at: nullableString('date-time'),
       certain_from: { type: 'string', format: 'date-time' },
       certain_until: { type: 'string', format: 'date-time' },
@@ -3974,12 +3987,13 @@ function ipAttributionLookupResultSchema() {
     properties: {
       gov_data_request_id: { type: 'integer' },
       query: { type: 'object', additionalProperties: false,
-        required: ['public_ipv4', 'public_port', 'protocol', 'observed_at'],
-        properties: { public_ipv4: { type: 'string', format: 'ipv4' },
+        required: ['ip_address', 'ip_version', 'public_ipv4', 'public_port', 'protocol', 'observed_at'],
+        properties: { ip_address: { type: 'string' }, ip_version: { type: 'integer', enum: [4, 6] },
+          public_ipv4: { type: ['string', 'null'], format: 'ipv4', description: 'null for IPv6' },
           public_port: nullableInteger(), protocol: nullableString(), observed_at: { type: 'string', format: 'date-time' } } },
       status: { type: 'string', enum: ['matched', 'unavailable', 'ambiguous'] },
       reason: nullableString(), candidate_count: { type: 'integer', minimum: 0 },
-      attributionMethod: { type: ['string', 'null'], enum: ['direct_public_assignment', 'cgnat_binding', null] },
+      attributionMethod: { type: ['string', 'null'], enum: ['direct_public_assignment', 'direct_ipv6_assignment', 'cgnat_binding', null] },
       attribution: { oneOf: [
         { $ref: '#/components/schemas/DirectPublicAttribution' },
         { $ref: '#/components/schemas/CgnatAttribution' },
