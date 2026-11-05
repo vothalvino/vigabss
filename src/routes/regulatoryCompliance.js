@@ -556,10 +556,11 @@ router.put('/identity-verification/:id/verify', requirePermission('identity_veri
   try {
     const { id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE identity_verification_records SET status = \'verified\', verified_at = NOW(), verified_by = ? WHERE id = ? AND organization_id = ?',
       [req.user.id, id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('Identity verification record');
 
     res.json({ success: true });
   } catch (err) {
@@ -571,10 +572,11 @@ router.put('/identity-verification/:id/reject', requirePermission('identity_veri
   try {
     const { id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE identity_verification_records SET status = \'rejected\' WHERE id = ? AND organization_id = ?',
       [id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('Identity verification record');
 
     res.json({ success: true });
   } catch (err) {

@@ -157,7 +157,9 @@ async function restoreApSectorConfig(id, orgId) {
     'UPDATE ap_sector_configs SET deleted_at = NULL WHERE id = ? AND organization_id <=> ?',
     [id, orgId],
   );
-  return getApSectorConfig(id, orgId);
+  const record = await getApSectorConfig(id, orgId);
+  if (!record) throw new NotFoundError('AP sector config');
+  return record;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,7 +263,9 @@ async function restoreApChannelPlan(id, orgId) {
     'UPDATE ap_channel_plans SET deleted_at = NULL WHERE id = ? AND organization_id <=> ?',
     [id, orgId],
   );
-  return getApChannelPlan(id, orgId);
+  const record = await getApChannelPlan(id, orgId);
+  if (!record) throw new NotFoundError('AP channel plan');
+  return record;
 }
 
 /**

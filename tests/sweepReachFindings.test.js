@@ -102,3 +102,13 @@ test.each([
   expect(probe.params).toEqual(expect.arrayContaining([B_TITLE, ORG]));
 });
 
+test.each([
+  ['restoring an AP sector config', 'post', '/wireless/ap-sectors/77/restore'],
+  ['restoring an AP channel plan', 'post', '/wireless/channel-plans/77/restore'],
+  ['verifying an identity record', 'put', '/regulatory-compliance/identity-verification/77/verify'],
+  ['rejecting an identity record', 'put', '/regulatory-compliance/identity-verification/77/reject'],
+])('%s that is not the caller\'s answers 404', async (_label, method, path) => {
+  const res = await call(method, path, {});
+  expect({ status: res.status, code: res.body?.error?.code }).toEqual({ status: 404, code: 'NOT_FOUND' });
+});
+
