@@ -112,3 +112,11 @@ test.each([
   expect({ status: res.status, code: res.body?.error?.code }).toEqual({ status: 404, code: 'NOT_FOUND' });
 });
 
+test('the coverage-zone list returns a boundary mysql2 already decoded', async () => {
+  const boundary = { type: 'Polygon', coordinates: [[[0, 0], [0, 1], [1, 1], [0, 0]]] };
+  rows.coverage_zones = [{ id: 5, organization_id: ORG, name: 'z', boundary }];
+  const res = await call('get', '/coverage-zones');
+  expect(res.status).toBe(200);
+  expect(res.body.data[0].boundary).toEqual(boundary);
+});
+
