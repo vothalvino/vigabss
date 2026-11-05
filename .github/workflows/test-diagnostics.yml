@@ -1,0 +1,51 @@
+name: Test diagnostics
+
+# The main test run used --detectOpenHandles, which forces jest to run every
+# suite in one process; with --forceExit it only prints the handles it finds
+# and never fails, so it cost ~10 minutes of every main run. That report runs
+# here instead, weekly and on demand: the full suite in band with handle
+# detection, its log kept as an artifact. Read it for timers, sockets or
+# servers a test leaves open; it does not gate anything.
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"   # Mondays 06:41 UTC, after the security scan
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  open-handles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with open-handle detection
+        env:
+          NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169 --max-old-space-size=10240
+        run: pnpm exec jest --detectOpenHandles --forceExit --ci 2>&1 | tee open-handles.log
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: open-handles-report
+          path: open-handles.log
+          retention-days: 30
