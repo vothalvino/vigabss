@@ -12,11 +12,11 @@
 //     outage.resolved into the EDITING org's channel, so the owning NOC never
 //     heard about it.
 //
-// Migration 437 adds organization_id, backfilled from site then device. Rows
-// with neither stay NULL — legacy only, since every new outage is stamped at
-// creation — and are ADOPTED by the first tenant that writes to one, which is
-// what stops an unattributed 'ongoing' outage sitting un-resolvable on every
-// NOC dashboard forever.
+// Migration 437 added organization_id. Every outage is stamped at creation
+// (the API with the caller's org, alertService with the alert rule's), so
+// reads and writes are both strictly `organization_id = ?`. The NULL-org
+// "unattributed" rows a backfill could leave on an upgraded install, and the
+// adoption step for them, were removed before the first install.
 // =============================================================================
 
 const request = require('supertest');
@@ -44,7 +44,6 @@ const token = () => jwt.sign({ sub: 1, email: 'a@b.c', role: 'admin', orgId: 1 }
 const auth = (r) => r.set('Authorization', `Bearer ${token()}`);
 
 const MINE = { id: 10, organization_id: 1, title: 'Fibre cut', status: 'ongoing', site_id: 3 };
-const LEGACY = { id: 11, organization_id: null, title: 'Unattributed', status: 'ongoing', site_id: null, device_id: null };
 
 function wireDb({ rows = [MINE], targetOrg = 1 } = {}) {
   db.query.mockImplementation(async (sql) => {
@@ -63,22 +62,12 @@ const listSql = () => db.query.mock.calls.find(([s]) => /FROM outages o/.test(s)
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('reads admit my org AND unattributed rows', () => {
-  it('never emits a bare organization_id = ?', async () => {
-    // The #582 anti-fix: a bare predicate hides every unattributed row, so the
-    // operator sees an empty page and concludes nothing is wrong — worse than
-    // the leak it replaces, because it is silent.
+describe('reads are strictly scoped to my org', () => {
+  it('lists only my organization\'s outages', async () => {
     wireDb();
     await auth(request(app).get('/api/v1/outages'));
-    expect(listSql()[0]).toMatch(/organization_id = \? OR o\.organization_id IS NULL/);
-    expect(listSql()[0]).not.toMatch(/WHERE o\.organization_id = \?[^ ]/);
-  });
-
-  it('flags an unattributed row so the UI can explain it', async () => {
-    wireDb({ rows: [LEGACY] });
-    const res = await auth(request(app).get('/api/v1/outages'));
-    expect(res.status).toBe(200);
-    expect(listSql()[0]).toMatch(/IS NULL\) AS is_unattributed/);
+    expect(listSql()[0]).toMatch(/WHERE o\.organization_id = \? AND/);
+    expect(listSql()[0]).not.toMatch(/organization_id IS NULL|is_unattributed/);
   });
 
   it('binds the org before any filter, so the predicates cannot swap', async () => {
@@ -92,7 +81,8 @@ describe('reads admit my org AND unattributed rows', () => {
     const res = await auth(request(app).get('/api/v1/outages/999'));
     expect(res.status).toBe(404);
     const one = db.query.mock.calls.find(([s]) => /FROM outages o WHERE o\.id = \?/.test(s));
-    expect(one[0]).toMatch(/organization_id = \? OR o\.organization_id IS NULL/);
+    expect(one[0]).toMatch(/AND o\.organization_id = \? AND/);
+    expect(one[0]).not.toMatch(/organization_id IS NULL/);
   });
 });
 
@@ -105,7 +95,7 @@ describe('writes are strictly scoped', () => {
     expect(db.query.mock.calls.some(([s]) => /^UPDATE `?outages`?/i.test(s))).toBe(false);
   });
 
-  it('nor made unattributed again by setting it null', async () => {
+  it('nor have its organization cleared', async () => {
     wireDb();
     const res = await auth(request(app).put('/api/v1/outages/10')).send({ organization_id: null });
     expect(res.status).toBe(422);
@@ -114,7 +104,7 @@ describe('writes are strictly scoped', () => {
 
 describe('the WRITE predicate itself, not just the route guards', () => {
   it('UPDATE carries an org predicate — hasOrgScope must stay true', () => {
-    // The route guards (reject-reassignment, adopt) all still pass with
+    // The route guard (reject-reassignment) still passes with
     // hasOrgScope=false, because they run BEFORE the model. What actually stops
     // one tenant writing another's outage is BaseModel emitting
     // `AND organization_id = ?`, and only asserting on the emitted SQL catches
@@ -166,63 +156,12 @@ describe('the automated creator stamps the org', () => {
   });
 });
 
-describe('an unattributed legacy row is adopted, not blocked', () => {
-  it('resolving one stamps the acting org first', async () => {
-    // Without adoption the strict write predicate makes these permanently
-    // un-resolvable: a legacy 'ongoing' outage would sit on every tenant's NOC
-    // dashboard with no way to clear it.
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    await auth(request(app).put('/api/v1/outages/11')).send({ status: 'resolved' });
-
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /^UPDATE outages SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeDefined();
-    expect(adopt[1][0]).toBe(1);
-  });
-
-  it('does NOT touch a row that already has an owner', async () => {
-    // Adoption must never re-home another tenant's outage.
+describe('nothing adopts a row', () => {
+  it('writes never re-home an outage', async () => {
     wireDb({ rows: [MINE], targetOrg: 2 });
     await auth(request(app).put('/api/v1/outages/10')).send({ status: 'resolved' });
-    expect(db.query.mock.calls.some(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    )).toBe(false);
-  });
-
-  it('the adoption UPDATE is itself guarded by IS NULL', () => {
-    // Belt and braces against a race: two tenants adopting at once must not
-    // let the second overwrite the first. Asserted on the shared helper, which
-    // is where the statement lives now that speed_tests reuses it.
-    const src = require('node:fs').readFileSync(
-      require('node:path').join(__dirname, '../src/utils/orgAdoption.js'), 'utf8',
-    );
-    expect(src).toMatch(/SET organization_id = \? WHERE id = \? AND organization_id IS NULL/);
-  });
-});
-
-describe('a REJECTED request must not transfer ownership', () => {
-  it('does not adopt when validation fails', async () => {
-    // Adoption is a committed write with no transaction around it. Mounted
-    // ahead of validate(), a request that then 422s STILL took the row: it
-    // vanishes from every other tenant's list, their PUT/DELETE 404, and no
-    // route can hand it back. A failed request must not have permanent side
-    // effects, least of all ownership ones.
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    const res = await auth(request(app).put('/api/v1/outages/11')).send({ status: 'not-a-real-status' });
-    expect(res.status).toBe(422);
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeUndefined();
-  });
-
-  it('still adopts when the request is valid', async () => {
-    wireDb({ rows: [LEGACY], targetOrg: null });
-    await auth(request(app).put('/api/v1/outages/11')).send({ notes: 'ok' });
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeDefined();
+    await auth(request(app).delete('/api/v1/outages/10')).send();
+    await auth(request(app).post('/api/v1/outages/10/restore')).send();
+    expect(db.query.mock.calls.some(([s]) => /SET organization_id = \?/.test(s))).toBe(false);
   });
 });

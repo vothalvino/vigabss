@@ -16,6 +16,10 @@
 //           is no per-tenant answer to "may I retune what everyone else polls".
 //   TENANT  (is_system=0) — owned by whoever created it, invisible to others.
 //
+// Migration 525 marked every shipped profile system: 440 had marked only eight
+// by name, and the other seventeen were treated as unattributed legacy rows
+// that the first tenant to write one could take from everyone else.
+//
 // The subtle half is the OID sub-routes. They took req.params.id with no
 // ownership check at all, so they walked straight around the immutability lock:
 // you cannot edit "MikroTik RouterOS", but you could gut it by deleting its
@@ -45,7 +49,6 @@ const auth = (r) => r.set('Authorization', `Bearer ${token()}`);
 
 const MINE = { id: 10, organization_id: 1, is_system: 0, name: 'My Profile' };
 const SYSTEM = { id: 2, organization_id: null, is_system: 1, name: 'MikroTik RouterOS' };
-const LEGACY = { id: 11, organization_id: null, is_system: 0, name: 'Old custom' };
 
 function wire({ rows = [MINE], isSystem = 0, visible = true } = {}) {
   db.query.mockImplementation(async (sql) => {
@@ -67,19 +70,17 @@ const writes = () => db.query.mock.calls.filter(([s]) => /^(UPDATE|INSERT|DELETE
 
 beforeEach(() => { jest.clearAllMocks(); wire(); });
 
-describe('reads admit my org, system profiles and legacy rows', () => {
+describe('reads admit my org and the system profiles', () => {
   it('never emits a bare organization_id = ?', async () => {
     // A bare predicate would hide the entire shipped vendor library and leave
     // every install staring at an empty profile list.
     await auth(request(app).get('/api/v1/snmp-profiles'));
-    expect(listSql()[0]).toMatch(/organization_id = \? OR p\.organization_id IS NULL/);
+    expect(listSql()[0]).toMatch(/organization_id = \? OR \(p\.organization_id IS NULL AND p\.is_system = 1\)/);
   });
 
-  it('flags an unattributed legacy row but NOT a system one', async () => {
-    // is_system already explains why a system profile is uneditable; calling it
-    // "unattributed" as well would be two different reasons for one state.
+  it('admits no owner-less row that is not a system profile', async () => {
     await auth(request(app).get('/api/v1/snmp-profiles'));
-    expect(listSql()[0]).toMatch(/organization_id IS NULL AND p\.is_system = 0\) AS is_unattributed/);
+    expect(listSql()[0]).not.toMatch(/OR p\.organization_id IS NULL\)|is_unattributed/);
   });
 
   it('binds the org before any filter', async () => {
@@ -152,7 +153,7 @@ describe("OID routes cannot reach another tenant's profile", () => {
     await auth(request(app).get('/api/v1/snmp-profiles/10/oids'));
     const probe = db.query.mock.calls.find(([s]) => /SELECT id FROM snmp_profiles p/.test(s));
     expect(probe).toBeDefined();
-    expect(probe[0]).toMatch(/organization_id = \? OR p\.organization_id IS NULL/);
+    expect(probe[0]).toMatch(/organization_id = \? OR \(p\.organization_id IS NULL AND p\.is_system = 1\)/);
   });
 });
 
@@ -170,13 +171,9 @@ describe('the write predicate itself', () => {
     expect(res.body.error?.code).not.toBe('SYSTEM_PROFILE_IMMUTABLE');
   });
 
-  it('an unattributed legacy row is adopted, not blocked', async () => {
-    wire({ rows: [LEGACY], isSystem: 0 });
-    await auth(request(app).put('/api/v1/snmp-profiles/11')).send({ name: 'Claimed' });
-    const adopt = db.query.mock.calls.find(
-      ([s]) => /^UPDATE snmp_profiles SET organization_id = \? WHERE id = \? AND organization_id IS NULL/.test(s),
-    );
-    expect(adopt).toBeDefined();
-    expect(adopt[1][0]).toBe(1);
+  it('nothing adopts a profile', async () => {
+    wire({ rows: [MINE], isSystem: 0 });
+    await auth(request(app).put('/api/v1/snmp-profiles/10')).send({ name: 'Renamed' });
+    expect(db.query.mock.calls.some(([s]) => /SET organization_id = \?/.test(s))).toBe(false);
   });
 });
