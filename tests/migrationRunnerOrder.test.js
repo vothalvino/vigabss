@@ -114,6 +114,47 @@ describe('checksums', () => {
   });
 });
 
+describe('a database from the pre-release history', () => {
+  test('is refused with an explanation before anything runs', async () => {
+    const conn = {
+      execute: jest.fn(async (sql) => {
+        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
+        if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
+        if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
+        if (/SELECT filename, checksum FROM schema_migrations/.test(sql)) {
+          return [[{ filename: '001_create_users_table.sql', checksum: 'a'.repeat(64) },
+            { filename: '525_snmp_shipped_profiles_system.sql', checksum: 'b'.repeat(64) }]];
+        }
+        if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
+        return [{ affectedRows: 1 }];
+      }),
+      query: jest.fn().mockResolvedValue([{}]),
+      release: jest.fn(),
+    };
+
+    await expect(applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+      .rejects.toThrow(/pre-release migration history \(2 migrations, none of them 001_baseline\.sql\)\. Nothing was changed/);
+    expect(conn.query).not.toHaveBeenCalledWith(expect.stringMatching(/CREATE TABLE IF NOT EXISTS t0/));
+    expect(conn.execute.mock.calls.some(([sql]) => /^INSERT INTO schema_migrations/.test(sql))).toBe(false);
+  });
+
+  test('a fresh database and one already on the baseline are not refused', async () => {
+    const fresh = {
+      execute: jest.fn(async (sql) => {
+        if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
+        if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
+        if (/SELECT filename, checksum/.test(sql)) return [[]];
+        if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
+        return [[{ database_name: 'fireisp_test' }]];
+      }),
+      query: jest.fn().mockResolvedValue([{}]),
+      release: jest.fn(),
+    };
+    await expect(applyMigrations({ getConnection: async () => fresh }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+      .resolves.not.toThrow();
+  });
+});
+
 describe('re-execution safety', () => {
   const read = file => fs.readFileSync(path.join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '');
 

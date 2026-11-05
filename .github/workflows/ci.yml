@@ -130,16 +130,17 @@ jobs:
 
       - name: Validate README.md is in sync with migrations and schema
         run: |
-          # Ensure README migration range matches actual file count
+          # Ensure README's latest migration number matches the file count
+          # (numbering is gapless from 001, the release baseline).
           ACTUAL_MIGS=$(ls database/migrations/*.sql | wc -l | tr -d ' ')
-          README_MIGS=$(grep 'Individual numbered migration files' README.md | tr -d ')' | grep -oE '[0-9]+$' | tr -d ' ')
+          README_MIGS=$(grep -oE 'Numbered migrations \(001 is the first-release baseline; latest: [0-9]+\)' README.md | grep -oE '[0-9]+\)$' | tr -d ')' | sed 's/^0*//')
           if [ -z "$README_MIGS" ]; then
             echo "ERROR: Could not parse migration range from README.md"
             exit 1
           fi
           if [ "$ACTUAL_MIGS" != "$README_MIGS" ]; then
             echo "ERROR: README.md says migrations go up to $README_MIGS but $ACTUAL_MIGS migration files exist"
-            echo "Fix: update the '001–$README_MIGS' range in README.md to '001–$ACTUAL_MIGS'"
+            echo "Fix: update 'latest: $README_MIGS' in README.md to the highest migration number"
             exit 1
           fi
           echo "✓ README migration count: $ACTUAL_MIGS"
@@ -257,8 +258,9 @@ jobs:
           for f in $(ls database/migrations/*.sql | sort -V); do
             mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
           done
-          # Count tables and compare to schema.sql
-          SCHEMA_TABLES=$(grep -c "CREATE TABLE" database/schema.sql)
+          # Count tables and compare to schema.sql. schema.sql also declares
+          # schema_migrations, which the runner (not a migration) creates.
+          SCHEMA_TABLES=$(( $(grep -c "CREATE TABLE" database/schema.sql) - 1 ))
           MIGRATED_TABLES=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='fireisp_migrate_test' AND table_type='BASE TABLE';")
           echo "schema.sql declares $SCHEMA_TABLES tables, migrations created $MIGRATED_TABLES tables"
@@ -449,7 +451,7 @@ jobs:
     # Exercises the real Node migration tooling (migrate.js / rollback.js /
     # migration-smoke-test.js) rather than the raw mysql CLI path used by
     # database-tests: double-run idempotency, schema.sql parity, and a full
-    # rollback round-trip across every rollback file >= 130.
+    # rollback round-trip of every migration after the baseline.
     timeout-minutes: 30
     runs-on: ubuntu-latest
 
@@ -542,9 +544,9 @@ jobs:
           fi
           echo "✓ Every applied migration has a checksum"
 
-      - name: Re-execute migrations from 504 on (DB-21)
-        # From 504 on, a migration must be safe to run again after a partial
-        # failure (tests/migrationRunnerOrder.test.js checks the rule
+      - name: Re-execute every migration after the baseline (DB-21)
+        # A migration after the baseline must be safe to run again after a
+        # partial failure (tests/migrationRunnerOrder.test.js checks the rule
         # statically). Forget them and apply them a second time.
         run: |
           set -euo pipefail
@@ -552,27 +554,27 @@ jobs:
             "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
           mysql -h 127.0.0.1 -u root -pfireisp_test -e \
             "DELETE FROM fireisp_runner_test.schema_migrations
-              WHERE CAST(SUBSTRING_INDEX(filename, '_', 1) AS UNSIGNED) >= 504;"
+              WHERE CAST(SUBSTRING_INDEX(filename, '_', 1) AS UNSIGNED) >= 2;"
           pnpm run migrate
           AFTER=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
             "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
           if [ "$BEFORE" != "$AFTER" ]; then
-            echo "ERROR: re-executing migrations >= 504 left $AFTER rows, expected $BEFORE"
+            echo "ERROR: re-executing migrations after the baseline left $AFTER rows, expected $BEFORE"
             exit 1
           fi
-          echo "✓ Migrations from 504 on ran a second time"
+          echo "✓ Migrations after the baseline ran a second time"
 
       - name: Migration smoke test (schema.sql parity)
         run: node src/scripts/migration-smoke-test.js
 
-      - name: Rollback round-trip (all rollbacks >= 130, then re-migrate)
+      - name: Rollback round-trip (every migration after the baseline, then re-migrate)
         run: |
-          node src/scripts/rollback.js --to 129
+          node src/scripts/rollback.js --to 1
           REMAINING=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
             "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
-          echo "Migrations remaining after rollback --to 129: $REMAINING"
-          if [ "$REMAINING" != "129" ]; then
-            echo "ERROR: expected 129 migrations to remain, found $REMAINING"
+          echo "Migrations remaining after rollback --to 1: $REMAINING"
+          if [ "$REMAINING" != "1" ]; then
+            echo "ERROR: expected only the baseline to remain, found $REMAINING"
             exit 1
           fi
           pnpm run migrate
@@ -705,44 +707,21 @@ jobs:
           if [ -n "$WRONG" ]; then echo "Owner-less SNMP profiles that are not system:"; echo "$WRONG"; exit 1; fi
           echo "✓ Every owner-less SNMP profile is a system profile"
 
-      - name: Roll back migration 458 and reapply
+      - name: Roll back every migration after the baseline and reapply
         run: |
-          node src/scripts/rollback.js --to 457
-
-          MARKER=$(docker exec ci-mariadb mariadb \
+          node src/scripts/rollback.js --to 1
+          REMAINING=$(docker exec ci-mariadb mariadb \
             --protocol=socket --user=root --password=fireisp_test \
             --batch --skip-column-names --database="$DB_NAME" \
-            --execute="SELECT COUNT(*) FROM schema_migrations
-                       WHERE filename='458_mx_snii_infrastructure_reporting.sql';")
-          test "$MARKER" = "0"
-
-          # Rollback 458 intentionally retains regulatory evidence storage.
-          TABLES=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
-            --batch --skip-column-names \
-            --execute="SELECT COUNT(*) FROM information_schema.tables
-                       WHERE table_schema='$DB_NAME'
-                         AND table_name IN (
-                           'snii_reporting_profiles',
-                           'snii_element_applicability',
-                           'snii_asset_registry',
-                           'snii_report_batches',
-                           'snii_report_items',
-                           'snii_report_artifacts',
-                           'snii_evidence_uploads',
-                           'snii_filing_events',
-                           'snii_audit_events'
-                         );")
-          test "$TABLES" = "9"
+            --execute="SELECT COUNT(*) FROM schema_migrations;")
+          test "$REMAINING" = "1"
 
           pnpm run migrate
-
-          MARKER=$(docker exec ci-mariadb mariadb \
+          AFTER=$(docker exec ci-mariadb mariadb \
             --protocol=socket --user=root --password=fireisp_test \
             --batch --skip-column-names --database="$DB_NAME" \
-            --execute="SELECT COUNT(*) FROM schema_migrations
-                       WHERE filename='458_mx_snii_infrastructure_reporting.sql';")
-          test "$MARKER" = "1"
+            --execute="SELECT COUNT(*) FROM schema_migrations;")
+          test "$AFTER" = "$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
 
           node src/scripts/migration-smoke-test.js
 

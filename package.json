@@ -25,6 +25,7 @@
     "schema:parity": "node src/scripts/schema-parity-check.js",
     "spec:gen": "node src/scripts/gen-route.js",
     "postman": "node src/scripts/postman.js",
+    "schema:snapshot": "node src/scripts/schema-snapshot.js",
     "lint": "eslint src/ --ext .js",
     "lint:fix": "eslint src/ --ext .js --fix",
     "test": "jest --detectOpenHandles --forceExit",

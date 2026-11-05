@@ -132,31 +132,17 @@ describe('fulfill / reject validate their note', () => {
   });
 });
 
-describe('migration 432 grants billing .manage on both', () => {
+describe('billing holds .manage on both', () => {
   // The grant is what makes the page usable by the role it is scoped to; a
   // typo'd permission name would seed nothing and silently 403 forever.
-  const mig = fs.readFileSync(
-    path.join(__dirname, '..', 'database/migrations/432_billing_manages_consents_and_dsars.sql'), 'utf8');
+  const { baselineRows } = require('./helpers/baseline');
+  const roles = new Map(baselineRows('roles').map(r => [r.id, r.name]));
+  const permissions = new Map(baselineRows('permissions').map(p => [p.name, p.id]));
+  const holders = slug => baselineRows('role_permissions')
+    .filter(rp => rp.permission_id === permissions.get(slug)).map(rp => roles.get(rp.role_id));
 
-  it('names both permissions exactly as migration 321 seeded them', () => {
-    expect(mig).toMatch(/'subscriber_consents\.manage'/);
-    expect(mig).toMatch(/'dsar_requests\.manage'/);
-    const seed = fs.readFileSync(
-      path.join(__dirname, '..', 'database/migrations/321_seed_sec16_permissions.sql'), 'utf8');
-    expect(seed).toMatch(/'subscriber_consents\.manage'/);
-    expect(seed).toMatch(/'dsar_requests\.manage'/);
-  });
-
-  it('targets the billing role and is idempotent', () => {
-    expect(mig).toMatch(/WHERE r\.name = 'billing'/);
-    expect(mig).toMatch(/NOT EXISTS/);
-  });
-
-  it('has a rollback that removes exactly those two grants', () => {
-    const rb = fs.readFileSync(
-      path.join(__dirname, '..', 'database/rollbacks/432_billing_manages_consents_and_dsars.sql'), 'utf8');
-    expect(rb).toMatch(/DELETE rp FROM role_permissions rp/);
-    expect(rb).toMatch(/'subscriber_consents\.manage', 'dsar_requests\.manage'/);
-    expect(rb).toMatch(/r\.name = 'billing'/);
+  it.each(['subscriber_consents.manage', 'dsar_requests.manage'])('%s is seeded and granted to billing', (slug) => {
+    expect(permissions.has(slug)).toBe(true);
+    expect(holders(slug)).toContain('billing');
   });
 });

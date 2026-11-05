@@ -1,11 +1,18 @@
 'use strict';
+// =============================================================================
+// MX SNII infrastructure reporting (introduced by development migration 458)
+// =============================================================================
+// The DDL-level contract (CHECKs, composite tenant FKs, comments) is asserted
+// on schema.sql, which mirrors 458 in the same SQL style. What an install
+// actually gets is pinned on the baseline: identical columns, mandatory
+// tenant ownership, no cascades, the append-only triggers and the role grants.
+// =============================================================================
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { baselineColumns, baselineTable, baselineProgram, baselineRows } = require('./helpers/baseline');
 
 const read = relative => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
-const migration = read('database/migrations/458_mx_snii_infrastructure_reporting.sql');
-const rollback = read('database/rollbacks/458_mx_snii_infrastructure_reporting.sql');
 const schema = read('database/schema.sql');
 
 const TABLES = [
@@ -29,7 +36,7 @@ function tableDefinitionFrom(source, table) {
 }
 
 function tableDefinition(table) {
-  return tableDefinitionFrom(migration, table);
+  return tableDefinitionFrom(schema, table);
 }
 
 function columnNames(definition) {
@@ -43,14 +50,10 @@ function columnNames(definition) {
 }
 
 function triggerDefinition(trigger) {
-  const match = migration.match(new RegExp(
-    `CREATE TRIGGER ${trigger}[\\s\\S]*?END//`,
-  ));
-  expect(match).toBeDefined();
-  return match[0];
+  return baselineProgram('trigger', trigger);
 }
 
-describe('migration 458 SNII security and evidence contract', () => {
+describe('SNII security and evidence contract', () => {
   test('makes tenant ownership mandatory throughout the SNII data graph', () => {
     for (const table of TABLES) {
       expect(tableDefinition(table)).toMatch(
@@ -58,16 +61,21 @@ describe('migration 458 SNII security and evidence contract', () => {
       );
     }
 
-    expect(migration).toMatch(
+    for (const table of TABLES) {
+      expect(baselineColumns(table).get('organization_id')).toMatch(/^bigint unsigned NOT NULL/);
+      expect(baselineTable(table)).not.toMatch(/ON (DELETE|UPDATE) CASCADE/);
+    }
+    const all = TABLES.map(tableDefinition).join('\n');
+    expect(all).toMatch(
       /FOREIGN KEY \(profile_id, organization_id\)\s+REFERENCES snii_reporting_profiles\(id, organization_id\)/,
     );
-    expect(migration).toMatch(
+    expect(all).toMatch(
       /FOREIGN KEY \(batch_id, organization_id\)\s+REFERENCES snii_report_batches\(id, organization_id\)/,
     );
-    expect(migration).toMatch(
+    expect(all).toMatch(
       /FOREIGN KEY \(registry_asset_id, organization_id\)\s+REFERENCES snii_asset_registry\(id, organization_id\)/,
     );
-    expect(migration).not.toMatch(/ON DELETE CASCADE/);
+    expect(all).not.toMatch(/ON DELETE CASCADE/);
 
     // MySQL and MariaDB reject a CHECK column that also participates in an
     // ON UPDATE CASCADE foreign key (for example the frozen title/lineage
@@ -75,7 +83,6 @@ describe('migration 458 SNII security and evidence contract', () => {
     // every relationship must fail closed instead of cascading an update.
     for (const table of TABLES) {
       expect(tableDefinition(table)).not.toMatch(/ON UPDATE CASCADE/);
-      expect(tableDefinitionFrom(schema, table)).not.toMatch(/ON UPDATE CASCADE/);
     }
     expect(tableDefinition('snii_reporting_profiles')).toMatch(
       /FOREIGN KEY \(concession_title_id, organization_id\)[\s\S]*?ON UPDATE RESTRICT/,
@@ -88,11 +95,9 @@ describe('migration 458 SNII security and evidence contract', () => {
     );
   });
 
-  test('keeps every SNII table column-identical in migration and fresh-install schema', () => {
+  test('keeps every SNII table column-identical in the baseline and schema.sql', () => {
     for (const table of TABLES) {
-      expect(columnNames(tableDefinitionFrom(schema, table))).toEqual(
-        columnNames(tableDefinition(table)),
-      );
+      expect(columnNames(tableDefinition(table))).toEqual([...baselineColumns(table).keys()]);
     }
   });
 
@@ -119,7 +124,7 @@ describe('migration 458 SNII security and evidence contract', () => {
     expect(tableDefinition('snii_asset_registry')).toMatch(
       /decision\s+ENUM\('unreviewed','included','excluded'\) NOT NULL DEFAULT 'unreviewed'/,
     );
-    expect(migration).toMatch(
+    expect(tableDefinition('snii_asset_registry')).toMatch(
       /decision = 'unreviewed'[\s\S]*classified_by IS NOT NULL[\s\S]*source_snapshot_hash IS NOT NULL/,
     );
   });
@@ -250,23 +255,21 @@ describe('migration 458 SNII security and evidence contract', () => {
   });
 
   test('gives edit, approval, export and filing grants only to operator roles', () => {
-    const grants = migration.slice(migration.indexOf('-- Permission definitions'));
+    const roles = new Map(baselineRows('roles').map(r => [r.id, r.name]));
+    const permissions = new Map(baselineRows('permissions').map(p => [p.name, p.id]));
+    const holders = slug => baselineRows('role_permissions')
+      .filter(rp => rp.permission_id === permissions.get(slug)).map(rp => roles.get(rp.role_id)).sort();
 
-    expect(grants).toMatch(
-      /p\.name IN \('snii_reporting\.view','snii_reporting\.review','snii_reporting\.prepare',[\s\S]*?'snii_reporting\.export','snii_reporting\.file',[\s\S]*?'snii_reporting\.evidence'\)[\s\S]*?r\.name IN \('admin','super_admin'\)/,
-    );
-    expect(grants).toMatch(
-      /p\.name = 'snii_reporting\.view'[\s\S]*?r\.name IN \('readonly','auditor'\)/,
-    );
-    expect(grants).not.toMatch(/WHERE r\.name = 'billing'/);
-    expect(grants).not.toMatch(/WHERE r\.name = 'technician'/);
-
-    const roleGrantBlocks = grants.match(/INSERT IGNORE INTO role_permissions[\s\S]*?;/g) || [];
-    const evidenceOnlyGrant = roleGrantBlocks.filter(block =>
-      /p\.name = 'snii_reporting\.evidence'/.test(block));
-    expect(evidenceOnlyGrant).toHaveLength(1);
-    expect(evidenceOnlyGrant[0]).toMatch(/WHERE r\.name = 'auditor'/);
-    expect(evidenceOnlyGrant[0]).not.toMatch(/readonly/);
+    for (const slug of ['snii_reporting.review', 'snii_reporting.prepare', 'snii_reporting.export', 'snii_reporting.file']) {
+      expect(holders(slug)).toEqual(['admin', 'super_admin'].filter(r => [...roles.values()].includes(r)).sort());
+    }
+    expect(holders('snii_reporting.view')).toEqual(expect.arrayContaining(['admin', 'readonly', 'auditor']));
+    for (const slug of [...permissions.keys()].filter(n => n.startsWith('snii_reporting.'))) {
+      expect(holders(slug)).not.toContain('billing');
+      expect(holders(slug)).not.toContain('technician');
+    }
+    expect(holders('snii_reporting.evidence')).toContain('auditor');
+    expect(holders('snii_reporting.evidence')).not.toContain('readonly');
   });
 
   test('keeps snapshot items, artifacts, filing evidence and audit events append-only', () => {
@@ -320,11 +323,5 @@ describe('migration 458 SNII security and evidence contract', () => {
     );
     expect(trigger).toMatch(/first_exported_at[\s\S]*OLD\.status = 'approved'[\s\S]*NEW\.status = 'exported'/);
     expect(trigger).toMatch(/OLD\.status = 'superseded' AND NEW\.status <> 'superseded'/);
-  });
-
-  test('a routine code rollback cannot erase retained SNII evidence', () => {
-    expect(rollback).toMatch(/retain|preserv|evidence/i);
-    expect(rollback).not.toMatch(/DROP TABLE IF EXISTS snii_/);
-    expect(rollback).not.toMatch(/DELETE\s+FROM\s+snii_/i);
   });
 });

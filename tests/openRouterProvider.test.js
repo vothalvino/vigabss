@@ -87,13 +87,12 @@ describe('the kind is declared consistently across the stack', () => {
     }
   });
 
-  it('the migration appends the value rather than reordering the ENUM', () => {
-    // MySQL stores an ENUM as the ordinal index of its value, so inserting a
-    // value anywhere but the end silently relabels every existing row.
-    const mig = fs.readFileSync(
-      path.join(__dirname, '..', 'database', 'migrations', '442_openrouter_provider_kind.sql'), 'utf8',
-    );
-    expect(mig).toMatch(/ENUM\('openai','azure_openai','anthropic','gemini','ollama','custom','openrouter'\)/);
+  it('openrouter comes last in the kind ENUM', () => {
+    // MySQL stores an ENUM as the ordinal index of its value, so a later
+    // migration that inserts a value anywhere but the end silently relabels
+    // every existing row; new kinds are appended after openrouter.
+    expect(require('./helpers/baseline').baselineColumns('ai_providers').get('kind'))
+      .toMatch(/^enum\('openai','azure_openai','anthropic','gemini','ollama','custom','openrouter'\)/);
   });
 
   it('the dispatch switch handles it, so it cannot 500 as an unknown kind', () => {

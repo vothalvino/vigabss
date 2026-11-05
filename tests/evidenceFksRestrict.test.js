@@ -11,6 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
+const { baselineSql } = require('./helpers/baseline');
 const schema = fs.readFileSync(path.join(root, 'database/schema.sql'), 'utf8');
 
 test.each([
@@ -19,7 +20,12 @@ test.each([
   ['fk_dsar_requests_client', 'clients'],
   ['fk_audit_logs_org', 'organizations'],
   ['fk_ift_statistical_reports_organization', 'organizations'],
-])('%s is ON DELETE RESTRICT in schema.sql and migration 502', (constraint, parent) => {
+])('%s is ON DELETE RESTRICT in schema.sql and the baseline', (constraint, parent) => {
   expect(schema).toMatch(new RegExp(`CONSTRAINT ${constraint} FOREIGN KEY \\(\\w+\\)\\s+REFERENCES ${parent} \\(id\\) ON DELETE RESTRICT`));
-  expect(fs.readFileSync(path.join(root, 'database/migrations/502_evidence_fks_restrict.sql'), 'utf8')).toContain(`'${constraint}'`);
+  // MySQL prints RESTRICT as the absence of an ON DELETE clause (NO ACTION and
+  // RESTRICT behave the same in InnoDB), so the dump must not name another action.
+  const fk = baselineSql().match(new RegExp(`CONSTRAINT \`${constraint}\` FOREIGN KEY [^\\n]*`))?.[0];
+  expect(fk).toBeDefined();
+  expect(fk).toContain(`REFERENCES \`${parent}\` (\`id\`)`);
+  expect(fk).not.toMatch(/ON DELETE (CASCADE|SET NULL)/);
 });
