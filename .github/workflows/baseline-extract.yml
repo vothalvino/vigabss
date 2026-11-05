@@ -96,18 +96,21 @@ jobs:
           #   ON UPDATE CURRENT_TIMESTAMP, so 438's guarded MODIFY (explicit
           #   DEFAULT, no auto-update) was skipped and editing a speed test
           #   rewrote when it was measured. The baseline declares 438's column.
-          python3 - "${{ matrix.engine }}" out/chain-${{ matrix.engine }}.json <<'PY'
+          python3 - "${{ matrix.engine }}" out/chain-${{ matrix.engine }}.json out/baseline-${{ matrix.engine }}.json <<'PY'
           import json, sys
-          engine, path = sys.argv[1:]
-          snap = json.load(open(path))
+          engine, chain_path, baseline_path = sys.argv[1:]
+          chain = json.load(open(chain_path, encoding='utf-8'))
           if engine == 'mariadb':
-              for c in snap['columns']:
+              for c in chain['columns']:
                   if c['t'] == 'speed_tests' and c['name'] == 'tested_at':
                       assert c['extra'] == 'on update current_timestamp()', c
                       c['extra'] = ''
                       c['comment'] = 'When the test measurement was taken; defaults to insert time for live-recorded tests'
-          json.dump(snap, open(path, 'w'), indent=1)
-          open(path, 'a').write('\n')
+          baseline = json.load(open(baseline_path, encoding='utf-8'))
+          for path, snap in ((chain_path, chain), (baseline_path, baseline)):
+              with open(path, 'w', encoding='utf-8') as f:
+                  json.dump(snap, f, indent=1, ensure_ascii=False, sort_keys=True)
+                  f.write('\n')
           PY
           if diff -u out/chain-${{ matrix.engine }}.json out/baseline-${{ matrix.engine }}.json > out/diff-${{ matrix.engine }}.txt; then
             echo "✓ Identical: the baseline reproduces the chain on ${{ matrix.engine }}"
