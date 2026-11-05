@@ -929,21 +929,8 @@ function httpPost(url, body, headers, timeout) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Backward-compat helpers
-// ---------------------------------------------------------------------------
-
-/**
- * deliver() kept for backward compatibility.
- * Wraps deliverOnce() starting at attempt 1.
- */
-async function deliver(webhook, event, payload) {
-  return deliverOnce(webhook, event, payload, 1);
-}
-
 module.exports = {
   dispatch,
-  deliver,
   deliverOnce,
   deliverForWorker,
   processRetries,

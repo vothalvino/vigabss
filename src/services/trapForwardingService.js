@@ -641,12 +641,6 @@ async function forwardTrap(trap, device = null, primaryContext = false) {
 }
 
 async function queueTestDelivery(rule, organizationId, options = {}, primaryContext = false) {
-  // Backward compatibility for the internal recursive form used before this
-  // function accepted a prevalidated destination snapshot.
-  if (typeof options === 'boolean') {
-    primaryContext = options;
-    options = {};
-  }
   if (!primaryContext && typeof db.withPrimaryContext === 'function') {
     return db.withPrimaryContext(() => queueTestDelivery(rule, organizationId, options, true));
   }

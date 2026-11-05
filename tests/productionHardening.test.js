@@ -165,9 +165,9 @@ describe('Webhook HMAC Signing', () => {
   const crypto = require('crypto');
   const webhookService = require('../src/services/webhookService');
 
-  test('webhookService exports dispatch, deliver, processRetries', () => {
+  test('webhookService exports dispatch, deliverOnce, processRetries', () => {
     expect(typeof webhookService.dispatch).toBe('function');
-    expect(typeof webhookService.deliver).toBe('function');
+    expect(typeof webhookService.deliverOnce).toBe('function');
     expect(typeof webhookService.processRetries).toBe('function');
   });
 
