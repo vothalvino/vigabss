@@ -15,6 +15,10 @@
 // =============================================================================
 
 const ENABLED = process.env.DB_INTEGRATION === '1';
+// The organizations' compliance locale for the sweep. CI runs it once each
+// way: MX reaches the Mexican tables and routes, global the global paths of
+// routes that branch on locale.
+const SWEEP_LOCALE = process.env.DB_SWEEP_LOCALE === 'global' ? 'global' : 'MX';
 const describeDb = ENABLED ? describe : describe.skip;
 
 const ORG_A = 9101;
@@ -329,6 +333,21 @@ async function seedClientFiles(db, seeded) {
   seeded.set('files', ids);
 }
 
+// Tables a global organization cannot hold: refused by a locale trigger, or
+// unseeded and pointing at such a table.
+function mxOnlyTables(tables, seeded, skipped) {
+  const out = new Set([...skipped].filter(([, reason]) => /locale/i.test(reason)).map(([name]) => name));
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const table of tables.values()) {
+      if (seeded.has(table.name) || out.has(table.name)) continue;
+      if ([...table.fks.values()].some(fk => out.has(fk.table))) { out.add(table.name); grew = true; }
+    }
+  }
+  return out;
+}
+
 let state = null;
 
 async function setup() {
@@ -338,14 +357,20 @@ async function setup() {
   const users = await seedIdentities(db);
   const tables = await loadStructure(db);
   const first = await seedGeneric(db, tables, users);
-  // The Mexican tables' triggers need an MX organization and client, and an
-  // MX organization's contracts need fields the generic seed cannot supply.
-  // So both organizations switch to MX once the first pass has seeded
-  // contracts, and a second pass fills what the triggers refused. A locale
-  // cannot go back from MX once MX rows exist, so the sweep runs as MX.
-  await db.query("UPDATE organizations SET locale = 'MX', country = 'MX' WHERE id IN (?, ?)", [ORG_A, ORG_B]);
-  await db.query("UPDATE clients SET locale = 'MX' WHERE organization_id IN (?, ?)", [ORG_A, ORG_B]);
-  const { seeded, skipped, spares } = await seedGeneric(db, tables, users, first);
+  let pass = first;
+  if (SWEEP_LOCALE === 'MX') {
+    // The Mexican tables' triggers need an MX organization and client, and
+    // an MX organization's contracts need fields the generic seed cannot
+    // supply. So both organizations switch to MX once the first pass has
+    // seeded contracts, and a second pass fills what the triggers refused.
+    // A locale cannot go back from MX once MX rows exist.
+    await db.query("UPDATE organizations SET locale = 'MX', country = 'MX' WHERE id IN (?, ?)", [ORG_A, ORG_B]);
+    await db.query("UPDATE clients SET locale = 'MX' WHERE organization_id IN (?, ?)", [ORG_A, ORG_B]);
+    pass = await seedGeneric(db, tables, users, first);
+  }
+  const { seeded, skipped, spares } = pass;
+  // As MX every table should seed, so nothing is excused.
+  const mxOnly = SWEEP_LOCALE === 'global' ? mxOnlyTables(tables, seeded, skipped) : new Set();
   await seedClientFiles(db, seeded);
   skipped.delete('files');
   // The portal signs in only an active client.
@@ -353,7 +378,7 @@ async function setup() {
   const { signStaffAccessToken, signPortalAccessToken } = require('../../../src/utils/accessTokens');
   const staffToken = org => signStaffAccessToken({ sub: users[org], orgId: org, tv: 0 });
   const portalToken = org => signPortalAccessToken({ clientId: seeded.get('clients')[org].id, organizationId: org, tokenVersion: 0 }, 3600);
-  state = { db, tables, seeded, skipped, spares, users, staffToken, portalToken };
+  state = { db, tables, seeded, skipped, spares, mxOnly, users, staffToken, portalToken };
   return state;
 }
 
@@ -362,4 +387,4 @@ async function teardown() {
   if (typeof db.close === 'function') await db.close();
 }
 
-module.exports = { ENABLED, describeDb, ORG_A, ORG_B, MARK, LEAK_RE, setup, teardown, relaxLimits, createOrgAdmin };
+module.exports = { ENABLED, SWEEP_LOCALE, describeDb, ORG_A, ORG_B, MARK, LEAK_RE, setup, teardown, relaxLimits, createOrgAdmin };

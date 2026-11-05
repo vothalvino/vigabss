@@ -309,8 +309,21 @@ jobs:
     # a GET sweep of every /api/v1 route as organization A with B's ids, a
     # per-role permission matrix (FE-06), and numbering, billing-period,
     # allocation and webhook races. Runs on PRs.
+    #
+    # Two parallel runs, one per organization locale: MX reaches the Mexican
+    # tables and routes (and runs every suite); global covers the global path
+    # of routes that branch on locale (the sweep only: the RBAC matrix and
+    # the money races do not depend on it).
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - locale: MX
+            suites: tests/integration/db
+          - locale: global
+            suites: tests/integration/db/tenantIsolationSweep.test.js
 
     services:
       mysql:
@@ -337,6 +350,7 @@ jobs:
       JWT_SECRET: db-integration-ci-jwt-secret-for-github-actions-only
       ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       LOG_LEVEL: warn
+      DB_SWEEP_LOCALE: ${{ matrix.locale }}
       DB_INTEGRATION_REPORT: db-isolation-report.json
       DB_RBAC_REPORT: db-rbac-report.json
 
@@ -359,13 +373,13 @@ jobs:
         run: pnpm run migrate
 
       - name: Run the real-database Jest suites
-        run: pnpm exec jest tests/integration/db --ci --runInBand --forceExit
+        run: pnpm exec jest ${{ matrix.suites }} --ci --runInBand --forceExit
 
       - name: Upload the isolation sweep report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: db-isolation-report
+          name: db-isolation-report-${{ matrix.locale }}
           path: |
             db-isolation-report.json
             db-isolation-report-writes.json
