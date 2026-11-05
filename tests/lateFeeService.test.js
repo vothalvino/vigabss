@@ -225,6 +225,75 @@ describe('lateFeeService', () => {
       const upd = db.query.mock.calls.find(c => /UPDATE invoices SET subtotal = subtotal \+/.test(c[0]));
       expect(upd[1]).toEqual([50, 8, 58, 10]);
     });
+
+    // Credit notes and partial payments do not change an invoice's status, so
+    // the overdue query alone let a fully credited 'issued' invoice collect a
+    // fee, and a percent fee was charged on the credited part too.
+    it('skips an invoice that payments and credit notes have fully covered', async () => {
+      const rule = { id: 1, fee_type: 'flat', fee_amount: 10, grace_period_days: 0, max_applications: null };
+      const invoice = {
+        id: 10, days_overdue: 20, subtotal: 1000, tax_amount: 160, tax_rate: 0.16, total: 1160,
+        paid_or_credited: '1160.00', currency: 'MXN', client_id: 5,
+        invoice_number: 'INV-000010', client_name: 'X', client_email: 'x@x.com', client_phone: null,
+      };
+      db.query.mockResolvedValueOnce([[rule]]).mockResolvedValueOnce([[invoice]]);
+
+      const result = await lateFeeService.applyLateFees(1);
+      expect(result).toEqual({ fees_applied: 0, invoices_checked: 1 });
+      expect(db.query.mock.calls.some(c => /INSERT INTO invoice_late_fees/.test(c[0]))).toBe(false);
+    });
+
+    it('charges a percent fee on the unpaid share only', async () => {
+      const rule = { id: 1, fee_type: 'percent', fee_amount: 5, grace_period_days: 0, max_applications: null };
+      const invoice = {
+        id: 10, days_overdue: 20, subtotal: 1000, tax_amount: 160, tax_rate: 0.16, total: 1160,
+        paid_or_credited: '580.00', currency: 'MXN', client_id: 5,
+        invoice_number: 'INV-000010', client_name: 'X', client_email: 'x@x.com', client_phone: null,
+      };
+      db.query
+        .mockResolvedValueOnce([[rule]])
+        .mockResolvedValueOnce([[invoice]])
+        .mockResolvedValueOnce([[{ cnt: 0 }]])
+        .mockResolvedValueOnce([[{ fees: 0 }]])
+        .mockResolvedValueOnce([{ insertId: 10 }])
+        .mockResolvedValueOnce([{}])
+        .mockResolvedValueOnce([{}]);
+
+      await lateFeeService.applyLateFees(1);
+      // Half the invoice is credited: 5% of the other half of the net 1000.
+      expect(eventBus.emit).toHaveBeenCalledWith('invoice.late_fee_applied', expect.objectContaining({ fee_amount: 25 }));
+    });
+
+    it('takes payments against the original charge before earlier fees', async () => {
+      const rule = { id: 1, fee_type: 'percent', fee_amount: 5, grace_period_days: 0, max_applications: null };
+      // Original 1000 + 160 tax, then an earlier 50 fee + 8 tax: total 1218.
+      // 580 paid covers half the original charge; the earlier fee is unpaid.
+      const invoice = {
+        id: 10, days_overdue: 50, subtotal: 1050, tax_amount: 168, tax_rate: 0.16, total: 1218,
+        paid_or_credited: '580.00', currency: 'MXN', client_id: 5,
+        invoice_number: 'INV-000010', client_name: 'X', client_email: 'x@x.com', client_phone: null,
+      };
+      db.query
+        .mockResolvedValueOnce([[rule]])
+        .mockResolvedValueOnce([[invoice]])
+        .mockResolvedValueOnce([[{ cnt: 1, this_period: 0 }]])
+        .mockResolvedValueOnce([[{ fees: 50 }]])
+        .mockResolvedValueOnce([{ insertId: 10 }])
+        .mockResolvedValueOnce([{}])
+        .mockResolvedValueOnce([{}]);
+
+      await lateFeeService.applyLateFees(1);
+      expect(eventBus.emit).toHaveBeenCalledWith('invoice.late_fee_applied', expect.objectContaining({ fee_amount: 25 }));
+    });
+
+    it('reads what has been paid or credited from allocations and credit applications', () => {
+      const src = require('node:fs').readFileSync(
+        require('node:path').join(__dirname, '../src/services/lateFeeService.js'), 'utf8',
+      );
+      expect(src).toMatch(/\$\{paidOrCreditedSql\('i'\)\} AS paid_or_credited/);
+      const { paidOrCreditedSql } = require('../src/utils/invoiceBalance');
+      expect(paidOrCreditedSql('i')).toMatch(/payment_allocations[\s\S]*credit_note_applications/);
+    });
   });
 });
 

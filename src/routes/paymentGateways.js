@@ -72,6 +72,11 @@ router.get('/unsettled-transactions', requirePermission('payment_gateways.view')
     res.json(await paymentGatewayService.listUnsettledTransactions(req.orgId, req.query));
   } catch (err) { next(err); }
 });
+router.get('/refunded-with-live-rep', requirePermission('payment_gateways.view'), async (req, res, next) => {
+  try {
+    res.json(await paymentGatewayService.listRefundedPaymentsWithLiveRep(req.orgId, req.query));
+  } catch (err) { next(err); }
+});
 
 router.get('/:id', requirePermission('payment_gateways.view'), ctrl.get);
 // secret_key_encrypted is NOT NULL; a gateway with no secret (manual) stores ''.

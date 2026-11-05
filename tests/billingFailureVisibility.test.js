@@ -125,4 +125,17 @@ describe('admin views', () => {
     expect(sql).toMatch(/NOT EXISTS \(SELECT 1 FROM client_balance_ledger/);
     expect(params).toEqual([42]);
   });
+
+  test('refunded payments a live REP still reports stay listed until the REP is cancelled', async () => {
+    db.query.mockResolvedValueOnce([[{ payment_id: 8, rep_id: 31 }]]).mockResolvedValueOnce([[{ total: 1 }]]);
+
+    const result = await paymentGatewayService.listRefundedPaymentsWithLiveRep(42);
+
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE p\.organization_id = \? AND p\.status = 'refunded'/);
+    expect(sql).toMatch(/d\.organization_id = p\.organization_id/);
+    expect(sql).toMatch(/d\.tipo_comprobante = 'P' AND d\.sat_status IN \('draft', 'vigente', 'cancel_pending'\)/);
+    expect(params).toEqual([42]);
+    expect(result).toEqual({ data: [{ payment_id: 8, rep_id: 31 }], meta: expect.objectContaining({ total: 1 }) });
+  });
 });

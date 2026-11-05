@@ -28,6 +28,7 @@ const {
   FORMA_PAGO_BY_METHOD, PUBLICO_EN_GENERAL_RFC, PUBLICO_EN_GENERAL_NOMBRE,
   globalPeriodProblem, nombreProblem, catalogIvaRate,
 } = require('../utils/satCatalogs');
+const { businessDayStartUtc } = require('../utils/businessDate');
 const logger = require('../utils/logger').child({ service: 'facturaPublica' });
 
 const GLOBAL_CLAVE_PROD_SERV = '01010101';
@@ -218,4 +219,140 @@ async function stampGlobal(facturaId, orgId, { userId = null } = {}) {
   }
 }
 
-module.exports = { stampGlobal, predominantFormaPago };
+// ---------------------------------------------------------------------------
+// Building the invoice set (the staff screen)
+// ---------------------------------------------------------------------------
+
+/**
+ * The UTC range [from, to) of business days a factura's period covers:
+ * Meses 01-12 is that month of Año (every periodicidad but bimestral reports
+ * one month), 13-18 a bimester (13 = January-February … 18 = November-December).
+ */
+function periodRange(factura) {
+  const m = Number(factura.meses);
+  const y = Number(factura.anio);
+  const first = m >= 13 ? (m - 13) * 2 + 1 : m;
+  const months = m >= 13 ? 2 : 1;
+  const ymd = (year, month) => `${year}-${String(month).padStart(2, '0')}-01`;
+  const endMonth = first + months;
+  return {
+    from: businessDayStartUtc(ymd(y, first)),
+    to: businessDayStartUtc(endMonth > 12 ? ymd(y + 1, endMonth - 12) : ymd(y, endMonth)),
+  };
+}
+
+// Paid in the period, live, with no CFDI of its own, and in no factura global
+// yet (an invoice can be in one: UNIQUE(invoice_id)). stampGlobal checks the
+// same again, under the record's lock.
+// Each query writes i.deleted_at IS NULL itself, beside this fragment.
+const ELIGIBLE_WHERE = `i.organization_id = ? AND i.status = 'paid'
+        AND i.paid_at >= ? AND i.paid_at < ?
+        AND NOT EXISTS (SELECT 1 FROM cfdi_documents cd
+                         WHERE cd.invoice_id = i.id AND cd.organization_id = i.organization_id
+                           AND cd.sat_status IN ('draft', 'vigente', 'cancel_pending'))
+        AND NOT EXISTS (SELECT 1 FROM factura_publica_invoice_items fi WHERE fi.invoice_id = i.id)`;
+
+async function lockDraft(exec, facturaId, orgId) {
+  const [[factura]] = await exec(
+    'SELECT * FROM factura_publica_invoices WHERE id = ? AND organization_id = ? FOR UPDATE',
+    [facturaId, orgId],
+  );
+  if (!factura) throw new AppError('Factura pública not found', 404, 'NOT_FOUND');
+  if (factura.status !== 'draft' || factura.cfdi_document_id) {
+    throw new AppError(
+      `Invoices can only be changed on a draft factura pública (this one is ${factura.status}).`,
+      422, 'FACTURA_PUBLICA_NOT_DRAFT',
+    );
+  }
+  return factura;
+}
+
+/**
+ * Invoices that may join this factura, newest payment first, with their count
+ * and sum for the "add all" action.
+ */
+async function listEligibleInvoices(facturaId, orgId, { page = 1, limit = 50 } = {}) {
+  const [[factura]] = await db.query(
+    'SELECT * FROM factura_publica_invoices WHERE id = ? AND organization_id = ?',
+    [facturaId, orgId],
+  );
+  if (!factura) throw new AppError('Factura pública not found', 404, 'NOT_FOUND');
+  const { from, to } = periodRange(factura);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+  const params = [orgId, from, to];
+  const [rows] = await db.query(
+    `SELECT i.id, i.invoice_number, i.client_id, i.total, i.currency, i.paid_at
+       FROM invoices i
+      WHERE i.deleted_at IS NULL AND ${ELIGIBLE_WHERE}
+      ORDER BY i.paid_at DESC, i.id DESC LIMIT ${limitNum} OFFSET ${(pageNum - 1) * limitNum}`,
+    params,
+  );
+  const [totals] = await db.query(
+    `SELECT i.currency, COUNT(*) AS count, COALESCE(SUM(i.total), 0) AS total
+       FROM invoices i WHERE i.deleted_at IS NULL AND ${ELIGIBLE_WHERE} GROUP BY i.currency ORDER BY i.currency`,
+    params,
+  );
+  const total = totals.reduce((n, t) => n + Number(t.count), 0);
+  return {
+    data: rows,
+    meta: {
+      total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum),
+      period: { from: from.toISOString(), to: to.toISOString() },
+      byCurrency: totals.map(t => ({ currency: t.currency, count: Number(t.count), total: String(t.total) })),
+    },
+  };
+}
+
+/**
+ * Link every eligible invoice of the period in one statement. With a
+ * currency, only that currency's (a factura global is in one currency).
+ */
+async function addEligibleInvoices(facturaId, orgId, { currency = null } = {}) {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
+    const factura = await lockDraft(exec, facturaId, orgId);
+    const { from, to } = periodRange(factura);
+    const [result] = await exec(
+      `INSERT INTO factura_publica_invoice_items (factura_publica_invoice_id, invoice_id)
+       SELECT ?, i.id FROM invoices i
+        WHERE i.deleted_at IS NULL AND ${ELIGIBLE_WHERE}${currency ? ' AND i.currency = ?' : ''}
+        ORDER BY i.id`,
+      [factura.id, orgId, from, to, ...(currency ? [currency] : [])],
+    );
+    await conn.commit();
+    return { added: result.affectedRows };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Unlink one invoice from a draft factura. */
+async function removeItem(facturaId, itemId, orgId) {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
+    const factura = await lockDraft(exec, facturaId, orgId);
+    const [result] = await exec(
+      'DELETE FROM factura_publica_invoice_items WHERE id = ? AND factura_publica_invoice_id = ?',
+      [itemId, factura.id],
+    );
+    if (!result.affectedRows) throw new AppError('Factura pública item not found', 404, 'NOT_FOUND');
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+module.exports = {
+  stampGlobal, predominantFormaPago, periodRange, listEligibleInvoices, addEligibleInvoices, removeItem,
+};

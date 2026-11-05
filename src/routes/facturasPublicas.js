@@ -8,7 +8,9 @@ const { orgScope } = require('../middleware/orgScope');
 const { requireMxLocale } = require('../middleware/orgLocale');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem } = require('../middleware/schemas/facturasPublicas');
+const {
+  createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem, addEligibleFacturaPublicaItems,
+} = require('../middleware/schemas/facturasPublicas');
 const db = require('../config/database');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const { globalPeriodProblem } = require('../utils/satCatalogs');
@@ -154,9 +156,13 @@ router.get('/:id/items', requirePermission('facturas_publicas.view'), async (req
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
+    // With the invoice's number, amount and payment date, for the screen.
     const [rows] = await db.query(
-      `SELECT fi.* FROM factura_publica_invoice_items fi
+      `SELECT fi.*, i.invoice_number, i.total, i.currency, i.status AS invoice_status, i.paid_at
+         FROM factura_publica_invoice_items fi
          JOIN factura_publica_invoices f ON f.id = fi.factura_publica_invoice_id
+         /* includes deleted rows: a linked invoice archived since still names its line */
+         LEFT JOIN invoices i ON i.id = fi.invoice_id AND i.organization_id = f.organization_id
         WHERE fi.factura_publica_invoice_id = ? AND f.organization_id = ?
         ORDER BY fi.id LIMIT ${limitNum} OFFSET ${offset}`,
       [req.params.id, req.orgId],
@@ -220,6 +226,35 @@ router.post('/:id/items', requirePermission('facturas_publicas.update'), validat
       conn.release();
     }
     res.status(201).json({ data: row });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Invoices that may join this factura: paid in its period, with no CFDI of
+// their own and in no other factura global.
+router.get('/:id/eligible-invoices', requirePermission('facturas_publicas.view'), async (req, res, next) => {
+  try {
+    res.json(await facturaPublicaService.listEligibleInvoices(req.params.id, req.orgId, req.query));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Link every eligible invoice of the period in one go.
+router.post('/:id/items/add-eligible', requirePermission('facturas_publicas.update'), validate(addEligibleFacturaPublicaItems), async (req, res, next) => {
+  try {
+    res.json({ data: await facturaPublicaService.addEligibleInvoices(req.params.id, req.orgId, { currency: req.body.currency || null }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Unlink an invoice from a draft factura pública.
+router.delete('/:id/items/:itemId', requirePermission('facturas_publicas.update'), async (req, res, next) => {
+  try {
+    await facturaPublicaService.removeItem(req.params.id, req.params.itemId, req.orgId);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

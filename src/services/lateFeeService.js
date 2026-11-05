@@ -7,7 +7,7 @@
 
 const db = require('../config/database');
 const { sqlBusinessToday } = require('../utils/businessDate');
-const { notUnderActivePlanSql } = require('../utils/invoiceBalance');
+const { notUnderActivePlanSql, paidOrCreditedSql } = require('../utils/invoiceBalance');
 const eventBus = require('./eventBus');
 const logger = require('../utils/logger');
 const billingService = require('./billingService');
@@ -118,6 +118,7 @@ async function applyLateFees(organizationId) {
   const [invoices] = await db.query(
     `SELECT i.id, i.invoice_number, i.total, i.subtotal, i.tax_amount, i.tax_rate,
             i.currency, i.due_date, i.client_id, i.contract_id,
+            ${paidOrCreditedSql('i')} AS paid_or_credited,
             DATEDIFF(${sqlBusinessToday()}, i.due_date) AS days_overdue,
             cl.name AS client_name,
             cl.email AS client_email, cl.phone AS client_phone
@@ -158,6 +159,12 @@ async function applyLateFees(organizationId) {
   const periodKey = new Date().toISOString().slice(0, 7);
 
   for (const invoice of invoices) {
+    // Payments and credit notes do not change an invoice's status, so a
+    // fully credited or paid-off invoice can still read 'issued': nothing is
+    // owed, so nothing is late.
+    const paidOrCredited = Number(invoice.paid_or_credited) || 0;
+    if (Math.round((parseFloat(invoice.total) - paidOrCredited) * 100) <= 0) continue;
+
     for (const rule of rules) {
       // Check grace period: invoice must be overdue beyond rule's grace period
       if (invoice.days_overdue <= rule.grace_period_days) continue;
@@ -176,13 +183,23 @@ async function applyLateFees(organizationId) {
       // taxed once below, so basing it on the gross total would tax it twice
       // (effective surcharge p*(1+rate) instead of p). Earlier late fees are
       // taken out of the base so a monthly percent fee does not compound.
+      // Only the unpaid share of the original charge is late: payments and
+      // credit notes are taken against it before against earlier fees, so a
+      // half-credited invoice pays the percentage on the other half.
       let feeAmount;
       if (rule.fee_type === 'percent') {
         const [prior] = await db.query(
           'SELECT COALESCE(SUM(amount), 0) AS fees FROM invoice_late_fees WHERE invoice_id = ?',
           [invoice.id],
         );
-        const base = parseFloat(invoice.subtotal) - parseFloat(prior[0].fees || 0);
+        const priorFees = parseFloat(prior[0].fees || 0);
+        const priorFeesGross = priorFees
+          + Math.round(priorFees * billingService.invoiceTaxFraction(invoice.tax_rate) * 100) / 100;
+        const originalGross = parseFloat(invoice.total) - priorFeesGross;
+        const unpaidShare = originalGross > 0
+          ? Math.min(1, Math.max(0, originalGross - paidOrCredited) / originalGross)
+          : 0;
+        const base = (parseFloat(invoice.subtotal) - priorFees) * unpaidShare;
         feeAmount = base * (parseFloat(rule.fee_amount) / 100);
       } else {
         feeAmount = parseFloat(rule.fee_amount);
