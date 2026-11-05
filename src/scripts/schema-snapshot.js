@@ -38,23 +38,23 @@ async function rows(conn, sql, params) {
 
 async function snapshot(conn, schema) {
   const tables = await rows(conn, `
-    SELECT TABLE_NAME AS name, TABLE_TYPE AS type, ENGINE AS engine, TABLE_COLLATION AS collation,
-           TABLE_COMMENT AS comment, ROW_FORMAT AS rowFormat, CREATE_OPTIONS AS createOptions
+    SELECT TABLE_NAME AS \`name\`, TABLE_TYPE AS \`type\`, ENGINE AS \`engine\`, TABLE_COLLATION AS \`collation\`,
+           TABLE_COMMENT AS \`comment\`, ROW_FORMAT AS \`rowFormat\`, CREATE_OPTIONS AS \`createOptions\`
       FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, [schema]);
   const columns = await rows(conn, `
-    SELECT TABLE_NAME AS t, COLUMN_NAME AS name, ORDINAL_POSITION AS pos, COLUMN_TYPE AS type,
-           IS_NULLABLE AS nullable, COLUMN_DEFAULT AS dflt, EXTRA AS extra,
-           CHARACTER_SET_NAME AS charset, COLLATION_NAME AS collation,
-           GENERATION_EXPRESSION AS genExpr, COLUMN_COMMENT AS comment
+    SELECT TABLE_NAME AS \`t\`, COLUMN_NAME AS \`name\`, ORDINAL_POSITION AS \`pos\`, COLUMN_TYPE AS \`type\`,
+           IS_NULLABLE AS \`nullable\`, COLUMN_DEFAULT AS \`dflt\`, EXTRA AS \`extra\`,
+           CHARACTER_SET_NAME AS \`charset\`, COLLATION_NAME AS \`collation\`,
+           GENERATION_EXPRESSION AS \`genExpr\`, COLUMN_COMMENT AS \`comment\`
       FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION`, [schema]);
   const indexes = await rows(conn, `
-    SELECT TABLE_NAME AS t, INDEX_NAME AS name, NON_UNIQUE AS nonUnique, SEQ_IN_INDEX AS seq,
-           COLUMN_NAME AS col, SUB_PART AS subPart, INDEX_TYPE AS type
+    SELECT TABLE_NAME AS \`t\`, INDEX_NAME AS \`name\`, NON_UNIQUE AS \`nonUnique\`, SEQ_IN_INDEX AS \`seq\`,
+           COLUMN_NAME AS \`col\`, SUB_PART AS \`subPart\`, INDEX_TYPE AS \`type\`
       FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, [schema]);
   const foreignKeys = await rows(conn, `
-    SELECT k.TABLE_NAME AS t, k.CONSTRAINT_NAME AS name, k.COLUMN_NAME AS col, k.ORDINAL_POSITION AS pos,
-           k.REFERENCED_TABLE_NAME AS refTable, k.REFERENCED_COLUMN_NAME AS refCol,
-           r.UPDATE_RULE AS onUpdate, r.DELETE_RULE AS onDelete
+    SELECT k.TABLE_NAME AS \`t\`, k.CONSTRAINT_NAME AS \`name\`, k.COLUMN_NAME AS \`col\`, k.ORDINAL_POSITION AS \`pos\`,
+           k.REFERENCED_TABLE_NAME AS \`refTable\`, k.REFERENCED_COLUMN_NAME AS \`refCol\`,
+           r.UPDATE_RULE AS \`onUpdate\`, r.DELETE_RULE AS \`onDelete\`
       FROM information_schema.KEY_COLUMN_USAGE k
       JOIN information_schema.REFERENTIAL_CONSTRAINTS r
         ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
@@ -62,41 +62,41 @@ async function snapshot(conn, schema) {
      WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL
      ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION`, [schema]);
   const checks = await rows(conn, `
-    SELECT tc.TABLE_NAME AS t, cc.CONSTRAINT_NAME AS name, cc.CHECK_CLAUSE AS clause
+    SELECT tc.TABLE_NAME AS \`t\`, cc.CONSTRAINT_NAME AS \`name\`, cc.CHECK_CLAUSE AS \`clause\`
       FROM information_schema.CHECK_CONSTRAINTS cc
       JOIN information_schema.TABLE_CONSTRAINTS tc
         ON tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
        AND tc.CONSTRAINT_TYPE = 'CHECK'
      WHERE cc.CONSTRAINT_SCHEMA = ? ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME`, [schema]);
   const triggers = await rows(conn, `
-    SELECT TRIGGER_NAME AS name, EVENT_OBJECT_TABLE AS t, ACTION_TIMING AS timing,
-           EVENT_MANIPULATION AS event, ACTION_ORDER AS actionOrder, ACTION_STATEMENT AS body,
-           SQL_MODE AS sqlMode
+    SELECT TRIGGER_NAME AS \`name\`, EVENT_OBJECT_TABLE AS \`t\`, ACTION_TIMING AS \`timing\`,
+           EVENT_MANIPULATION AS \`event\`, ACTION_ORDER AS \`actionOrder\`, ACTION_STATEMENT AS \`body\`,
+           SQL_MODE AS \`sqlMode\`
       FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME`, [schema]);
   const routines = await rows(conn, `
-    SELECT ROUTINE_NAME AS name, ROUTINE_TYPE AS type, DTD_IDENTIFIER AS returnType, ROUTINE_DEFINITION AS body,
-           IS_DETERMINISTIC AS deterministic, SQL_DATA_ACCESS AS dataAccess, SECURITY_TYPE AS security,
-           SQL_MODE AS sqlMode, ROUTINE_COMMENT AS comment
+    SELECT ROUTINE_NAME AS \`name\`, ROUTINE_TYPE AS \`type\`, DTD_IDENTIFIER AS \`returnType\`, ROUTINE_DEFINITION AS \`body\`,
+           IS_DETERMINISTIC AS \`deterministic\`, SQL_DATA_ACCESS AS \`dataAccess\`, SECURITY_TYPE AS \`security\`,
+           SQL_MODE AS \`sqlMode\`, ROUTINE_COMMENT AS \`comment\`
       FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME`, [schema]);
   const parameters = await rows(conn, `
-    SELECT SPECIFIC_NAME AS routine, ORDINAL_POSITION AS pos, PARAMETER_MODE AS mode,
-           PARAMETER_NAME AS name, DTD_IDENTIFIER AS type
+    SELECT SPECIFIC_NAME AS \`routine\`, ORDINAL_POSITION AS \`pos\`, PARAMETER_MODE AS \`mode\`,
+           PARAMETER_NAME AS \`name\`, DTD_IDENTIFIER AS \`type\`
       FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION`, [schema]);
   // Partition names and bounds depend on the install date, so two installs are
   // comparable only when made on the same day (which the equivalence job does).
   const partitions = await rows(conn, `
-    SELECT TABLE_NAME AS t, PARTITION_NAME AS name, PARTITION_ORDINAL_POSITION AS pos,
-           PARTITION_METHOD AS method, PARTITION_EXPRESSION AS expression,
-           PARTITION_DESCRIPTION AS description
+    SELECT TABLE_NAME AS \`t\`, PARTITION_NAME AS \`name\`, PARTITION_ORDINAL_POSITION AS \`pos\`,
+           PARTITION_METHOD AS \`method\`, PARTITION_EXPRESSION AS \`expression\`,
+           PARTITION_DESCRIPTION AS \`description\`
       FROM information_schema.PARTITIONS
      WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
      ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION`, [schema]);
   const views = await rows(conn, `
-    SELECT TABLE_NAME AS name, VIEW_DEFINITION AS body
+    SELECT TABLE_NAME AS \`name\`, VIEW_DEFINITION AS \`body\`
       FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, [schema]);
   const events = await rows(conn, `
-    SELECT EVENT_NAME AS name, EVENT_DEFINITION AS body, INTERVAL_VALUE AS intervalValue, INTERVAL_FIELD AS intervalField,
-           EVENT_TYPE AS type, STATUS AS status, ON_COMPLETION AS onCompletion, SQL_MODE AS sqlMode
+    SELECT EVENT_NAME AS \`name\`, EVENT_DEFINITION AS \`body\`, INTERVAL_VALUE AS \`intervalValue\`, INTERVAL_FIELD AS \`intervalField\`,
+           EVENT_TYPE AS \`type\`, STATUS AS \`status\`, ON_COMPLETION AS \`onCompletion\`, SQL_MODE AS \`sqlMode\`
       FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME`, [schema]);
 
   const timeColumns = new Map();
