@@ -678,8 +678,8 @@ describe('Import Routes — /api/import', () => {
 // global middleware HTML-entity-encoded every request-body string —
 // including JSON-stringified `subscribers_by_*`/`coverage_localities` fields
 // — turning e.g. `{"100":5}` into `{&quot;100&quot;:5}`, which MySQL's JSON
-// column validator then rejected with an unmapped ER_INVALID_JSON_TEXT / 500
-// (see docs/archive/LIVE-TEST-ADMIN-2026-07.md). This must now succeed end-to-end.
+// column validator then rejected with an unmapped ER_INVALID_JSON_TEXT / 500.
+// This must now succeed end-to-end.
 describe('IFT Statistical Reports — /api/v1/ift-statistical-reports', () => {
   describe('POST /api/v1/ift-statistical-reports', () => {
     test('a JSON-stringified subscribers_by_speed_tier field round-trips uncorrupted (no ER_INVALID_JSON_TEXT 500)', async () => {
