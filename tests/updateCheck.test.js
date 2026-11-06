@@ -66,12 +66,16 @@ beforeEach(() => {
   delete process.env.FIREISP_UPDATE_CHECK;
   delete process.env.FIREISP_GIT_SHA;
   process.env.VIGABSS_GIT_SHA = RUNNING;
+  // These cases describe the main channel; the release channel has its own
+  // block below.
+  process.env.VIGABSS_CHANNEL = 'main';
   fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true, status: 200, json: async () => ({ sha: LATEST }),
   });
 });
 afterEach(() => {
   fetchSpy.mockRestore();
+  delete process.env.VIGABSS_CHANNEL;
   delete process.env.VIGABSS_GIT_SHA;
   delete process.env.FIREISP_GIT_SHA;
   delete process.env.VIGABSS_UPDATE_CHECK;
@@ -495,5 +499,66 @@ describe('GET /system/version is install-operator only', () => {
     wireUser(ADMIN, false);
     const res = await asUser(ADMIN)(request(app).get('/api/v1/system/version'));
     expect(res.status).toBe(200);
+  });
+});
+
+describe('the release channel compares against the newest v* tag, as redeploy deploys', () => {
+  const tag = (name, sha) => ({ name, commit: { sha } });
+  const TAGS = [
+    tag('v0.1.0-alpha.2', 'c'.repeat(40)),
+    tag('v0.1.0-alpha.10', LATEST),
+    tag('v0.1.0-alpha.1', 'd'.repeat(40)),
+    tag('not-a-release', 'e'.repeat(40)),
+  ];
+
+  beforeEach(() => {
+    delete process.env.VIGABSS_CHANNEL;
+    fetchSpy.mockImplementation(async (url) => ({
+      ok: true,
+      status: 200,
+      json: async () => (url.includes('/tags') ? TAGS : { sha: 'f'.repeat(40) }),
+    }));
+  });
+
+  it('defaults to the release channel and reports the newest release', async () => {
+    const status = await updateCheck.getStatus();
+    expect(status.channel).toBe('release');
+    expect(status.latest_release).toBe('v0.1.0-alpha.10');
+    expect(status.latest_sha).toBe(LATEST);
+    expect(status.update_available).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][0]).toMatch(/\/tags\?per_page=100$/);
+  });
+
+  it('a new commit on main is not an update while the newest release is running', async () => {
+    process.env.VIGABSS_GIT_SHA = LATEST;
+    const status = await updateCheck.getStatus();
+    expect(status.update_available).toBe(false);
+    expect(fetchSpy.mock.calls.every(([url]) => !url.includes('/commits/main'))).toBe(true);
+  });
+
+  it('follows main until a release is tagged', async () => {
+    fetchSpy.mockImplementation(async (url) => ({
+      ok: true, status: 200, json: async () => (url.includes('/tags') ? [] : { sha: LATEST }),
+    }));
+    const status = await updateCheck.getStatus();
+    expect(status.latest_release).toBeNull();
+    expect(status.latest_sha).toBe(LATEST);
+    expect(fetchSpy.mock.calls.map(([url]) => url.includes('/tags'))).toEqual([true, false]);
+  });
+
+  it('sorts versions the way git versionsort.suffix=- does', () => {
+    const sorted = ['v1.0.0', 'v0.1.0-alpha.2', 'v1.0.0-rc.1', 'v0.1.0-alpha.10', 'v0.10.0', 'v0.9.1', 'v1.0.0-beta']
+      .sort(updateCheck.compareVersionTags);
+    expect(sorted).toEqual(['v0.1.0-alpha.2', 'v0.1.0-alpha.10', 'v0.9.1', 'v0.10.0', 'v1.0.0-beta', 'v1.0.0-rc.1', 'v1.0.0']);
+  });
+
+  it('any value other than main is the release channel', () => {
+    for (const v of ['release', 'RELEASE', 'bogus', '']) {
+      process.env.VIGABSS_CHANNEL = v;
+      expect(updateCheck.channel()).toBe('release');
+    }
+    process.env.VIGABSS_CHANNEL = ' Main ';
+    expect(updateCheck.channel()).toBe('main');
   });
 });

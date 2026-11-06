@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS — "a newer main build is available" banner
+// VigaBSS — "a newer build is available" banner
 // =============================================================================
 // Shows the INSTALL OPERATOR, once a day, that main has moved past the commit
 // this instance is running.

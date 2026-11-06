@@ -6058,7 +6058,7 @@
     "accuracyCol": "Accuracy"
   },
   "updateBanner": {
-    "message": "A newer VigaBSS main build is available — running {{running}}, latest is {{latest}}.",
+    "message": "A newer VigaBSS build is available — running {{running}}, latest is {{latest}}.",
     "dismiss": "Dismiss until tomorrow"
   },
   "version": {
@@ -6072,12 +6072,12 @@
     "checkState": "Update check",
     "checkOn": "Enabled",
     "checkOff": "Disabled — no outbound requests are made",
-    "latest": "Latest main build",
+    "latest": "Latest build",
     "unreachable": "could not reach github.com",
     "status": "Status",
-    "updateAvailable": "A newer main build is available",
-    "upToDate": "Up to date with main",
-    "comparisonUnknown": "Unable to compare this build with main",
+    "updateAvailable": "A newer build is available",
+    "upToDate": "Up to date",
+    "comparisonUnknown": "Unable to compare this build with the latest one",
     "checkedAt": "Last checked",
     "howToUpdate": "To update, run on the server:",
     "howToEnable": "Update checks are on by default. This is the only outbound request VigaBSS makes on its own, and no install data is sent. To switch it off, set",
@@ -6098,7 +6098,7 @@
       "succeeded": "Succeeded",
       "failed": "Failed"
     },
-    "nothingToDeploy": "You are on the latest main build — nothing to deploy.",
+    "nothingToDeploy": "You are on the latest build — nothing to deploy.",
     "comparisonUnknown": "VigaBSS cannot confirm whether an update is available until both build commits are known. Check again before deploying.",
     "enableCheckFirst": "Update checks are off, so there is nothing to compare against. Enable them to deploy from here.",
     "agentPending": "The deploy agent has not reported in yet. It is installed automatically by redeploy and checks in within about 30 seconds — if this persists, run: journalctl -u vigabss-deploy-agent -n 30",
