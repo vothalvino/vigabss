@@ -11,6 +11,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cancelBtn } from '@/components/ClientFormModal';
+import { SignedDocumentViewer } from '@/components/SignedDocumentView';
 
 export type ActivationStepStatus = 'done' | 'current' | 'upcoming';
 
@@ -226,11 +227,18 @@ export function ActivationDocumentRow({ document, canSign, onSign }: {
   onSign: (documentId: number) => void;
 }) {
   const { t } = useTranslation();
+  const [viewing, setViewing] = useState(false);
   return (
     <div style={stepStyles.documentRow}>
       <span style={{ flex: 1 }}>{document.title}</span>
       {document.status === 'signed' ? (
-        <span style={{ color: '#166534' }}>{t('contractActivation.signedBy', { name: document.signer_name ?? '' })}</span>
+        <>
+          <span style={{ color: '#166534' }}>{t('contractActivation.signedBy', { name: document.signer_name ?? '' })}</span>
+          <button type="button" style={stepStyles.actionBtn} onClick={() => setViewing(true)}>
+            {t('signedDocument.view')}
+          </button>
+          {viewing && <SignedDocumentViewer documentId={document.id} onClose={() => setViewing(false)} />}
+        </>
       ) : document.status === 'pending' ? (
         <>
           <span style={{ color: '#92400e' }}>{t('contractActivation.pendingSignature')}</span>

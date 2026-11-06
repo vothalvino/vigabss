@@ -497,7 +497,8 @@
     "privacyBanner": "Please review our privacy notice.",
     "privacyBannerLink": "Review and accept",
     "privacyLink": "Privacy notice",
-    "cartaDerechosLink": "Carta de Derechos Mínimos"
+    "cartaDerechosLink": "Carta de Derechos Mínimos",
+    "navDocuments": "Documents"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -9829,5 +9830,41 @@
       "since": "Bound since",
       "actions": "Actions"
     }
+  },
+  "signedDocument": {
+    "view": "View",
+    "title": "Signed document",
+    "loading": "Loading…",
+    "loadFailed": "Could not load the document.",
+    "signature": "Signature",
+    "signatureAlt": "Signature of {{name}}",
+    "signedBy": "Signed by",
+    "signedAt": "Signed at",
+    "signedFrom": "Signed from (IP)",
+    "environment": "Environment",
+    "sandbox": "Test (no legal effect)",
+    "production": "Production",
+    "registration": "Registered contract",
+    "evidence": "Evidence integrity",
+    "evidenceVerified": "Verified — the text and signature are unchanged since signing",
+    "evidenceBroken": "NOT verified — the stored evidence does not match",
+    "evidenceUnavailable": "Not available for this document",
+    "downloadPdf": "Download PDF",
+    "downloading": "Downloading…",
+    "downloadFailed": "Could not download the PDF.",
+    "close": "Close"
+  },
+  "portalDocuments": {
+    "title": "My documents",
+    "subtitle": "The contracts and documents you signed, with a copy to download.",
+    "none": "You have no signed documents yet.",
+    "loadError": "Could not load your documents.",
+    "document": "Document",
+    "signedAt": "Signed",
+    "signedBy": "Signed by",
+    "view": "View",
+    "hide": "Hide",
+    "downloadPdf": "Download PDF",
+    "downloadError": "Could not download the PDF. Please try again."
   }
 }

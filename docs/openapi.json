@@ -26554,6 +26554,43 @@
         }
       }
     },
+    "/signed-documents/{id}/pdf": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Download a signed document as PDF: the frozen text, the signature and the evidence summary",
+        "operationId": "getSignedDocumentPdf",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/signed-documents/{id}/sign": {
       "post": {
         "tags": [
@@ -49325,6 +49362,105 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/documents": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "List the subscriber's signed documents (activation contract, acknowledgment, authorization)",
+        "operationId": "portalListDocuments",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SignedDocument[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/documents/{id}": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "Read one signed document: the signed text, signature and evidence status",
+        "operationId": "portalGetDocument",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SignedDocument",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/documents/{id}/pdf": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "Download a signed document as PDF",
+        "operationId": "portalDownloadDocumentPdf",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }

@@ -26,6 +26,7 @@ import {
   type MxContractEnvironment,
 } from '@/components/MxContractEnvironment';
 import { parseApiError } from '@/api/errors';
+import { SignedDocumentViewer } from '@/components/SignedDocumentView';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -806,6 +807,7 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
   const { user } = useAuth();
   const qc = useQueryClient();
   const [signingId, setSigningId] = useState<number | null>(null);
+  const [viewingId, setViewingId] = useState<number | null>(null);
   const isMxOrg = user?.organization_locale === 'MX';
   const canViewDocuments = can(user, 'signed_documents.view');
   const canSignDocuments = can(user, 'signed_documents.sign');
@@ -850,7 +852,12 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
           <li key={d.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: '0.82rem', padding: '5px 8px', background: 'var(--bg-subtle)', borderRadius: 6 }}>
             <span style={{ flex: 1, fontWeight: 500 }}>{d.title}</span>
             {d.status === 'signed' ? (
-              <span style={{ color: 'var(--accent, #16a34a)' }}>✅ {t('workOrders.documents.signedBy', { name: d.signer_name ?? '' })}</span>
+              <>
+                <span style={{ color: 'var(--accent, #16a34a)' }}>✅ {t('workOrders.documents.signedBy', { name: d.signer_name ?? '' })}</span>
+                <button style={{ ...styles.btnPrimary, padding: '3px 12px', fontSize: '0.78rem' }} onClick={() => setViewingId(d.id)}>
+                  {t('signedDocument.view')}
+                </button>
+              </>
             ) : d.status === 'pending' ? (
               <>
                 <span style={{ color: '#b45309' }}>{t('workOrders.documents.pending')}</span>
@@ -877,6 +884,7 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
           onSigned={() => void qc.invalidateQueries({ queryKey: ['wo-documents', workOrderId, serviceOrderId] })}
         />
       )}
+      {viewingId !== null && <SignedDocumentViewer documentId={viewingId} onClose={() => setViewingId(null)} />}
     </div>
   );
 }

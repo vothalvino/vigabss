@@ -948,4 +948,5 @@ module.exports = {
   evidenceDigest,
   verifyEvidence,
   signatureEvidenceIsValid,
+  signatureImageBytes,
 };

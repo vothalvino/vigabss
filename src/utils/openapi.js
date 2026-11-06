@@ -1241,6 +1241,7 @@ function generateSpec() {
       },
       '/signed-documents': { get: { tags: ['Settings'], summary: 'List generated legal-document instances (filter by client_id/contract_id/service_order_id/work_order_id/status)', operationId: 'listSignedDocuments', security: [{ bearerAuth: [] }], responses: r200('SignedDocument[] (bodies omitted)') } },
       '/signed-documents/{id}': { get: { tags: ['Settings'], summary: 'Read one legal-document instance including its frozen body and signature', operationId: 'getSignedDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('SignedDocument') } },
+      '/signed-documents/{id}/pdf': { get: { tags: ['Settings'], summary: 'Download a signed document as PDF: the frozen text, the signature and the evidence summary', operationId: 'getSignedDocumentPdf', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/pdf') } },
       '/signed-documents/{id}/sign': { post: { tags: ['Settings'], summary: 'Atomically capture the customer signature and, for handoff documents, explicit optional communication choices', operationId: 'signDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('legalDocuments_signDocument'), responses: r200('SignedDocument') } },
       '/signed-documents/{id}/cancel': { post: { tags: ['Settings'], summary: 'Cancel a stale pending document instance', operationId: 'cancelSignedDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('SignedDocument') } },
       '/signed-documents/generate': { post: { tags: ['Settings'], summary: 'Generate missing MX reviewed-template instances or the global neutral acknowledgment for a service order', operationId: 'generateSignedDocuments', security: [{ bearerAuth: [] }], requestBody: jsonBody('legalDocuments_generateDocuments'), responses: r201('Generation result') } },
@@ -2529,6 +2530,15 @@ function generateSpec() {
       },
       '/portal/invoices/{id}': {
         get: { tags: ['Portal Billing'], summary: 'Get invoice detail with line items and payments', operationId: 'portalGetInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Invoice') },
+      },
+      '/portal/documents': {
+        get: { tags: ['Portal'], summary: "List the subscriber's signed documents (activation contract, acknowledgment, authorization)", operationId: 'portalListDocuments', security: [{ bearerAuth: [] }], responses: r200('SignedDocument[]') },
+      },
+      '/portal/documents/{id}': {
+        get: { tags: ['Portal'], summary: 'Read one signed document: the signed text, signature and evidence status', operationId: 'portalGetDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('SignedDocument') },
+      },
+      '/portal/documents/{id}/pdf': {
+        get: { tags: ['Portal'], summary: 'Download a signed document as PDF', operationId: 'portalDownloadDocumentPdf', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/pdf') },
       },
       '/portal/invoices/{id}/pdf': {
         get: { tags: ['Portal Billing'], summary: 'Download invoice as PDF', operationId: 'portalDownloadInvoicePdf', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/pdf') },

@@ -75,6 +75,12 @@ export function PortalLayout() {
             {t('portalLayout.navInvoices')}
           </NavLink>
           <NavLink
+            to="/portal/documents"
+            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+          >
+            {t('portalLayout.navDocuments')}
+          </NavLink>
+          <NavLink
             to="/portal/payments"
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
           >
