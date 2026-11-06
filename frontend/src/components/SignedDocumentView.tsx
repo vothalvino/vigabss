@@ -146,3 +146,60 @@ export function SignedDocumentViewer({ documentId, onClose }: { documentId: numb
     </div>
   );
 }
+
+interface SignedDocumentSummary {
+  id: number;
+  title: string | null;
+  status: string;
+  signer_name: string | null;
+  signed_at: string | null;
+}
+
+/**
+ * A contract's or a client's signed documents, at any contract status: the
+ * activation card that lists them disappears once the contract is active.
+ */
+export function SignedDocumentsList({ contractId, clientId }: { contractId?: string | number; clientId?: number }) {
+  const { t } = useTranslation();
+  const [viewingId, setViewingId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [documents, setDocuments] = useState<SignedDocumentSummary[] | null>(null);
+  const scope = contractId !== undefined ? 'contract_id=' + contractId : 'client_id=' + clientId;
+  const query = scope + '&status=signed';
+
+  useEffect(() => {
+    let live = true;
+    apiFetch<{ data: SignedDocumentSummary[] }>(`/signed-documents?${query}`)
+      .then(res => { if (live) setDocuments(res.data); })
+      .catch(() => { if (live) setError(t('signedDocument.listFailed')); });
+    return () => { live = false; };
+  }, [query, t]);
+
+  async function download(id: number) {
+    setError('');
+    try {
+      await saveResponseAs(await authedFetch(`/api/v1/signed-documents/${id}/pdf`), `document-${id}.pdf`);
+    } catch {
+      setError(t('signedDocument.downloadFailed'));
+    }
+  }
+
+  if (error) return <p role="alert" style={{ color: '#991b1b' }}>{error}</p>;
+  if (!documents) return <p>{t('signedDocument.loading')}</p>;
+  if (!documents.length) return <p style={{ color: 'var(--text-secondary)' }}>{t('signedDocument.none')}</p>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {documents.map(d => (
+        <div key={d.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '0.55rem 0.7rem', borderRadius: 7, background: 'var(--bg-subtle)', fontSize: '0.84rem' }}>
+          <span style={{ flex: 1, fontWeight: 600 }}>{d.title ?? `#${d.id}`}</span>
+          <span style={{ color: '#166534' }}>
+            {t('signedDocument.signedByOn', { name: d.signer_name ?? '', date: d.signed_at ? new Date(d.signed_at).toLocaleDateString() : '—' })}
+          </span>
+          <button type="button" style={cancelBtn} onClick={() => setViewingId(d.id)}>{t('signedDocument.view')}</button>
+          <button type="button" style={submitBtn} onClick={() => void download(d.id)}>{t('signedDocument.downloadPdf')}</button>
+        </div>
+      ))}
+      {viewingId !== null && <SignedDocumentViewer documentId={viewingId} onClose={() => setViewingId(null)} />}
+    </div>
+  );
+}

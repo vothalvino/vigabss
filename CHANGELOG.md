@@ -5,7 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Signed contracts stay reachable after activation.** The signed-document
+  View and Download were only on the activation card, which disappears once a
+  contract is active. The contract page now has a **Signed documents** tab at
+  every status, and the customer's **Documents** tab lists the signed
+  contracts and documents across all of their contracts, each with View and
+  Download PDF. Both need the `signed_documents.view` permission.
 
 ## 0.1.0-alpha.6 — 2026-11-06
 
