@@ -9846,7 +9846,12 @@
     "downloadPdf": "Descargar PDF",
     "downloading": "Descargando…",
     "downloadFailed": "No se pudo descargar el PDF.",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "listFailed": "No se pudieron cargar los documentos firmados.",
+    "none": "Aún no hay documentos firmados. Aparecen aquí cuando el cliente firma durante la activación.",
+    "signedByOn": "Firmado por {{name}} el {{date}}",
+    "tab": "Documentos firmados",
+    "clientSection": "Contratos y documentos firmados"
   },
   "portalDocuments": {
     "title": "Mis documentos",

@@ -9,7 +9,7 @@ vi.mock('@/api/apiFetch', () => ({ apiFetch: (...args: unknown[]) => apiFetch(..
 vi.mock('@/api/client', () => ({ authedFetch: (...args: unknown[]) => authedFetch(...args) }));
 vi.mock('@/components/MarkdownView', () => ({ default: ({ markdown }: { markdown: string }) => <div>{markdown}</div> }));
 
-import { SignedDocumentViewer } from '../SignedDocumentView';
+import { SignedDocumentViewer, SignedDocumentsList } from '../SignedDocumentView';
 import { ActivationDocumentRow } from '@/pages/contracts/ActivationSteps';
 
 const SIGNED = {
@@ -55,5 +55,28 @@ describe('ActivationDocumentRow', () => {
   it('does not offer View before the document is signed', () => {
     render(<ActivationDocumentRow document={{ id: 8, title: 'Contrato', status: 'pending' }} canSign onSign={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
+  });
+});
+
+describe('SignedDocumentsList', () => {
+  const LIST = [{ id: 7, title: 'Contrato de activación', status: 'signed', signer_name: 'Ana López', signed_at: '2026-11-06T18:00:00Z' }];
+
+  it("lists a contract's signed documents, whatever the contract status, and opens and downloads one", async () => {
+    apiFetch.mockImplementation((path: string) => Promise.resolve(path.startsWith('/signed-documents?') ? { data: LIST } : { data: SIGNED }));
+    render(<SignedDocumentsList contractId="41" />);
+    expect(await screen.findByText('Contrato de activación')).toBeInTheDocument();
+    expect(apiFetch).toHaveBeenCalledWith('/signed-documents?contract_id=41&status=signed');
+    expect(screen.getByText(/Signed by Ana López on/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(authedFetch).toHaveBeenCalledWith('/api/v1/signed-documents/7/pdf'));
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText('Texto del contrato firmado')).toBeInTheDocument();
+  });
+
+  it("scopes to a customer's documents and says when there are none", async () => {
+    apiFetch.mockResolvedValue({ data: [] });
+    render(<SignedDocumentsList clientId={5} />);
+    expect(await screen.findByText(/No signed documents yet/)).toBeInTheDocument();
+    expect(apiFetch).toHaveBeenCalledWith('/signed-documents?client_id=5&status=signed');
   });
 });

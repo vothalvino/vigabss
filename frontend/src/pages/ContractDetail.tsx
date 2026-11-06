@@ -38,6 +38,7 @@ import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { formatMoney } from '@/lib/money';
 import { ActivationSignatureCanvas } from './contracts/ActivationSignatureCanvas';
+import { SignedDocumentsList } from '@/components/SignedDocumentView';
 import {
   ActivationDocumentRow, ActivationStep, ActivationStepper, CancelActivationControl, activationNextStep, activationSteps,
   countdown, humanizeBlocker, serviceOrderStatusLabel, workOrderStatusLabel,
@@ -294,7 +295,7 @@ const STATUS_COLORS: StatusColors = {
 // Tab types
 // ---------------------------------------------------------------------------
 
-type TabId = 'pppoe' | 'invoices' | 'devices' | 'addons';
+type TabId = 'pppoe' | 'invoices' | 'devices' | 'addons' | 'documents';
 
 const BASE_TABS: { id: TabId; label: string }[] = [
   { id: 'invoices', label: 'Invoices' },
@@ -795,9 +796,7 @@ function AddonsTab({ addons }: { addons: ContractAddon[] }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
         <thead>
-          <tr>{['Name', 'Type', 'Qty', 'Unit Price', 'Start', 'End', 'Status'].map(h => (
-            <th key={h} style={styles.th}>{h}</th>
-          ))}</tr>
+          <tr>{['Name', 'Type', 'Qty', 'Unit Price', 'Start', 'End', 'Status'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {addons.map(a => (
@@ -1310,7 +1309,6 @@ function ActivationSignModal({ documentId, onClose, onSigned }: {
     </div>
   );
 }
-
 
 function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, canCreateInvoices, canUpdateWorkOrders, canCreateSpeedTests, canViewSignedDocuments, canSignDocuments, operatorUserId, canSuperviseCommissioning, onActivated, onCancelled }: {
   contractId: string;
@@ -2148,7 +2146,8 @@ export function ContractDetail() {
 
   const isPppoe =
     contract?.connectionType === 'pppoe' || contract?.connectionType === 'pppoe_dual';
-  const TABS = isPppoe ? [{ id: 'pppoe' as TabId, label: 'PPPoE' }, ...BASE_TABS] : BASE_TABS;
+  const documentsTab = canViewSignedDocuments ? [{ id: 'documents' as TabId, label: t('signedDocument.tab') }] : [];
+  const TABS = isPppoe ? [{ id: 'pppoe' as TabId, label: 'PPPoE' }, ...BASE_TABS, ...documentsTab] : [...BASE_TABS, ...documentsTab];
 
   async function handleAction(action: 'suspend' | 'unsuspend' | 'renew' | 'terminate') {
     if (!id) return;
@@ -2366,6 +2365,7 @@ export function ContractDetail() {
           <DevicesTab devices={contract.devices} contractId={id} clientId={contract.clientId ?? null} canManage={canManageDevices} canCreate={canCreateDevices} onChanged={refetchContract} />
         )}
         {activeTab === 'addons'   && <AddonsTab   addons={contract.addons}     />}
+        {activeTab === 'documents' && canViewSignedDocuments && id && <SignedDocumentsList contractId={id} />}
       </div>
     </div>
   );

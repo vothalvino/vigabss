@@ -9852,7 +9852,12 @@
     "downloadPdf": "Download PDF",
     "downloading": "Downloading…",
     "downloadFailed": "Could not download the PDF.",
-    "close": "Close"
+    "close": "Close",
+    "listFailed": "Could not load the signed documents.",
+    "none": "No signed documents yet. They appear here once the customer signs during activation.",
+    "signedByOn": "Signed by {{name}} on {{date}}",
+    "tab": "Signed documents",
+    "clientSection": "Signed contracts and documents"
   },
   "portalDocuments": {
     "title": "My documents",

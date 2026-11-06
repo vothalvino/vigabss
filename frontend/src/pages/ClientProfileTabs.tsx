@@ -5,7 +5,8 @@
 //   • ProfileExtrasTab — credit score, risk rating, GPS coords, geocode action,
 //     account-group assignment.
 //   • CustomFieldsTab  — unlimited key/value custom fields.
-//   • DocumentsTab     — ID document / photo upload (INE, passport, etc.).
+//   • DocumentsTab     — ID document / photo upload (INE, passport, etc.), and
+//                        the customer's signed contracts.
 //   • DuplicatesTab    — duplicate detection + account merge.
 // =============================================================================
 
@@ -18,6 +19,7 @@ import { can } from '@/auth/permissions';
 import { extractApiError, errorBox, inputStyle, labelStyle, submitBtn, cancelBtn, dangerBtn } from '@/components/ClientFormModal';
 import { queryKeys } from '@/api/queryKeys';
 import { useTranslation } from 'react-i18next';
+import { SignedDocumentsList } from '@/components/SignedDocumentView';
 
 // ---------------------------------------------------------------------------
 // Shared local styles
@@ -439,6 +441,7 @@ function formatBytes(n: number | null): string {
 
 export function DocumentsTab({ clientId, canEdit }: TabProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -554,6 +557,13 @@ export function DocumentsTab({ clientId, canEdit }: TabProps) {
             ))}
           </tbody>
         </table>
+      )}
+
+      {can(user, 'signed_documents.view') && (
+        <section style={{ marginTop: 20 }}>
+          <h3 style={{ fontSize: '0.95rem', margin: '0 0 8px' }}>{t('signedDocument.clientSection')}</h3>
+          <SignedDocumentsList clientId={clientId} />
+        </section>
       )}
     </div>
   );

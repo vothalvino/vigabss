@@ -9846,7 +9846,12 @@
     "downloadPdf": "Baixar PDF",
     "downloading": "Baixando…",
     "downloadFailed": "Não foi possível baixar o PDF.",
-    "close": "Fechar"
+    "close": "Fechar",
+    "listFailed": "Não foi possível carregar os documentos assinados.",
+    "none": "Ainda não há documentos assinados. Eles aparecem aqui quando o cliente assina durante a ativação.",
+    "signedByOn": "Assinado por {{name}} em {{date}}",
+    "tab": "Documentos assinados",
+    "clientSection": "Contratos e documentos assinados"
   },
   "portalDocuments": {
     "title": "Meus documentos",
