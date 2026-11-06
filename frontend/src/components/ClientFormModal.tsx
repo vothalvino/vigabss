@@ -12,6 +12,7 @@ import i18n from '@/i18n';
 import { api } from '@/api/client';
 import { parseApiError } from '@/api/errors';
 import { useTranslation } from 'react-i18next';
+import { useOptionalAuth } from '@/auth/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,6 +142,9 @@ export interface ClientFormModalProps {
 export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormModalProps) {
   const { t } = useTranslation();
   const fieldId = useId();
+  // A new client starts in the organization's locale: an MX ISP's subscribers
+  // need the MX rules (border-region IVA, CFDI). The API defaults the same way.
+  const orgLocale = useOptionalAuth()?.user?.organization_locale === 'MX' ? 'MX' : 'global';
   const [form, setForm] = useState<ClientFormBody>({
     name: initial?.name ?? '',
     email: initial?.email ?? '',
@@ -154,7 +158,7 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
     state: initial?.state ?? '',
     zip_code: initial?.zip_code ?? '',
     country: initial?.country ?? '',
-    locale: initial?.locale ?? 'global',
+    locale: initial?.locale ?? orgLocale,
     risk_rating: initial?.risk_rating ?? 'unrated',
   });
   // Numeric fields are kept as strings while editing so the inputs can be empty.

@@ -4,6 +4,7 @@
 
 const { Router } = require('express');
 const Client = require('../models/Client');
+const Organization = require('../models/Organization');
 const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
@@ -73,6 +74,15 @@ async function assertMayChangeTaxExemption(old, req) {
 // POST /clients took tax_exempt from the body unchecked, so a holder of
 // clients.create without clients.tax_exemption could create an exempt client
 // (TNA-27). A new client starts non-exempt; setting it needs the same slug.
+// A client created without an explicit locale takes its organization's: an MX
+// ISP's subscribers need the MX rules (border-region IVA, CFDI), and defaulting
+// them to 'global' left every client without them unless staff changed the
+// field each time. Lead conversion already did this.
+async function defaultLocaleToOrganization(req) {
+  if (req.body.locale !== undefined && req.body.locale !== null) return;
+  req.body.locale = await Organization.getLocale(req.orgId);
+}
+
 async function assertMayCreateTaxExempt(req) {
   const body = req.body || {};
   const sets = (body.tax_exempt !== undefined && body.tax_exempt !== null && Boolean(body.tax_exempt) && body.tax_exempt !== '0')
@@ -152,7 +162,10 @@ async function revokeWhatsappOnContactChange(old, req) {
 
 const ctrl = crudController(Client, {
   cacheResource: 'clients',
-  beforeCreate: assertMayCreateTaxExempt,
+  beforeCreate: async (req) => {
+    await assertMayCreateTaxExempt(req);
+    await defaultLocaleToOrganization(req);
+  },
   beforeUpdate: async (old, req, exec) => {
     await assertMayChangeTaxExemption(old, req, exec);
     await revokeWhatsappOnContactChange(old, req);
