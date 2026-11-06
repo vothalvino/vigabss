@@ -14,6 +14,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/api/apiFetch';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 
 // ---------------------------------------------------------------------------
@@ -147,6 +149,12 @@ function ActionButton({ label, onClick, disabled, variant = 'primary' }:
 
 function ResellersTab() {
   const { t } = useTranslation();
+  // Write actions show only with the permission their route requires: a
+  // reseller user holds resellers.view alone, and saw Suspend/Delete buttons
+  // that could only answer 403.
+  const { user } = useAuth();
+  const canSuspend = can(user, 'resellers.suspend');
+  const canDelete = can(user, 'resellers.delete');
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [meta, setMeta] = useState<ListMeta | null>(null);
   const [loading, setLoading] = useState(false);
@@ -203,12 +211,12 @@ function ResellersTab() {
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.commissionRate')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.portalName')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.status')}</th>
-              <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>
+              {(canSuspend || canDelete) && <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>}
             </tr>
           </thead>
           <tbody>
             {resellers.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noResellers')}</td></tr>
+              <tr><td colSpan={canSuspend || canDelete ? 8 : 7} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noResellers')}</td></tr>
             )}
             {resellers.map((r) => (
               <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -219,10 +227,12 @@ function ResellersTab() {
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.commission_rate}%</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.portal_name ?? '—'}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={r.status} /></td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd', display: 'flex', gap: 4 }}>
-                  <ActionButton label={r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')} onClick={() => handleSuspend(r)} variant={r.status === 'suspended' ? 'success' : 'danger'} />
-                  <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(r)} variant="danger" />
-                </td>
+                {(canSuspend || canDelete) && (
+                  <td style={{ padding: '6px 8px', border: '1px solid #ddd', display: 'flex', gap: 4 }}>
+                    {canSuspend && <ActionButton label={r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')} onClick={() => handleSuspend(r)} variant={r.status === 'suspended' ? 'success' : 'danger'} />}
+                    {canDelete && <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(r)} variant="danger" />}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -245,6 +255,7 @@ function ResellersTab() {
 
 function PlanPricesTab() {
   const { t } = useTranslation();
+  const canManage = can(useAuth().user, 'reseller_plan_prices.manage');
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [prices, setPrices] = useState<PlanPrice[]>([]);
@@ -314,7 +325,7 @@ function PlanPricesTab() {
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.currency}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.is_active ? 'Yes' : 'No'}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                  <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(pp.id)} variant="danger" />
+                  {canManage && <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(pp.id)} variant="danger" />}
                 </td>
               </tr>
             ))}
@@ -331,6 +342,7 @@ function PlanPricesTab() {
 
 function CommissionsTab() {
   const { t } = useTranslation();
+  const canApprove = can(useAuth().user, 'reseller_commissions.approve');
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -405,7 +417,7 @@ function CommissionsTab() {
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.commission_amount} {c.currency}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={c.status} /></td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                  {c.status === 'pending' && (
+                  {c.status === 'pending' && canApprove && (
                     <ActionButton label={t('reseller.approve')} onClick={() => handleApprove(c)} variant="success" />
                   )}
                 </td>
@@ -424,6 +436,7 @@ function CommissionsTab() {
 
 function ResourcesTab() {
   const { t } = useTranslation();
+  const canManagePools = can(useAuth().user, 'reseller_ip_pool_allocations.manage');
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [ipPools, setIpPools] = useState<IpPoolAllocation[]>([]);
@@ -506,7 +519,7 @@ function ResourcesTab() {
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{p.network}/{p.subnet_mask}</td>
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('ui.resellerPage.ipv')}{p.ip_version}</td>
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                    <ActionButton label={t('reseller.remove')} onClick={() => handleRemovePool(p.id)} variant="danger" />
+                    {canManagePools && <ActionButton label={t('reseller.remove')} onClick={() => handleRemovePool(p.id)} variant="danger" />}
                   </td>
                 </tr>
               ))}
