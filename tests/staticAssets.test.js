@@ -56,6 +56,15 @@ test('without gzip, or with no .gz beside it, the plain file is served, still im
   expect(small.text).toBe('a{}');
 });
 
+test('a missing asset is a 404 that is not cached, never the SPA page', async () => {
+  for (const enc of ['gzip', 'identity']) {
+    const res = await request(app).get('/assets/PaymentList-oldhash.js').set('Accept-Encoding', enc);
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).not.toMatch(/html/);
+    expect(res.headers['cache-control']).toBe('no-store');
+  }
+});
+
 test('index.html is revalidated on every load so a deploy is picked up', async () => {
   const res = await request(app).get('/index.html');
   expect(res.headers['cache-control']).toBe('no-cache');

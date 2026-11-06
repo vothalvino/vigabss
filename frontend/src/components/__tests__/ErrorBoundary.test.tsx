@@ -37,6 +37,19 @@ describe('ErrorBoundary', () => {
     spy.mockRestore();
   });
 
+  it('a stale chunk from an earlier deploy reloads the page once instead of showing the error', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...original, reload } });
+    window.sessionStorage.clear();
+    function Stale(): never { throw new Error('Failed to fetch dynamically imported module: /assets/PaymentList-old.js'); }
+    render(<ErrorBoundary><Stale /></ErrorBoundary>);
+    expect(reload).toHaveBeenCalledTimes(1);
+    Object.defineProperty(window, 'location', { configurable: true, value: original });
+    spy.mockRestore();
+  });
+
   it.each(['Layout.tsx', 'PortalLayout.tsx'])('%s wraps its routed outlet in a boundary keyed by path', (file) => {
     const src = readFileSync(join(__dirname, '..', file), 'utf8');
     // The page's chunk loads inside the boundary (FE-21), so a failed chunk load is caught too.
