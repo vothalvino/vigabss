@@ -70,7 +70,7 @@ describe('SNMP trap listener deployment boundary', () => {
   });
 
   test('Helm declares UDP internally but leaves its external service disabled by default', () => {
-    const values = yaml.load(read('charts/fireisp/values.yaml'));
+    const values = yaml.load(read('charts/vigabss/values.yaml'));
     expect(values.config.SNMP_TRAP_PORT).toBe('1620');
     expect(values.config.SNMP_TRAP_BIND_IP).toBe('127.0.0.1');
     expect(values.config).toMatchObject({
@@ -99,11 +99,11 @@ describe('SNMP trap listener deployment boundary', () => {
       allowUnrestrictedSources: false,
     });
 
-    const deployment = read('charts/fireisp/templates/deployment.yaml');
+    const deployment = read('charts/vigabss/templates/deployment.yaml');
     expect(deployment).toMatch(/name: snmp-trap\s+containerPort:.*SNMP_TRAP_PORT[\s\S]*?protocol: UDP/);
     expect(deployment).toMatch(/name: SNMP_TRAP_BIND_IP[\s\S]*ternary "0\.0\.0\.0"/);
 
-    const service = read('charts/fireisp/templates/snmp-trap-service.yaml');
+    const service = read('charts/vigabss/templates/snmp-trap-service.yaml');
     expect(service).toMatch(/^\{\{- if \.Values\.snmpTrap\.enabled \}\}/);
     expect(service).toMatch(/loadBalancerSourceRanges/);
     expect(service).toMatch(/allowUnrestrictedSources/);
@@ -142,11 +142,11 @@ describe('SNMP trap listener deployment boundary', () => {
   });
 
   test('Helm and plain Kubernetes migrate before application listeners start', () => {
-    const values = yaml.load(read('charts/fireisp/values.yaml'));
+    const values = yaml.load(read('charts/vigabss/values.yaml'));
     expect(values.migration).toEqual({ enabled: true, migrateIsolatedTenants: true });
     expect(values.strategy).toEqual({ type: 'Recreate' });
 
-    const helmDeployment = read('charts/fireisp/templates/deployment.yaml');
+    const helmDeployment = read('charts/vigabss/templates/deployment.yaml');
     expect(helmDeployment).toMatch(/initContainers:[\s\S]*name: database-migrate/);
     expect(helmDeployment).toMatch(/command: \['node', 'src\/scripts\/migrate\.js'\]/);
     expect(helmDeployment).toMatch(/MIGRATE_ISOLATED_TENANTS/);
@@ -174,13 +174,13 @@ describe('SNMP trap listener deployment boundary', () => {
     expect(migrationContainer.imagePullPolicy).toBe(applicationContainer.imagePullPolicy);
     expect(yaml.load(read('k8s/configmap.yaml')).data.MIGRATE_ISOLATED_TENANTS).toBe('true');
 
-    const notes = read('charts/fireisp/templates/NOTES.txt');
+    const notes = read('charts/vigabss/templates/NOTES.txt');
     expect(notes).toMatch(/migrations already ran in the pre-start init container/i);
     expect(notes).not.toMatch(/npm run migrate/);
 
-    const helmValues = yaml.load(read('charts/fireisp/values.yaml'));
+    const helmValues = yaml.load(read('charts/vigabss/values.yaml'));
     expect(helmValues.image.tag).toBe('');
-    expect(read('charts/fireisp/templates/_helpers.tpl')).toMatch(
+    expect(read('charts/vigabss/templates/_helpers.tpl')).toMatch(
       /required "image\.tag is required; use a published full commit SHA/,
     );
   });

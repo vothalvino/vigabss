@@ -84,7 +84,7 @@ test('one user cannot spend the whole tenant budget', async () => {
 
 test('the Helm and k8s defaults match the 1000 per-window config default', () => {
   const fs = require('fs');
-  for (const f of ['k8s/configmap.yaml', 'charts/fireisp/values.yaml']) {
+  for (const f of ['k8s/configmap.yaml', 'charts/vigabss/values.yaml']) {
     expect(fs.readFileSync(f, 'utf8')).toMatch(/RATE_LIMIT_API: "1000"/);
   }
 });

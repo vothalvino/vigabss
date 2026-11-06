@@ -8,9 +8,9 @@
 apiVersion: policy.sigstore.dev/v1beta1
 kind: ClusterImagePolicy
 metadata:
-  name: {{ include "fireisp.fullname" . }}-image-policy
+  name: {{ include "vigabss.fullname" . }}-image-policy
   labels:
-    {{- include "fireisp.labels" . | nindent 4 }}
+    {{- include "vigabss.labels" . | nindent 4 }}
 spec:
   images:
     - glob: "ghcr.io/vothalvino/vigabss:*"

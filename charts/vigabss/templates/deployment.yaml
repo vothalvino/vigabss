@@ -6,16 +6,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "fireisp.fullname" . }}
+  name: {{ include "vigabss.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "fireisp.labels" . | nindent 4 }}
+    {{- include "vigabss.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "fireisp.selectorLabels" . | nindent 6 }}
+      {{- include "vigabss.selectorLabels" . | nindent 6 }}
   {{- with .Values.strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "fireisp.selectorLabels" . | nindent 8 }}
+        {{- include "vigabss.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -38,7 +38,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "fireisp.serviceAccountName" . }}
+      serviceAccountName: {{ include "vigabss.serviceAccountName" . }}
       {{- end }}
       # The app never calls the Kubernetes API; without this every pod carried
       # a usable service-account token (OPS-17).
@@ -48,14 +48,14 @@ spec:
       {{- if .Values.migration.enabled }}
       initContainers:
         - name: database-migrate
-          image: {{ include "fireisp.image" . }}
+          image: {{ include "vigabss.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ['node', 'src/scripts/migrate.js']
           envFrom:
             - configMapRef:
-                name: {{ include "fireisp.fullname" . }}-config
+                name: {{ include "vigabss.fullname" . }}-config
             - secretRef:
-                name: {{ include "fireisp.fullname" . }}-secret
+                name: {{ include "vigabss.fullname" . }}-secret
           env:
             - name: MIGRATE_ISOLATED_TENANTS
               value: {{ .Values.migration.migrateIsolatedTenants | quote }}
@@ -72,7 +72,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          image: {{ include "fireisp.image" . }}
+          image: {{ include "vigabss.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -83,9 +83,9 @@ spec:
               protocol: UDP
           envFrom:
             - configMapRef:
-                name: {{ include "fireisp.fullname" . }}-config
+                name: {{ include "vigabss.fullname" . }}-config
             - secretRef:
-                name: {{ include "fireisp.fullname" . }}-secret
+                name: {{ include "vigabss.fullname" . }}-secret
           env:
             - name: SNMP_TRAP_BIND_IP
               value: {{ ternary "0.0.0.0" (.Values.config.SNMP_TRAP_BIND_IP | default "127.0.0.1") .Values.snmpTrap.enabled | quote }}
@@ -122,7 +122,7 @@ spec:
         {{- if .Values.persistence.enabled }}
         - name: storage
           persistentVolumeClaim:
-            claimName: {{ include "fireisp.fullname" . }}-storage
+            claimName: {{ include "vigabss.fullname" . }}-storage
         {{- end }}
         - name: tmp
           emptyDir: {}

@@ -1888,14 +1888,9 @@ JOB_QUEUE_CONCURRENCY=5
 
 ## Helm Chart Deployment
 
-VigaBSS 0.1.0-alpha.4 ships a production-grade Helm chart under `charts/fireisp/` that
+VigaBSS 0.1.0-alpha.4 ships a production-grade Helm chart under `charts/vigabss/` that
 templates every Kubernetes resource (Namespace, ConfigMap, Secret, Deployment,
 Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
-
-> **Compatibility identifier:** the on-disk chart name, chart package,
-> template helpers, example release name, namespace, selectors, and PVCs retain
-> `fireisp`. They are stable infrastructure identifiers, not the product's
-> display name. Renaming them can replace selectors or detach persistent data.
 
 ### Prerequisites
 
@@ -1903,8 +1898,7 @@ Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 - Kubernetes 1.27+
 - MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+, provisioned
   separately and reachable from the cluster. The chart deploys VigaBSS, not a
-  database server. Keep an existing FireISP-era database/user name unchanged;
-  create `vigabss` names only for a fresh database.
+  database server.
 - (Optional) [cert-manager](https://cert-manager.io/) for TLS
 - (Optional) [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) for alerting rules
 - (Optional) [Sigstore policy-controller](https://github.com/sigstore/policy-controller) for image verification
@@ -1913,7 +1907,7 @@ Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 
 ```bash
 # Add the chart repo (GitHub Pages — populated by chart-releaser CI)
-helm repo add fireisp https://vothalvino.github.io/vigabss
+helm repo add vigabss https://vothalvino.github.io/vigabss
 helm repo update
 
 # Generate the install values into a file — never pass secrets with --set
@@ -1925,16 +1919,16 @@ secrets:
   JWT_SECRET: "$(openssl rand -base64 48)"
   ENCRYPTION_KEY: "$(openssl rand -hex 32)"
   # Replace with the separately provisioned database service/hostname.
-  DB_HOST: mysql.fireisp.svc.cluster.local
+  DB_HOST: mysql.vigabss.svc.cluster.local
   DB_NAME: vigabss
   DB_USER: vigabss
   DB_PASSWORD: my-db-password
 EOF
 chmod 600 values-secret.yaml
 
-# Install into the fireisp compatibility namespace (creates it automatically)
-helm install fireisp fireisp/fireisp \
-  --namespace fireisp --create-namespace \
+# Install into the vigabss namespace (creates it automatically)
+helm install vigabss vigabss/vigabss \
+  --namespace vigabss --create-namespace \
   --version 0.1.0-alpha.4 \
   -f values-secret.yaml
 ```
@@ -1950,10 +1944,10 @@ helm install fireisp fireisp/fireisp \
 ### Installing from Source
 
 ```bash
-cd charts/fireisp
+cd charts/vigabss
 helm dependency update          # no external dependencies currently
-helm install fireisp . \
-  --namespace fireisp --create-namespace \
+helm install vigabss . \
+  --namespace vigabss --create-namespace \
   --set-string image.tag=<full-40-character-main-commit-sha> \
   -f my-values.yaml
 ```
@@ -1982,7 +1976,7 @@ config:
 secrets:
   JWT_SECRET: ""          # populated by Sealed Secret / ESO
   ENCRYPTION_KEY: ""
-  DB_HOST: mysql-primary.fireisp.svc.cluster.local
+  DB_HOST: mysql-primary.vigabss.svc.cluster.local
   DB_PASSWORD: ""
 
 persistence:
@@ -2017,7 +2011,7 @@ Secure defaults (OPS-17):
   after enabling it.
 - **Pod Security.** The pod meets the `restricted` profile. A namespace created
   with `--create-namespace` carries no PSA labels; add them with
-  `kubectl label ns fireisp pod-security.kubernetes.io/enforce=restricted`.
+  `kubectl label ns vigabss pod-security.kubernetes.io/enforce=restricted`.
 - **No service-account token** is mounted; the app never calls the Kubernetes API.
 - **Signed images.** The cosign policy accepts images signed by CI on `main` or
   a `v*` release tag, so the released chart's tag passes.
@@ -2029,14 +2023,14 @@ retained isolated tenant schemas. Confirm the deployment becomes ready; do not
 run a second ad-hoc migration after listeners start:
 
 ```bash
-kubectl rollout status -n fireisp deployment/fireisp --timeout=180s
+kubectl rollout status -n vigabss deployment/vigabss --timeout=180s
 ```
 
 ### Upgrading
 
 ```bash
-helm upgrade fireisp fireisp/fireisp \
-  --namespace fireisp \
+helm upgrade vigabss vigabss/vigabss \
+  --namespace vigabss \
   --version 0.1.0-alpha.4 \
   -f my-values.yaml \
   --set-string image.tag=0.1.0-alpha.4
@@ -2045,11 +2039,11 @@ helm upgrade fireisp fireisp/fireisp \
 ### Uninstalling
 
 ```bash
-helm uninstall fireisp --namespace fireisp
+helm uninstall vigabss --namespace vigabss
 # The storage PVC and the Secret carry helm.sh/resource-policy: keep, so an
 # uninstall leaves them (and the namespace, which --create-namespace made)
 # in place. Delete them manually for a full teardown.
-kubectl delete pvc -n fireisp fireisp-storage
+kubectl delete pvc -n vigabss vigabss-storage
 ```
 
 ---
@@ -2070,13 +2064,13 @@ kubectl apply -n argocd \
 
 ### Argo CD Application Manifest
 
-Create `gitops/fireisp-app.yaml` and commit it to your GitOps repository:
+Create `gitops/vigabss-app.yaml` and commit it to your GitOps repository:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fireisp
+  name: vigabss
   namespace: argocd
   # Cascade delete: removing this Application also removes the K8s resources.
   finalizers:
@@ -2087,7 +2081,7 @@ spec:
   source:
     repoURL: https://github.com/vothalvino/vigabss
     targetRevision: main          # or a tag, e.g. v0.1.0-alpha.4
-    path: charts/fireisp
+    path: charts/vigabss
     helm:
       valueFiles:
         - values.yaml
@@ -2108,7 +2102,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: fireisp
+    namespace: vigabss
 
   syncPolicy:
     automated:
@@ -2128,7 +2122,7 @@ spec:
 Apply the Application to Argo CD:
 
 ```bash
-kubectl apply -f gitops/fireisp-app.yaml
+kubectl apply -f gitops/vigabss-app.yaml
 # Open the Argo CD UI to watch the sync:
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 # https://localhost:8080 — default credentials: admin / <initial-password>
@@ -2152,18 +2146,18 @@ DB_PASSWORD=my-password
 EOF
 chmod 600 secrets.env
 
-# Seal the fireisp-secret for the fireisp compatibility namespace
-kubectl create secret generic fireisp-secret \
-  --namespace fireisp \
+# Seal the vigabss-secret for the vigabss namespace
+kubectl create secret generic vigabss-secret \
+  --namespace vigabss \
   --dry-run=client \
   --from-env-file=./secrets.env \
   -o yaml \
-  | kubeseal --format yaml > gitops/fireisp-sealed-secret.yaml
+  | kubeseal --format yaml > gitops/vigabss-sealed-secret.yaml
 
 # The sealed manifest is the only copy that should survive
 shred -u secrets.env 2>/dev/null || rm -f secrets.env
 
-git add gitops/fireisp-sealed-secret.yaml
+git add gitops/vigabss-sealed-secret.yaml
 git commit -m "chore: rotate VigaBSS secrets"
 git push
 # Argo CD will automatically apply the SealedSecret and Sealed Secrets
@@ -2190,7 +2184,7 @@ that runs on every push of a version tag (`v*.*.*`):
 The chart is never released unless its default image has already been
 published successfully.
 
-To cut a new chart release, bump `version` in `charts/fireisp/Chart.yaml`
+To cut a new chart release, bump `version` in `charts/vigabss/Chart.yaml`
 (and `appVersion` if the app changed) and push a matching git tag:
 
 ```bash

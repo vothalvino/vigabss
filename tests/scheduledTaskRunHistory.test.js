@@ -107,7 +107,7 @@ test('run durations are exported as a histogram', () => {
 test('the alert rules page someone when scheduled tasks fail', () => {
   const fs = require('fs');
   const path = require('path');
-  for (const file of ['k8s/prometheus-alerts.yaml', 'charts/fireisp/templates/prometheus-alerts.yaml']) {
+  for (const file of ['k8s/prometheus-alerts.yaml', 'charts/vigabss/templates/prometheus-alerts.yaml']) {
     const text = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     expect(text).toMatch(/alert: VigaBSS_ScheduledTaskFailures/);
     expect(text).toMatch(/scheduled_task_runs_total\{status="failed"\}/);
