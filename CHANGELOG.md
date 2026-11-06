@@ -7,6 +7,20 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 Nothing yet.
 
+## 0.1.0-alpha.2 — 2026-11-06
+
+Fixes found on the first real install of 0.1.0-alpha.1. Install this release
+instead; alpha.1 cannot complete a fresh install.
+
+- **Fresh installs no longer stop before migrating.** The pre-migration backup
+  looked up isolated tenants on an empty database (`ER_NO_SUCH_TABLE`).
+- **The SNMP trap listener starts, and `/health/ready` passes.** Its schema
+  check looked for migration 459, which is part of the release baseline now.
+- **`redeploy <tag>` rollbacks work again.** The guard checked for the 459/460
+  migration files; it now requires a release that contains the baseline.
+- **Helm chart releases publish without manual help** (chart-releaser now has
+  a git identity).
+
 ## 0.1.0-alpha.1 — 2026-11-05
 
 The first tagged release, and the first one installs follow by default
