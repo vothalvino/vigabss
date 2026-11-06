@@ -897,7 +897,7 @@ if ! dc run --rm -T -e MIGRATE_ISOLATED_TENANTS=true app node src/scripts/preMig
   echo "error: the pre-migration backup failed, so nothing was migrated. Restarting the previous app." >&2
   dc start app || true
   echo "       Fix the backup (free space in the storage volume, database credentials), then rerun sudo redeploy." >&2
-  echo "       To migrate without a backup, set PRE_MIGRATION_BACKUP=0 in .env.prod for that one run." >&2
+  echo "       To migrate without a backup, set PRE_MIGRATION_BACKUP=0 in .env.prod (and remove it afterwards)." >&2
   exit 1
 fi
 
