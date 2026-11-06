@@ -761,9 +761,12 @@ router.post('/:id/suspend', requirePermission('contracts.update'), async (req, r
       const message = {
         CONTRACT_NOT_ACTIVE: 'Only an active contract can be suspended',
         NO_OVERDUE_BALANCE: 'The contract has no overdue balance for this rule',
-        SUSPENSION_EXEMPT: `The client is exempt from suspension${outcome.reason ? ` (${outcome.reason})` : ''}`,
+        SUSPENSION_EXEMPT: 'The client is exempt from suspension',
       }[code] || 'The contract was not suspended';
-      return res.status(422).json({ error: { code, message } });
+      const error = { code, message };
+      // The exemption's reason is the operator's own free text.
+      if (code === 'SUSPENSION_EXEMPT' && outcome.reason) error.reason = outcome.reason;
+      return res.status(422).json({ error });
     }
     res.json({ data: { contract_id: parseInt(req.params.id, 10), status: 'suspended' } });
   } catch (err) {
