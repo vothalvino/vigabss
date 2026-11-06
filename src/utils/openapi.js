@@ -987,9 +987,6 @@ function generateSpec() {
       '/dashboard/overdue': { get: { tags: ['Dashboard'], summary: 'Overdue invoices', operationId: 'dashboardOverdue', security: [{ bearerAuth: [] }], responses: r200('Invoices') } },
 
       // ---- Reports ----
-      '/reports/revenue': { get: { tags: ['Reports'], summary: 'Revenue report', operationId: 'revenueReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
-      '/reports/clients': { get: { tags: ['Reports'], summary: 'Client report', operationId: 'clientReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
-      '/reports/usage': { get: { tags: ['Reports'], summary: 'Usage report', operationId: 'usageReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
       '/reports/financial': { get: { tags: ['Reports'], summary: 'Financial summary report', operationId: 'financialReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
       '/reports/aging': { get: { tags: ['Reports'], summary: 'Accounts receivable aging report', operationId: 'agingReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
       '/reports/subscriber-growth': { get: { tags: ['Reports'], summary: 'Subscriber growth and churn report', operationId: 'subscriberGrowthReport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
@@ -1066,11 +1063,14 @@ function generateSpec() {
       '/custom-reports/{id}/execute': { post: { tags: ['Reports'], summary: 'Execute a custom SQL report (install operator only)', operationId: 'executeCustomReport', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Query results') } },
 
       // ---- Usage ----
-      '/usage': { get: { tags: ['Usage'], summary: 'List usage records', operationId: 'listUsage', security: [{ bearerAuth: [] }], responses: r200('Usage[]') } },
-      '/usage/{contractId}': { get: { tags: ['Usage'], summary: 'Get usage for a contract', operationId: 'getContractUsage', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('Usage') } },
+      '/usage/client/{clientId}': { get: { tags: ['Usage'], summary: 'Usage summary for a client', operationId: 'getClientUsage', security: [{ bearerAuth: [] }], parameters: [{ name: 'clientId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } }], responses: r200('Usage summary') } },
+      '/usage/contract/{contractId}/daily': { get: { tags: ['Usage'], summary: 'Daily usage for a contract', operationId: 'getContractDailyUsage', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } }], responses: r200('Usage[]') } },
+      '/usage/top': { get: { tags: ['Usage'], summary: 'Top bandwidth users', operationId: 'getTopUsage', security: [{ bearerAuth: [] }], parameters: [{ name: 'from', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } }], responses: r200('Usage[]') } },
+      '/usage/data-caps': { get: { tags: ['Usage'], summary: 'Contracts over their data cap', operationId: 'getDataCapUsage', security: [{ bearerAuth: [] }], responses: r200('Usage[]') } },
 
       // ---- Checkout ----
-      '/checkout/create-session': { post: { tags: ['Checkout'], summary: 'Create checkout session', operationId: 'createCheckoutSession', security: [{ bearerAuth: [] }], requestBody: jsonBody('invoice_id + gateway'), responses: r201('Session') } },
+      '/checkout/session': { post: { tags: ['Checkout'], summary: 'Create checkout session', operationId: 'createCheckoutSession', security: [{ bearerAuth: [] }], requestBody: jsonBody('invoice_id + gateway'), responses: r201('Session') } },
+      '/checkout/payment-link': { post: { tags: ['Checkout'], summary: 'Generate a payment link for an invoice', operationId: 'createPaymentLink', security: [{ bearerAuth: [] }], requestBody: jsonBody('invoice_id'), responses: r201('Payment link') } },
 
       // ---- Expenses ----
       ...crudPaths('expenses', 'Expenses', 'Expense'),
@@ -1284,7 +1284,7 @@ function generateSpec() {
       '/pdf/cfdi/{id}': { get: { tags: ['PDF'], summary: 'Download CFDI PDF', operationId: 'pdfCfdi', security: [{ bearerAuth: [] }], parameters: [idParam(), localeParam()], responses: r200File('application/pdf') } },
 
       // ---- Metrics ----
-      '/metrics': { get: { tags: ['Metrics'], summary: 'Prometheus metrics', operationId: 'getMetrics', responses: { 200: { description: 'Prometheus exposition format', content: { 'text/plain': { schema: { type: 'string' } } } } } } },
+      '/metrics': { servers: ROOT_SERVERS, get: { tags: ['Metrics'], summary: 'Prometheus metrics', operationId: 'getMetrics', responses: { 200: { description: 'Prometheus exposition format', content: { 'text/plain': { schema: { type: 'string' } } } } } } },
 
       // ---- FireRelay ----
       // Install-operator only (legacy users.role='admin'); 404s for anyone else
@@ -1917,14 +1917,14 @@ function generateSpec() {
       '/device-config-backups/compliance-results': { get: { tags: ['Device Config Backups'], summary: 'List compliance audit results', operationId: 'listBackupComplianceResults', security: [{ bearerAuth: [] }], responses: r200('ComplianceResult[]') } },
 
       // ---- Config Templates §6.6 ----
-      ...crudPaths('config-templates', 'Config Templates', 'ConfigTemplate'),
+      ...crudPaths('config-templates', 'Config Templates', 'ConfigTemplate', {}, { omit: ['get'] }),
       '/config-templates/{id}/deploy': { post: { tags: ['Config Templates'], summary: 'Deploy config template to a device', operationId: 'deployConfigTemplate', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('DeployRequest'), description: 'Template and device must belong to the caller\'s organization. No automatic push to the device exists yet: the template is rendered, a deployment record is written with status "pending", and the response carries push_performed=false, result_output and rendered_config for manual application. Never reports success.', responses: { ...r200('ConfigDeploymentRecord (status pending, push_performed false, rendered_config)'), 404: errorResponse('Template or device not found in this organization'), 422: errorResponse('variables is not a JSON object') } } },
 
       // ---- Config Backup Schedules §6.6 ----
-      ...crudPaths('config-backup-schedules', 'Config Backup Schedules', 'ConfigBackupSchedule'),
+      ...crudPaths('config-backup-schedules', 'Config Backup Schedules', 'ConfigBackupSchedule', {}, { omit: ['get'] }),
 
       // ---- Config Compliance Rules §6.6 ----
-      ...crudPaths('config-compliance-rules', 'Config Compliance Rules', 'ConfigComplianceRule'),
+      ...crudPaths('config-compliance-rules', 'Config Compliance Rules', 'ConfigComplianceRule', {}, { omit: ['get'] }),
       '/config-compliance-rules/results': { get: { tags: ['Config Compliance Rules'], summary: 'List compliance audit results', operationId: 'listComplianceRulesResults', security: [{ bearerAuth: [] }], responses: r200('ComplianceResult[]') } },
       '/config-compliance-rules/run': { post: { tags: ['Config Compliance Rules'], summary: 'Run compliance audit on a backup', operationId: 'runComplianceAudit', security: [{ bearerAuth: [] }], requestBody: jsonBody('ComplianceRunRequest'), responses: r200('ComplianceRunResult') } },
 
@@ -2146,13 +2146,7 @@ function generateSpec() {
         get: { tags: ['CPE Management'], summary: 'List pending/completed tasks for a device', operationId: 'listCpeTasks', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CpeTask[]') },
         post: { tags: ['CPE Management'], summary: 'Queue a task for a device (e.g. GetParameterValues, Reboot)', operationId: 'createCpeTask', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cpeTasks_createCpeTask'), responses: r201('CpeTask') },
       },
-      '/cpe-management/devices/{id}/reboot': {
-        post: { tags: ['CPE Management'], summary: 'Queue a Reboot task for a device', operationId: 'rebootCpeDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r201('CpeTask') },
-      },
-      '/cpe-management/devices/{id}/factory-reset': {
-        post: { tags: ['CPE Management'], summary: 'Queue a FactoryReset task for a device', operationId: 'factoryResetCpeDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r201('CpeTask') },
-      },
-      '/cpe-management/batch-parameter-push': {
+      '/cpe-management/devices/batch-parameter-push': {
         post: { tags: ['CPE Management'], summary: 'Push SetParameterValues tasks to multiple devices', operationId: 'batchParameterPush', security: [{ bearerAuth: [] }], requestBody: jsonBody('cpeBatchPush'), responses: r200('BatchPushResult') },
       },
       '/cpe-management/firmware-versions': {
@@ -2160,7 +2154,6 @@ function generateSpec() {
         post: { tags: ['CPE Management'], summary: 'Create a firmware version record', operationId: 'createCpeFirmwareVersion', security: [{ bearerAuth: [] }], requestBody: jsonBody('cpeFirmwareVersions_createCpeFirmwareVersion'), responses: r201('CpeFirmwareVersion') },
       },
       '/cpe-management/firmware-versions/{id}': {
-        get: { tags: ['CPE Management'], summary: 'Get a firmware version', operationId: 'getCpeFirmwareVersion', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CpeFirmwareVersion') },
         put: { tags: ['CPE Management'], summary: 'Update a firmware version', operationId: 'updateCpeFirmwareVersion', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cpeFirmwareVersions_updateCpeFirmwareVersion'), responses: r200('CpeFirmwareVersion') },
         delete: { tags: ['CPE Management'], summary: 'Delete a firmware version', operationId: 'deleteCpeFirmwareVersion', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
@@ -2169,7 +2162,6 @@ function generateSpec() {
         post: { tags: ['CPE Management'], summary: 'Create a firmware upgrade campaign', operationId: 'createCpeFirmwareCampaign', security: [{ bearerAuth: [] }], requestBody: jsonBody('cpeFirmwareCampaigns_createCpeFirmwareCampaign'), responses: r201('CpeFirmwareCampaign') },
       },
       '/cpe-management/firmware-campaigns/{id}': {
-        get: { tags: ['CPE Management'], summary: 'Get a firmware campaign', operationId: 'getCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CpeFirmwareCampaign') },
         put: { tags: ['CPE Management'], summary: 'Update a firmware campaign', operationId: 'updateCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cpeFirmwareCampaigns_updateCpeFirmwareCampaign'), responses: r200('CpeFirmwareCampaign') },
         delete: { tags: ['CPE Management'], summary: 'Delete a firmware campaign', operationId: 'deleteCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
@@ -2886,6 +2878,7 @@ function generateSpec() {
 
       // ---- ACS / CWMP (outside /api/v1) ----
       '/acs/cwmp': {
+        servers: ROOT_SERVERS,
         post: { tags: ['CPE Management'], summary: 'CWMP/TR-069 ACS endpoint — CPE-to-server SOAP over HTTP (HTTP Basic auth)', operationId: 'acsCwmp', requestBody: { description: 'CWMP SOAP XML envelope', required: false, content: { 'text/xml': { schema: { type: 'string' } } } }, responses: r200('CWMP SOAP Response XML') },
       },
 
@@ -2999,14 +2992,14 @@ function generateSpec() {
       },
       // ---- Numbering Management ----
       ...crudPaths('numbering-management/phone-numbers', 'Numbering Management', 'PhoneNumberInventory'),
-      ...crudPaths('numbering-management/portability', 'Numbering Management', 'NumberPortabilityRecord'),
-      ...crudPaths('numbering-management/numbering-blocks', 'Numbering Management', 'NumberingBlock'),
+      ...crudPaths('numbering-management/portability', 'Numbering Management', 'NumberPortabilityRecord', {}, { omit: ['delete'] }),
+      ...crudPaths('numbering-management/numbering-blocks', 'Numbering Management', 'NumberingBlock', {}, { omit: ['delete'] }),
       '/numbering-management/portability/{id}/complete': {
         put: { tags: ['Numbering Management'], summary: 'Mark number portability complete', operationId: 'completePortability', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
       },
       // ---- Universal Service ----
-      ...crudPaths('universal-service/uso-obligations', 'Universal Service', 'UsoObligation'),
-      ...crudPaths('universal-service/rural-coverage', 'Universal Service', 'RuralCoverageReport'),
+      ...crudPaths('universal-service/uso-obligations', 'Universal Service', 'UsoObligation', {}, { omit: ['delete'] }),
+      ...crudPaths('universal-service/rural-coverage', 'Universal Service', 'RuralCoverageReport', {}, { omit: ['delete'] }),
       '/universal-service/uso-obligations/{id}/report': {
         put: { tags: ['Universal Service'], summary: 'Mark USO obligation as reported', operationId: 'reportUsoObligation', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
       },
@@ -3014,7 +3007,7 @@ function generateSpec() {
         get: { tags: ['Universal Service'], summary: 'Get rural coverage aggregate summary', operationId: 'getRuralCoverageSummary', security: [{ bearerAuth: [] }], responses: r200('Summary') },
       },
       // ---- Consumer Protection MX ----
-      ...crudPaths('consumer-protection/service-modifications', 'Consumer Protection MX', 'ServiceModificationNotice'),
+      ...crudPaths('consumer-protection/service-modifications', 'Consumer Protection MX', 'ServiceModificationNotice', {}, { omit: ['delete'] }),
       ...crudPaths('consumer-protection/contract-templates-mx', 'Consumer Protection MX', 'ContractTemplateMx'),
       '/consumer-protection/contract-environment': {
         get: {
@@ -5126,14 +5119,22 @@ function withRowResponses(paths, componentName) {
   return paths;
 }
 
-function crudPaths(basePath, tag, modelName, requestSchemas = {}) {
+// Path-level override for the few endpoints served at the server root rather
+// than under /api/v1 (Prometheus scrape, TR-069 ACS).
+const ROOT_SERVERS = [{ url: '/', description: 'Served at the server root, outside /api/v1' }];
+
+// `omit` drops operations the router deliberately does not serve, e.g. 'get'
+// (the single-record read) or 'delete' for regulatory evidence that is never
+// deleted. openapiOperationsServed.test.js fails on any documented operation
+// Express does not serve.
+function crudPaths(basePath, tag, modelName, requestSchemas = {}, { omit = [] } = {}) {
   const createBody = requestSchemas.create
     ? typedJsonBody({ $ref: `#/components/schemas/${requestSchemas.create}` }, `Create ${modelName}`)
     : jsonBody(modelName);
   const updateBody = requestSchemas.update
     ? typedJsonBody({ $ref: `#/components/schemas/${requestSchemas.update}` }, `Update ${modelName}`)
     : jsonBody(modelName);
-  return {
+  const paths = {
     [`/${basePath}`]: {
       get: { tags: [tag], summary: `List ${basePath}`, operationId: `list${modelName}s`, security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200(`${modelName}[]`) },
       post: { tags: [tag], summary: `Create a ${modelName}`, operationId: `create${modelName}`, security: [{ bearerAuth: [] }], requestBody: createBody, responses: r201(modelName) },
@@ -5144,6 +5145,8 @@ function crudPaths(basePath, tag, modelName, requestSchemas = {}) {
       delete: { tags: [tag], summary: `Delete a ${modelName}`, operationId: `delete${modelName}`, security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
     },
   };
+  for (const method of omit) delete paths[`/${basePath}/{id}`][method];
+  return paths;
 }
 
 /**
