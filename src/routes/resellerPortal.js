@@ -128,13 +128,15 @@ router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'
     }
     const { name, email, phone, client_type = 'personal', address, city, state, country, zip_code, notes } = req.body;
 
+    // The organization's locale, as for every other way a client is created.
     const [result] = await db.query(
       `INSERT INTO clients
-         (organization_id, reseller_id, name, email, phone, client_type, address, city, state, country, zip_code, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (organization_id, reseller_id, name, email, phone, client_type, address, city, state, country, zip_code, notes, locale)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         COALESCE((SELECT o.locale FROM organizations o WHERE o.id = ? AND o.deleted_at IS NULL), 'global'))`,
       [req.orgId, req.params.id, name, email || null, phone || null,
         client_type, address || null, city || null, state || null,
-        country || null, zip_code || null, notes || null],
+        country || null, zip_code || null, notes || null, req.orgId],
     );
     const [[row]] = await db.query('SELECT * FROM clients WHERE id = ?', [result.insertId]);
     res.status(201).json({ data: row });

@@ -99,7 +99,6 @@ async function importClients(req, res, next) {
     const rows = parseCsv(req.body.csv);
     let imported = 0;
     const errors = [];
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
@@ -108,10 +107,13 @@ async function importClients(req, res, next) {
           continue;
         }
         await db.query(
-          `INSERT INTO clients (organization_id, name, email, phone, city, state, country, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+          // Imported clients take the organization's locale, like every other
+          // way a client is created.
+          `INSERT INTO clients (organization_id, name, email, phone, city, state, country, status, locale)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'active',
+             COALESCE((SELECT o.locale FROM organizations o WHERE o.id = ? AND o.deleted_at IS NULL), 'global'))`,
           [req.orgId, row.name, row.email || null,
-            row.phone || null, row.city || null, row.state || null, row.country || null],
+            row.phone || null, row.city || null, row.state || null, row.country || null, req.orgId],
         );
         imported++;
       } catch (err) {
@@ -417,7 +419,6 @@ async function importClientsFile(req, res, next) {
     const rows = parseUploadedFile(req.file.buffer);
     let imported = 0;
     const errors = [];
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
@@ -426,10 +427,13 @@ async function importClientsFile(req, res, next) {
           continue;
         }
         await db.query(
-          `INSERT INTO clients (organization_id, name, email, phone, city, state, country, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+          // Imported clients take the organization's locale, like every other
+          // way a client is created.
+          `INSERT INTO clients (organization_id, name, email, phone, city, state, country, status, locale)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'active',
+             COALESCE((SELECT o.locale FROM organizations o WHERE o.id = ? AND o.deleted_at IS NULL), 'global'))`,
           [req.orgId, row.name, row.email || null,
-            row.phone || null, row.city || null, row.state || null, row.country || null],
+            row.phone || null, row.city || null, row.state || null, row.country || null, req.orgId],
         );
         imported++;
       } catch (err) {

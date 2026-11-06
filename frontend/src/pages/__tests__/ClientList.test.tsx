@@ -23,6 +23,7 @@ vi.mock('@/api/client', () => ({
 
 vi.mock('@/auth/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1, role: 'admin' } }),
+  useOptionalAuth: () => ({ user: { id: 1, role: 'admin' } }),
 }));
 
 const client1 = {
