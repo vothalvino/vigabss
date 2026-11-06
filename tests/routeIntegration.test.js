@@ -345,6 +345,8 @@ describe('Client Routes — /api/v1/clients', () => {
       db.query
         // quotaCheck: SELECT * FROM organization_quotas → no row → unlimited
         .mockResolvedValueOnce([[]])
+        // the organization's locale, the default for the client's
+        .mockResolvedValueOnce([[{ locale: 'global' }]])
         .mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 }])
         .mockResolvedValueOnce([[{ id: 5, name: 'New Client', organization_id: 1, status: 'active' }]])
         // auditLog.log
@@ -359,6 +361,32 @@ describe('Client Routes — /api/v1/clients', () => {
       expect(res.body.data.id).toBe(5);
     });
 
+    test.each([
+      ['MX', {}, 'MX'],
+      ['global', {}, 'global'],
+      ['MX', { locale: 'global' }, 'global'],
+    ])('an org with locale %s and body %o creates a %s client', async (orgLocale, extra, expected) => {
+      mockAuthUser();
+      db.query.mockResolvedValueOnce([[]]); // quotaCheck: no row -> unlimited
+      // Only asked when the body names no locale.
+      if (!('locale' in extra)) db.query.mockResolvedValueOnce([[{ locale: orgLocale }]]);
+      db.query
+        .mockResolvedValueOnce([{ insertId: 7, affectedRows: 1 }]) // INSERT
+        .mockResolvedValueOnce([[{ id: 7, name: 'Cliente', organization_id: 1, status: 'active' }]]) // findById
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog.log
+
+      const res = await request(app)
+        .post('/api/v1/clients')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Cliente', ...extra });
+
+      expect(res.status).toBe(201);
+      const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO\s+`?clients`?/i.test(sql));
+      expect(insert[1]).toContain(expected);
+      const asked = db.query.mock.calls.some(([sql]) => /SELECT locale FROM organizations/.test(sql));
+      expect(asked).toBe(!('locale' in extra));
+    });
+
     // Regression: the global sanitize.js middleware used to HTML-entity-encode
     // every request-body string before it reached the model, permanently
     // storing "O&#x27;Brien" for a client named "O'Brien". Now that the
@@ -368,6 +396,7 @@ describe('Client Routes — /api/v1/clients', () => {
       mockAuthUser();
       db.query
         .mockResolvedValueOnce([[]]) // quotaCheck: no row -> unlimited
+        .mockResolvedValueOnce([[{ locale: 'global' }]]) // the organization's locale
         .mockResolvedValueOnce([{ insertId: 6, affectedRows: 1 }]) // INSERT
         .mockResolvedValueOnce([[{ id: 6, name: "O'Brien & Sons", organization_id: 1, status: 'active' }]]) // findById
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog.log

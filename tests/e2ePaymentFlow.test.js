@@ -117,6 +117,8 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       db.query
         // quotaCheck: SELECT * FROM organization_quotas → no row → unlimited
         .mockResolvedValueOnce([[]])
+        // the organization's locale, the default for the client's
+        .mockResolvedValueOnce([[{ locale: 'global' }]])
         .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }])
         .mockResolvedValueOnce([[mockClient]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
@@ -567,6 +569,8 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       db.query
         // quotaCheck: SELECT * FROM organization_quotas → no row → unlimited
         .mockResolvedValueOnce([[]])
+        // the organization's locale, the default for the client's
+        .mockResolvedValueOnce([[{ locale: 'global' }]])
         .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }])
         .mockResolvedValueOnce([[{
           id: 10, organization_id: 1, name: 'María García',

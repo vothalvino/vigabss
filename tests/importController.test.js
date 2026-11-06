@@ -190,6 +190,15 @@ describe('importController', () => {
       expect(result.total).toBe(2);
       expect(result.errors.length).toBe(1);
     });
+
+    test("an imported client takes the organization's locale", async () => {
+      db.query.mockResolvedValueOnce([{ insertId: 3 }]);
+      const { req, res, next } = mockReqRes({ orgId: 7, body: { csv: 'name\nCliente MX' } });
+      await importClients(req, res, next);
+      const [sql, params] = db.query.mock.calls.find(([q]) => /INSERT INTO clients/.test(q));
+      expect(sql).toMatch(/locale\)[\s\S]*SELECT o\.locale FROM organizations o WHERE o\.id = \?/);
+      expect(params.at(-1)).toBe(7);
+    });
   });
 
   // ---------------------------------------------------------------------------
