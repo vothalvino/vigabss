@@ -113,7 +113,8 @@ pending migration — the primary and each isolated organization — into
 `storage/backups/pre-migration-<timestamp>/`, prints the restore commands, and
 keeps the newest `PRE_MIGRATION_BACKUP_KEEP` sets (default 3). If a dump fails,
 nothing is migrated and the previous app is started again. Set
-`PRE_MIGRATION_BACKUP=0` in `.env.prod` to skip the dump for one run.
+`PRE_MIGRATION_BACKUP=0` in `.env.prod` to skip the dump; it stays skipped
+until you remove that line.
 
 `install.sh` sets this up for you. To add it to an existing install, create a
 **wrapper** (not a copy):
@@ -452,7 +453,7 @@ the one that was checked, whatever the tag points at later. Set the mode in
 ```bash
 VIGABSS_VERIFY_SIGNATURE=auto       # default: verify when cosign is installed, warn when not
 VIGABSS_VERIFY_SIGNATURE=required   # refuse to deploy unless the signature verifies
-VIGABSS_VERIFY_SIGNATURE=off        # one run only: skip the check (e.g. while Sigstore is unreachable)
+VIGABSS_VERIFY_SIGNATURE=off        # skip the check until removed (e.g. while Sigstore is unreachable)
 ```
 
 Install cosign on the host ([instructions](https://docs.sigstore.dev/cosign/system_config/installation/))
