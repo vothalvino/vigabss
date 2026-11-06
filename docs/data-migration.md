@@ -1,6 +1,6 @@
 # Data Migration Runbook
 
-This runbook covers migrating an existing ISP's data into VigaBSS 0.1.0-alpha.3. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
+This runbook covers migrating an existing ISP's data into VigaBSS 0.1.0-alpha.4. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
 
 Examples use the fresh-install database name and backup prefix `vigabss`.
 Before any destructive command, replace them with the configured `DB_NAME` and
@@ -29,7 +29,7 @@ databases and backup prefixes do not need to be renamed.
 
 ## Overview
 
-VigaBSS 0.1.0-alpha.3 exposes bulk-import API endpoints that accept **CSV** files. Each import runs as a background job: the request stores the CSV and answers `202` with the job, and `GET /api/v1/import/jobs/<id>` reports its progress and result. Rows are inserted independently — errors in individual rows do not abort the entire import; instead they are collected and returned with the job's result. The stored CSV is deleted when the job ends.
+VigaBSS 0.1.0-alpha.4 exposes bulk-import API endpoints that accept **CSV** files. Each import runs as a background job: the request stores the CSV and answers `202` with the job, and `GET /api/v1/import/jobs/<id>` reports its progress and result. Rows are inserted independently — errors in individual rows do not abort the entire import; instead they are collected and returned with the job's result. The stored CSV is deleted when the job ends.
 
 ### Import endpoints summary
 
@@ -49,7 +49,7 @@ All endpoints require authentication and the `X-Org-Id` header. File uploads use
 
 Before importing any data, complete every item on this checklist:
 
-- [ ] VigaBSS 0.1.0-alpha.3 is installed and all database migrations have been applied (`pnpm run migrate`)
+- [ ] VigaBSS 0.1.0-alpha.4 is installed and all database migrations have been applied (`pnpm run migrate`)
 - [ ] At least one Organization exists in the system
 - [ ] At least one admin user exists and can obtain a JWT token
 - [ ] All required **Plans** exist (`POST /api/v1/plans`) — contracts reference `plan_id`
