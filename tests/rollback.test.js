@@ -53,7 +53,8 @@ describe('Rollback SQL files — database/rollbacks/', () => {
   it('every rollback reverses something', () => {
     const empty = listSqlFiles(ROLLBACKS_DIR).filter((file) => {
       const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      return !/\b(DROP|ALTER|MODIFY|CHANGE|DELETE|UPDATE)\b/i.test(content);
+      // INSERT reverses a migration that deleted rows (e.g. revoked grants).
+      return !/\b(DROP|ALTER|MODIFY|CHANGE|DELETE|UPDATE|INSERT)\b/i.test(content);
     });
     expect(empty).toEqual([]);
   });
