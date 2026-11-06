@@ -4,7 +4,7 @@
 // SUP-14 — the shell scripts are linted and their tests run on pull requests
 // =============================================================================
 // CI had no shellcheck step, and the tests that execute install/TLS/deploy
-// failure branches ran only in lint-and-test, which skips pull requests. The
+// failure branches ran only in lint-and-test, which then skipped pull requests. The
 // shell-scripts job runs both on every PR and gates image publication.
 // =============================================================================
 
