@@ -5,7 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **The Resellers page shows write actions only to users who may use them.**
+  A reseller user saw Suspend, Delete, Approve and Remove buttons on the
+  reseller list, plan price, commission and IP pool tabs that could only answer
+  403; each now requires the permission its route checks (#106).
 
 ## 0.1.0-alpha.4 — 2026-11-06
 
