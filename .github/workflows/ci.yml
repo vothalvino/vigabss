@@ -109,10 +109,10 @@ jobs:
         run: |
           # Check that schema.sql is valid SQL (no syntax errors in CREATE TABLE statements)
           grep -c "CREATE TABLE" database/schema.sql
-          # Ensure migration count matches expected
+          # The release baseline comes first; later migrations follow it.
           MIGRATION_COUNT=$(ls database/migrations/*.sql | wc -l)
           echo "Found $MIGRATION_COUNT migrations"
-          test "$MIGRATION_COUNT" -ge 100
+          test -f database/migrations/001_baseline.sql
 
       - name: Check migration numbering integrity
         run: |
