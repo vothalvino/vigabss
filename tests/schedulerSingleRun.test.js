@@ -96,8 +96,8 @@ test('shipped manifests run one replica unless Redis is configured', () => {
   const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   expect(read('k8s/deployment.yaml')).toMatch(/^\s+replicas: 1$/m);
   expect(read('k8s/hpa.yaml')).toMatch(/maxReplicas: 1$/m);
-  const values = read('charts/fireisp/values.yaml');
+  const values = read('charts/vigabss/values.yaml');
   expect(values).toMatch(/^replicaCount: 1$/m);
   expect(values).toMatch(/^hpa:\n {2}enabled: false$/m);
-  expect(read('charts/fireisp/templates/deployment.yaml')).toMatch(/fail "More than one replica/);
+  expect(read('charts/vigabss/templates/deployment.yaml')).toMatch(/fail "More than one replica/);
 });

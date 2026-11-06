@@ -1379,24 +1379,24 @@ jobs:
           version: v3.14.4
 
       - name: Lint Helm chart
-        run: helm lint charts/fireisp --strict --set-string image.tag=${{ github.sha }} --set ingress.tls.secretName=fireisp-tls
+        run: helm lint charts/vigabss --strict --set-string image.tag=${{ github.sha }} --set ingress.tls.secretName=vigabss-tls
 
       - name: Template Helm chart (smoke-render)
         run: |
           # The chart/release name remains the compatibility identity used by
           # existing Helm installations and the deployment guide.
-          helm template fireisp charts/fireisp \
+          helm template vigabss charts/vigabss \
             --set-string image.tag=${{ github.sha }} \
-            --set ingress.tls.secretName=fireisp-tls \
+            --set ingress.tls.secretName=vigabss-tls \
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
 
       - name: Template Helm chart with egress restricted
         run: |
-          helm template fireisp charts/fireisp \
+          helm template vigabss charts/vigabss \
             --set-string image.tag=${{ github.sha }} \
-            --set ingress.tls.secretName=fireisp-tls \
+            --set ingress.tls.secretName=vigabss-tls \
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             --set networkPolicy.egress.enabled=true \
@@ -1434,18 +1434,18 @@ jobs:
       - name: Install, upgrade and uninstall the chart
         run: |
           set -euo pipefail
-          ARGS=(--namespace fireisp
+          ARGS=(--namespace vigabss
             --set-string image.tag=${{ github.sha }}
-            --set ingress.tls.secretName=fireisp-tls
+            --set ingress.tls.secretName=vigabss-tls
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000)
-          helm install fireisp charts/fireisp --create-namespace "${ARGS[@]}"
-          helm upgrade fireisp charts/fireisp "${ARGS[@]}"
-          kubectl get pvc -n fireisp fireisp-storage
-          helm uninstall fireisp --namespace fireisp
+          helm install vigabss charts/vigabss --create-namespace "${ARGS[@]}"
+          helm upgrade vigabss charts/vigabss "${ARGS[@]}"
+          kubectl get pvc -n vigabss vigabss-storage
+          helm uninstall vigabss --namespace vigabss
           # The claim and the namespace outlive the release.
-          kubectl get pvc -n fireisp fireisp-storage
-          kubectl get namespace fireisp
+          kubectl get pvc -n vigabss vigabss-storage
+          kubectl get namespace vigabss
 
   helm-release:
     name: Helm release
@@ -1470,8 +1470,8 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_VERSION="${GITHUB_REF_NAME#v}"
-          CHART_VERSION=$(awk '$1 == "version:" { print $2 }' charts/fireisp/Chart.yaml | tr -d '"')
-          APP_VERSION=$(awk '$1 == "appVersion:" { print $2 }' charts/fireisp/Chart.yaml | tr -d '"')
+          CHART_VERSION=$(awk '$1 == "version:" { print $2 }' charts/vigabss/Chart.yaml | tr -d '"')
+          APP_VERSION=$(awk '$1 == "appVersion:" { print $2 }' charts/vigabss/Chart.yaml | tr -d '"')
           ROOT_VERSION=$(node -p "require('./package.json').version")
           FRONTEND_VERSION=$(node -p "require('./frontend/package.json').version")
           E2E_VERSION=$(node -p "require('./e2e/package.json').version")
@@ -1488,8 +1488,8 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_VERSION="${GITHUB_REF_NAME#v}"
-          sed -i '0,/^  tag: ""$/s//  tag: "'"$RELEASE_VERSION"'"/' charts/fireisp/values.yaml
-          grep -qx "  tag: \"${RELEASE_VERSION}\"" charts/fireisp/values.yaml
+          sed -i '0,/^  tag: ""$/s//  tag: "'"$RELEASE_VERSION"'"/' charts/vigabss/values.yaml
+          grep -qx "  tag: \"${RELEASE_VERSION}\"" charts/vigabss/values.yaml
 
       # chart-releaser commits index.yaml to gh-pages and fails without a git
       # identity (v0.1.0-alpha.1's index had to be committed by hand).
@@ -1508,7 +1508,7 @@ jobs:
           charts_dir: charts
           skip_existing: true
           # The repository's latest release is the app's v* release, not the
-          # chart's fireisp-<version> release.
+          # chart's vigabss-<version> release.
           mark_as_latest: false
 
       # chart-releaser cannot mark a release as a pre-release, so a chart for a
@@ -1519,7 +1519,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh release edit "fireisp-${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+          gh release edit "vigabss-${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
 
   # ---------------------------------------------------------------------------
   # Production compose: the Redis service actually starts, and keeps its

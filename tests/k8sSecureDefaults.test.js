@@ -13,31 +13,31 @@ const root = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
 test('both cosign policies accept images signed on main or a v* tag', () => {
-  for (const f of ['k8s/cosign-policy.yaml', 'charts/fireisp/templates/cosign-policy.yaml']) {
+  for (const f of ['k8s/cosign-policy.yaml', 'charts/vigabss/templates/cosign-policy.yaml']) {
     expect(read(f)).toContain('subjectRegExp: "^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$"');
   }
 });
 
 test('ingress TLS is on by default and the chart refuses to render without a secret or issuer', () => {
-  expect(read('charts/fireisp/values.yaml')).toMatch(/ {2}tls:\n {4}enabled: true\n/);
-  const ingress = read('charts/fireisp/templates/ingress.yaml');
+  expect(read('charts/vigabss/values.yaml')).toMatch(/ {2}tls:\n {4}enabled: true\n/);
+  const ingress = read('charts/vigabss/templates/ingress.yaml');
   expect(ingress).toMatch(/if and \.Values\.ingress\.tls\.enabled \(not \.Values\.ingress\.tls\.secretName\) \(not \.Values\.ingress\.tls\.clusterIssuer\)[\s\S]*?fail /);
   expect(read('k8s/ingress.yaml')).toMatch(/^ {2}tls:\n {4}- hosts:/m);
 });
 
 test('a NetworkPolicy limits HTTP to the ingress and metrics namespaces', () => {
-  const np = read('charts/fireisp/templates/networkpolicy.yaml');
+  const np = read('charts/vigabss/templates/networkpolicy.yaml');
   expect(np).toMatch(/kind: NetworkPolicy/);
   expect(np).toMatch(/policyTypes: \[Ingress/);
   expect(np).toMatch(/- port: http\n\s+protocol: TCP/);
-  expect(read('charts/fireisp/values.yaml')).toMatch(/networkPolicy:\n {2}enabled: true/);
+  expect(read('charts/vigabss/values.yaml')).toMatch(/networkPolicy:\n {2}enabled: true/);
   expect(read('k8s/networkpolicy.yaml')).toMatch(/kubernetes\.io\/metadata\.name: ingress-nginx/);
 });
 
 test('the pod mounts no service-account token, and namespaces enforce the restricted profile', () => {
-  expect(read('charts/fireisp/templates/deployment.yaml')).toMatch(/\n {6}automountServiceAccountToken: false\n/);
+  expect(read('charts/vigabss/templates/deployment.yaml')).toMatch(/\n {6}automountServiceAccountToken: false\n/);
   expect(read('k8s/deployment.yaml')).toMatch(/\n {6}automountServiceAccountToken: false\n/);
-  for (const f of ['k8s/namespace.yaml', 'charts/fireisp/templates/namespace.yaml']) {
+  for (const f of ['k8s/namespace.yaml', 'charts/vigabss/templates/namespace.yaml']) {
     expect(read(f)).toContain('pod-security.kubernetes.io/enforce: restricted');
   }
 });
@@ -54,7 +54,7 @@ test('the pod runs as the image user, a fixed uid above 10000', () => {
   expect(uid).toBeGreaterThanOrEqual(10000);
   expect(gid).toBe(uid);
   expect(dockerfile).toMatch(new RegExp(`\\nUSER ${uid}:${gid}\\n`));
-  for (const [file, indent] of [['k8s/deployment.yaml', 8], ['charts/fireisp/values.yaml', 2]]) {
+  for (const [file, indent] of [['k8s/deployment.yaml', 8], ['charts/vigabss/values.yaml', 2]]) {
     const pad = ' '.repeat(indent);
     const text = read(file);
     expect([file, text.match(new RegExp(`\\n${pad}runAsUser: (\\d+)`))?.[1]]).toEqual([file, String(uid)]);
@@ -66,11 +66,11 @@ test('the pod runs as the image user, a fixed uid above 10000', () => {
 // Egress stays open by default (providers and devices live anywhere), but an
 // operator who knows where the app must reach can now drop everything else.
 test('the chart can restrict egress, off by default, with DNS and the release namespace allowed', () => {
-  const values = read('charts/fireisp/values.yaml');
+  const values = read('charts/vigabss/values.yaml');
   expect(values).toMatch(/\n {2}egress:\n(?: {4}#[^\n]*\n)* {4}enabled: false\n/);
   expect(values).toMatch(/\n {4}allowDns: true\n/);
   expect(values).toMatch(/\n {4}allowReleaseNamespace: true\n/);
-  const np = read('charts/fireisp/templates/networkpolicy.yaml');
+  const np = read('charts/vigabss/templates/networkpolicy.yaml');
   expect(np).toMatch(/policyTypes: \[Ingress\{\{ if \$egress\.enabled \}\}, Egress\{\{ end \}\}\]/);
   expect(np).toMatch(/k8s-app: kube-dns/);
   expect(np).toMatch(/ipBlock:\n\s+cidr: \{\{ \.cidr \| quote \}\}/);

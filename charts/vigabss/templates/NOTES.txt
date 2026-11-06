@@ -4,17 +4,17 @@ VigaBSS {{ .Chart.AppVersion }} deployed successfully.
 {{- if .Values.ingress.enabled }}
   http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.hostname }}
 {{- else }}
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "{{ include "fireisp.selectorLabels" . }}" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "{{ include "vigabss.selectorLabels" . }}" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 3000:3000
   Open http://127.0.0.1:3000
 {{- end }}
 
 2. Database migrations already ran in the pre-start init container. Confirm the
    application is ready before exposing it:
-  kubectl wait -n {{ .Release.Namespace }} --for=condition=Available deploy/{{ include "fireisp.fullname" . }} --timeout=180s
+  kubectl wait -n {{ .Release.Namespace }} --for=condition=Available deploy/{{ include "vigabss.fullname" . }} --timeout=180s
 
 3. (Optional, development/demo installations only) Seed demo data:
-  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "fireisp.fullname" . }} -- node src/scripts/seed.js
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "vigabss.fullname" . }} -- node src/scripts/seed.js
 
 ⚠  IMPORTANT: Replace the placeholder secret values in values.yaml (or a
    sealed-secrets / external-secrets overlay) before going to production.

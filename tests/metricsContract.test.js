@@ -74,7 +74,7 @@ function grafanaExprs(file) {
 }
 
 const sources = [
-  ...['k8s/prometheus-alerts.yaml', 'charts/fireisp/templates/prometheus-alerts.yaml'].map((f) => [f, yamlExprs(read(f)), read(f)]),
+  ...['k8s/prometheus-alerts.yaml', 'charts/vigabss/templates/prometheus-alerts.yaml'].map((f) => [f, yamlExprs(read(f)), read(f)]),
   ...fs.readdirSync(path.join(root, 'docs/grafana')).filter((f) => f.endsWith('.json'))
     .map((f) => [`docs/grafana/${f}`, grafanaExprs(`docs/grafana/${f}`), '']),
 ];
@@ -120,10 +120,10 @@ test('a histogram is cumulative once, and its series only grow', () => {
 });
 
 test('the memory alerts sit below the 512Mi container limit', () => {
-  for (const f of ['k8s/prometheus-alerts.yaml', 'charts/fireisp/templates/prometheus-alerts.yaml']) {
+  for (const f of ['k8s/prometheus-alerts.yaml', 'charts/vigabss/templates/prometheus-alerts.yaml']) {
     expect(read(f)).not.toMatch(/process_resident_memory_bytes[^\n]*> 1\.5 \* 1024/);
   }
-  expect(read('k8s/prometheus-alerts.yaml')).toMatch(/process_resident_memory_bytes\{job="fireisp"\} > 435 \* 1024 \* 1024/);
+  expect(read('k8s/prometheus-alerts.yaml')).toMatch(/process_resident_memory_bytes\{job="vigabss"\} > 435 \* 1024 \* 1024/);
 });
 
 test('a successful backup and scheduled-task runs are exported', () => {
@@ -133,4 +133,15 @@ test('a successful backup and scheduled-task runs are exported', () => {
   const out = metrics.registry.render();
   expect(out).toMatch(/^fireisp_last_backup_timestamp_seconds 1793502000$/m);
   expect(out).toMatch(/^scheduled_task_runs_total\{task="database_backup",status="success"\} 1$/m);
+});
+
+test('the alert rules select the scrape job the docs tell operators to configure', () => {
+  // The rules said job="fireisp" while docs/deployment.md names the job
+  // vigabss, so no alert could ever match a series.
+  const jobName = read('docs/deployment.md').match(/^\s+- job_name: (\S+)$/m)[1];
+  for (const file of ['k8s/prometheus-alerts.yaml', 'charts/vigabss/templates/prometheus-alerts.yaml']) {
+    // job="mysql" is the separate MySQL exporter's scrape job.
+    const jobs = new Set([...read(file).matchAll(/job="([^"]+)"/g)].map((m) => m[1]).filter((job) => job !== 'mysql'));
+    expect([...jobs]).toEqual([jobName]);
+  }
 });

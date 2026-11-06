@@ -1,7 +1,5 @@
 apiVersion: v2
-# Retained as the technical chart identity so an existing Helm release keeps
-# its selectors and PVC names. Product-facing metadata is VigaBSS.
-name: fireisp
+name: vigabss
 description: VigaBSS 0.1.0-alpha.4 — ISP management platform (billing, RADIUS, SNMP, CFDI)
 type: application
 version: 0.1.0-alpha.4

@@ -18,7 +18,7 @@ describe('VigaBSS release identity', () => {
   });
 
   it('keeps every first-party package and the Helm app version aligned', () => {
-    const chart = yaml.load(fs.readFileSync(path.join(root, 'charts/fireisp/Chart.yaml'), 'utf8'));
+    const chart = yaml.load(fs.readFileSync(path.join(root, 'charts/vigabss/Chart.yaml'), 'utf8'));
     const versions = [
       readJson('package.json').version,
       readJson('frontend/package.json').version,

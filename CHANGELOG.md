@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The Helm chart is named `vigabss`.** It was still `fireisp`, so every
+  release published a `fireisp-<version>` chart release. The chart now lives in
+  `charts/vigabss`; the docs install it as `helm install vigabss vigabss/vigabss`
+  into the `vigabss` namespace, with `vigabss` database defaults.
+- **Prometheus alerts can fire.** The alert rules selected `job="fireisp"`
+  while the docs configure the scrape job as `vigabss`, so no rule matched any
+  series; both rule files now select `vigabss`, and a test keeps them aligned.
 - **The Resellers page shows write actions only to users who may use them.**
   A reseller user saw Suspend, Delete, Approve and Remove buttons on the
   reseller list, plan price, commission and IP pool tabs that could only answer

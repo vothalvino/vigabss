@@ -690,7 +690,7 @@ describe('k8s and Helm point at the image that is actually published', () => {
   });
 
   it('the Helm chart defaults to the published image', () => {
-    expect(yaml.load(read('charts/fireisp/values.yaml')).image.repository).toBe(REGISTRY);
+    expect(yaml.load(read('charts/vigabss/values.yaml')).image.repository).toBe(REGISTRY);
   });
 
   it('the plain manifest runs migration and app from one immutable release image', () => {
@@ -704,9 +704,9 @@ describe('k8s and Helm point at the image that is actually published', () => {
   });
 
   it('source Helm renders fail closed until a published image SHA is selected', () => {
-    const values = yaml.load(read('charts/fireisp/values.yaml'));
+    const values = yaml.load(read('charts/vigabss/values.yaml'));
     expect(values.image.tag).toBe('');
-    expect(read('charts/fireisp/templates/_helpers.tpl')).toMatch(
+    expect(read('charts/vigabss/templates/_helpers.tpl')).toMatch(
       /required "image\.tag is required; use a published full commit SHA/,
     );
   });
@@ -736,14 +736,14 @@ describe('k8s and Helm point at the image that is actually published', () => {
     expect(verify.run).toContain('test "$RELEASE_VERSION" = "$APP_VERSION"');
     const pin = helm.steps.find(s => s.name === 'Pin the packaged chart to its published release image');
     expect(pin.run).toContain(
-      'grep -qx "  tag: \\"${RELEASE_VERSION}\\"" charts/fireisp/values.yaml',
+      'grep -qx "  tag: \\"${RELEASE_VERSION}\\"" charts/vigabss/values.yaml',
     );
     const release = helm.steps.find(s => s.name === 'Run chart-releaser');
     expect(release).toBeDefined();
   });
 
   it('the cosign policies verify that same path', () => {
-    for (const f of ['k8s/cosign-policy.yaml', 'charts/fireisp/templates/cosign-policy.yaml']) {
+    for (const f of ['k8s/cosign-policy.yaml', 'charts/vigabss/templates/cosign-policy.yaml']) {
       expect(read(f)).toContain(REGISTRY);
     }
   });

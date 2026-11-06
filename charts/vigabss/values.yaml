@@ -266,14 +266,10 @@ config:
 secrets:
   JWT_SECRET: "REPLACEME-generate-a-random-64-char-string"
   ENCRYPTION_KEY: "REPLACEME-generate-a-random-32-byte-hex-key"
-  # The chart deliberately retains the `fireisp` namespace identity so existing
-  # releases, service discovery, selectors, and PVCs remain upgrade-compatible.
-  DB_HOST: "mysql.fireisp.svc.cluster.local"
+  DB_HOST: "mysql.vigabss.svc.cluster.local"
   DB_PORT: "3306"
-  # Database/user names are also retained compatibility identifiers. Override
-  # them explicitly for a fresh database created with VigaBSS-native names.
-  DB_NAME: "fireisp"
-  DB_USER: "fireisp"
+  DB_NAME: "vigabss"
+  DB_USER: "vigabss"
   DB_PASSWORD: "REPLACEME-database-password"
 
 ## Prometheus monitoring resources (requires Prometheus Operator CRDs).
