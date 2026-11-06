@@ -252,7 +252,7 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
   const exemptCheck = await isClientSuspensionExempt(contractId);
   if (exemptCheck.exempt) {
     logger.info({ contractId, reason: exemptCheck.reason }, 'Skipping suspension — client is suspension-exempt');
-    return { skipped: true, reason: exemptCheck.reason };
+    return { skipped: true, code: 'SUSPENSION_EXEMPT', reason: exemptCheck.reason };
   }
 
   logger.info({ contractId, ruleId, invoiceId }, 'Suspending contract');

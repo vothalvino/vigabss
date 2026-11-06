@@ -118,6 +118,25 @@ describe('POST /api/v1/contracts/:id/suspend', () => {
     expect(suspensionService.suspendContract).not.toHaveBeenCalled();
   });
 
+  test.each([
+    [{ skipped: true, reason: 'CONTRACT_NOT_ACTIVE' }, 'CONTRACT_NOT_ACTIVE'],
+    [{ skipped: true, reason: 'NO_OVERDUE_BALANCE' }, 'NO_OVERDUE_BALANCE'],
+    [{ skipped: true, code: 'SUSPENSION_EXEMPT', reason: 'hospital' }, 'SUSPENSION_EXEMPT'],
+  ])('returns 422, not success, when the service skips the suspension (%o)', async (outcome, code) => {
+    mockAuthUser();
+    db.query.mockResolvedValueOnce([[{ id: 5, status: 'pending', organization_id: 1 }]]);
+    suspensionService.suspendContract.mockResolvedValueOnce(outcome);
+
+    const res = await request(app)
+      .post('/api/v1/contracts/5/suspend')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({});
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe(code);
+    expect(res.body.data).toBeUndefined();
+  });
+
   test('returns 401 without a valid auth token', async () => {
     const res = await request(app)
       .post('/api/v1/contracts/5/suspend')

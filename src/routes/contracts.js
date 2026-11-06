@@ -746,12 +746,25 @@ router.post('/:id/suspend', requirePermission('contracts.update'), async (req, r
     if (contracts[0].status === 'suspended') {
       return res.status(422).json({ error: { code: 'ALREADY_SUSPENDED', message: 'Contract is already suspended' } });
     }
-    await suspensionService.suspendContract(
+    const outcome = await suspensionService.suspendContract(
       parseInt(req.params.id, 10),
       req.body.rule_id || null,
       req.user.id,
       req.body.invoice_id || null,
     );
+    // The service re-checks under a row lock and skips a contract that is not
+    // active, a suspension-exempt client, or (with a rule) a paid-up one.
+    // Reporting 'suspended' for a skip told staff the service was cut while
+    // the subscriber stayed online.
+    if (outcome?.skipped) {
+      const code = outcome.code || outcome.reason;
+      const message = {
+        CONTRACT_NOT_ACTIVE: 'Only an active contract can be suspended',
+        NO_OVERDUE_BALANCE: 'The contract has no overdue balance for this rule',
+        SUSPENSION_EXEMPT: `The client is exempt from suspension${outcome.reason ? ` (${outcome.reason})` : ''}`,
+      }[code] || 'The contract was not suspended';
+      return res.status(422).json({ error: { code, message } });
+    }
     res.json({ data: { contract_id: parseInt(req.params.id, 10), status: 'suspended' } });
   } catch (err) {
     next(err);
