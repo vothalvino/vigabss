@@ -987,6 +987,56 @@
       "signatureMissing": "Obtén la firma del cliente en el contrato de activación.",
       "mxSignatureMissing": "Obtén la firma del cliente en el contrato mexicano de activación.",
       "globalSignatureMissing": "Obtén la firma del cliente en la constancia de instalación del servicio."
+    },
+    "stepsLabel": "Pasos de activación",
+    "stepShort": {
+      "s1": "Programar visita",
+      "s2": "Probar conexión",
+      "s3": "Firma del cliente",
+      "s4": "Terminar visita",
+      "s5": "Activar"
+    },
+    "nextLabel": "Siguiente:",
+    "readyLabel": "Listo:",
+    "next": {
+      "waitPrepare": "un responsable de contratos prepara la visita de instalación.",
+      "recommission": "crea una visita de reemplazo: la anterior está cerrada o le falta la evidencia de prueba.",
+      "syncDocuments": "actualiza los documentos de activación para que el cliente firme el contrato vigente.",
+      "prepare": "elige al técnico y prepara la visita de instalación.",
+      "cleanupUntil": "la línea de prueba se está apagando. Podrás terminar la visita a las {{time}}.",
+      "cleanupRetrying": "la línea de prueba se está apagando; el sistema lo está confirmando y reintenta cada pocos minutos.",
+      "arrival": "el cliente firma la autorización de llegada y luego el técnico enciende el internet temporal.",
+      "assign": "asigna la visita a un técnico antes de probar.",
+      "recordTest": "el internet temporal está encendido. Haz una prueba de velocidad y registra el resultado abajo.",
+      "startTest": "el técnico enciende el internet temporal y hace una prueba de velocidad.",
+      "recordStaticTest": "el técnico hace una prueba de velocidad y registra el resultado.",
+      "sign": "el cliente lee y firma el contrato de activación.",
+      "handoff": "registra una lectura de aceptación (o dispénsala con una nota) y termina la visita.",
+      "activate": "todo está listo. Activa el contrato para encender la línea de forma permanente.",
+      "blocked": "completa los puntos de “Pendiente”."
+    },
+    "cleanupWhy": "Ningún router confirmó que la sesión terminó, así que por seguridad la línea se considera activa hasta la hora original de fin de la ventana de prueba. Asignar el contrato a un NAS lo hace inmediato.",
+    "lockedAfter": "Disponible después del paso {{step}}.",
+    "lockedAfterTestAndSign": "Disponible después de la prueba de conexión y la firma del cliente.",
+    "showDetails": "Ver detalles",
+    "hideDetails": "Ocultar detalles",
+    "summary": {
+      "visit": "Orden de servicio {{order}} · orden de trabajo #{{workOrder}} ({{status}})",
+      "visitRestricted": "La visita de instalación está preparada.",
+      "signed": "El cliente ya firmó."
+    },
+    "serviceOrderStatus": {
+      "pending": "pendiente",
+      "in_process": "en proceso",
+      "completed": "completada",
+      "cancelled": "cancelada"
+    },
+    "workOrderStatus": {
+      "pending": "sin asignar",
+      "assigned": "asignada",
+      "in_progress": "en curso",
+      "completed": "completada",
+      "cancelled": "cancelada"
     }
   },
   "invoiceList": {
