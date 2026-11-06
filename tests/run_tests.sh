@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VigaBSS 0.1.0-alpha.6 — Test Runner
+# VigaBSS 0.1.0-alpha.7 — Test Runner
 # =============================================================================
 # Runs all SQL test files against a MySQL database.
 #
@@ -71,7 +71,7 @@ TEST_FILES=(
 
 # ---- Run tests --------------------------------------------------------------
 echo "============================================="
-echo " VigaBSS 0.1.0-alpha.6 — Database Test Suite"
+echo " VigaBSS 0.1.0-alpha.7 — Database Test Suite"
 echo "============================================="
 echo " Host:     ${MYSQL_HOST}:${MYSQL_PORT}"
 echo " Database: ${MYSQL_DATABASE}"

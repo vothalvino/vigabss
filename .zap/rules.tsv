@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 0.1.0-alpha.6 — OWASP ZAP Passive-Scan Rule Overrides
+# VigaBSS 0.1.0-alpha.7 — OWASP ZAP Passive-Scan Rule Overrides
 # =============================================================================
 # Format: <rule-id> TAB <IGNORE|WARN|FAIL> TAB (<optional description>)
 # Reference: https://www.zaproxy.org/docs/alerts/

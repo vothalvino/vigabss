@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.6 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
+# VigaBSS 0.1.0-alpha.7 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
 
 > **Audience:** Operators, compliance officers, legal counsel.
 > This document is a working inventory of personal-data categories held by
