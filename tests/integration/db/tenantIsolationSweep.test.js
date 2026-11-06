@@ -117,6 +117,7 @@ const PATH_PARAMS = {
   '/facturas-publicas/:id': 'factura_publica_invoices',
   '/facturas-publicas/:id/items/:itemId': 'factura_publica_invoice_items',
   '/portal/kb/:slugOrId': 'portal_kb_articles',
+  '/portal/documents/:id': 'signed_documents',
   '/portal/chat/:token': { table: 'portal_chat_sessions', column: 'session_token' },
   '/olt-management/:id': 'devices',
   '/olt-management/ports/:portId': 'olt_ports',
