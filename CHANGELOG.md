@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.6 — 2026-11-06
+
 - **Signed documents can be read and downloaded again.** Once signed, an
   activation contract (or service acknowledgment, or installation
   authorization) only showed "Signed by <name>". Staff now open it from the
