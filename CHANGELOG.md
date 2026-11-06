@@ -7,6 +7,24 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 Nothing yet.
 
+## 0.1.0-alpha.3 — 2026-11-06
+
+Fixes found by testing 0.1.0-alpha.2 on a live install.
+
+- **Suspending a contract no longer reports success when nothing happened.**
+  A pending contract, or a suspension-exempt client, now gets a 422 that says
+  why, instead of `status: suspended` while the subscriber stays online.
+- **The update banner follows the install's channel.** A release-channel
+  install (the default) compares against the newest `v*` release, not the
+  head of `main`, so a merge no longer shows a phantom update.
+  `VIGABSS_CHANNEL` now reaches the app container.
+- **New clients take their organization's locale.** In an MX organization,
+  clients created from the API, the form, the reseller portal or CSV import
+  are MX unless another locale is chosen, so they get the MX rules
+  (border-region IVA, CFDI).
+- **The API spec lists only endpoints that exist.** 21 documented operations
+  were not served; a test now walks the router and fails on any such entry.
+
 ## 0.1.0-alpha.2 — 2026-11-06
 
 Fixes found on the first real install of 0.1.0-alpha.1. Install this release

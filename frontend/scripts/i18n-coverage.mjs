@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// VigaBSS 0.1.0-alpha.2 — i18n message catalogue coverage checker
+// VigaBSS 0.1.0-alpha.3 — i18n message catalogue coverage checker
 // =============================================================================
 // Verifies that every key present in the English base catalogue (en.json) also
 // exists in every other supported locale (es.json, pt-BR.json), and that every

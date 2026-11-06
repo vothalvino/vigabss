@@ -1,6 +1,6 @@
-# VigaBSS 0.1.0-alpha.2 — Frontend
+# VigaBSS 0.1.0-alpha.3 — Frontend
 
-React 19 + TypeScript + Vite admin panel for VigaBSS 0.1.0-alpha.2.
+React 19 + TypeScript + Vite admin panel for VigaBSS 0.1.0-alpha.3.
 
 ## Quick Start
 
