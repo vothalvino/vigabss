@@ -1516,6 +1516,16 @@ jobs:
           # chart's fireisp-<version> release.
           mark_as_latest: false
 
+      # chart-releaser cannot mark a release as a pre-release, so a chart for a
+      # v*-alpha/beta/rc tag would look like a stable release.
+      - name: Mark the chart release as a pre-release
+        if: contains(github.ref_name, '-')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release edit "fireisp-${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+
   # ---------------------------------------------------------------------------
   # Production compose: the Redis service actually starts, and keeps its
   # password out of argv
