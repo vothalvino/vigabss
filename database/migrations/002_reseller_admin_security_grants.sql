@@ -8,7 +8,7 @@
 -- own reseller, but those routes are organization-wide and not reseller-scoped,
 -- so a reseller partner could read the ISP's network defences and stage, or
 -- activate, an admin IP allowlist entry that locks the ISP's own administrators
--- out of admin pages. Found on demo2 with a bound reseller user.
+-- out of admin pages. Found on a test install with a bound reseller user.
 --
 -- The group keeps its reseller_* grants (scoped by middleware/resellerScope.js)
 -- and webauthn.* (a user's own passkeys). Safe to re-run: deleting grants that
