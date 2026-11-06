@@ -74,6 +74,16 @@ test('nothing is dumped when no migration is pending, or for a fresh database', 
   expect(mockState.dumps).toEqual([]);
 });
 
+test('a fresh primary is not asked for its isolated tenants (the table does not exist yet)', async () => {
+  const tenants = require('../src/services/tenantDatabaseService');
+  tenants.listIsolatedMigrationTargets.mockClear();
+  mockState.schemas = { vigabss: null };
+  const result = await preMigrationBackup({ includeIsolatedTenants: true });
+  expect(result.skipped).toBe(true);
+  expect(tenants.listIsolatedMigrationTargets).not.toHaveBeenCalled();
+  expect(mockState.dumps).toEqual([]);
+});
+
 test('a failed dump rejects, so the caller does not migrate', async () => {
   mockState.schemas = { vigabss: [], tenant_7: [] };
   mockState.failDump = 'tenant_7';

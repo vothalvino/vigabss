@@ -138,18 +138,14 @@ describe('redeploy.sh pulls and never builds', () => {
     expect(tagLine).toMatch(/^\s*TAG="\$\{1:-/);
   });
 
-  it('refuses an application rollback across the migration 459 privacy boundary', () => {
+  it('refuses an application rollback to a build that predates the release baseline', () => {
+    // The 459/460 one-way boundaries are part of 001_baseline.sql, so every
+    // tagged release is past them; only a pre-release build is not.
     expect(script).toMatch(/PINNED_ENV_TAG="\$\{VIGABSS_IMAGE_TAG:-\$\{FIREISP_IMAGE_TAG:-\}\}"/);
     expect(script).toMatch(/\[\[ -n "\$\{1:-\$PINNED_ENV_TAG\}" \]\]/);
-    expect(script).toMatch(/cat-file -e "\$\{TAG\}\^\{commit\}:database\/migrations\/459_activate_snmp_trap_forwarding\.sql"/);
-    expect(script).toMatch(/refusing to start an application version that predates migration 459/);
-    expect(script).toMatch(/Roll forward with a corrected post-459 image/);
-  });
-
-  it('refuses an application rollback across the migration 460 client-communication boundary', () => {
-    expect(script).toMatch(/cat-file -e "\$\{TAG\}\^\{commit\}:database\/migrations\/460_client_communication_contact_epoch\.sql"/);
-    expect(script).toMatch(/refusing to start an application version that predates migration 460/);
-    expect(script).toMatch(/Roll forward with a corrected post-460 image/);
+    expect(script).toMatch(/cat-file -e "\$\{TAG\}\^\{commit\}:database\/migrations\/001_baseline\.sql"/);
+    expect(script).toMatch(/refusing to start an application version that predates the release/);
+    expect(script).not.toMatch(/migrations\/4[0-9]{2}_/);
   });
 
   it('enforces a retention policy, because a plain prune is inert here', () => {

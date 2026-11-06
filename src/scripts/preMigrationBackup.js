@@ -73,14 +73,21 @@ async function preMigrationBackup({ includeIsolatedTenants = process.env.MIGRATE
 
   const files = migrationFiles();
   const primary = db.baseConnectionConfig;
-  const targets = [{ label: primary.database, connectionConfig: primary }];
+  const primaryPending = await pendingCount(primary, files);
+  // A fresh primary has no organization_database_configs table to list
+  // isolated tenants from, and no tenant can exist before it is migrated.
+  if (primaryPending === null) {
+    logger.info({ target: primary.database }, 'Fresh database (no schema_migrations) — nothing to back up');
+    return { skipped: true, files: [] };
+  }
+  const targets = [];
   if (includeIsolatedTenants) {
     for (const t of await listIsolatedMigrationTargets()) {
       targets.push({ label: `org ${t.organizationId} (${t.database})`, connectionConfig: t.connectionConfig });
     }
   }
 
-  const due = [];
+  const due = primaryPending > 0 ? [{ label: primary.database, connectionConfig: primary }] : [];
   for (const target of targets) {
     const pending = await pendingCount(target.connectionConfig, files);
     if (pending === null) {
