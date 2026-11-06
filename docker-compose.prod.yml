@@ -302,10 +302,10 @@ services:
       # new DB setting, then the GUI becomes authoritative.
       WG_LEGACY_SERVER_ENABLED: ${WG_SERVER_ENABLED-__unset__}
       WG_HELPER_SOCKET:      /run/fireisp-wireguard/helper.sock
-      # "A newer main build is available" banner for the install operator. ON by
+      # "A newer build is available" banner for the install operator. ON by
       # default so a fresh install works with no configuration. This is the only
       # outbound request VigaBSS makes on its own behalf: an unauthenticated
-      # read of the newest public commit — no install data, no telemetry.
+      # read of the newest public release tag or commit — no install data, no telemetry.
       # Set VIGABSS_UPDATE_CHECK=0 in .env.prod to switch it off. The inherited
       # FIREISP_UPDATE_CHECK spelling remains supported for existing installs.
       #
@@ -314,6 +314,9 @@ services:
       # settings row would be writable by any tenant's admin.
       VIGABSS_UPDATE_CHECK:   ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
       FIREISP_UPDATE_CHECK:  ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
+      # The banner compares against the channel redeploy follows: the newest
+      # v* release, or main.
+      VIGABSS_CHANNEL:       ${VIGABSS_CHANNEL:-release}
     volumes:
       # Named volume, NOT a host bind mount: the previous `./storage` bind mount
       # was root-owned on the host, so the non-root `fireisp` container user hit

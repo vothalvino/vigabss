@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS — is a newer main build available?
+// VigaBSS — is a newer build available on this install's channel?
 // =============================================================================
 // Answers two separate questions, and keeps them separate on purpose:
 //
@@ -9,7 +9,7 @@
 //                                               ON unless an operator opts out.
 //
 // ON BY DEFAULT, OPT-OUT. A fresh install should tell its operator that a
-// newer main build exists without anyone first discovering that a variable exists
+// newer build exists without anyone first discovering that a variable exists
 // and editing a file full of secrets to set it — an update notice nobody turns
 // on notifies nobody.
 //
@@ -50,6 +50,53 @@ const REPO = process.env.VIGABSS_UPDATE_REPO
   || process.env.FIREISP_UPDATE_REPO
   || 'vothalvino/vigabss';
 const API = `https://api.github.com/repos/${REPO}/commits/main`;
+const TAGS_API = `https://api.github.com/repos/${REPO}/tags?per_page=100`;
+
+// The channel redeploy follows (VIGABSS_CHANNEL, default 'release'). Comparing
+// a release-channel install against main reported an update after every merge,
+// and pressing Update redeployed the same release. Anything but 'main' is the
+// release channel, as redeploy refuses any other value outright.
+function channel() {
+  return String(process.env.VIGABSS_CHANNEL || '').trim().toLowerCase() === 'main' ? 'main' : 'release';
+}
+
+// redeploy picks `git tag --list 'v[0-9]*' --sort=-version:refname` with
+// versionsort.suffix=-: numeric core first, then a release outranks its own
+// pre-releases (v1.0.0-rc.1 < v1.0.0), and pre-release parts compare
+// numerically where both are numbers (alpha.10 > alpha.2).
+function compareVersionTags(a, b) {
+  const split = (tag) => {
+    const [core, ...pre] = tag.replace(/^v/, '').split('-');
+    return { core: core.split('.').map(Number), pre: pre.join('-') };
+  };
+  const x = split(a);
+  const y = split(b);
+  for (let i = 0; i < Math.max(x.core.length, y.core.length); i += 1) {
+    const d = (x.core[i] || 0) - (y.core[i] || 0);
+    if (d) return d;
+  }
+  if (!x.pre || !y.pre) return (x.pre ? -1 : 0) - (y.pre ? -1 : 0);
+  const xp = x.pre.split('.');
+  const yp = y.pre.split('.');
+  for (let i = 0; i < Math.max(xp.length, yp.length); i += 1) {
+    if (xp[i] === undefined) return -1;
+    if (yp[i] === undefined) return 1;
+    const xn = /^\d+$/.test(xp[i]);
+    const yn = /^\d+$/.test(yp[i]);
+    if (xn && yn && Number(xp[i]) !== Number(yp[i])) return Number(xp[i]) - Number(yp[i]);
+    if (xn !== yn) return xn ? -1 : 1;
+    if (xp[i] !== yp[i]) return xp[i] < yp[i] ? -1 : 1;
+  }
+  return 0;
+}
+
+function newestReleaseTag(tags) {
+  const releases = (Array.isArray(tags) ? tags : [])
+    .filter((t) => typeof t?.name === 'string' && /^v[0-9]/.test(t.name)
+      && typeof t?.commit?.sha === 'string');
+  releases.sort((a, b) => compareVersionTags(b.name, a.name));
+  return releases[0] || null;
+}
 
 // TWO DIFFERENT CADENCES, and conflating them made this feature useless.
 //
@@ -89,7 +136,7 @@ let lastForcedAt = 0;
 // proxy, both realistic for this product. Both fields end up null, the guard
 // reads falsy, and the outbound call repeats on EVERY request forever. `at` is
 // stamped on every outcome, so it cannot have that hole.
-let cache = { at: 0, latestSha: null, error: null };
+let cache = { at: 0, latestSha: null, latestRelease: null, error: null };
 
 // The in-flight request, shared by every concurrent caller. Without it, several
 // widgets mounting at once each issue an identical outbound call — and with
@@ -174,29 +221,48 @@ async function fetchLatestSha({ force = false } = {}) {
   return refresh();
 }
 
+async function getJson(url, signal) {
+  const res = await fetch(url, {
+    signal,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      // GitHub requires a User-Agent. It names the product, never the install.
+      'User-Agent': 'VigaBSS-update-check',
+    },
+  });
+  if (!res.ok) throw new Error(`GitHub responded ${res.status}`);
+  return res.json();
+}
+
 async function doFetch() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(API, {
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/vnd.github+json',
-        // GitHub requires a User-Agent. It names the product, never the install.
-        'User-Agent': 'VigaBSS-update-check',
-      },
-    });
-    if (!res.ok) throw new Error(`GitHub responded ${res.status}`);
-    const body = await res.json();
-    const sha = typeof body?.sha === 'string' ? body.sha : null;
+    let sha = null;
+    let release = null;
+    if (channel() === 'release') {
+      const tag = newestReleaseTag(await getJson(TAGS_API, controller.signal));
+      if (tag) {
+        sha = tag.commit.sha;
+        release = tag.name;
+      }
+    }
+    // The main channel, and the release channel before any release is tagged
+    // (redeploy follows main then too).
+    if (!release) {
+      const body = await getJson(API, controller.signal);
+      sha = typeof body?.sha === 'string' ? body.sha : null;
+    }
     // A 200 with no usable sha is a FAILED check, recorded as such — not a
     // success that happens to know nothing.
-    cache = { at: Date.now(), latestSha: sha, error: sha ? null : 'response carried no commit sha' };
+    cache = {
+      at: Date.now(), latestSha: sha, latestRelease: release, error: sha ? null : 'response carried no commit sha',
+    };
     return sha;
   } catch (err) {
     // Never throws to the caller: an unreachable github.com must not break the
     // page that asked. Cached as an error so it is not retried per request.
-    cache = { at: Date.now(), latestSha: null, error: err.message };
+    cache = { at: Date.now(), latestSha: null, latestRelease: null, error: err.message };
     logger.info({ err: err.message }, 'Update check could not reach GitHub');
     return null;
   } finally {
@@ -217,8 +283,10 @@ async function getStatus({ force = false } = {}) {
   if (!isEnabled()) {
     return {
       release_version: product.version,
+      channel: channel(),
       running_sha: running,
       latest_sha: null,
+      latest_release: null,
       update_available: false,
       check_enabled: false,
       checked_at: null,
@@ -228,8 +296,10 @@ async function getStatus({ force = false } = {}) {
   const latest = await fetchLatestSha({ force });
   return {
     release_version: product.version,
+    channel: channel(),
     running_sha: running,
     latest_sha: latest,
+    latest_release: cache.latestRelease,
     update_available: Boolean(running && latest && running !== latest),
     check_enabled: true,
     checked_at: cache.at ? new Date(cache.at).toISOString() : null,
@@ -257,13 +327,13 @@ function warmCache() {
 
 /** Test seam — the module-level cache would otherwise leak between cases. */
 function _resetCache() {
-  cache = { at: 0, latestSha: null, error: null };
+  cache = { at: 0, latestSha: null, latestRelease: null, error: null };
   lastForcedAt = 0;
   inFlight = null;
 }
 
 module.exports = {
-  getStatus, runningSha, isEnabled, warmCache,
+  getStatus, runningSha, isEnabled, warmCache, channel, compareVersionTags, newestReleaseTag,
   ENV_FLAG, LEGACY_ENV_FLAG, CHECK_TTL_MS, FAILURE_TTL_MS, MIN_FORCED_INTERVAL_MS,
   _resetCache,
 };

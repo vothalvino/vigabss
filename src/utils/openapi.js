@@ -1301,7 +1301,7 @@ function generateSpec() {
         get: { tags: ['System'], summary: 'Newest deploy request and host agent liveness', operationId: 'getSystemDeploy', security: [{ bearerAuth: [] }], responses: r200('SystemDeploy') },
         post: { tags: ['System'], summary: 'Ask the host to redeploy', operationId: 'requestSystemDeploy', security: [{ bearerAuth: [] }], responses: r202('SystemDeploy request accepted') },
       },
-      '/system/version': { get: { tags: ['System'], summary: 'Installed release, running commit, and whether a newer main build exists', operationId: 'getSystemVersion', security: [{ bearerAuth: [] }], responses: dataResponses('SystemVersion') } },
+      '/system/version': { get: { tags: ['System'], summary: 'Installed release, running commit, and whether a newer build exists on its channel', operationId: 'getSystemVersion', security: [{ bearerAuth: [] }], responses: dataResponses('SystemVersion') } },
       '/firerelay/health': { get: { tags: ['FireRelay'], summary: 'Node health (cluster token required)', operationId: 'firerelayHealth', security: [{ relayTokenAuth: [] }], responses: { ...r200('NodeHealth'), 401: { description: 'Invalid or missing relay token' }, 503: { description: 'Relay token not configured' } } } },
       '/firerelay/nodes': {
         get: { tags: ['FireRelay'], summary: 'List cluster nodes', operationId: 'listFirerelayNodes', security: [{ bearerAuth: [] }], responses: r200('Node[]') },
@@ -4797,8 +4797,10 @@ function systemVersionSchema() {
     ],
     properties: {
       release_version: { type: ['string', 'null'], description: 'Installed semantic release version.' },
+      channel: { type: 'string', enum: ['release', 'main'], description: 'The channel redeploy follows (VIGABSS_CHANNEL).' },
       running_sha: { type: ['string', 'null'], description: 'Commit baked into the running image, when built by CI.' },
-      latest_sha: { type: ['string', 'null'], description: 'Newest commit on the configured main branch, when reachable.' },
+      latest_sha: { type: ['string', 'null'], description: "Commit of the channel's newest build (newest v* tag, or main), when reachable." },
+      latest_release: { type: ['string', 'null'], description: 'Newest v* release tag, on the release channel.' },
       update_available: { type: 'boolean' },
       check_enabled: { type: 'boolean' },
       checked_at: { type: ['string', 'null'], format: 'date-time' },
