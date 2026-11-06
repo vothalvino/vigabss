@@ -503,7 +503,7 @@ describe('sql-column-check: new migrations are checked too', () => {
 // README counts — caught on main, not locally, four times in a row
 // =============================================================================
 // CI validates that README.md's migration range and table count match reality,
-// but `lint-and-test` is MAIN-PUSH ONLY: four PRs went green and then reddened
+// but `lint-and-test` was MAIN-PUSH ONLY then: four PRs went green and reddened
 // main, because migration 436 added a table and only the migration RANGE was
 // bumped, not the table count. This asserts both locally.
 describe('README is in sync with the schema and migrations', () => {
