@@ -7,14 +7,14 @@ are in namespace.yaml; label an existing namespace yourself.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "fireisp.fullname" . }}
+  name: {{ include "vigabss.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "fireisp.labels" . | nindent 4 }}
+    {{- include "vigabss.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "fireisp.selectorLabels" . | nindent 6 }}
+      {{- include "vigabss.selectorLabels" . | nindent 6 }}
   {{- $egress := .Values.networkPolicy.egress }}
   policyTypes: [Ingress{{ if $egress.enabled }}, Egress{{ end }}]
   ingress:

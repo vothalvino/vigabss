@@ -2,16 +2,16 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "fireisp.fullname" . }}
+  name: {{ include "vigabss.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "fireisp.labels" . | nindent 4 }}
+    {{- include "vigabss.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "fireisp.fullname" . }}
+    name: {{ include "vigabss.fullname" . }}
   minReplicas: {{ .Values.hpa.minReplicas }}
   maxReplicas: {{ .Values.hpa.maxReplicas }}
   metrics:

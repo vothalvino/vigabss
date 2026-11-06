@@ -3,14 +3,14 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "fireisp.fullname" . }}
+  name: {{ include "vigabss.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "fireisp.labels" . | nindent 4 }}
+    {{- include "vigabss.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
 spec:
   minAvailable: {{ .Values.pdb.minAvailable }}
   selector:
     matchLabels:
-      {{- include "fireisp.selectorLabels" . | nindent 6 }}
+      {{- include "vigabss.selectorLabels" . | nindent 6 }}
 {{- end }}

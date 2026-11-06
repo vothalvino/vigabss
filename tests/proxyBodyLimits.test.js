@@ -38,7 +38,7 @@ test.each(['nginx/nginx.conf', 'nginx/host-nginx.conf'])('%s keeps the small /ac
   expect(read(file)).toMatch(/location \/acs\/ \{[^}]*client_max_body_size 1m;/);
 });
 
-test.each(['k8s/ingress.yaml', 'charts/fireisp/values.yaml'])('%s ingress body size fits a full-size upload', (file) => {
+test.each(['k8s/ingress.yaml', 'charts/vigabss/values.yaml'])('%s ingress body size fits a full-size upload', (file) => {
   const m = /proxy-body-size:\s*"([^"]+)"/.exec(read(file));
   expect(m).not.toBeNull();
   expect(bytes(m[1])).toBeGreaterThanOrEqual(NEEDED);

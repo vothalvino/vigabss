@@ -37,7 +37,7 @@ spec:
     # SLO-1 — API Availability (target: 99.9% = 0.001 error budget)
     # Multi-window burn-rate alerting (Google SRE Workbook §5).
     # -------------------------------------------------------------------------
-    - name: fireisp.slo1.availability
+    - name: vigabss.slo1.availability
       rules:
 
         # Fast-burn: fires when 1 h burn rate > 14.4× budget AND 5 min > 14.4×
@@ -45,9 +45,9 @@ spec:
         - alert: VigaBSS_API_HighErrorRate_FastBurn
           expr: |
             (
-              job:fireisp_http_error_rate:ratio_1h > (14.4 * 0.001)
+              job:vigabss_http_error_rate:ratio_1h > (14.4 * 0.001)
               and
-              job:fireisp_http_error_rate:ratio_5m > (14.4 * 0.001)
+              job:vigabss_http_error_rate:ratio_5m > (14.4 * 0.001)
             )
           for: 2m
           labels:
@@ -67,9 +67,9 @@ spec:
         - alert: VigaBSS_API_HighErrorRate_SlowBurn
           expr: |
             (
-              job:fireisp_http_error_rate:ratio_6h > (6 * 0.001)
+              job:vigabss_http_error_rate:ratio_6h > (6 * 0.001)
               and
-              job:fireisp_http_error_rate:ratio_30m > (6 * 0.001)
+              job:vigabss_http_error_rate:ratio_30m > (6 * 0.001)
             )
           for: 15m
           labels:
@@ -88,9 +88,9 @@ spec:
         - alert: VigaBSS_API_HighErrorRate_LongBurn
           expr: |
             (
-              job:fireisp_http_error_rate:ratio_24h > (3 * 0.001)
+              job:vigabss_http_error_rate:ratio_24h > (3 * 0.001)
               and
-              job:fireisp_http_error_rate:ratio_6h > (3 * 0.001)
+              job:vigabss_http_error_rate:ratio_6h > (3 * 0.001)
             )
           for: 60m
           labels:
@@ -107,48 +107,48 @@ spec:
     # -------------------------------------------------------------------------
     # Recording rules for SLO-1 (computed over multiple windows)
     # -------------------------------------------------------------------------
-    - name: fireisp.slo1.recording
+    - name: vigabss.slo1.recording
       rules:
-        - record: job:fireisp_http_error_rate:ratio_5m
+        - record: job:vigabss_http_error_rate:ratio_5m
           expr: |
-            sum(rate(http_requests_total{job="fireisp", status=~"5.."}[5m]))
+            sum(rate(http_requests_total{job="vigabss", status=~"5.."}[5m]))
             /
-            sum(rate(http_requests_total{job="fireisp"}[5m]))
+            sum(rate(http_requests_total{job="vigabss"}[5m]))
 
-        - record: job:fireisp_http_error_rate:ratio_30m
+        - record: job:vigabss_http_error_rate:ratio_30m
           expr: |
-            sum(rate(http_requests_total{job="fireisp", status=~"5.."}[30m]))
+            sum(rate(http_requests_total{job="vigabss", status=~"5.."}[30m]))
             /
-            sum(rate(http_requests_total{job="fireisp"}[30m]))
+            sum(rate(http_requests_total{job="vigabss"}[30m]))
 
-        - record: job:fireisp_http_error_rate:ratio_1h
+        - record: job:vigabss_http_error_rate:ratio_1h
           expr: |
-            sum(rate(http_requests_total{job="fireisp", status=~"5.."}[1h]))
+            sum(rate(http_requests_total{job="vigabss", status=~"5.."}[1h]))
             /
-            sum(rate(http_requests_total{job="fireisp"}[1h]))
+            sum(rate(http_requests_total{job="vigabss"}[1h]))
 
-        - record: job:fireisp_http_error_rate:ratio_6h
+        - record: job:vigabss_http_error_rate:ratio_6h
           expr: |
-            sum(rate(http_requests_total{job="fireisp", status=~"5.."}[6h]))
+            sum(rate(http_requests_total{job="vigabss", status=~"5.."}[6h]))
             /
-            sum(rate(http_requests_total{job="fireisp"}[6h]))
+            sum(rate(http_requests_total{job="vigabss"}[6h]))
 
-        - record: job:fireisp_http_error_rate:ratio_24h
+        - record: job:vigabss_http_error_rate:ratio_24h
           expr: |
-            sum(rate(http_requests_total{job="fireisp", status=~"5.."}[24h]))
+            sum(rate(http_requests_total{job="vigabss", status=~"5.."}[24h]))
             /
-            sum(rate(http_requests_total{job="fireisp"}[24h]))
+            sum(rate(http_requests_total{job="vigabss"}[24h]))
 
     # -------------------------------------------------------------------------
     # SLO-2 — API Read Latency (target: p99 ≤ 500 ms)
     # -------------------------------------------------------------------------
-    - name: fireisp.slo2.latency
+    - name: vigabss.slo2.latency
       rules:
 
         - alert: VigaBSS_API_HighLatency_FastBurn
           expr: |
             histogram_quantile(0.99,
-              sum(rate(http_request_duration_seconds_bucket{job="fireisp", method="GET"}[5m]))
+              sum(rate(http_request_duration_seconds_bucket{job="vigabss", method="GET"}[5m]))
               by (le)
             ) > 0.5
           for: 5m
@@ -166,7 +166,7 @@ spec:
         - alert: VigaBSS_API_HighLatency_SlowBurn
           expr: |
             histogram_quantile(0.99,
-              sum(rate(http_request_duration_seconds_bucket{job="fireisp", method="GET"}[30m]))
+              sum(rate(http_request_duration_seconds_bucket{job="vigabss", method="GET"}[30m]))
               by (le)
             ) > 0.5
           for: 30m
@@ -183,7 +183,7 @@ spec:
     # -------------------------------------------------------------------------
     # SLO-3 — RADIUS Authentication Success Rate (target: ≥ 99.95%)
     # -------------------------------------------------------------------------
-    - name: fireisp.slo3.radius
+    - name: vigabss.slo3.radius
       rules:
 
         - alert: VigaBSS_RADIUS_AuthFailureSpike
@@ -228,7 +228,7 @@ spec:
     # -------------------------------------------------------------------------
     # General operational alerts (not SLO-gated but operationally important)
     # -------------------------------------------------------------------------
-    - name: fireisp.operational
+    - name: vigabss.operational
       rules:
 
         - alert: VigaBSS_HighMemoryUsage
@@ -236,7 +236,7 @@ spec:
             # 85% of the 512Mi container limit (k8s/deployment.yaml). The old
             # 1.5 GiB threshold sat above the limit, so the pod was OOM-killed
             # before this could fire (OPS-15). Keep in step with the limit.
-            process_resident_memory_bytes{job="fireisp"} > 435 * 1024 * 1024
+            process_resident_memory_bytes{job="vigabss"} > 435 * 1024 * 1024
           for: 10m
           labels:
             severity: warning
@@ -252,7 +252,7 @@ spec:
         # authentications or device events are being lost.
         - alert: VigaBSS_RADIUSDatagramsDropped
           expr: |
-            sum(rate(radius_dropped_total{job="fireisp"}[10m])) > 0
+            sum(rate(radius_dropped_total{job="vigabss"}[10m])) > 0
           for: 15m
           labels:
             severity: warning
@@ -264,7 +264,7 @@ spec:
 
         - alert: VigaBSS_SNMPTrapsDropped
           expr: |
-            sum(rate(snmp_traps_dropped_total{job="fireisp"}[10m])) > 0
+            sum(rate(snmp_traps_dropped_total{job="vigabss"}[10m])) > 0
           for: 15m
           labels:
             severity: warning
