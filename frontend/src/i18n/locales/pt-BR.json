@@ -6058,7 +6058,7 @@
     "accuracyCol": "Precisão"
   },
   "updateBanner": {
-    "message": "Há uma compilação mais recente da ramificação principal do VigaBSS — em execução {{running}}, a mais recente é {{latest}}.",
+    "message": "Há uma compilação mais recente do VigaBSS — em execução {{running}}, a mais recente é {{latest}}.",
     "dismiss": "Ocultar até amanhã"
   },
   "version": {
@@ -6072,12 +6072,12 @@
     "checkState": "Verificação de atualizações",
     "checkOn": "Ativada",
     "checkOff": "Desativada — nenhuma requisição externa é feita",
-    "latest": "Compilação principal mais recente",
+    "latest": "Compilação mais recente",
     "unreachable": "não foi possível contatar o github.com",
     "status": "Status",
-    "updateAvailable": "Há uma compilação principal mais recente",
-    "upToDate": "Atualizado com a ramificação principal",
-    "comparisonUnknown": "Não foi possível comparar esta compilação com a ramificação principal",
+    "updateAvailable": "Há uma compilação mais recente",
+    "upToDate": "Atualizado",
+    "comparisonUnknown": "Não foi possível comparar esta compilação com a mais recente",
     "checkedAt": "Última verificação",
     "howToUpdate": "Para atualizar, execute no servidor:",
     "howToEnable": "A verificação de atualizações vem ativada por padrão. É a única requisição externa que o VigaBSS faz por conta própria e nenhum dado da instalação é enviado. Para desativá-la, defina",
@@ -6098,7 +6098,7 @@
       "succeeded": "Concluída",
       "failed": "Falhou"
     },
-    "nothingToDeploy": "Você está na compilação principal mais recente — nada a implantar.",
+    "nothingToDeploy": "Você está na compilação mais recente — nada a implantar.",
     "comparisonUnknown": "O VigaBSS não pode confirmar se há uma atualização até que ambos os commits de compilação sejam conhecidos. Verifique novamente antes de implantar.",
     "enableCheckFirst": "A verificação de atualizações está desativada, portanto não há com o que comparar. Ative-a para implantar daqui.",
     "agentPending": "O agente de implantação ainda não se registrou. Ele é instalado automaticamente pelo redeploy e se registra em cerca de 30 segundos; se isso persistir, execute: journalctl -u vigabss-deploy-agent -n 30",

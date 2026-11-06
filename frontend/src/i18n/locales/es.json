@@ -6058,7 +6058,7 @@
     "accuracyCol": "Precisión"
   },
   "updateBanner": {
-    "message": "Hay una compilación más reciente de la rama principal de VigaBSS — en ejecución {{running}}, la más reciente es {{latest}}.",
+    "message": "Hay una compilación más reciente de VigaBSS — en ejecución {{running}}, la más reciente es {{latest}}.",
     "dismiss": "Ocultar hasta mañana"
   },
   "version": {
@@ -6072,12 +6072,12 @@
     "checkState": "Comprobación de actualizaciones",
     "checkOn": "Activada",
     "checkOff": "Desactivada — no se realiza ninguna petición externa",
-    "latest": "Última compilación principal",
+    "latest": "Última compilación",
     "unreachable": "no se pudo contactar con github.com",
     "status": "Estado",
-    "updateAvailable": "Hay una compilación principal más reciente",
-    "upToDate": "Actualizado con la rama principal",
-    "comparisonUnknown": "No se puede comparar esta compilación con la rama principal",
+    "updateAvailable": "Hay una compilación más reciente",
+    "upToDate": "Actualizado",
+    "comparisonUnknown": "No se puede comparar esta compilación con la más reciente",
     "checkedAt": "Última comprobación",
     "howToUpdate": "Para actualizar, ejecuta en el servidor:",
     "howToEnable": "La comprobación de actualizaciones está activada de forma predeterminada. Es la única petición externa que VigaBSS realiza por sí mismo y no se envía ningún dato de la instalación. Para desactivarla, define",
@@ -6098,7 +6098,7 @@
       "succeeded": "Correcto",
       "failed": "Fallido"
     },
-    "nothingToDeploy": "Estás en la última compilación principal — no hay nada que desplegar.",
+    "nothingToDeploy": "Estás en la última compilación — no hay nada que desplegar.",
     "comparisonUnknown": "VigaBSS no puede confirmar si hay una actualización hasta conocer ambos commits de compilación. Vuelve a comprobar antes de desplegar.",
     "enableCheckFirst": "La comprobación de actualizaciones está desactivada, así que no hay nada con qué comparar. Actívala para desplegar desde aquí.",
     "agentPending": "El agente de despliegue aún no se ha registrado. Se instala automáticamente con redeploy y se registra en unos 30 segundos; si esto persiste, ejecuta: journalctl -u vigabss-deploy-agent -n 30",

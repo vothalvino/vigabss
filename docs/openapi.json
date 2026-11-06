@@ -27898,7 +27898,7 @@
         "tags": [
           "System"
         ],
-        "summary": "Installed release, running commit, and whether a newer main build exists",
+        "summary": "Installed release, running commit, and whether a newer build exists on its channel",
         "operationId": "getSystemVersion",
         "security": [
           {
@@ -86421,6 +86421,14 @@
             ],
             "description": "Installed semantic release version."
           },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "release",
+              "main"
+            ],
+            "description": "The channel redeploy follows (VIGABSS_CHANNEL)."
+          },
           "running_sha": {
             "type": [
               "string",
@@ -86433,7 +86441,14 @@
               "string",
               "null"
             ],
-            "description": "Newest commit on the configured main branch, when reachable."
+            "description": "Commit of the channel's newest build (newest v* tag, or main), when reachable."
+          },
+          "latest_release": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Newest v* release tag, on the release channel."
           },
           "update_available": {
             "type": "boolean"

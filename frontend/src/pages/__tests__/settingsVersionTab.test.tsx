@@ -143,7 +143,7 @@ describe('what it shows', () => {
     respondWith({ latest_sha: 'abcdef1234567890', update_available: false });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/Up to date with main/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^Up to date$/i)).toBeInTheDocument();
   });
 
   it.each([
@@ -154,8 +154,8 @@ describe('what it shows', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
 
-    expect(await screen.findByText(/Unable to compare this build with main/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Up to date with main/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Unable to compare this build with the latest one/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Up to date$/i)).not.toBeInTheDocument();
   });
 
   it('flags an available update', async () => {
@@ -165,7 +165,7 @@ describe('what it shows', () => {
     // host has no systemd.
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/newer main build is available/i)).toBeInTheDocument();
+    expect(await screen.findByText(/newer build is available/i)).toBeInTheDocument();
   });
 
   it('explains how to switch the check OFF, since on is now the default', async () => {
@@ -179,13 +179,13 @@ describe('what it shows', () => {
   });
 
   it('hides the upstream rows entirely when the check is off', async () => {
-    // Showing "Latest main build: —" would imply a failed check rather than one
+    // Showing "Latest build: —" would imply a failed check rather than one
     // that was never made.
     respondWith({ check_enabled: false, latest_sha: null, update_available: false, checked_at: null });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
     await screen.findByText(/Disabled/i);
-    expect(screen.queryByText(/Latest main build/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Latest build/i)).not.toBeInTheDocument();
   });
 
   it('says so plainly when the image carries no commit stamp', async () => {
@@ -330,7 +330,7 @@ describe('Update now appears only when there is an update', () => {
     respondWith({ latest_sha: 'abcdef1234567890', update_available: false }, { agent_alive: true });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    await screen.findByText(/Up to date with main/i);
+    await screen.findByText(/^Up to date$/i);
     expect(screen.queryByRole('button', { name: /Update now/i })).not.toBeInTheDocument();
   });
 
