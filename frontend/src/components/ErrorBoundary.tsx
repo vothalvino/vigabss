@@ -10,6 +10,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isStaleChunkError, reloadOnce } from '@/utils/staleChunkReload';
 
 function Fallback({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
@@ -37,6 +38,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // A lazy page from an earlier deploy: reload into the new build instead
+    // of showing the error (the fallback stays as the answer if it recurs).
+    if (isStaleChunkError(error) && reloadOnce()) return;
     console.error('Render error caught by ErrorBoundary', error, info.componentStack);
   }
 

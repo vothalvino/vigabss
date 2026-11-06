@@ -11,6 +11,13 @@ import './index.css';
 import './i18n';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { reloadOnce } from './utils/staleChunkReload';
+
+// Vite fires this when a lazy page's chunk or CSS from an earlier deploy fails
+// to load; reload into the new build rather than failing the navigation.
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnce()) event.preventDefault();
+});
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element #root not found');
