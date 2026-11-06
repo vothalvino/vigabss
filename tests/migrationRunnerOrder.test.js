@@ -3,9 +3,8 @@
 // =============================================================================
 // migrate.js recorded only filenames and ordered files with a plain .sort(),
 // so '1000_x.sql' would run before '101_x.sql' and an applied migration edited
-// afterwards went unnoticed. Migration 260 created procedures without first
-// dropping them, so a run interrupted between CREATE and DROP could not be
-// repeated.
+// afterwards went unnoticed. A migration that created procedures without first
+// dropping them could not be repeated after an interrupted run.
 // =============================================================================
 
 const fs = require('fs');
@@ -29,7 +28,14 @@ const { applyMigrations } = require('../src/scripts/migrate');
 
 const MIGRATIONS = path.join(__dirname, '..', 'database', 'migrations');
 const files = listMigrationFiles(MIGRATIONS);
-const checksumOf = file => migrationChecksum(fs.readFileSync(path.join(MIGRATIONS, file), 'utf8'));
+
+// The checksum tests need several applied files; the repository has the
+// baseline and the migrations after it, so they run on a fixture directory.
+const FIXTURE = fs.mkdtempSync(path.join(os.tmpdir(), 'db21-runner-'));
+const fixtureFiles = ['001_baseline.sql', '002_second.sql', '003_third.sql', '004_pending.sql'];
+fixtureFiles.forEach((name, i) => fs.writeFileSync(path.join(FIXTURE, name), `CREATE TABLE IF NOT EXISTS t${i} (id INT);\n`));
+afterAll(() => fs.rmSync(FIXTURE, { recursive: true, force: true }));
+const checksumOf = file => migrationChecksum(fs.readFileSync(path.join(FIXTURE, file), 'utf8'));
 
 describe('numeric order', () => {
   test('a four-digit prefix sorts after the three-digit ones', () => {
@@ -71,7 +77,7 @@ describe('checksums', () => {
   }
 
   test('records new checksums, backfills missing ones and warns about changed files', async () => {
-    const [first, second, ...rest] = files;
+    const [first, second, ...rest] = fixtureFiles;
     const pending = rest.pop();
     const applied = [
       { filename: first, checksum: null },
@@ -80,7 +86,7 @@ describe('checksums', () => {
     ];
     const conn = connection(applied);
 
-    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test');
+    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE });
 
     const calls = conn.execute.mock.calls;
     expect(calls).toContainEqual(['UPDATE schema_migrations SET checksum = ? WHERE filename = ?', [checksumOf(first), first]]);
@@ -93,18 +99,59 @@ describe('checksums', () => {
   });
 
   test('a schema_migrations table without the column gets it before anything runs', async () => {
-    const conn = connection(files.map(filename => ({ filename, checksum: checksumOf(filename) })));
+    const conn = connection(fixtureFiles.map(filename => ({ filename, checksum: checksumOf(filename) })));
     conn.execute.mockImplementation(async (sql) => {
       if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
       if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[]];
-      if (/SELECT filename, checksum/.test(sql)) return [files.map(filename => ({ filename, checksum: checksumOf(filename) }))];
+      if (/SELECT filename, checksum/.test(sql)) return [fixtureFiles.map(filename => ({ filename, checksum: checksumOf(filename) }))];
       if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
       return [[{ database_name: 'fireisp_test' }]];
     });
 
-    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test');
+    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE });
 
     expect(conn.query).toHaveBeenCalledWith(expect.stringMatching(/ALTER TABLE schema_migrations ADD COLUMN checksum CHAR\(64\)/));
+  });
+});
+
+describe('a database from the pre-release history', () => {
+  test('is refused with an explanation before anything runs', async () => {
+    const conn = {
+      execute: jest.fn(async (sql) => {
+        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
+        if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
+        if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
+        if (/SELECT filename, checksum FROM schema_migrations/.test(sql)) {
+          return [[{ filename: '001_create_users_table.sql', checksum: 'a'.repeat(64) },
+            { filename: '525_snmp_shipped_profiles_system.sql', checksum: 'b'.repeat(64) }]];
+        }
+        if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
+        return [{ affectedRows: 1 }];
+      }),
+      query: jest.fn().mockResolvedValue([{}]),
+      release: jest.fn(),
+    };
+
+    await expect(applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+      .rejects.toThrow(/pre-release migration history \(2 migrations, none of them 001_baseline\.sql\)\. Nothing was changed/);
+    expect(conn.query).not.toHaveBeenCalledWith(expect.stringMatching(/CREATE TABLE IF NOT EXISTS t0/));
+    expect(conn.execute.mock.calls.some(([sql]) => /^INSERT INTO schema_migrations/.test(sql))).toBe(false);
+  });
+
+  test('a fresh database and one already on the baseline are not refused', async () => {
+    const fresh = {
+      execute: jest.fn(async (sql) => {
+        if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
+        if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
+        if (/SELECT filename, checksum/.test(sql)) return [[]];
+        if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
+        return [[{ database_name: 'fireisp_test' }]];
+      }),
+      query: jest.fn().mockResolvedValue([{}]),
+      release: jest.fn(),
+    };
+    await expect(applyMigrations({ getConnection: async () => fresh }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+      .resolves.not.toThrow();
   });
 });
 
@@ -124,13 +171,12 @@ describe('re-execution safety', () => {
     expect(offenders).toEqual([]);
   });
 
-  // From 504 on, a migration can be run again after a partial failure: its
-  // DDL is guarded and its seeds do not duplicate rows. Older files are not
-  // all safe to repeat (some reset operator settings), so CI re-runs only
-  // these.
-  test('migrations from 504 on have only guarded DDL and seeds', () => {
+  // Every migration after the baseline can be run again after a partial
+  // failure: its DDL is guarded and its seeds do not duplicate rows. CI
+  // re-runs them. The baseline itself runs once on an empty database.
+  test('migrations after the baseline have only guarded DDL and seeds', () => {
     const offenders = [];
-    for (const file of files.filter(f => migrationNumber(f) >= 504)) {
+    for (const file of files.filter(f => migrationNumber(f) > 1)) {
       // Statements inside a routine body run behind its own guards.
       const sql = read(file).replace(/CREATE\s+PROCEDURE[\s\S]*?\bEND\s*(\/\/|\$\$)/gi, '');
       for (const raw of sql.split(';')) {

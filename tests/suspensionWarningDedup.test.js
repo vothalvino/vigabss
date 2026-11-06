@@ -108,10 +108,12 @@ test('the warning candidates exclude deleted contracts and invoices (DAL-06)', a
   expect(sql).toMatch(/i\.deleted_at IS NULL/);
 });
 
-test('migration 489 disables the superseded tasks only where billing_cycle runs', () => {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'database', 'migrations', '489_suspension_warning_dedup.sql'), 'utf8');
-  expect(sql).toMatch(/task_name IN \('auto_generate_invoices', 'auto_suspend_overdue'\)/);
-  expect(sql).toMatch(/task_name = 'billing_cycle' AND organization_id IS NULL AND is_enabled = TRUE/);
+test('installs ship the superseded tasks disabled, with billing_cycle running', () => {
+  const tasks = require('./helpers/baseline').baselineRows('scheduled_tasks');
+  const enabled = name => tasks.filter(t => t.task_name === name && t.organization_id === null).map(t => t.is_enabled);
+  expect(enabled('billing_cycle')).toEqual([1]);
+  expect(enabled('auto_generate_invoices')).toEqual([0]);
+  expect(enabled('auto_suspend_overdue')).toEqual([0]);
   const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
   for (const task of ['auto_generate_invoices', 'auto_suspend_overdue']) {
     const seed = schema.slice(schema.indexOf(`(NULL, '${task}'`)).split('),')[0];

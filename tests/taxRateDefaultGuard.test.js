@@ -15,8 +15,9 @@
 // documents that cannot be un-sent.
 //
 // Two layers, and both are needed:
-//   * migration 427 — a unique index over a generated column, so a race can
-//     only ever produce ER_DUP_ENTRY instead of two defaults;
+//   * the schema — a unique index over a generated column (development
+//     migration 427), so a race can only ever produce ER_DUP_ENTRY instead of
+//     two defaults;
 //   * a beforeCreate/beforeUpdate hook — so the ordinary act of changing the
 //     default demotes the incumbent instead of colliding with that index.
 // =============================================================================
@@ -27,57 +28,36 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
-const mig = read('database/migrations/427_tax_rate_single_active_default.sql');
+const { baselineTable } = require('./helpers/baseline');
+const table = baselineTable('tax_rates');
+const guard = table.match(/`default_guard`[^\n]*/)[0];
 
-describe('migration 427 — the schema-level guarantee', () => {
-  it('adds a generated column that is NULL unless the row is an active default', () => {
+describe('the schema-level guarantee', () => {
+  it('a generated column that is NULL unless the row is an active default', () => {
     // NULLs repeat freely in a MySQL unique index, so every non-default,
     // inactive or soft-deleted row must land on NULL or the index would reject
     // perfectly legal rows.
-    expect(mig).toMatch(/GENERATED ALWAYS AS \(/);
-    expect(mig).toMatch(/CASE WHEN is_default = 1 AND status = 'active' AND deleted_at IS NULL/);
-    expect(mig).toMatch(/ELSE NULL END/);
+    expect(guard).toMatch(/GENERATED ALWAYS AS \(/);
+    expect(guard).toMatch(/case when \(\(`is_default` = 1\) and \(`status` = 'active'\) and \(`deleted_at` is null\)\)/);
+    expect(guard).toMatch(/else NULL end/);
+    expect(table).toContain('UNIQUE KEY `uq_tax_rates_default_guard` (`default_guard`)');
   });
 
   it('keys the guard on IFNULL(organization_id, 0), not the raw column', () => {
     // tax_rates.organization_id is 'NULL = applies to all tenants'. A raw
     // reference would make the guard NULL for every global rate, which the
     // unique index ignores — letting two GLOBAL defaults coexist, i.e. exactly
-    // the bug this migration closes, surviving in the one scope nobody checks.
-    //
-    // Scoped to the GENERATED COLUMN EXPRESSION, not the whole file: the
-    // pre-clean UPDATE above also uses IFNULL, so a file-wide match stayed
-    // green when the generated column was mutated to the raw column — the
-    // assertion had no teeth until it was narrowed to this slice.
-    const start = mig.indexOf('ADD COLUMN default_guard');
-    const expr = mig.slice(start, mig.indexOf('VIRTUAL', start));
-    expect(start).toBeGreaterThan(-1);
-    expect(expr).toMatch(/IFNULL\(organization_id, 0\)/);
-    expect(expr).not.toMatch(/THEN\s+organization_id\s/);
+    // the bug this closes, surviving in the one scope nobody checks.
+    expect(guard).toMatch(/then ifnull\(`organization_id`,0\)/);
+    expect(guard).not.toMatch(/then `organization_id` /);
   });
 
   it('is VIRTUAL, not STORED', () => {
     // STORED forces an ALGORITHM=COPY table rebuild, and tax_rates is the parent
-    // of FKs from invoices, quotes and credit_notes, so the rebuild risks
-    // ER_CANNOT_ADD_FOREIGN. Migration 423 hit exactly this.
-    expect(mig).toMatch(/\) VIRTUAL/);
-    expect(mig).not.toMatch(/\) STORED/);
-  });
-
-  it('demotes pre-existing duplicates before building the index', () => {
-    // The index cannot be created while two active defaults exist, so the
-    // pre-clean has to come first — and it must run OUTSIDE the
-    // IF NOT EXISTS(column) guard, or a re-run would skip it.
-    expect(mig.indexOf('UPDATE tax_rates')).toBeGreaterThan(-1);
-    expect(mig.indexOf('UPDATE tax_rates')).toBeLessThan(mig.indexOf('ADD UNIQUE KEY'));
-    expect(mig).toMatch(/HAVING COUNT\(\*\) > 1/);
-  });
-
-  it('ships a rollback that drops the index before the column', () => {
-    // MySQL will not drop a generated column an index still depends on.
-    const rb = read('database/rollbacks/427_tax_rate_single_active_default.sql');
-    expect(rb.indexOf('DROP INDEX uq_tax_rates_default_guard'))
-      .toBeLessThan(rb.indexOf('DROP COLUMN default_guard'));
+    // of FKs from invoices, quotes and credit_notes, so a later migration that
+    // touched it would risk ER_CANNOT_ADD_FOREIGN.
+    expect(guard).toMatch(/\) VIRTUAL/);
+    expect(guard).not.toMatch(/\) STORED/);
   });
 
   it('never writes the generated column', () => {

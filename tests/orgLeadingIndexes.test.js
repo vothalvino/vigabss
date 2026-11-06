@@ -21,8 +21,8 @@ test.each([
   ['work_orders', 'idx_wo_org_status_created', 'organization_id, status, created_at'],
 ])('%s has %s', (name, index, columns) => {
   expect(table(name)).toContain(`KEY ${index} (${columns})`);
-  expect(fs.readFileSync(path.join(root, 'database/migrations/501_org_leading_list_indexes.sql'), 'utf8'))
-    .toContain(`'${name}', '${index}', '${columns}'`);
+  const quoted = columns.split(', ').map(c => `\`${c}\``).join(',');
+  expect(require('./helpers/baseline').baselineTable(name)).toContain(`KEY \`${index}\` (${quoted})`);
 });
 
 test('cfdi_documents.uuid has exactly one unique index', () => {

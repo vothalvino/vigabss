@@ -173,14 +173,15 @@ describe('re-running a day must not double-count it', () => {
     expect(inserts()[0][1][0]).toBe('7:0');
   });
 
-  it('folds the NULL half of the key to 0', () => {
-    // Without that, MySQL treats the NULLs as distinct and the unique key
-    // stops preventing anything — which is the whole point of the column.
-    const mig = require('node:fs').readFileSync(
-      require('node:path').join(__dirname, '../database/migrations/441_network_health_snapshot_key.sql'), 'utf8',
-    );
-    expect(mig).toMatch(/COALESCE\(device_id, 0\), ':', COALESCE\(network_link_id, 0\)/);
-    expect(mig).not.toMatch(/GENERATED ALWAYS AS/);
+  it('keys the daily upsert on a written (not generated) subject_key', () => {
+    // NULLs folded to 0 by the aggregator (above): MySQL treats NULLs as
+    // distinct, so a NULL half would stop the unique key preventing anything.
+    // Not generated: MySQL forbids the FK actions this table uses on a
+    // generated column's base columns.
+    const table = require('./helpers/baseline').baselineTable('network_health_snapshots');
+    expect(table).toMatch(/`subject_key` varchar\(48\)/);
+    expect(table.match(/`subject_key`[^\n]*/)[0]).not.toMatch(/GENERATED ALWAYS AS/);
+    expect(table).toContain('UNIQUE KEY `uq_nhs_subject_date` (`subject_key`,`snapshot_date`)');
   });
 });
 

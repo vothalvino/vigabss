@@ -445,19 +445,19 @@ describe('sql-column-check: new migrations are checked too', () => {
 
   afterAll(() => { for (const f of probes) { try { fs.unlinkSync(f); } catch { /* gone */ } } });
 
-  test('the real migrations in the repo are clean', () => {
+  test('the real migrations in the repo are clean, and every file was seen', () => {
     const result = run({ log: () => {} });
     expect(result.errors).toEqual([]);
-    expect(result.migrations.checked).toBeGreaterThan(0);
+    const files = fs.readdirSync(MIG_DIR).filter(f => /^\d+_.*\.sql$/.test(f));
+    expect(result.migrations.checked + result.migrations.grandfathered).toBe(files.length);
   });
 
-  test('history is grandfathered, not silently unchecked', () => {
-    // The distinction matters: 435 older files are DELIBERATELY skipped because
-    // they were written against the schema as it was then. A checked count of 0
-    // would mean the scan found nothing at all, which is the failure mode a
-    // green check hides.
+  test('only the baseline is skipped, not silently unchecked', () => {
+    // The baseline is DELIBERATELY skipped: it creates every table it writes.
+    // A count of 0 here would mean the scan found nothing at all, which is the
+    // failure mode a green check hides.
     const result = run({ log: () => {} });
-    expect(result.migrations.grandfathered).toBeGreaterThan(100);
+    expect(result.migrations.grandfathered).toBe(1);
   });
 
   test('catches the exact bug that cost four CI jobs', () => {
@@ -526,7 +526,7 @@ describe('README is in sync with the schema and migrations', () => {
       .map(f => parseInt(f.slice(0, f.indexOf('_')), 10))
       .filter(Number.isFinite);
     const highest = Math.max(...nums);
-    const claimed = readme.match(/001[–-](\d+)/);
+    const claimed = readme.match(/latest: (\d+)\)/);
     expect(claimed).not.toBeNull();
     expect(Number(claimed[1])).toBe(highest);
   });

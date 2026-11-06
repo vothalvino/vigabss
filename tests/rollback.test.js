@@ -3,11 +3,10 @@
  * SQL files in database/rollbacks/.
  *
  * These are pure unit tests — no database connection required.  They verify:
- *   1. Every migration 130–150 has a corresponding rollback SQL file.
- *   2. Rollback filenames exactly match the migration filenames.
- *   3. The rollback runner module exports runRollback.
- *   4. CLI argument parsing works correctly.
- *   5. Rollback SQL files are non-empty and contain valid SQL keywords.
+ *   1. Every migration after the baseline has a rollback with the same name.
+ *   2. The baseline has none (it is the whole schema).
+ *   3. Rollback SQL files are non-empty and reverse something.
+ *   4. The rollback runner module exports runRollback.
  */
 
 const fs   = require('fs');
@@ -15,13 +14,6 @@ const path = require('path');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../database/migrations');
 const ROLLBACKS_DIR  = path.resolve(__dirname, '../database/rollbacks');
-
-// Migration numbers that must have rollback scripts
-const REQUIRED_RANGE = Array.from({ length: 21 }, (_, i) => i + 130); // 130–150
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /** List .sql files in a directory, sorted. */
 function listSqlFiles(dir) {
@@ -34,103 +26,37 @@ function migrationNumber(filename) {
   return m ? parseInt(m[1], 10) : NaN;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe('Rollback SQL files — database/rollbacks/', () => {
-  const rollbackFiles = listSqlFiles(ROLLBACKS_DIR);
-  const migrationFiles = listSqlFiles(MIGRATIONS_DIR);
-
-  it('rollbacks directory exists', () => {
+  it('the directory exists and says how rollbacks work', () => {
     expect(fs.existsSync(ROLLBACKS_DIR)).toBe(true);
+    expect(fs.readFileSync(path.join(ROLLBACKS_DIR, 'README.md'), 'utf8')).toMatch(/001_baseline\.sql` has no rollback/);
   });
 
-  it('has exactly 21 rollback files (one per migration 130–150)', () => {
-    const inRange = rollbackFiles.filter(f => {
-      const n = migrationNumber(f);
-      return n >= 130 && n <= 150;
-    });
-    expect(inRange.length).toBe(21);
-  });
-
-  // Dynamic test: every migration in range has a matching rollback
-  for (const num of REQUIRED_RANGE) {
-    it(`rollback exists for migration ${num}`, () => {
-      const migFile = migrationFiles.find(f => migrationNumber(f) === num);
-      expect(migFile).toBeDefined();
-      const rollFile = rollbackFiles.find(f => f === migFile);
-      expect(rollFile).toBeDefined();
-    });
-  }
-
-  // Every rollback file is non-empty and contains SQL
-  for (const num of REQUIRED_RANGE) {
-    it(`rollback ${num} contains valid SQL content`, () => {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      if (!file) return; // covered by the existence test above
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content.trim().length).toBeGreaterThan(0);
-      // Should contain at least one SQL keyword
-      const sqlKeywords = /\b(DROP|ALTER|DELETE|MODIFY|UPDATE)\b/i;
-      expect(sqlKeywords.test(content)).toBe(true);
-    });
-  }
-
-  it('rollback filenames exactly match migration filenames', () => {
-    const migrationSet = new Set(
-      migrationFiles
-        .filter(f => {
-          const n = migrationNumber(f);
-          return n >= 130 && n <= 150;
-        }),
-    );
-    const rollbackSet = new Set(rollbackFiles);
-    for (const mig of migrationSet) {
-      expect(rollbackSet.has(mig)).toBe(true);
-    }
-  });
-});
-
-// The CI rollback round-trip rolls back every migration from 130 up, so a
-// migration without a rollback of the same number fails it (rollback.js
-// matches by numeric prefix); catch that here first.
-describe('Rollback SQL files — every migration from 130 on', () => {
-  it('has a rollback with the same numeric prefix', () => {
-    const rollbackNumbers = new Set(listSqlFiles(ROLLBACKS_DIR).map(migrationNumber));
+  // rollback.js matches by numeric prefix, so a migration without one cannot
+  // be undone (and the CI round-trip fails); catch that here first.
+  it('every migration after the baseline has a rollback with the same filename', () => {
+    const rollbacks = new Set(listSqlFiles(ROLLBACKS_DIR));
     const missing = listSqlFiles(MIGRATIONS_DIR)
-      .filter(f => migrationNumber(f) >= 130 && !rollbackNumbers.has(migrationNumber(f)));
+      .filter(f => migrationNumber(f) > 1 && !rollbacks.has(f));
     expect(missing).toEqual([]);
   });
-});
 
-// Recent schema-altering migrations 174–185 that must have a tested down-path.
-const RECENT_RANGE = Array.from({ length: 12 }, (_, i) => i + 174); // 174–185
+  it('the baseline has no rollback', () => {
+    expect(listSqlFiles(ROLLBACKS_DIR).filter(f => migrationNumber(f) === 1)).toEqual([]);
+  });
 
-describe('Rollback SQL files — recent migrations 174–185', () => {
-  const rollbackFiles = listSqlFiles(ROLLBACKS_DIR);
-  const migrationFiles = listSqlFiles(MIGRATIONS_DIR);
+  it('no rollback is left for a migration that does not exist', () => {
+    const migrations = new Set(listSqlFiles(MIGRATIONS_DIR));
+    expect(listSqlFiles(ROLLBACKS_DIR).filter(f => !migrations.has(f))).toEqual([]);
+  });
 
-  // Every recent migration has a matching rollback with an identical filename
-  for (const num of RECENT_RANGE) {
-    it(`rollback exists and matches the migration filename for ${num}`, () => {
-      const migFile = migrationFiles.find(f => migrationNumber(f) === num);
-      expect(migFile).toBeDefined();
-      expect(rollbackFiles).toContain(migFile);
-    });
-  }
-
-  // Every recent rollback is non-empty and reverses schema with valid SQL
-  for (const num of RECENT_RANGE) {
-    it(`rollback ${num} contains valid reversing SQL`, () => {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      if (!file) return; // covered by the existence test above
+  it('every rollback reverses something', () => {
+    const empty = listSqlFiles(ROLLBACKS_DIR).filter((file) => {
       const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content.trim().length).toBeGreaterThan(0);
-      const sqlKeywords = /\b(DROP|ALTER|MODIFY|CHANGE)\b/i;
-      expect(sqlKeywords.test(content)).toBe(true);
+      return !/\b(DROP|ALTER|MODIFY|CHANGE|DELETE|UPDATE)\b/i.test(content);
     });
-  }
+    expect(empty).toEqual([]);
+  });
 });
 
 describe('Rollback runner — src/scripts/rollback.js', () => {
@@ -153,59 +79,5 @@ describe('Rollback runner — src/scripts/rollback.js', () => {
 
   it('exports runRollback function', () => {
     expect(typeof rollbackModule.runRollback).toBe('function');
-  });
-});
-
-describe('Rollback SQL content validation', () => {
-  const rollbackFiles = listSqlFiles(ROLLBACKS_DIR);
-
-  // CREATE TABLE rollbacks should use DROP TABLE
-  it('table-creation rollbacks use DROP TABLE', () => {
-    const tableRollbacks = [130, 131, 132, 133, 134, 135];
-    for (const num of tableRollbacks) {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content).toMatch(/DROP\s+TABLE/i);
-    }
-  });
-
-  // ALTER TABLE rollbacks should use ALTER TABLE or DROP COLUMN
-  it('column-addition rollbacks use ALTER TABLE', () => {
-    const alterRollbacks = [136, 137, 140, 143];
-    for (const num of alterRollbacks) {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content).toMatch(/ALTER\s+TABLE/i);
-    }
-  });
-
-  // Seed rollbacks should use DELETE
-  it('seed rollbacks use DELETE', () => {
-    const seedRollbacks = [138, 139, 145];
-    for (const num of seedRollbacks) {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content).toMatch(/DELETE\s+FROM/i);
-    }
-  });
-
-  // Trigger rollbacks should use DROP TRIGGER
-  it('trigger rollbacks use DROP TRIGGER', () => {
-    const triggerRollbacks = [146, 147, 148, 149, 150];
-    for (const num of triggerRollbacks) {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content).toMatch(/DROP\s+TRIGGER/i);
-    }
-  });
-
-  // Index rollbacks should use DROP INDEX
-  it('index rollbacks use DROP INDEX', () => {
-    const indexRollbacks = [141, 144];
-    for (const num of indexRollbacks) {
-      const file = rollbackFiles.find(f => migrationNumber(f) === num);
-      const content = fs.readFileSync(path.join(ROLLBACKS_DIR, file), 'utf8');
-      expect(content).toMatch(/DROP\s+INDEX/i);
-    }
   });
 });

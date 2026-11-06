@@ -1,3 +1,15 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+// The runner reads the rollback for each applied migration; these histories
+// name migrations from before the baseline, so their rollbacks are fixtures.
+const ROLLBACKS = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-isolated-'));
+for (const name of ['453_notification_resolution_state.sql', '455_pppoe_diagnostics_telemetry.sql', '456_nas_maintenance_mode.sql']) {
+  fs.writeFileSync(path.join(ROLLBACKS, name), `ALTER TABLE t DROP COLUMN c_${name.slice(0, 3)};\n`);
+}
+afterAll(() => fs.rmSync(ROLLBACKS, { recursive: true, force: true }));
+
 const PRIMARY_DATABASE = 'fireisp_primary_test';
 const ISOLATED_DATABASE = 'fireisp_isolated_test';
 
@@ -132,7 +144,7 @@ describe('rollback runner — isolated tenant databases', () => {
   test('executes matching step targets on every database newest-first', async () => {
     const context = setupRunner();
 
-    await context.rollback.runRollback({ step: 2, to: null, dryRun: false });
+    await context.rollback.runRollback({ step: 2, to: null, dryRun: false }, { rollbacksDir: ROLLBACKS });
 
     expect(context.listIsolatedMigrationTargets).toHaveBeenCalledTimes(1);
     expect(deletedMigrations(context.connections.primaryExecute)).toEqual([
@@ -171,7 +183,7 @@ describe('rollback runner — isolated tenant databases', () => {
     });
 
     await expect(
-      context.rollback.runRollback({ step: 1, to: null, dryRun: true }),
+      context.rollback.runRollback({ step: 1, to: null, dryRun: true }, { rollbacksDir: ROLLBACKS }),
     ).rejects.toThrow(/targets differ across databases/i);
 
     expect(context.createPool).toHaveBeenCalledTimes(4);
@@ -185,7 +197,7 @@ describe('rollback runner — isolated tenant databases', () => {
   test('dry-run preflights all histories but executes no rollback SQL or deletes', async () => {
     const context = setupRunner();
 
-    await context.rollback.runRollback({ step: 1, to: null, dryRun: true });
+    await context.rollback.runRollback({ step: 1, to: null, dryRun: true }, { rollbacksDir: ROLLBACKS });
 
     expect(context.createPool).toHaveBeenCalledTimes(4);
     expect(context.connections.primaryPlan.query).not.toHaveBeenCalled();
@@ -205,7 +217,7 @@ describe('rollback runner — isolated tenant databases', () => {
     const context = setupRunner({ isolatedPlanError: preflightError });
 
     await expect(
-      context.rollback.runRollback({ step: 1, to: null, dryRun: false }),
+      context.rollback.runRollback({ step: 1, to: null, dryRun: false }, { rollbacksDir: ROLLBACKS }),
     ).rejects.toBe(preflightError);
 
     expect(context.createPool).toHaveBeenCalledTimes(4);
@@ -225,7 +237,7 @@ describe('rollback runner — isolated tenant databases', () => {
     const context = setupRunner({ primaryExecutionError: executionError });
 
     await expect(
-      context.rollback.runRollback({ step: 1, to: null, dryRun: false }),
+      context.rollback.runRollback({ step: 1, to: null, dryRun: false }, { rollbacksDir: ROLLBACKS }),
     ).rejects.toBe(executionError);
 
     // Two preflight pools plus the failed primary execution pool. No isolated
