@@ -110,7 +110,7 @@ describe('OpenAPI spec generation', () => {
     expect(spec.paths['/alerts/rules/{id}'].put.responses[404]).toBeDefined();
   });
 
-  test('documents semantic release and main-build status separately', () => {
+  test('documents semantic release and channel build status separately', () => {
     const spec = generateSpec();
     const systemVersion = spec.components.schemas.SystemVersion;
     const response = spec.paths['/system/version'].get.responses[200]
@@ -122,7 +122,7 @@ describe('OpenAPI spec generation', () => {
     ]));
     expect(systemVersion.properties.release_version.type).toEqual(['string', 'null']);
     expect(response.properties.data).toEqual({ $ref: '#/components/schemas/SystemVersion' });
-    expect(spec.paths['/system/version'].get.summary).toMatch(/release.*main build/i);
+    expect(spec.paths['/system/version'].get.summary).toMatch(/release.*newer build.*channel/i);
   });
 
   test('documents NAS maintenance mode and localized PPPoE readiness metadata', () => {
