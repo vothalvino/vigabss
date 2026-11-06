@@ -5,7 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Signed documents can be read and downloaded again.** Once signed, an
+  activation contract (or service acknowledgment, or installation
+  authorization) only showed "Signed by <name>". Staff now open it from the
+  contract or work order (**View**: the text exactly as signed, the signature,
+  signer, date, signing IP, environment, registered contract and whether the
+  stored evidence still verifies) and download a PDF copy. Subscribers get a
+  **Documents** page in the portal with their own signed documents and a PDF
+  copy of each (`GET /portal/documents`, `/portal/documents/{id}`,
+  `/portal/documents/{id}/pdf`; staff: `GET /signed-documents/{id}/pdf`).
 
 ## 0.1.0-alpha.5 — 2026-11-06
 

@@ -35,6 +35,7 @@ const PortalForgotPassword = lazy(() => import('@/pages/portal/PortalForgotPassw
 const PortalResetPassword = lazy(() => import('@/pages/portal/PortalResetPassword').then((m) => ({ default: m.PortalResetPassword })));
 const PortalDashboard = lazy(() => import('@/pages/portal/PortalDashboard').then((m) => ({ default: m.PortalDashboard })));
 const PortalInvoices = lazy(() => import('@/pages/portal/PortalInvoices').then((m) => ({ default: m.PortalInvoices })));
+const PortalDocuments = lazy(() => import('@/pages/portal/PortalDocuments').then((m) => ({ default: m.PortalDocuments })));
 const PortalInvoiceDetail = lazy(() => import('@/pages/portal/PortalInvoiceDetail').then((m) => ({ default: m.PortalInvoiceDetail })));
 const PortalTickets = lazy(() => import('@/pages/portal/PortalTickets').then((m) => ({ default: m.PortalTickets })));
 const PortalTicketDetail = lazy(() => import('@/pages/portal/PortalTicketDetail').then((m) => ({ default: m.PortalTicketDetail })));
@@ -232,6 +233,7 @@ export function App() {
                   <Route path="/portal" element={<PortalDashboard />} />
                   <Route path="/portal/invoices" element={<PortalInvoices />} />
                   <Route path="/portal/invoices/:id" element={<PortalInvoiceDetail />} />
+                  <Route path="/portal/documents" element={<PortalDocuments />} />
                   <Route path="/portal/tickets" element={<PortalTickets />} />
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} />
                   <Route path="/portal/account" element={<PortalAccount />} />

@@ -497,7 +497,8 @@
     "privacyBanner": "Por favor revisa nuestro aviso de privacidad.",
     "privacyBannerLink": "Revisar y aceptar",
     "privacyLink": "Aviso de privacidad",
-    "cartaDerechosLink": "Carta de Derechos Mínimos"
+    "cartaDerechosLink": "Carta de Derechos Mínimos",
+    "navDocuments": "Documentos"
   },
   "dashboard": {
     "title": "Panel",
@@ -9823,5 +9824,41 @@
       "since": "Vinculado desde",
       "actions": "Acciones"
     }
+  },
+  "signedDocument": {
+    "view": "Ver",
+    "title": "Documento firmado",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo cargar el documento.",
+    "signature": "Firma",
+    "signatureAlt": "Firma de {{name}}",
+    "signedBy": "Firmado por",
+    "signedAt": "Fecha de firma",
+    "signedFrom": "Firmado desde (IP)",
+    "environment": "Entorno",
+    "sandbox": "Prueba (sin efectos legales)",
+    "production": "Producción",
+    "registration": "Contrato registrado",
+    "evidence": "Integridad de la evidencia",
+    "evidenceVerified": "Verificada — el texto y la firma no han cambiado desde la firma",
+    "evidenceBroken": "NO verificada — la evidencia almacenada no coincide",
+    "evidenceUnavailable": "No disponible para este documento",
+    "downloadPdf": "Descargar PDF",
+    "downloading": "Descargando…",
+    "downloadFailed": "No se pudo descargar el PDF.",
+    "close": "Cerrar"
+  },
+  "portalDocuments": {
+    "title": "Mis documentos",
+    "subtitle": "Los contratos y documentos que firmaste, con una copia para descargar.",
+    "none": "Aún no tienes documentos firmados.",
+    "loadError": "No se pudieron cargar tus documentos.",
+    "document": "Documento",
+    "signedAt": "Firmado",
+    "signedBy": "Firmado por",
+    "view": "Ver",
+    "hide": "Ocultar",
+    "downloadPdf": "Descargar PDF",
+    "downloadError": "No se pudo descargar el PDF. Inténtalo de nuevo."
   }
 }

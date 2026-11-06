@@ -20,6 +20,7 @@ const {
   createDocumentTemplate, updateDocumentTemplate, signDocument, generateDocuments,
 } = require('../middleware/schemas/legalDocuments');
 const legalDocumentService = require('../services/legalDocumentService');
+const signedDocumentPdf = require('../services/signedDocumentPdf');
 const privacyNoticeService = require('../services/privacyNoticeService');
 const mxRegisteredTemplateService = require('../services/mxRegisteredContractTemplateService');
 const auditLog = require('../services/auditLog');
@@ -345,6 +346,19 @@ documentsRouter.get('/:id', requirePermission('signed_documents.view'), async (r
       );
     }
     res.json({ data: document });
+  } catch (err) { next(err); }
+});
+
+// GET /signed-documents/:id/pdf — the signed copy: frozen text, signature and
+// the evidence summary. Staff copies also show the signing IP.
+documentsRouter.get('/:id/pdf', requirePermission('signed_documents.view'), async (req, res, next) => {
+  try {
+    const { buffer, filename } = await signedDocumentPdf.generateSignedDocumentPdf(req.params.id, {
+      orgId: req.orgId ?? null, includeSignerIp: true,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   } catch (err) { next(err); }
 });
 

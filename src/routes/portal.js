@@ -79,6 +79,8 @@ const dataPackService = require('../services/dataPackService');
 const portalServiceRequestService = require('../services/portalServiceRequestService');
 const privacyNoticeService = require('../services/privacyNoticeService');
 const pdfService = require('../services/pdfService');
+const signedDocumentPdf = require('../services/signedDocumentPdf');
+const legalDocumentService = require('../services/legalDocumentService');
 const aiReplyService = require('../services/aiReplyService');
 const { computeClientBalance } = require('../services/clientBalanceService');
 const whatsappService = require('../services/whatsappService');
@@ -1092,6 +1094,77 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${rows[0].invoice_number}.pdf"`);
     res.send(pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The subscriber's signed documents (activation contract, service
+// acknowledgment, installation authorization): read and download their copy.
+// Only signed documents, only the subscriber's own.
+// ---------------------------------------------------------------------------
+
+// GET /portal/documents
+router.get('/documents', async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, title, template_type, signer_name, signed_at, mx_contract_environment
+         FROM signed_documents
+        WHERE client_id = ? AND organization_id <=> ? AND status = 'signed' AND deleted_at IS NULL
+        ORDER BY signed_at DESC, id DESC
+        LIMIT 200`,
+      [req.client.id, req.client.organizationId],
+    );
+    res.json({ data: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /portal/documents/:id — the signed text and signature, without internal
+// capture details (signing IP, the staff user who captured it).
+router.get('/documents/:id', async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT * FROM signed_documents
+        WHERE id = ? AND client_id = ? AND organization_id <=> ?
+          AND status = 'signed' AND deleted_at IS NULL`,
+      [req.params.id, req.client.id, req.client.organizationId],
+    );
+    const document = rows[0];
+    if (!document) throw new NotFoundError('Document');
+    res.json({
+      data: {
+        id: document.id,
+        title: document.title,
+        template_type: document.template_type,
+        rendered_body: document.rendered_body,
+        signer_name: document.signer_name,
+        signed_at: document.signed_at,
+        signature_image: document.signature_image,
+        mx_contract_environment: document.mx_contract_environment,
+        mx_registration_number: document.mx_registration_number,
+        mx_registered_at: document.mx_registered_at,
+        mx_template_version: document.mx_template_version,
+        content_sha256: document.content_sha256,
+        evidence_valid: legalDocumentService.verifyEvidence(document),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /portal/documents/:id/pdf
+router.get('/documents/:id/pdf', async (req, res, next) => {
+  try {
+    const { buffer, filename } = await signedDocumentPdf.generateSignedDocumentPdf(req.params.id, {
+      orgId: req.client.organizationId ?? null, clientId: req.client.id,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
