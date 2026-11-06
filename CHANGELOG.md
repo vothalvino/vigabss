@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.5 — 2026-11-06
+
+- **Contract activation is a guided page.** A step tracker (schedule visit,
+  test connection, customer signs, finish visit, activate) and one "Next:"
+  sentence lead the card; only the current step shows its controls, finished
+  steps fold into a summary, and locked steps say what unlocks them. While the
+  test line is switching off it says when the visit can be finished and why,
+  instead of claiming temporary internet is still on and offering the speed
+  test again (#108).
 - **The Helm chart is named `vigabss`.** It was still `fireisp`, so every
   release published a `fireisp-<version>` chart release. The chart now lives in
   `charts/vigabss`; the docs install it as `helm install vigabss vigabss/vigabss`

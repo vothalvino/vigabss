@@ -1,7 +1,7 @@
 {
   "name": "vigabss-e2e",
-  "version": "0.1.0-alpha.4",
-  "description": "VigaBSS 0.1.0-alpha.4 — Playwright end-to-end smoke tests",
+  "version": "0.1.0-alpha.5",
+  "description": "VigaBSS 0.1.0-alpha.5 — Playwright end-to-end smoke tests",
   "private": true,
   "scripts": {
     "test": "playwright test",

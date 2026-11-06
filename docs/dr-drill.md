@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.4 — Disaster-Recovery Drill
+# VigaBSS 0.1.0-alpha.5 — Disaster-Recovery Drill
 
 > **Frequency:** Run this drill **quarterly**.  Record each run in the
 > [Quarterly Drill Log](#quarterly-drill-log) at the bottom of this file
@@ -212,7 +212,7 @@ SELECT 'schema_migrations',   COUNT(*) FROM schema_migrations;
 
 All `rows` values must be **≥ the pre-drill count** (or ≥ 1 for a
 freshly-seeded drill environment).  The `schema_migrations` count must be
-**164** (as of VigaBSS 0.1.0-alpha.4).
+**164** (as of VigaBSS 0.1.0-alpha.5).
 
 ### 4b. Referential integrity — orphaned child rows
 
