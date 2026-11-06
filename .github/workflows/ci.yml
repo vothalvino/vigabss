@@ -28,15 +28,12 @@ env:
   NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
 
 jobs:
-  # LOCAL-FIRST POLICY (2026-07-22): jobs that are fully runnable on a dev
-  # machine WITHOUT Docker (eslint, jest w/ mocked DB, spec/sql/schema drift
-  # checks, vitest, tsc) run only on push to main — the developer runs them
-  # locally before every PR, and the main run remains the post-merge safety
-  # net. PRs keep only the jobs that NEED CI infra: database-tests +
-  # migration-runner-tests (real MySQL service), container-scan (image build
-  # + Trivy), dast (compose + ZAP), helm.
+  # The local-first policy (2026-07-22) ran lint-and-test and frontend-test on
+  # main only, trusting a local run before every PR. In November 2026 two
+  # merged PRs each passed their targeted tests but broke the full suite on
+  # main (a scanner ratchet and a stale spec assertion), blocking a release.
+  # Both jobs now run on pull requests too, so the full suite gates the merge.
   lint-and-test:
-    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     runs-on: ubuntu-latest
 
@@ -741,7 +738,6 @@ jobs:
         run: docker logs ci-mariadb
 
   frontend-test:
-    if: github.event_name != 'pull_request'  # local-first: runs on main push only
     timeout-minutes: 30
     runs-on: ubuntu-latest
 
@@ -1332,8 +1328,7 @@ jobs:
     # SUP-14: install.sh, redeploy.sh, the deploy agent and the TLS scripts
     # decide whether an install or an update works at all, and their failure
     # branches only run on a real host. shellcheck is not a dev dependency, so
-    # this job is an exception to the local-first policy above and runs on
-    # pull requests too: it lints every tracked script and runs the tests
+    # it runs on pull requests too: it lints every tracked script and runs the tests
     # that execute those branches with PATH-stubbed commands.
     name: Shell scripts
     timeout-minutes: 15
