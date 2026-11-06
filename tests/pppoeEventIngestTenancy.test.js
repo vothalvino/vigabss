@@ -133,10 +133,9 @@ describe('scope and limiter wiring', () => {
     expect(isCollectorPath({ method: 'GET', originalUrl: '/api/v1/pppoe/events?page=2' })).toBe(false);
   });
 
-  test('migration 493 moves every grant of the old slug to the new one', () => {
-    const sql = fs.readFileSync(path.join(__dirname, '../database/migrations/493_rename_pppoe_events_ingest_permission.sql'), 'utf8');
-    expect(sql).toMatch(/INTO permissions[\s\S]*'pppoe_events\.ingest'/);
-    expect(sql).toMatch(/INSERT IGNORE INTO role_permissions[\s\S]*op.name = 'pppoe\.events_ingest'/);
-    expect(sql).toMatch(/DELETE FROM permissions WHERE name = 'pppoe\.events_ingest'/);
+  test('installs seed the new slug, not the old one', () => {
+    const slugs = require('./helpers/baseline').baselineRows('permissions').map(p => p.name);
+    expect(slugs).toContain('pppoe_events.ingest');
+    expect(slugs).not.toContain('pppoe.events_ingest');
   });
 });

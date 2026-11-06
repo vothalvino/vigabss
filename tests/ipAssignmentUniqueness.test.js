@@ -68,11 +68,10 @@ describe('the schema keys on pool and live rows', () => {
     expect(table).not.toMatch(/uq_ip_assignments_ip \(/);
   });
 
-  test('migration 486 and its rollback', () => {
-    const up = fs.readFileSync(path.join(__dirname, '../database/migrations/486_ip_assignments_pool_scoped_unique.sql'), 'utf8');
-    const down = fs.readFileSync(path.join(__dirname, '../database/rollbacks/486_ip_assignments_pool_scoped_unique.sql'), 'utf8');
-    expect(up).toMatch(/ADD UNIQUE KEY uq_ip_assignments_pool_ip \(pool_id, ip_address, live_flag\)/);
-    expect(up).toMatch(/DROP INDEX uq_ip_assignments_ip/);
-    expect(down).toMatch(/ADD UNIQUE KEY uq_ip_assignments_ip \(ip_address, active_flag\)/);
+  test('the baseline', () => {
+    const baseline = require('./helpers/baseline').baselineTable('ip_assignments');
+    expect(baseline).toContain('UNIQUE KEY `uq_ip_assignments_pool_ip` (`pool_id`,`ip_address`,`live_flag`)');
+    expect(baseline).not.toMatch(/`uq_ip_assignments_ip`/);
+    expect(baseline).toMatch(/`live_flag` tinyint\(1\) GENERATED ALWAYS AS \(if\(\(\(`deleted_at` is null\) and \(`status` <> 'expired'\)\),1,NULL\)\) STORED/);
   });
 });

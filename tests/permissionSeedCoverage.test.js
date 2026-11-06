@@ -12,6 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { baselineRows } = require('./helpers/baseline');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -38,18 +39,21 @@ function usedSlugs() {
   return used;
 }
 
+// Every permission row a fresh install has: the baseline's seed rows (later
+// migrations add theirs with INSERT ... permissions, matched below).
 function seededSlugs() {
-  const seeded = new Set();
+  const seeded = new Set(baselineRows('permissions').map(row => row.name));
   for (const file of listFiles(path.join(ROOT, 'database/migrations'), '.sql')) {
+    if (path.basename(file).startsWith('001_')) continue;
     const txt = fs.readFileSync(file, 'utf8');
-    // Style A (119/205): INSERT [IGNORE] INTO permissions (...) VALUES ('slug', ...), ...
-    for (const block of txt.matchAll(/INSERT\s+(?:IGNORE\s+)?INTO\s+permissions\s*\([^)]*\)\s*VALUES([\s\S]*?);/gi)) {
+    // INSERT [IGNORE] INTO permissions (...) VALUES ('slug', ...), ...
+    for (const block of txt.matchAll(/INSERT\s+(?:IGNORE\s+)?INTO\s+`?permissions`?\s*\([^)]*\)\s*VALUES([\s\S]*?);/gi)) {
       for (const [, slug] of block[1].matchAll(/\(\s*'([A-Za-z0-9_.]+)'/g)) {
         seeded.add(slug);
       }
     }
-    // Style B (321/335/377): INSERT INTO permissions (...) SELECT 'slug', ...
-    for (const m of txt.matchAll(/INSERT\s+(?:IGNORE\s+)?INTO\s+permissions\s*\([^)]*\)\s*SELECT\s*'([A-Za-z0-9_.]+)'/gi)) {
+    // INSERT INTO permissions (...) SELECT 'slug', ...
+    for (const m of txt.matchAll(/INSERT\s+(?:IGNORE\s+)?INTO\s+`?permissions`?\s*\([^)]*\)\s*SELECT\s*'([A-Za-z0-9_.]+)'/gi)) {
       seeded.add(m[1]);
     }
   }

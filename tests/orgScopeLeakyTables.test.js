@@ -75,18 +75,6 @@ describe('the formerly-unscoped models now scope by organization', () => {
     expect(ddl).not.toMatch(/organization_id\s+BIGINT UNSIGNED\s+NOT NULL/);
   });
 
-  it.each(['425_org_scope_config_backups_and_autopay_profiles', '426_org_scope_radius',
-    '429_org_scope_sla_definitions'])(
-    'migration %s deletes no rows', (name) => {
-      // The specific line that would have caused it:
-      //   DELETE FROM device_config_backups WHERE organization_id IS NULL;
-      // An org-scoping migration adds a column and backfills it. If one is ever
-      // reaching for DELETE to satisfy a constraint, the constraint is wrong.
-      const sql = read(`database/migrations/${name}.sql`);
-      const statements = sql.split('\n').filter(l => !l.trim().startsWith('--'));
-      expect(statements.filter(l => /\bDELETE\s+FROM\b/i.test(l))).toEqual([]);
-    },
-  );
 });
 
 describe('BaseModel no longer omits the predicate silently (TNB-34)', () => {
@@ -133,64 +121,16 @@ describe('raw SQL that BaseModel scoping cannot reach', () => {
   });
 });
 
-describe('migration 425 backfills without deleting', () => {
-  const mig = read('database/migrations/425_org_scope_config_backups_and_autopay_profiles.sql');
+describe('config backups and autopay profiles are owned by an organization', () => {
+  const { baselineColumns, baselineTable } = require('./helpers/baseline');
 
-  it('adds the column nullable and backfills from the parent', () => {
-    // Adding it NOT NULL outright would fail on any table with existing rows.
-    // Anchor on the SECTION MARKERS, not on bare table names: those appear in
-    // the header comment and in the shared stale-index guard, so an indexOf on
-    // the name lands somewhere arbitrary and silently truncates the slice —
-    // which is exactly how this assertion first went vacuous.
-    const start = mig.indexOf('-- ── device_config_backups →');
-    const end = mig.indexOf('-- ── recurring_payment_profiles →');
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const dcb = mig.slice(start, end);
-    expect(dcb.length).toBeGreaterThan(300);
-    expect(dcb).toMatch(/ADD COLUMN organization_id BIGINT UNSIGNED NULL/);
-    expect(dcb).toMatch(/JOIN devices d ON d\.id = b\.device_id/);
-    // The column is added, then backfilled, and stays nullable — there is no
-    // NOT NULL tightening to order against, deliberately (see above).
-    expect(dcb.indexOf('ADD COLUMN organization_id'))
-      .toBeLessThan(dcb.indexOf('UPDATE device_config_backups'));
-  });
-
-  it('backfills autopay profiles from their client', () => {
-    expect(mig).toMatch(/JOIN clients c ON c\.id = p\.client_id/);
-  });
-
-  it('is guarded so it can be re-run', () => {
-    expect(mig).toMatch(/INFORMATION_SCHEMA\.COLUMNS/);
-    expect(mig).toMatch(/DROP PROCEDURE IF EXISTS/);
-  });
-
-  it('ships a rollback', () => {
-    const rb = read('database/rollbacks/425_org_scope_config_backups_and_autopay_profiles.sql');
-    expect(rb).toMatch(/DROP FOREIGN KEY fk_dcb_org/);
-    expect(rb).toMatch(/DROP FOREIGN KEY fk_rpp_org/);
-  });
-
-  it('the rollback drops the indexes EXPLICITLY, not as a side effect', () => {
-    // Dropping a column does NOT drop a multi-column index containing it —
-    // MySQL removes the column from the index and keeps the remainder. So
-    // dropping only organization_id left an idx_dcb_org over
-    // (device_id, created_at), and re-migrating died with ER_DUP_KEYNAME.
-    // Caught by the CI rollback round-trip against real MySQL, which no unit
-    // test here can reproduce; this assertion is the cheap standing guard.
-    const rb = read('database/rollbacks/425_org_scope_config_backups_and_autopay_profiles.sql');
-    expect(rb).toMatch(/DROP INDEX idx_dcb_org/);
-    expect(rb).toMatch(/DROP INDEX idx_rpp_org/);
-    expect(rb).toMatch(/INFORMATION_SCHEMA\.STATISTICS/);
-  });
-
-  it('the forward migration survives a leftover index from an older rollback', () => {
-    // Operators who already ran the previous rollback have the stale index on
-    // disk; without this the upgrade fails for exactly them.
-    expect(mig).toMatch(/INFORMATION_SCHEMA\.STATISTICS/);
-    const body = mig.slice(mig.indexOf('CREATE PROCEDURE'));
-    expect(body.indexOf('DROP INDEX idx_dcb_org'))
-      .toBeLessThan(body.indexOf('ADD KEY idx_dcb_org'));
+  it.each([
+    ['device_config_backups', 'fk_dcb_org', 'idx_dcb_org'],
+    ['recurring_payment_profiles', 'fk_rpp_org', 'idx_rpp_org'],
+  ])('%s has organization_id, its foreign key and its index', (table, fk, index) => {
+    expect(baselineColumns(table).get('organization_id')).toMatch(/^bigint unsigned/);
+    expect(baselineTable(table)).toMatch(new RegExp(`CONSTRAINT \`${fk}\` FOREIGN KEY \\(\`organization_id\`\\) REFERENCES \`organizations\``));
+    expect(baselineTable(table)).toMatch(new RegExp(`KEY \`${index}\` \\(\`organization_id\`,`));
   });
 });
 

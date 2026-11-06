@@ -20,6 +20,8 @@ const product = require('../product');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../database/migrations');
+// The first release's whole schema; every later migration builds on it.
+const BASELINE = '001_baseline.sql';
 
 function parseBoolEnv(key, fallback = false) {
   const value = process.env[key];
@@ -119,7 +121,8 @@ async function ensureChecksumColumn(conn) {
   }
 }
 
-async function applyMigrations(migrationPool, label = 'primary') {
+// migrationsDir is for tests; installs always read database/migrations.
+async function applyMigrations(migrationPool, label = 'primary', { migrationsDir = MIGRATIONS_DIR } = {}) {
 
   let conn;
   let migrationLockName;
@@ -156,12 +159,24 @@ async function applyMigrations(migrationPool, label = 'primary') {
     const appliedChecksums = new Map(applied.map(r => [r.filename, r.checksum]));
 
     // DB-21: numeric order, so '1000_x.sql' runs after '999_x.sql'.
-    const files = listMigrationFiles(MIGRATIONS_DIR);
+    const files = listMigrationFiles(migrationsDir);
+
+    // A database built from the development history (before the migrations
+    // were squashed into 001_baseline.sql) has none of today's filenames, and
+    // applying the baseline on top of it would fail on the first existing
+    // table. Say what happened instead.
+    if (files[0] === BASELINE && applied.length > 0 && !appliedChecksums.has(BASELINE)) {
+      throw new Error(
+        `${label} was created from the pre-release migration history (${applied.length} migrations, `
+        + `none of them ${BASELINE}). Nothing was changed. Recreate it from the baseline: `
+        + 'drop and create the database, then run the migrations again.',
+      );
+    }
 
     let count = 0;
     const changed = [];
     for (const file of files) {
-      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       const checksum = migrationChecksum(sql);
       if (appliedChecksums.has(file)) {
         const recorded = appliedChecksums.get(file);

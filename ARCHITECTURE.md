@@ -914,8 +914,19 @@ locales: `en`, `es`, and `pt-BR`. Follow `docs/language-guideline.md`.
 
 ## Database change contract
 
-Migrations are sequential and append-only. Determine the next number from the
-filesystem; never rely on a number copied into documentation:
+Migrations are sequential and append-only. `001_baseline.sql` is the whole
+schema, seed data, routines, triggers and events of the first release: the 525
+development migrations were squashed into it before anything was installed,
+after a CI comparison proved it produces an identical database on MySQL 8.4 and
+MariaDB 10.6 (including partitions and event schedules). It is never edited and
+has no rollback. Every later change is a new numbered migration.
+`pnpm schema:snapshot <out.json>` writes the normalized description of a
+database (tables, columns, indexes, keys, CHECKs, partitions, triggers,
+routines, events with their schedule relative to creation, and every row)
+that the squash was proven with; two databases built different ways are
+equivalent when their snapshots are identical. Determine the
+next number from the filesystem; never rely on a number copied into
+documentation:
 
 ```bash
 find database/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort -V | tail -1
@@ -927,13 +938,14 @@ For every database change:
    amend an already-shipped migration.
 2. Add a rollback with the identical filename in `database/rollbacks/`.
    `rollback.js` matches a rollback to its migration by the same numeric
-   prefix, and only migrations from 130 on have rollbacks: `rollback.js --to`
-   can go no lower than 129. A rollback must be honest about data that cannot
-   or must not be restored.
+   prefix; `rollback.js --to 1` undoes everything after the baseline, which is
+   as low as it goes. A rollback must be honest about data that cannot or must
+   not be restored, and one that drops or deletes evidence must refuse first
+   while that evidence exists (`tests/evidenceRollbackGuards.test.js`).
 3. Make DDL safe for the supported MySQL/MariaDB versions and re-execution.
    Follow current guarded stored-procedure patterns where direct
    `ALTER ... IF [NOT] EXISTS` is not portable, and drop a routine before
-   creating it. From migration 504 on, a migration must also be safe to run a
+   creating it. Every migration after the baseline must also be safe to run a
    second time after a partial failure (guarded DDL, seeds that do not
    duplicate rows); `tests/migrationRunnerOrder.test.js` checks this and CI
    re-executes them. `migrate.js` orders files by numeric prefix and records a
@@ -943,8 +955,8 @@ For every database change:
 4. Mirror the final structure in `database/schema.sql`.
 5. Seed every new permission slug and grant it to the intended built-in roles.
    A route permission without seed/grant data locks out all ordinary users.
-6. Keep `README.md` synchronized. Its migration range and schema table count are
-   CI-checked; the database inventory and notable migration notes are also part
+6. Keep `README.md` synchronized. Its latest migration number and schema table
+   count are CI-checked; the database inventory and notable migration notes are also part
    of the contributor contract.
 7. Run offline parity/static checks and, when a real local database is
    available, migration apply/idempotency/rollback and DB integration tests.

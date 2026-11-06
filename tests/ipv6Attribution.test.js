@@ -189,9 +189,9 @@ describe('IPv6 addresses and prefixes', () => {
   });
 });
 
-describe('the evidence keeps what IPv6 attribution needs (migration 524)', () => {
+describe('the evidence keeps what IPv6 attribution needs', () => {
   const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  const triggers = [read('database/migrations/524_ipv6_attribution_evidence.sql'), read('database/schema.sql')];
+  const triggers = [read('database/migrations/001_baseline.sql').replace(/CREATE TRIGGER `(\w+)`/g, 'CREATE TRIGGER $1'), read('database/schema.sql')];
 
   test.each(['trg_connection_logs_after_insert_evidence', 'trg_connection_logs_after_update_evidence'])(
     '%s records the delegated prefix and the WAN address, hashed', (name) => {
@@ -216,6 +216,10 @@ describe('the evidence keeps what IPv6 attribution needs (migration 524)', () =>
   });
 
   test('case evidence takes an IPv6 address', () => {
+    const baseline = require('./helpers/baseline').baselineColumns('ip_attribution_case_evidence');
+    expect(baseline.get('evidence_type')).toMatch(/'direct_ipv6_assignment'/);
+    expect(baseline.get('ip_address')).toMatch(/^varchar\(45\) .*DEFAULT NULL/);
+    expect(baseline.get('public_ipv4')).toMatch(/^varchar\(15\) .*DEFAULT NULL/);
     const schema = read('database/schema.sql');
     const table = schema.slice(schema.indexOf('CREATE TABLE IF NOT EXISTS ip_attribution_case_evidence'));
     expect(table.slice(0, table.indexOf('ENGINE'))).toMatch(/'direct_ipv6_assignment'[\s\S]*ip_address VARCHAR\(45\) NULL[\s\S]*public_ipv4 VARCHAR\(15\) NULL/);

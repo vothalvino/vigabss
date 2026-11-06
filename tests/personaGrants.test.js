@@ -1,7 +1,7 @@
 // =============================================================================
 // DB-23 — built-in personas can use what they are shown
 // =============================================================================
-// A replay of the migrations' role grants showed: technician lacked a slug
+// A replay of the seeded role grants showed: technician lacked a slug
 // for posting ticket comments, cpe_diagnostics.view and
 // provisioning_pipelines.view; readonly's nas.health read slug also ran the
 // fleet-wide NAS health-check probe. Pure file parsing — no DB, no app boot.
@@ -10,32 +10,19 @@
 const fs = require('fs');
 const path = require('path');
 
-const MIGRATIONS = path.join(__dirname, '..', 'database', 'migrations');
+const { baselineRows } = require('./helpers/baseline');
+
 const names = (list) => [...list.matchAll(/'([A-Za-z0-9_.]+)'/g)].map(m => m[1]);
 
-/** role -> Set(slug), from `role_permissions` grants of the form
- *  ... JOIN permissions p ON p.name IN (...) | = '...' ... WHERE r.name IN (...) | = '...' */
+/** role -> Set(slug): the role grants a fresh install has (the baseline's). */
 function replayGrants() {
+  const roles = new Map(baselineRows('roles').map(r => [r.id, r.name]));
+  const slugs = new Map(baselineRows('permissions').map(p => [p.id, p.name]));
   const grants = new Map();
-  const add = (role, slug) => { if (!grants.has(role)) grants.set(role, new Set()); grants.get(role).add(slug); };
-  const files = fs.readdirSync(MIGRATIONS).filter(f => f.endsWith('.sql')).sort();
-  for (const f of files) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS, f), 'utf8').replace(/--[^\n]*/g, '');
-    for (const stmt of sql.split(';')) {
-      if (!/INSERT\s+IGNORE\s+INTO\s+role_permissions/i.test(stmt)) continue;
-      const perm = /p\.name\s*(?:IN\s*\(([^)]*)\)|=\s*'([^']+)')/i.exec(stmt);
-      const role = /r\.name\s*(?:IN\s*\(([^)]*)\)|=\s*'([^']+)')/i.exec(stmt);
-      if (perm && role) {
-        const slugs = perm[1] ? names(perm[1]) : [perm[2]];
-        const roles = role[1] ? names(role[1]) : [role[2]];
-        for (const r of roles) for (const s of slugs) add(r, s);
-        continue;
-      }
-      // 483: every group holding tickets.update also gets tickets.comment.
-      if (/pu\.name\s*=\s*'tickets\.update'/.test(stmt) && /pc\.name\s*=\s*'tickets\.comment'/.test(stmt)) {
-        for (const [r, set] of grants) if (set.has('tickets.update')) add(r, 'tickets.comment');
-      }
-    }
+  for (const { role_id: roleId, permission_id: permissionId } of baselineRows('role_permissions')) {
+    const role = roles.get(roleId);
+    if (!grants.has(role)) grants.set(role, new Set());
+    grants.get(role).add(slugs.get(permissionId));
   }
   return grants;
 }

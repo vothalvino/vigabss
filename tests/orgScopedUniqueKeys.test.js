@@ -12,8 +12,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..', 'database');
 const schema = fs.readFileSync(path.join(root, 'schema.sql'), 'utf8');
-const migration = fs.readFileSync(path.join(root, 'migrations', '490_org_scoped_unique_keys.sql'), 'utf8');
-const rollback = fs.readFileSync(path.join(root, 'rollbacks', '490_org_scoped_unique_keys.sql'), 'utf8');
+const { baselineTable } = require('./helpers/baseline');
 
 function uniqueKeys(table) {
   const start = schema.indexOf(`CREATE TABLE IF NOT EXISTS ${table} (`);
@@ -35,17 +34,15 @@ test('ip_assignments is keyed on its pool, which belongs to one organization', (
   expect(uniqueKeys('ip_assignments').find((k) => k.cols.includes('ip_address')).cols[0]).toBe('pool_id');
 });
 
-test('the migration adds each org-scoped key before dropping the global one', () => {
-  for (const [neu, old] of [
-    ['uq_inventory_items_org_sku', 'uq_inventory_items_sku'],
-    ['uq_ip_pools_org_network_mask_ver', 'uq_ip_pools_network_mask_ver'],
-    ['uq_devices_org_serial_number', 'uq_devices_serial_number'],
+test('the baseline has each org-scoped key and none of the global ones', () => {
+  for (const [table, neu, old] of [
+    ['inventory_items', 'uq_inventory_items_org_sku', 'uq_inventory_items_sku'],
+    ['ip_pools', 'uq_ip_pools_org_network_mask_ver', 'uq_ip_pools_network_mask_ver'],
+    ['devices', 'uq_devices_org_serial_number', 'uq_devices_serial_number'],
   ]) {
-    const add = migration.indexOf(`ADD UNIQUE KEY ${neu}`);
-    const drop = migration.indexOf(`DROP INDEX ${old}`);
-    expect(add).toBeGreaterThan(-1);
-    expect(drop).toBeGreaterThan(add);
-    expect(rollback).toContain(`ADD UNIQUE KEY ${old}`);
+    expect(baselineTable(table)).toMatch(new RegExp(`UNIQUE KEY \`${neu}\` \\(\`organization_id\`,`));
+    expect(baselineTable(table)).not.toContain(`\`${old}\``);
   }
-  expect(migration).toContain('ADD KEY idx_devices_serial_number (serial_number)');
+  // Serial lookups across organizations keep an index.
+  expect(baselineTable('devices')).toContain('KEY `idx_devices_serial_number` (`serial_number`)');
 });

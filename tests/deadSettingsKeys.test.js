@@ -40,15 +40,9 @@ describe('settings keys removed by a migration stay removed from the schema mirr
     expect(schema).not.toMatch(new RegExp(`\\(\\s*'${key}'\\s*,`));
   });
 
-  it('migration 431 exists and deletes the key', () => {
-    const mig = read('database/migrations/431_remove_dead_default_tax_rate_setting.sql');
-    expect(mig).toMatch(/DELETE FROM settings WHERE setting_key = 'default_tax_rate'/);
-  });
-
-  it('has a rollback that restores it', () => {
-    const rb = read('database/rollbacks/431_remove_dead_default_tax_rate_setting.sql');
-    expect(rb).toMatch(/INSERT IGNORE INTO settings/);
-    expect(rb).toMatch(/default_tax_rate/);
+  it.each(REMOVED_KEYS)('$key is not seeded by the baseline either', ({ key }) => {
+    const { baselineRows } = require('./helpers/baseline');
+    expect(baselineRows('settings').map(row => row.setting_key)).not.toContain(key);
   });
 });
 

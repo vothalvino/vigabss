@@ -14,9 +14,12 @@ const path = require('path');
 
 const dbDir = path.join(__dirname, '..', 'database');
 const schema = fs.readFileSync(path.join(dbDir, 'schema.sql'), 'utf8');
+// The runner creates schema_migrations itself (src/scripts/migrate.js); the
+// baseline does not, so that file counts as a creator too.
 const migrations = fs.readdirSync(path.join(dbDir, 'migrations'))
   .filter((f) => f.endsWith('.sql'))
   .map((f) => fs.readFileSync(path.join(dbDir, 'migrations', f), 'utf8'))
+  .concat(fs.readFileSync(path.join(__dirname, '..', 'src', 'scripts', 'migrate.js'), 'utf8'))
   .join('\n');
 
 const named = (re) => [...new Set([...schema.matchAll(re)].map((m) => m[1]))];
