@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.2 — Prometheus Alerting Rules (P1.8)
+# VigaBSS 0.1.0-alpha.3 — Prometheus Alerting Rules (P1.8)
 #
 # Implements multi-window burn-rate alerts for the three SLOs defined in
 # docs/slo.md:

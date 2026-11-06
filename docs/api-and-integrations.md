@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.2 — APIs & Integrations (§20)
+# VigaBSS 0.1.0-alpha.3 — APIs & Integrations (§20)
 
 ## 20.1 Core REST API
 
