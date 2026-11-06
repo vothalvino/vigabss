@@ -1,6 +1,6 @@
 # FireRelay — Architecture Specification
 
-VigaBSS 0.1.0-alpha.3's built-in multi-node clustering system.
+VigaBSS 0.1.0-alpha.4's built-in multi-node clustering system.
 
 ---
 
@@ -575,7 +575,7 @@ FireRelay becomes relevant at the 30K-client threshold. Below that, a single wel
 
 ## 8. Implementation Priority
 
-FireRelay is **Step 5** in the VigaBSS 0.1.0-alpha.3 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
+FireRelay is **Step 5** in the VigaBSS 0.1.0-alpha.4 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
 
 | Step | What | Status |
 |------|------|--------|
@@ -589,5 +589,5 @@ FireRelay is **Step 5** in the VigaBSS 0.1.0-alpha.3 development roadmap. It mus
 
 ---
 
-*Document created: 2025 — VigaBSS 0.1.0-alpha.3 project.*
+*Document created: 2025 — VigaBSS 0.1.0-alpha.4 project.*
 *Updated: 2026 — All steps complete. FireRelay implemented.*
