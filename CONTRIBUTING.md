@@ -1,4 +1,4 @@
-# Contributing to VigaBSS 0.1.0-alpha.4
+# Contributing to VigaBSS 0.1.0-alpha.5
 
 Thank you for your interest in contributing to VigaBSS! This guide will help you get started.
 

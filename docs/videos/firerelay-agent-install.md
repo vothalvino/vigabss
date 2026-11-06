@@ -5,7 +5,7 @@
 
 ## Audience
 
-Operators adding a FireRelay worker node to a VigaBSS 0.1.0-alpha.4 deployment after the primary node approaches capacity.
+Operators adding a FireRelay worker node to a VigaBSS 0.1.0-alpha.5 deployment after the primary node approaches capacity.
 
 ## Key message
 
