@@ -2,6 +2,28 @@ apiVersion: v1
 entries:
   fireisp:
   - apiVersion: v2
+    appVersion: 0.1.0-alpha.4
+    created: "2026-11-06T18:16:15.717171404Z"
+    description: VigaBSS 0.1.0-alpha.4 — ISP management platform (billing, RADIUS,
+      SNMP, CFDI)
+    digest: 18cee6c31b8d5a28dc97dd01f0c8646eb8b068e0269adf6496c043df355ac679
+    home: https://github.com/vothalvino/vigabss
+    keywords:
+    - isp
+    - billing
+    - radius
+    - mikrotik
+    maintainers:
+    - name: VigaBSS
+      url: https://github.com/vothalvino/vigabss
+    name: fireisp
+    sources:
+    - https://github.com/vothalvino/vigabss
+    type: application
+    urls:
+    - https://github.com/vothalvino/vigabss/releases/download/fireisp-0.1.0-alpha.4/fireisp-0.1.0-alpha.4.tgz
+    version: 0.1.0-alpha.4
+  - apiVersion: v2
     appVersion: 0.1.0-alpha.3
     created: "2026-11-06T17:16:43.205558302Z"
     description: VigaBSS 0.1.0-alpha.3 — ISP management platform (billing, RADIUS,
@@ -67,4 +89,4 @@ entries:
     urls:
     - https://github.com/vothalvino/vigabss/releases/download/fireisp-0.1.0-alpha.1/fireisp-0.1.0-alpha.1.tgz
     version: 0.1.0-alpha.1
-generated: "2026-11-06T17:16:43.20557885Z"
+generated: "2026-11-06T18:16:15.717183423Z"
