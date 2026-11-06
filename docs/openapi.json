@@ -21386,84 +21386,6 @@
         }
       }
     },
-    "/reports/revenue": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Revenue report",
-        "operationId": "revenueReport",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Report",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reports/clients": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Client report",
-        "operationId": "clientReport",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Report",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reports/usage": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Usage report",
-        "operationId": "usageReport",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Report",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/reports/financial": {
       "get": {
         "tags": [
@@ -23178,13 +23100,169 @@
         }
       }
     },
-    "/usage": {
+    "/usage/client/{clientId}": {
       "get": {
         "tags": [
           "Usage"
         ],
-        "summary": "List usage records",
-        "operationId": "listUsage",
+        "summary": "Usage summary for a client",
+        "operationId": "getClientUsage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usage/contract/{contractId}/daily": {
+      "get": {
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Daily usage for a contract",
+        "operationId": "getContractDailyUsage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contractId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usage/top": {
+      "get": {
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Top bandwidth users",
+        "operationId": "getTopUsage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usage/data-caps": {
+      "get": {
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Contracts over their data cap",
+        "operationId": "getDataCapUsage",
         "security": [
           {
             "bearerAuth": []
@@ -23204,43 +23282,7 @@
         }
       }
     },
-    "/usage/{contractId}": {
-      "get": {
-        "tags": [
-          "Usage"
-        ],
-        "summary": "Get usage for a contract",
-        "operationId": "getContractUsage",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "contractId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Usage",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/checkout/create-session": {
+    "/checkout/session": {
       "post": {
         "tags": [
           "Checkout"
@@ -23265,6 +23307,42 @@
         "responses": {
           "201": {
             "description": "Session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout/payment-link": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Generate a payment link for an invoice",
+        "operationId": "createPaymentLink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "invoice_id",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment link",
             "content": {
               "application/json": {
                 "schema": {
@@ -27788,6 +27866,12 @@
       }
     },
     "/metrics": {
+      "servers": [
+        {
+          "url": "/",
+          "description": "Served at the server root, outside /api/v1"
+        }
+      ],
       "get": {
         "tags": [
           "Metrics"
@@ -38823,40 +38907,6 @@
       }
     },
     "/config-templates/{id}": {
-      "get": {
-        "tags": [
-          "Config Templates"
-        ],
-        "summary": "Get a ConfigTemplate",
-        "operationId": "getConfigTemplate",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ConfigTemplate",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "Config Templates"
@@ -39109,40 +39159,6 @@
       }
     },
     "/config-backup-schedules/{id}": {
-      "get": {
-        "tags": [
-          "Config Backup Schedules"
-        ],
-        "summary": "Get a ConfigBackupSchedule",
-        "operationId": "getConfigBackupSchedule",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ConfigBackupSchedule",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "Config Backup Schedules"
@@ -39294,40 +39310,6 @@
       }
     },
     "/config-compliance-rules/{id}": {
-      "get": {
-        "tags": [
-          "Config Compliance Rules"
-        ],
-        "summary": "Get a ConfigComplianceRule",
-        "operationId": "getConfigComplianceRule",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ConfigComplianceRule",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "Config Compliance Rules"
@@ -43178,79 +43160,7 @@
         }
       }
     },
-    "/cpe-management/devices/{id}/reboot": {
-      "post": {
-        "tags": [
-          "CPE Management"
-        ],
-        "summary": "Queue a Reboot task for a device",
-        "operationId": "rebootCpeDevice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "CpeTask",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/cpe-management/devices/{id}/factory-reset": {
-      "post": {
-        "tags": [
-          "CPE Management"
-        ],
-        "summary": "Queue a FactoryReset task for a device",
-        "operationId": "factoryResetCpeDevice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "CpeTask",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/cpe-management/batch-parameter-push": {
+    "/cpe-management/devices/batch-parameter-push": {
       "post": {
         "tags": [
           "CPE Management"
@@ -43347,40 +43257,6 @@
       }
     },
     "/cpe-management/firmware-versions/{id}": {
-      "get": {
-        "tags": [
-          "CPE Management"
-        ],
-        "summary": "Get a firmware version",
-        "operationId": "getCpeFirmwareVersion",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "CpeFirmwareVersion",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "CPE Management"
@@ -43514,40 +43390,6 @@
       }
     },
     "/cpe-management/firmware-campaigns/{id}": {
-      "get": {
-        "tags": [
-          "CPE Management"
-        ],
-        "summary": "Get a firmware campaign",
-        "operationId": "getCpeFirmwareCampaign",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "CpeFirmwareCampaign",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
       "put": {
         "tags": [
           "CPE Management"
@@ -55059,6 +54901,12 @@
       }
     },
     "/acs/cwmp": {
+      "servers": [
+        {
+          "url": "/",
+          "description": "Served at the server root, outside /api/v1"
+        }
+      ],
       "post": {
         "tags": [
           "CPE Management"
@@ -56672,33 +56520,6 @@
             }
           }
         }
-      },
-      "delete": {
-        "tags": [
-          "Numbering Management"
-        ],
-        "summary": "Delete a NumberPortabilityRecord",
-        "operationId": "deleteNumberPortabilityRecord",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
-          }
-        }
       }
     },
     "/numbering-management/numbering-blocks": {
@@ -56855,33 +56676,6 @@
                 }
               }
             }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Numbering Management"
-        ],
-        "summary": "Delete a NumberingBlock",
-        "operationId": "deleteNumberingBlock",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
           }
         }
       }
@@ -57078,33 +56872,6 @@
             }
           }
         }
-      },
-      "delete": {
-        "tags": [
-          "Universal Service"
-        ],
-        "summary": "Delete a UsoObligation",
-        "operationId": "deleteUsoObligation",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
-          }
-        }
       }
     },
     "/universal-service/rural-coverage": {
@@ -57261,33 +57028,6 @@
                 }
               }
             }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Universal Service"
-        ],
-        "summary": "Delete a RuralCoverageReport",
-        "operationId": "deleteRuralCoverageReport",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
           }
         }
       }
@@ -57508,33 +57248,6 @@
                 }
               }
             }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Consumer Protection MX"
-        ],
-        "summary": "Delete a ServiceModificationNotice",
-        "operationId": "deleteServiceModificationNotice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
           }
         }
       }
