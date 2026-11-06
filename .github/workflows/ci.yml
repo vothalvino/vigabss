@@ -1496,6 +1496,13 @@ jobs:
           sed -i '0,/^  tag: ""$/s//  tag: "'"$RELEASE_VERSION"'"/' charts/fireisp/values.yaml
           grep -qx "  tag: \"${RELEASE_VERSION}\"" charts/fireisp/values.yaml
 
+      # chart-releaser commits index.yaml to gh-pages and fails without a git
+      # identity (v0.1.0-alpha.1's index had to be committed by hand).
+      - name: Configure git for chart-releaser
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
       # chart-releaser publishes packaged charts to the gh-pages branch and
       # generates an updated Helm repo index.yaml.  Only runs on v* tags.
       - name: Run chart-releaser
@@ -1505,6 +1512,9 @@ jobs:
         with:
           charts_dir: charts
           skip_existing: true
+          # The repository's latest release is the app's v* release, not the
+          # chart's fireisp-<version> release.
+          mark_as_latest: false
 
   # ---------------------------------------------------------------------------
   # Production compose: the Redis service actually starts, and keeps its
