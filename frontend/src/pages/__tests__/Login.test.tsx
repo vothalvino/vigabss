@@ -66,7 +66,7 @@ describe('Login page', () => {
     renderLogin();
     expect(screen.getByText('VigaBSS')).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
-    expect(screen.getByText('v0.1.0-alpha.5')).toBeInTheDocument();
+    expect(screen.getByText('v0.1.0-alpha.6')).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
