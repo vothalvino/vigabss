@@ -2,7 +2,9 @@
 
 const db = require('../config/database');
 
-const MIGRATION_FILENAME = '459_activate_snmp_trap_forwarding.sql';
+// Trap forwarding shipped in the release baseline; the column check below
+// confirms its schema.
+const MIGRATION_FILENAME = '001_baseline.sql';
 const CACHE_TTL_MS = 5000;
 const ISOLATED_UNSUPPORTED_REASON = 'isolated_tenant_attribution_unsupported';
 const MULTI_ORGANIZATION_UNSUPPORTED_REASON = 'multi_organization_attribution_unsupported';
