@@ -7,6 +7,25 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 Nothing yet.
 
+## 0.1.0-alpha.4 — 2026-11-06
+
+Fixes from testing the customer and reseller portals on a live install.
+
+- **Security: reseller users no longer see or change ISP-wide security
+  settings.** Migration 002 (the first after the baseline) removes nine
+  permissions the `reseller_admin` group had held since before reseller
+  scoping existed, including adding admin IP allowlist entries — enough to
+  lock the ISP's administrators out of admin pages. Reseller users keep their
+  reseller-scoped access and their own passkeys.
+- **Pages load after an update.** A tab opened before a deploy asked for the
+  old page files and got the app's HTML back (cached for a year), so pages
+  such as Payments did not load. Missing files are now a plain 404, and the
+  app reloads once into the new version.
+- **Users without operations access land on a page they can use.** A reseller
+  user opened on the Operations Overview, every tile refused; they now start
+  on Resellers.
+- **CI runs the full unit test suites on pull requests**, not only after merge.
+
 ## 0.1.0-alpha.3 — 2026-11-06
 
 Fixes found by testing 0.1.0-alpha.2 on a live install.
