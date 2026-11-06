@@ -710,34 +710,14 @@ elif [[ -n "$PINNED_ENV_TAG" ]]; then
   echo "    (pinned by environment — the database schema is NOT rolled back)"
 fi
 if [[ -n "${1:-$PINNED_ENV_TAG}" ]]; then
-  if ! git -C "$APP_DIR" cat-file -e "${TAG}^{commit}:database/migrations/459_activate_snmp_trap_forwarding.sql" 2>/dev/null; then
+  if ! git -C "$APP_DIR" cat-file -e "${TAG}^{commit}:database/migrations/001_baseline.sql" 2>/dev/null; then
     cat >&2 <<'EOF'
-error: refusing to start an application version that predates migration 459.
+error: refusing to start an application version that predates the release
+baseline (database/migrations/001_baseline.sql).
 
-Migration 459 is a one-way application compatibility boundary: the upgraded
-database stores encrypted webhook signing secrets and no longer permits the
-legacy trap/audit privacy behavior. An older image would sign with ciphertext
-and could reintroduce SNMP communities or sensitive audit values.
-
-Roll forward with a corrected post-459 image. Do not restore an old image
-unless you are performing a separately rehearsed full database-and-application
-restore from a pre-459 backup during an approved outage.
-EOF
-    exit 1
-  fi
-  if ! git -C "$APP_DIR" cat-file -e "${TAG}^{commit}:database/migrations/460_client_communication_contact_epoch.sql" 2>/dev/null; then
-    cat >&2 <<'EOF'
-error: refusing to start an application version that predates migration 460.
-
-Migration 460 is a one-way client-communication privacy boundary: upgraded
-queues carry destination and organization epochs plus a server-owned message
-class, and legacy marketing consent is withdrawn. An older image would ignore
-those fences and could send after an opt-out, contact change, or organization
-lifecycle transition.
-
-Roll forward with a corrected post-460 image. Do not restore an old image
-unless you are performing a separately rehearsed full database-and-application
-restore from a pre-460 backup during an approved outage.
+Development builds before v0.1.0-alpha.1 used a different migration history,
+and their schema checks do not recognise a baseline database. Roll back only
+to a tagged release.
 EOF
     exit 1
   fi

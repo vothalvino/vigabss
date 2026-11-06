@@ -1455,7 +1455,7 @@ describe('start() / stop()', () => {
     db.withPrimaryContext = jest.fn(callback => callback());
     db.query.mockImplementation(async (sql) => {
       if (/FROM schema_migrations/.test(sql)) {
-        return [[{ filename: '459_activate_snmp_trap_forwarding.sql' }]];
+        return [[{ filename: '001_baseline.sql' }]];
       }
       if (/FROM information_schema\.columns/.test(sql)) {
         return [[{ required_columns: 27 }]];

@@ -11,7 +11,7 @@ const readiness = require('../src/services/trapForwardingReadinessService');
 function installReadyPrimary({ isolated = [], organizations = [10] } = {}) {
   db.query.mockImplementation(async (sql, params = []) => {
     if (/FROM schema_migrations/.test(sql)) {
-      expect(params).toEqual(['459_activate_snmp_trap_forwarding.sql']);
+      expect(params).toEqual(['001_baseline.sql']);
       return [[{ filename: params[0] }]];
     }
     if (/FROM information_schema\.columns/.test(sql)) {
