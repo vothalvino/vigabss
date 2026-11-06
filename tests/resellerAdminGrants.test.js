@@ -4,7 +4,7 @@
 // Migration 335 (pre-release history, now in the baseline) granted the group
 // organization-wide security views and admin_ip_allowlist.create. A reseller
 // user is confined to its reseller (middleware/resellerScope.js), but those
-// routes are not reseller-scoped: on demo2 a bound reseller user read the
+// routes are not reseller-scoped: on a test install a bound reseller user read the
 // firewall/DDoS/blocklist rules and staged an admin IP allowlist entry, which,
 // activated, locks the ISP's administrators out. Migration 002 revokes them.
 // This replays the baseline grants and every later migration's revocations.
