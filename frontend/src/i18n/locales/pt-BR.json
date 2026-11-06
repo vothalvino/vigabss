@@ -987,6 +987,56 @@
       "signatureMissing": "Obtenha a assinatura do cliente no contrato de ativação.",
       "mxSignatureMissing": "Obtenha a assinatura do cliente no contrato mexicano de ativação.",
       "globalSignatureMissing": "Obtenha a assinatura do cliente no termo de instalação do serviço."
+    },
+    "stepsLabel": "Etapas de ativação",
+    "stepShort": {
+      "s1": "Agendar visita",
+      "s2": "Testar conexão",
+      "s3": "Assinatura do cliente",
+      "s4": "Concluir visita",
+      "s5": "Ativar"
+    },
+    "nextLabel": "Próximo:",
+    "readyLabel": "Pronto:",
+    "next": {
+      "waitPrepare": "um responsável por contratos prepara a visita de instalação.",
+      "recommission": "crie uma visita substituta: a anterior está encerrada ou sem evidência de teste.",
+      "syncDocuments": "atualize os documentos de ativação para que o cliente assine o contrato vigente.",
+      "prepare": "escolha o técnico e prepare a visita de instalação.",
+      "cleanupUntil": "a linha de teste está sendo desligada. Você poderá concluir a visita às {{time}}.",
+      "cleanupRetrying": "a linha de teste está sendo desligada; o sistema está confirmando e tenta de novo a cada poucos minutos.",
+      "arrival": "o cliente assina a autorização de chegada e depois o técnico liga a internet temporária.",
+      "assign": "atribua a visita a um técnico antes de testar.",
+      "recordTest": "a internet temporária está ligada. Faça um teste de velocidade e registre o resultado abaixo.",
+      "startTest": "o técnico liga a internet temporária e faz um teste de velocidade.",
+      "recordStaticTest": "o técnico faz um teste de velocidade e registra o resultado.",
+      "sign": "o cliente lê e assina o contrato de ativação.",
+      "handoff": "registre uma leitura de aceitação (ou dispense-a com uma nota) e conclua a visita.",
+      "activate": "tudo pronto. Ative o contrato para ligar a linha de forma permanente.",
+      "blocked": "conclua os itens em “Ainda necessário”."
+    },
+    "cleanupWhy": "Nenhum roteador confirmou o fim da sessão, então por segurança a linha é considerada ativa até o horário original de fim da janela de teste. Vincular o contrato a um NAS torna isso imediato.",
+    "lockedAfter": "Disponível após a etapa {{step}}.",
+    "lockedAfterTestAndSign": "Disponível após o teste de conexão e a assinatura do cliente.",
+    "showDetails": "Mostrar detalhes",
+    "hideDetails": "Ocultar detalhes",
+    "summary": {
+      "visit": "Ordem de serviço {{order}} · ordem de trabalho #{{workOrder}} ({{status}})",
+      "visitRestricted": "A visita de instalação está preparada.",
+      "signed": "O cliente já assinou."
+    },
+    "serviceOrderStatus": {
+      "pending": "pendente",
+      "in_process": "em andamento",
+      "completed": "concluída",
+      "cancelled": "cancelada"
+    },
+    "workOrderStatus": {
+      "pending": "não atribuída",
+      "assigned": "atribuída",
+      "in_progress": "em andamento",
+      "completed": "concluída",
+      "cancelled": "cancelada"
     }
   },
   "invoiceList": {

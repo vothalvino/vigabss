@@ -987,6 +987,56 @@
       "signatureMissing": "Obtain the client’s activation-contract signature.",
       "mxSignatureMissing": "Obtain the client’s signature on the Mexican activation contract.",
       "globalSignatureMissing": "Obtain the customer’s signature on the service-installation acknowledgment."
+    },
+    "stepsLabel": "Activation steps",
+    "stepShort": {
+      "s1": "Schedule visit",
+      "s2": "Test connection",
+      "s3": "Customer signs",
+      "s4": "Finish visit",
+      "s5": "Activate"
+    },
+    "nextLabel": "Next:",
+    "readyLabel": "Ready:",
+    "next": {
+      "waitPrepare": "a contract manager prepares the installation visit.",
+      "recommission": "create a replacement visit — the earlier one is closed or missing test evidence.",
+      "syncDocuments": "refresh the activation documents so the customer has the current contract to sign.",
+      "prepare": "choose the technician and prepare the installation visit.",
+      "cleanupUntil": "the test line is switching off. You can finish the visit at {{time}}.",
+      "cleanupRetrying": "the test line is switching off; the system is confirming it and retries every few minutes.",
+      "arrival": "the customer signs the arrival authorization, then the technician turns on temporary internet.",
+      "assign": "assign the visit to a technician before testing.",
+      "recordTest": "temporary internet is on. Run a speed test and record the result below.",
+      "startTest": "the technician turns on temporary internet and runs a speed test.",
+      "recordStaticTest": "the technician runs a speed test and records the result.",
+      "sign": "the customer reads and signs the activation contract.",
+      "handoff": "record an acceptance reading (or waive it with a note) and finish the visit.",
+      "activate": "everything is done. Activate the contract to turn the line on permanently.",
+      "blocked": "finish the items listed under “Still required”."
+    },
+    "cleanupWhy": "No router confirmed the session ended, so for safety the line is treated as live until the test window’s original end time. Assigning the contract to a NAS makes this instant.",
+    "lockedAfter": "Available after step {{step}}.",
+    "lockedAfterTestAndSign": "Available after the connection test and the customer’s signature.",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "summary": {
+      "visit": "Service order {{order}} · work order #{{workOrder}} ({{status}})",
+      "visitRestricted": "The installation visit is prepared.",
+      "signed": "The customer has signed."
+    },
+    "serviceOrderStatus": {
+      "pending": "pending",
+      "in_process": "in progress",
+      "completed": "completed",
+      "cancelled": "cancelled"
+    },
+    "workOrderStatus": {
+      "pending": "not assigned yet",
+      "assigned": "assigned",
+      "in_progress": "in progress",
+      "completed": "completed",
+      "cancelled": "cancelled"
     }
   },
   "invoiceList": {

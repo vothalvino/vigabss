@@ -38,6 +38,10 @@ import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { formatMoney } from '@/lib/money';
 import { ActivationSignatureCanvas } from './contracts/ActivationSignatureCanvas';
+import {
+  ActivationDocumentRow, ActivationStep, ActivationStepper, CancelActivationControl, activationNextStep, activationSteps,
+  countdown, humanizeBlocker, serviceOrderStatusLabel, workOrderStatusLabel,
+} from './contracts/ActivationSteps';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -1307,51 +1311,6 @@ function ActivationSignModal({ documentId, onClose, onSigned }: {
   );
 }
 
-function countdown(expiresAt: string, now: number): string {
-  const remaining = Math.max(0, new Date(expiresAt).getTime() - now);
-  const totalSeconds = Math.ceil(remaining / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function humanizeBlocker(code: string): string {
-  return code.replace(/_/g, ' ').replace(/^./, (character: string) => character.toUpperCase());
-}
-
-function ActivationDocumentRow({ document, canSign, onSign }: {
-  document: ActivationDocument;
-  canSign: boolean;
-  onSign: (documentId: number) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div style={activationStyles.documentRow}>
-      <span style={{ flex: 1 }}>{document.title}</span>
-      {document.status === 'signed' ? (
-        <span style={{ color: '#166534' }}>{t('contractActivation.signedBy', { name: document.signer_name ?? '' })}</span>
-      ) : document.status === 'pending' ? (
-        <>
-          <span style={{ color: '#92400e' }}>{t('contractActivation.pendingSignature')}</span>
-          {canSign ? (
-            <button type="button" style={styles.actionBtn} onClick={() => onSign(document.id)}>
-              {t('contractActivation.readAndSign')}
-            </button>
-          ) : (
-            <span style={{ color: 'var(--text-dimmed)', fontSize: '0.76rem' }}>
-              {t('contractActivation.signPermissionRequired')}
-            </span>
-          )}
-        </>
-      ) : (
-        <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{humanizeBlocker(document.status)}</span>
-      )}
-    </div>
-  );
-}
 
 function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, canCreateInvoices, canUpdateWorkOrders, canCreateSpeedTests, canViewSignedDocuments, canSignDocuments, operatorUserId, canSuperviseCommissioning, onActivated, onCancelled }: {
   contractId: string;
@@ -1380,7 +1339,6 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
   const [fee, setFee] = useState('');
   const [description, setDescription] = useState('');
   const [networkWarning, setNetworkWarning] = useState('');
-  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const activationQ = useQuery({
     queryKey: ['contract-activation', contractId],
@@ -1583,11 +1541,14 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
     );
   }
 
-  const windowOpen = Boolean(expiresAt && new Date(expiresAt).getTime() > now);
-  const windowTracked = Boolean(expiresAt);
   const cleanupPending = Boolean(
     state.test_window_cleanup_pending || state.blockers.includes('test_window_cleanup_pending'),
   );
+  // While cleanup is pending the original expiry is kept as the bound of any
+  // live session; it is not an open window. Treating it as one showed "Temporary
+  // internet is on", End, and the speed-test form again after the test.
+  const windowOpen = !cleanupPending && Boolean(expiresAt && new Date(expiresAt).getTime() > now);
+  const windowTracked = Boolean(expiresAt) && !cleanupPending;
   const systemControlledLine = state.connection_type === 'pppoe' || state.connection_type === 'pppoe_dual';
   const availableDocuments = state.documents ?? [];
   const documents = canViewSignedDocuments ? availableDocuments : [];
@@ -1638,6 +1599,22 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
   const actionError = prepareMutation.error || windowMutation.error || speedMutation.error
     || acceptanceMutation.error || activateMutation.error || cancelActivationMutation.error;
 
+  const { stepStatus, currentStep } = activationSteps({
+    workOrderPrepared, needsRecommission, needsDocumentSync,
+    workOrderAssigned: !workOrder || workOrder.assigned_to != null,
+    speedTestRecorded, cleanupPending, windowOpen, signatureBlocked, visitCompleted,
+  });
+  const cleanupReadyAt = cleanupPending && expiresAt ? new Date(expiresAt) : null;
+  const cleanupNotice = cleanupReadyAt && cleanupReadyAt.getTime() > now
+    ? t('contractActivation.next.cleanupUntil', { time: cleanupReadyAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })
+    : t('contractActivation.next.cleanupRetrying');
+  const nextStepText = activationNextStep(t, currentStep, {
+    canPrepare: canEdit && canStartInstallation, needsRecommission,
+    needsDocumentSync: needsDocumentSync && workOrder?.assigned_to != null,
+    cleanupPending, cleanupNotice, arrivalAuthorizationPending, workOrderReadyForTest,
+    windowOpen, systemControlledLine, canActivate: state.can_activate,
+  });
+
   return (
     <section style={activationStyles.card} aria-labelledby="contract-activation-title">
       <div style={activationStyles.header}>
@@ -1648,6 +1625,12 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           {state.contract_environment && (
             <MxContractEnvironmentBadge environment={state.contract_environment} />
+          )}
+          {canEdit && (
+            <CancelActivationControl
+              pending={cancelActivationMutation.isPending}
+              onConfirm={() => cancelActivationMutation.mutate()}
+            />
           )}
           <div style={{ ...activationStyles.lineState, ...(windowOpen ? activationStyles.lineOn : activationStyles.lineOff) }}>
             {!systemControlledLine
@@ -1661,6 +1644,14 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
         </div>
       </div>
 
+      <ActivationStepper
+        stepStatus={stepStatus}
+        currentStep={currentStep}
+        nextStepText={nextStepText}
+        ready={currentStep === 5 && state.can_activate}
+        cleanupPending={cleanupPending}
+      />
+
       {actionError && (
         <div style={styles.errorBanner} role="alert">
           {actionError instanceof Error ? actionError.message : t('contractActivation.actionFailed')}
@@ -1672,30 +1663,36 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
         </div>
       )}
 
-      <div style={activationStyles.step}>
-        <h3 style={activationStyles.stepTitle}>1. {t('contractActivation.installationVisit')}</h3>
-        <p style={activationStyles.help}>{t('contractActivation.installationVisitHelp')}</p>
+      <ActivationStep
+        n={1}
+        status={stepStatus(1)}
+        title={t('contractActivation.installationVisit')}
+        help={t('contractActivation.installationVisitHelp')}
+        summary={workOrder ? (
+          <>
+            {state.service_order && <>{t('contractActivation.serviceOrder')}: <strong>{state.service_order.order_number}</strong> · </>}
+            {t('contractActivation.workOrder')}: <strong>#{workOrder.id}</strong> ({workOrderStatusLabel(t, workOrder.status)})
+          </>
+        ) : t('contractActivation.summary.visitRestricted')}
+        forceOpen={reassigning}
+        actions={workOrder?.assigned_to != null && !visitCompleted && canEdit && canStartInstallation && !reassigning ? (
+          <button type="button" style={styles.actionBtn} onClick={() => setReassigning(true)}>
+            {t('contractActivation.reassignTechnician')}
+          </button>
+        ) : null}
+      >
         {state.service_order && (
           <p style={activationStyles.summary}>
-            {t('contractActivation.serviceOrder')}: <strong>{state.service_order.order_number}</strong> · {state.service_order.status}
+            {t('contractActivation.serviceOrder')}: <strong>{state.service_order.order_number}</strong> · {serviceOrderStatusLabel(t, state.service_order.status)}
           </p>
         )}
         {workOrder && (
           <p style={activationStyles.summary}>
-            {t('contractActivation.workOrder')}: <strong>#{workOrder.id}</strong> · {workOrder.status}
+            {t('contractActivation.workOrder')}: <strong>#{workOrder.id}</strong> · {workOrderStatusLabel(t, workOrder.status)}
           </p>
         )}
         {!state.service_order && !workOrder && (serviceOrderPrepared || workOrderPrepared) && (
           <p style={activationStyles.summary}>{t('contractActivation.visitPreparedRestricted')}</p>
-        )}
-        {canViewSignedDocuments && workOrder && arrivalDocuments.length > 0 && (
-          <div style={{ margin: '0.75rem 0' }}>
-            <strong style={{ fontSize: '0.84rem' }}>{t('contractActivation.arrivalAuthorization')}</strong>
-            <p style={activationStyles.help}>{t('contractActivation.arrivalAuthorizationHelp')}</p>
-            {arrivalDocuments.map(document => (
-              <ActivationDocumentRow key={document.id} document={document} canSign={canSignDocuments} onSign={setSigningId} />
-            ))}
-          </div>
         )}
         {workOrder?.assigned_to != null && !visitCompleted && canEdit && canStartInstallation && !reassigning && (
           <button type="button" style={styles.actionBtn} onClick={() => setReassigning(true)}>
@@ -1759,38 +1756,34 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
           </p>
         )}
         {workOrder && <Link to="/work-orders" style={styles.infoLink}>{t('contractActivation.openWorkOrders')}</Link>}
-      </div>
+      </ActivationStep>
 
-      {canEdit && (
-        <div style={{ ...activationStyles.step, borderBottom: 0 }}>
-          {confirmCancel ? (
-            <div style={activationStyles.row}>
-              <span style={activationStyles.help}>{t('contractActivation.cancelActivationConfirm')}</span>
-              <button
-                type="button"
-                style={cancelBtn}
-                disabled={cancelActivationMutation.isPending}
-                onClick={() => cancelActivationMutation.mutate()}
-              >
-                {cancelActivationMutation.isPending
-                  ? t('contractActivation.cancellingActivation')
-                  : t('contractActivation.cancelActivation')}
-              </button>
-              <button type="button" style={styles.actionBtn} onClick={() => setConfirmCancel(false)}>
-                {t('contractActivation.keepActivation')}
-              </button>
-            </div>
-          ) : (
-            <button type="button" style={cancelBtn} onClick={() => setConfirmCancel(true)}>
-              {t('contractActivation.cancelActivation')}
-            </button>
-          )}
-        </div>
-      )}
+      <ActivationStep
+        n={2}
+        status={stepStatus(2)}
+        title={t('contractActivation.connectionTest')}
+        help={t('contractActivation.connectionTestHelp')}
+        lockedHint={t('contractActivation.lockedAfter', { step: 1 })}
+        summary={(
+          <>
+            {state.speed_test
+              ? t('contractActivation.speedSummary', { download: state.speed_test.download_mbps, upload: state.speed_test.upload_mbps })
+              : t('contractActivation.speedRecorded')}
+            {/* A static line is never switched off by the system: keep the reminder visible. */}
+            {!systemControlledLine && <span style={{ display: 'block', color: '#92400e' }}>{t('contractActivation.recordManualOff')}</span>}
+          </>
+        )}
+      >
+        {canViewSignedDocuments && workOrder && arrivalDocuments.length > 0 && (
+          <div style={{ margin: '0.75rem 0' }}>
+            <strong style={{ fontSize: '0.84rem' }}>{t('contractActivation.arrivalAuthorization')}</strong>
+            <p style={activationStyles.help}>{t('contractActivation.arrivalAuthorizationHelp')}</p>
+            {arrivalDocuments.map(document => (
+              <ActivationDocumentRow key={document.id} document={document} canSign={canSignDocuments} onSign={setSigningId} />
+            ))}
+          </div>
+        )}
 
-      <div style={activationStyles.step}>
-        <h3 style={activationStyles.stepTitle}>2. {t('contractActivation.connectionTest')}</h3>
-        <p style={activationStyles.help}>{t('contractActivation.connectionTestHelp')}</p>
         {!workOrder ? (
           <p style={activationStyles.help}>
             {workOrderPrepared
@@ -1799,7 +1792,12 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
           </p>
         ) : (
           <>
-            {systemControlledLine && canUpdateWorkOrders && (windowTracked || canOperateCommissioning) && (
+            {cleanupPending && (
+              <p style={activationStyles.autoOffWarning}>
+                {cleanupNotice}{' '}{t('contractActivation.cleanupWhy')}
+              </p>
+            )}
+            {systemControlledLine && !cleanupPending && canUpdateWorkOrders && (windowTracked || canOperateCommissioning) && (
               <div style={activationStyles.row}>
                 {windowTracked ? (
                   <button type="button" style={cancelBtn} disabled={windowMutation.isPending} onClick={() => windowMutation.mutate('end')}>
@@ -1883,16 +1881,18 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
             )}
           </>
         )}
-      </div>
+      </ActivationStep>
 
       {canViewSignedDocuments && (
-        <div style={activationStyles.step} data-testid="activation-documents">
-          <h3 style={activationStyles.stepTitle}>
-            3. {t(isMxOrg ? 'contractActivation.mxClientSignature' : 'contractActivation.globalClientSignature')}
-          </h3>
-          <p style={activationStyles.help}>
-            {t(isMxOrg ? 'contractActivation.mxClientSignatureHelp' : 'contractActivation.globalClientSignatureHelp')}
-          </p>
+        <ActivationStep
+          n={3}
+          status={stepStatus(3)}
+          testId="activation-documents"
+          title={t(isMxOrg ? 'contractActivation.mxClientSignature' : 'contractActivation.globalClientSignature')}
+          help={t(isMxOrg ? 'contractActivation.mxClientSignatureHelp' : 'contractActivation.globalClientSignatureHelp')}
+          lockedHint={t('contractActivation.lockedAfter', { step: 1 })}
+          summary={t('contractActivation.summary.signed')}
+        >
           {!handoffDocuments.length ? (
             <p style={activationStyles.help}>
               {t(isMxOrg ? 'contractActivation.noMxDocuments' : 'contractActivation.noGlobalDocuments')}
@@ -1900,12 +1900,17 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
           ) : handoffDocuments.map(document => (
             <ActivationDocumentRow key={document.id} document={document} canSign={canSignDocuments} onSign={setSigningId} />
           ))}
-        </div>
+        </ActivationStep>
       )}
 
-      <div style={activationStyles.step}>
-        <h3 style={activationStyles.stepTitle}>4. {t('contractActivation.installationHandoff')}</h3>
-        <p style={activationStyles.help}>{t('contractActivation.installationHandoffHelp')}</p>
+      <ActivationStep
+        n={4}
+        status={stepStatus(4)}
+        title={t('contractActivation.installationHandoff')}
+        help={t('contractActivation.installationHandoffHelp')}
+        lockedHint={t('contractActivation.lockedAfterTestAndSign')}
+        summary={t('contractActivation.visitCompleted')}
+      >
         {visitCompleted ? (
           <p style={activationStyles.done}>{t('contractActivation.visitCompleted')}</p>
         ) : !workOrder ? (
@@ -1945,11 +1950,18 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
             )}
           </>
         )}
-      </div>
+      </ActivationStep>
 
-      <div style={{ ...activationStyles.step, borderBottom: 0 }}>
-        <h3 style={activationStyles.stepTitle}>5. {t('contractActivation.permanentActivation')}</h3>
-        <p style={activationStyles.help}>{t('contractActivation.permanentActivationHelp')}</p>
+      <ActivationStep
+        n={5}
+        status={stepStatus(5)}
+        last
+        title={t('contractActivation.permanentActivation')}
+        help={t('contractActivation.permanentActivationHelp')}
+        lockedHint={t('contractActivation.lockedAfter', { step: 4 })}
+        summary=""
+        showWhenLocked
+      >
         <MxSandboxDocumentBanner environment={state.contract_environment} />
         {state.blockers.length > 0 && (
           <div style={activationStyles.blockers}>
@@ -1993,7 +2005,7 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
         ) : (
           <p style={activationStyles.help}>{t('contractActivation.activationPermissionRequired')}</p>
         )}
-      </div>
+      </ActivationStep>
 
       {signingId !== null && canViewSignedDocuments && canSignDocuments && (
         <ActivationSignModal
@@ -2524,8 +2536,6 @@ const activationStyles = {
   },
   lineOn: { background: '#dcfce7', color: '#166534', border: '1px solid #86efac' },
   lineOff: { background: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' },
-  step: { padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' },
-  stepTitle: { margin: 0, color: 'var(--text-primary)', fontSize: '1rem' },
   help: { margin: '0.35rem 0 0.6rem', color: 'var(--text-secondary)', fontSize: '0.82rem' },
   summary: { margin: '0.25rem 0', color: 'var(--text-secondary)', fontSize: '0.84rem' },
   row: { display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' as const, margin: '0.75rem 0' },
@@ -2550,16 +2560,6 @@ const activationStyles = {
     background: '#fef3c7',
     color: '#92400e',
     fontSize: '0.8rem',
-  },
-  documentRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.65rem',
-    padding: '0.6rem 0.7rem',
-    borderRadius: 7,
-    background: 'var(--bg-subtle)',
-    fontSize: '0.83rem',
-    flexWrap: 'wrap' as const,
   },
   done: { color: '#166534', fontWeight: 600, fontSize: '0.85rem', margin: '0.5rem 0 0' },
   blockers: {

@@ -698,7 +698,8 @@ describe('ContractDetail — guided activation', () => {
     renderDetail();
 
     expect(await screen.findByText(/installation visit is prepared/i)).toBeInTheDocument();
-    expect(screen.getByText(/Commissioning is in progress/)).toBeInTheDocument();
+    // The recorded test is summarized without the redacted work-order details.
+    expect(screen.getByText(/Speed test recorded/)).toBeInTheDocument();
     expect(screen.queryByText(/contract manager must prepare/)).not.toBeInTheDocument();
     expect(screen.queryByText('SO-71')).not.toBeInTheDocument();
     expect(screen.queryByText('#81')).not.toBeInTheDocument();
@@ -807,6 +808,48 @@ describe('ContractDetail — guided activation', () => {
     expect(screen.getByText(/measurement is saved and new authentication is blocked/i)).toBeInTheDocument();
     expect(screen.queryByText('Temporary internet is off again.')).not.toBeInTheDocument();
     expect(screen.queryByText('The subscriber line remains off.')).not.toBeInTheDocument();
+  });
+
+  it('during cleanup with a future bound it does not reopen the test, and says when the visit can finish', async () => {
+    const bound = new Date(Date.now() + 40 * 60_000).toISOString();
+    const cleanupState = pendingActivation({
+      test_window_expires_at: bound,
+      test_window_cleanup_pending: true,
+      speed_test: { download_mbps: 98.5, upload_mbps: 47.2 },
+      speed_test_recorded: true,
+      blockers: ['work_order_not_completed', 'acceptance_missing', 'test_window_cleanup_pending'],
+    });
+    (global.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => jsonResponse(cleanupState));
+    renderDetail();
+
+    expect((await screen.findAllByText(/You can finish the visit at/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/No router confirmed the session ended/).length).toBeGreaterThan(0);
+    // The kept expiry is a session bound, not an open window.
+    expect(screen.queryByText('Temporary internet is on for testing only.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End temporary internet' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Record speed test/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Download (Mbps)')).not.toBeInTheDocument();
+  });
+
+  it('shows where the activation stands: the steps, the current one, and what to do next', async () => {
+    const signedState = pendingActivation({
+      speed_test: { download_mbps: 98.5, upload_mbps: 47.2 },
+      speed_test_recorded: true,
+      blockers: ['work_order_not_completed', 'acceptance_missing'],
+    });
+    (global.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => jsonResponse(signedState));
+    renderDetail();
+
+    const steps = await screen.findByRole('list', { name: 'Activation steps' });
+    const items = Array.from(steps.querySelectorAll('li'));
+    expect(items.map(item => item.textContent)).toEqual([
+      '✓Schedule visit', '✓Test connection', '✓Customer signs', '4Finish visit', '5Activate',
+    ]);
+    expect(items[3]).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('status')).toHaveTextContent(/Next: record an acceptance reading/);
+    // Finished steps collapse to a summary; the current step shows its form.
+    expect(screen.getByText('#81')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Complete installation visit' })).toBeInTheDocument();
   });
 
   it('surfaces a live-session disconnect warning returned by test completion', async () => {
