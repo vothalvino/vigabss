@@ -43,6 +43,19 @@ describe('SignedDocumentViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
     await waitFor(() => expect(authedFetch).toHaveBeenCalledWith('/api/v1/signed-documents/7/pdf'));
   });
+
+  it('saves the copy under the name the server gives it', async () => {
+    authedFetch.mockResolvedValue(new Response(new Blob(['%PDF']), {
+      status: 200, headers: { 'Content-Disposition': 'attachment; filename="contrato-21-2026-11-06.pdf"' },
+    }));
+    const names: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download); });
+    render(<SignedDocumentViewer documentId={7} onClose={vi.fn()} />);
+    await screen.findByText('Texto del contrato firmado');
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(names).toEqual(['contrato-21-2026-11-06.pdf']));
+    click.mockRestore();
+  });
 });
 
 describe('ActivationDocumentRow', () => {

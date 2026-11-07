@@ -57,7 +57,7 @@ function pngDataUrl() {
 }
 
 const SIGNED = {
-  id: 7, organization_id: 1, client_id: 10, template_type: 'activation_contract',
+  id: 7, organization_id: 1, client_id: 10, contract_id: 21, template_type: 'activation_contract',
   title: 'Contrato de activación', status: 'signed', signer_name: 'Ana López',
   signed_at: '2026-11-06T18:00:00Z', signed_ip: '203.0.113.9', captured_by: 3,
   rendered_body: '> **PRUEBA — SIN EFECTOS LEGALES**\n\n# Contrato\n\nTexto con **negritas**.\n\n- uno\n- dos\n',
@@ -119,7 +119,7 @@ describe('portal: the subscriber reads and downloads their own signed documents'
       .buffer(true).parse((r, cb) => { const c = []; r.on('data', d => c.push(d)); r.on('end', () => cb(null, Buffer.concat(c))); });
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toBe('attachment; filename="contrato-de-activacion-7.pdf"');
+    expect(res.headers['content-disposition']).toBe('attachment; filename="contrato-21-2026-11-06.pdf"');
     expect(res.body.subarray(0, 4).toString()).toBe('%PDF');
     const [sql, params] = documentCalls()[0];
     expect(sql).toMatch(/d\.client_id = \?/);
@@ -140,4 +140,28 @@ test('the staff PDF route requires signed_documents.view', () => {
   expect(route).toBeDefined();
   const guards = route.chain.filter(fn => fn && fn[GUARD]).map(fn => fn[GUARD]);
   expect(guards).toContainEqual(expect.objectContaining({ permissions: ['signed_documents.view'] }));
+});
+
+describe('signed copy filename: contract number and signing date', () => {
+  const name = (doc) => signedDocumentPdf.signedDocumentFilename({ id: 7, contract_id: 21, template_type: 'activation_contract', org_locale: 'MX', signed_at: '2026-11-06T18:00:00Z', ...doc });
+
+  test('an activation contract is named after its contract and the day it was signed', () => {
+    expect(name({})).toBe('contrato-21-2026-11-06.pdf');
+    expect(name({ org_locale: 'global' })).toBe('contract-21-2026-11-06.pdf');
+  });
+
+  test('the signing day is Mexico City’s for an MX organization', () => {
+    // 03:30 UTC on the 7th is still the evening of the 6th in Mexico City.
+    expect(name({ signed_at: '2026-11-07T03:30:00Z' })).toBe('contrato-21-2026-11-06.pdf');
+    expect(name({ signed_at: '2026-11-07T03:30:00Z', org_locale: 'global' })).toBe('contract-21-2026-11-07.pdf');
+  });
+
+  test('other documents on the contract say what they are, so names do not collide', () => {
+    expect(name({ template_type: 'service_acknowledgment' })).toBe('acuse-servicio-contrato-21-2026-11-06.pdf');
+    expect(name({ template_type: 'installation_authorization', org_locale: 'global' })).toBe('installation-authorization-contract-21-2026-11-06.pdf');
+  });
+
+  test('a document without a contract uses its own number', () => {
+    expect(name({ contract_id: null, template_type: 'custom' })).toBe('documento-7-2026-11-06.pdf');
+  });
 });

@@ -5,7 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Signed copies are named after the contract and the signing date.** A
+  downloaded activation contract is now `contrato-<contract>-<YYYY-MM-DD>.pdf`
+  (`contract-…` outside Mexico) instead of `document-<id>.pdf`. The date is
+  the signing day in Mexico City time for MX organizations, UTC otherwise.
+  Other documents on the same contract are prefixed with their kind (for
+  example `acuse-servicio-contrato-…`), so they do not share a name. A
+  document without a contract uses its own number. Staff and portal
+  downloads both use the server's name.
 
 ## 0.1.0-alpha.7 — 2026-11-06
 

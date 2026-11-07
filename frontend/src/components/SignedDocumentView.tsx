@@ -32,14 +32,15 @@ export interface SignedDocumentData {
   evidence_valid?: boolean | null;
 }
 
-/** Save a downloaded response under a file name. */
-export async function saveResponseAs(response: Response, filename: string): Promise<void> {
+/** Save a downloaded response under the name the server gives it (contract number and signing date), else `fallback`. */
+export async function saveResponseAs(response: Response, fallback: string): Promise<void> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const named = /filename="?([^";]+)"?/i.exec(response.headers.get('Content-Disposition') ?? '');
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.download = named?.[1] ?? fallback;
   link.click();
   URL.revokeObjectURL(url);
 }

@@ -16,6 +16,7 @@ const PDFDocument = require('pdfkit');
 const db = require('../config/database');
 const { NotFoundError } = require('../utils/errors');
 const legalDocumentService = require('./legalDocumentService');
+const { DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
 
 const MARGIN = 50;
 const COLORS = { primary: '#1a5276', text: '#2c3e50', muted: '#7f8c8d', ok: '#27ae60', bad: '#c0392b', quote: '#f4f6f6' };
@@ -38,6 +39,41 @@ const LABELS = {
     textHash: 'SHA-256 del texto firmado', generated: 'Copia generada',
   },
 };
+
+// Filename words. The activation contract is named after the contract alone;
+// the other documents on the same contract say what they are, so a contract's
+// documents signed on the same day do not share a name.
+const FILE_WORDS = {
+  en: {
+    contract: 'contract', document: 'document',
+    kinds: { installation_authorization: 'installation-authorization', service_acknowledgment: 'service-acknowledgment', equipment_comodato: 'equipment-loan', custom: 'document' },
+  },
+  es: {
+    contract: 'contrato', document: 'documento',
+    kinds: { installation_authorization: 'autorizacion-instalacion', service_acknowledgment: 'acuse-servicio', equipment_comodato: 'comodato-equipo', custom: 'documento' },
+  },
+};
+
+/** The signing date (YYYY-MM-DD) in the organization's zone: Mexico City for MX, UTC otherwise. */
+function signingDate(value, isMx) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: isMx ? DEFAULT_TIME_ZONE : 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+/**
+ * contrato-12-2026-11-06.pdf for an activation contract, or
+ * acuse-servicio-contrato-12-2026-11-06.pdf for another document on contract
+ * 12; a document with no contract uses its own number.
+ */
+function signedDocumentFilename(document) {
+  const isMx = document.org_locale === 'MX';
+  const W = isMx ? FILE_WORDS.es : FILE_WORDS.en;
+  const kind = document.template_type === 'activation_contract' ? null : (W.kinds[document.template_type] || W.document);
+  const subject = document.contract_id ? `${W.contract}-${document.contract_id}` : `${W.document}-${document.id}`;
+  const parts = [kind && (document.contract_id || kind !== W.document) ? kind : null, subject, signingDate(document.signed_at, isMx)];
+  return `${parts.filter(Boolean).join('-')}.pdf`;
+}
 
 function fmtDateTime(value) {
   if (!value) return '—';
@@ -176,10 +212,7 @@ async function generateSignedDocumentPdf(documentId, { orgId, clientId = null, i
     doc.end();
   });
 
-  const safeTitle = String(document.title || 'document').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'document';
-  return { buffer, filename: `${safeTitle}-${document.id}.pdf` };
+  return { buffer, filename: signedDocumentFilename(document) };
 }
 
-module.exports = { generateSignedDocumentPdf, writeMarkdown };
+module.exports = { generateSignedDocumentPdf, signedDocumentFilename, writeMarkdown };
