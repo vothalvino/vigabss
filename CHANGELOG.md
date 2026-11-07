@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.12 — 2026-11-07
+
 - **Reseller program, phase 3: cash bags and carriers.** Collected cash now
   travels from a *Punto de Venta* to the ISP in numbered bags.
   - **Bags:** staff register bags by serial, one at a time or as a range,
