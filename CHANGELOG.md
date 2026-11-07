@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.11 — 2026-11-07
+
 - **Reseller app, phase 2: resellers collect cash.** A *Punto de Venta* can
   now take cash payments, up to a credit limit: the most collected cash it
   may hold before handing it in to the ISP.

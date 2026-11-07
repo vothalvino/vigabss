@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * VigaBSS 0.1.0-alpha.10 — Playwright configuration
+ * VigaBSS 0.1.0-alpha.11 — Playwright configuration
  *
  * The default base URL points at the Vite dev server which proxies /api → the
  * Express backend.  Override with the BASE_URL env var when running against a
