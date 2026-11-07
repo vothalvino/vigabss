@@ -14,6 +14,10 @@ import CashBagsPage from '../cashBags/CashBagsPage';
 import { ResellerBagsTab } from '../resellers/ResellerBagsTab';
 import { ResellerLedgerTab } from '../resellers/ResellerLedgerTab';
 
+// Filling a picker past the 5,000 cap pages 51 times and renders 5,000
+// options, which takes several seconds on CI with coverage on.
+const CUT_LIST_TIMEOUT_MS = 30_000;
+
 const ADMIN = { id: 1, role: 'admin', organization_currency: 'MXN', reseller_binding: null };
 
 const mocks = vi.hoisted(() => ({ apiFetch: vi.fn(), user: null as unknown }));
@@ -185,13 +189,13 @@ describe('board', () => {
       return { data, meta: { total: TOTAL, page: Number(m[1]), limit: 100 } };
     };
     renderPage(<CashBagsPage />);
-    const note = await screen.findByRole('note');
+    const note = await screen.findByRole('note', {}, { timeout: CUT_LIST_TIMEOUT_MS - 5_000 });
     expect(note).toHaveTextContent('Showing the first 5000 of 5200 resellers.');
     // The notice is not part of the filter's label, so it is not in its name.
     const select = screen.getByRole('combobox', { name: 'Reseller' });
     expect(note.closest('label')).toBeNull();
     expect(select.closest('label')).not.toContainElement(note);
-  });
+  }, CUT_LIST_TIMEOUT_MS);
 
   it('shows an over bag as over, and an equal one posts no difference', async () => {
     const user = userEvent.setup();

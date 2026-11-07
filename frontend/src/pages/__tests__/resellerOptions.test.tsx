@@ -16,6 +16,10 @@ import {
   MAX_PICKER_RESELLERS, RESELLER_PAGE_LIMIT, ResellerListNotice, fetchAllResellers, useResellerOptions,
 } from '../resellers/resellerOptions';
 
+// Filling a picker past the 5,000 cap pages 51 times and renders 5,000
+// options, which takes several seconds on CI with coverage on.
+const CUT_LIST_TIMEOUT_MS = 30_000;
+
 const mocks = vi.hoisted(() => ({ apiFetch: vi.fn() }));
 vi.mock('@/api/apiFetch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/apiFetch')>()),
@@ -134,8 +138,8 @@ describe('a picker built on useResellerOptions', () => {
   it('says when the list is cut', async () => {
     serve(MAX_PICKER_RESELLERS + 1);
     renderPicker();
-    expect(await screen.findByRole('note')).toHaveTextContent(`Showing the first ${MAX_PICKER_RESELLERS} of ${MAX_PICKER_RESELLERS + 1} resellers.`);
-  });
+    expect(await screen.findByRole('note', {}, { timeout: CUT_LIST_TIMEOUT_MS - 5_000 })).toHaveTextContent(`Showing the first ${MAX_PICKER_RESELLERS} of ${MAX_PICKER_RESELLERS + 1} resellers.`);
+  }, CUT_LIST_TIMEOUT_MS);
 });
 
 describe('the reseller and carrier apps never call the staff reseller list', () => {
