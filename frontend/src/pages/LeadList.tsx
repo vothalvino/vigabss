@@ -24,6 +24,7 @@ import {
   cancelBtn,
 } from '@/components/ClientFormModal';
 import { queryKeys } from '@/api/queryKeys';
+import { ResellerListNotice, useResellerOptions } from './resellers/resellerOptions';
 
 interface Lead {
   id: number;
@@ -111,12 +112,6 @@ async function fetchLeads(page: number, pageSize: number, resellerId: number | n
   const res = await api.GET('/leads', { params: { query: query as never } });
   if (res.error) throw new Error('Failed to load leads');
   return res.data as unknown as LeadsResponse;
-}
-
-async function fetchResellerOptions(): Promise<{ id: number; name: string }[]> {
-  const res = await api.GET('/resellers', { params: { query: { limit: 100 } } });
-  if (res.error) return [];
-  return (res.data as { data: { id: number; name: string }[] }).data ?? [];
 }
 
 async function fetchPipeline(): Promise<Record<string, number>> {
@@ -709,11 +704,8 @@ export function LeadList() {
     queryKey: ['leads', page, pageSize, resellerId],
     queryFn: () => fetchLeads(page, pageSize, resellerId),
   });
-  const { data: resellers } = useQuery({
-    queryKey: ['leads', 'reseller-options'],
-    queryFn: fetchResellerOptions,
-    enabled: canFilterByReseller,
-  });
+  const resellersQ = useResellerOptions({ enabled: canFilterByReseller });
+  const resellers = resellersQ.data?.rows;
   const { data: pipeline } = useQuery({ queryKey: ['leads', 'pipeline'], queryFn: fetchPipeline });
 
   const convertMutation = useMutation({
@@ -787,6 +779,7 @@ export function LeadList() {
             <option value="">{t('leadReseller.resellerFilterAll')}</option>
             {(resellers ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
+          <ResellerListNotice list={resellersQ.data} />
         </div>
       )}
 

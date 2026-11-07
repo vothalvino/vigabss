@@ -31,10 +31,11 @@ export interface PuntoMe {
 
 /**
  * The collecting reseller's cash position (its top-level reseller's ledger).
- * `balance` is what it owes the ISP, including sealed bags not yet received;
- * `in_bags` is what its sealed bags (ready for pickup or on their way) hold;
- * `cash_on_hand` is the cash outside bags (balance − in_bags), which is what
- * counts against `credit_limit` (its own or the organization default).
+ * `balance` is what it owes the ISP; sealing a bag takes the bag's cash off
+ * it at once (migration 006), so `cash_on_hand` equals it and is what counts
+ * against `credit_limit` (its own or the organization default). `in_bags` is
+ * what its sealed bags (ready for pickup or on their way) hold, no longer
+ * owed by the reseller; it is shown for information.
  * `empty_bags` is how many empty bags it has to fill.
  */
 export interface PuntoMoney {
@@ -237,7 +238,7 @@ export interface PuntoCashSession {
   recent: PuntoClosedSession[];
 }
 
-export type PuntoLedgerType = 'collection' | 'collection_void' | 'deposit' | 'adjustment';
+export type PuntoLedgerType = 'collection' | 'collection_void' | 'deposit' | 'adjustment' | 'bag_sealed';
 
 export interface PuntoLedgerEntry {
   id: number;
@@ -246,7 +247,12 @@ export interface PuntoLedgerEntry {
   note: string | null;
   created_at: string;
   payment_id: number | null;
-  /** The cash bag a deposit or an adjustment came from (its receipt). */
+  /**
+   * The cash bag the line belongs to (its seal, or the difference of its
+   * receipt). Only the staff GET /resellers/:id/ledger sends the id; the
+   * reseller app's GET /reseller-app/ledger sends the serial alone, so /punto
+   * keys on cash_bag_serial.
+   */
   cash_bag_id?: number | null;
   cash_bag_serial?: string | null;
 }

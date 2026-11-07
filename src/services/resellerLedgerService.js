@@ -10,22 +10,25 @@
 //   collection_void   -amount   that collection voided the same day
 //   deposit           -amount   cash handed in to the ISP
 //   adjustment        +/-       a correction, with a note
+//   bag_sealed        -declared cash sealed in a cash bag (phase 3,
+//                               migration 006; only cashBagService.seal posts it)
 //
 // Every figure the app and the staff pages show comes from here:
 //
 //   balance              = SUM(amount)          what the reseller owes the ISP
+//   cash_on_hand         = balance              the cash it still holds
 //   in_bags              = SUM(cash_bags.declared_amount) of its bags sealed
-//                          and not yet received (ready_for_pickup, in_transit)
-//   cash_on_hand         = balance - in_bags    cash it still holds loose
+//                          and not yet received (ready_for_pickup, in_transit);
+//                          shown for information, subtracted nowhere
 //   credit_limit         = COALESCE(resellers.credit_limit,
 //                                   reseller_default_credit_limit setting)
 //   available_to_collect = max(0, credit_limit - cash_on_hand)
 //
-// Sealing a bag (phase 3, services/cashBagService.js) books nothing: the bag's
-// declared amount moves from cash_on_hand to in_bags, which frees the limit,
-// and balance still counts it until the ISP receives the bag (a deposit of
-// the declared amount, and an adjustment for any difference with the count).
-// A lost bag leaves in_bags, so its amount is owed as cash on hand again.
+// Sealing a bag (phase 3, services/cashBagService.js) takes its declared
+// amount off the reseller's ledger at once (a bag_sealed entry of -D), which
+// frees the limit: the cash is no longer the reseller's but the bag's, on its
+// way to the ISP. Receiving the bag posts only the difference with the count
+// (an adjustment of D - C); a lost bag posts nothing, so the ISP absorbs it.
 //
 // Rows are never updated or deleted; a correction is a new entry. A writer
 // locks the reseller row first (lockReseller) so the credit check and the
@@ -38,7 +41,10 @@ const { requireOrgId } = require('../utils/requireOrgId');
 const { inPlaceholders } = require('../utils/sqlBuild');
 const { ORG_SETTING_DEFS } = require('./settingsCatalog');
 
-const ENTRY_TYPES = ['collection', 'collection_void', 'deposit', 'adjustment'];
+const ENTRY_TYPES = ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'];
+// What staff may post by hand (POST /resellers/:id/ledger); every other type
+// is written by the flow it records (a collection, its void, a sealed bag).
+const MANUAL_ENTRY_TYPES = ['deposit', 'adjustment'];
 const DEFAULT_LIMIT_KEY = 'reseller_default_credit_limit';
 
 const defaultExec = () => db.query.bind(db);
@@ -99,21 +105,24 @@ async function collectingResellerId(req) {
   return id;
 }
 
-/** The figures derived from a balance, the cash in sealed bags and a limit. */
+/**
+ * The figures derived from a balance, a limit and the cash in sealed bags.
+ * Sealed cash already left the balance (bag_sealed), so in_bags is reported
+ * as it is and not subtracted: cash_on_hand is the balance.
+ */
 function summarize(balance, creditLimit, inBagsAmount = 0) {
-  const bagged = toMoney(inBagsAmount);
-  const cashOnHand = money.sub(toMoney(balance), bagged);
+  const cashOnHand = toMoney(balance);
   const limit = toMoney(creditLimit);
   return {
-    balance: toMoney(balance),
-    in_bags: bagged,
+    balance: cashOnHand,
+    in_bags: toMoney(inBagsAmount),
     cash_on_hand: cashOnHand,
     credit_limit: limit,
     available_to_collect: Math.max(0, money.sub(limit, cashOnHand)),
   };
 }
 
-// Bags whose declared cash has left the reseller's hands but not reached the ISP.
+// Bags whose declared cash has left the reseller's hands (and ledger) but not reached the ISP.
 const IN_BAGS_STATUSES = ['ready_for_pickup', 'in_transit'];
 
 /** SUM(declared_amount) of the reseller's sealed, not yet received bags, on `exec`. */
@@ -278,7 +287,7 @@ function entryRow(r) {
   };
 }
 
-/** Set cash_bag_serial on the rows that name a bag (a deposit or adjustment of a received bag). */
+/** Set cash_bag_serial on the rows that name a bag (its seal, and the difference or legacy deposit of its receipt). */
 async function withBagSerials(orgId, rows) {
   const ids = [...new Set((rows || []).map((r) => Number(r.cash_bag_id)).filter((id) => Number.isInteger(id) && id > 0))];
   if (!ids.length) return rows;
@@ -315,6 +324,7 @@ async function listEntries(orgId, resellerId, { limit, offset }) {
 
 module.exports = {
   ENTRY_TYPES,
+  MANUAL_ENTRY_TYPES,
   defaultCreditLimit,
   effectiveCreditLimit,
   topLevelResellerId,

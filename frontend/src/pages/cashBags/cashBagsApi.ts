@@ -56,6 +56,8 @@ export interface ResellerVariance { reseller_id: number; reseller_name: string; 
 
 export interface CashBagSummary {
   counts: Record<string, number>;
+  /** Declared cash of bags ready for pickup or on their way; already off the resellers' ledgers. */
+  in_bags: number | string | null;
   resellers: ResellerVariance[];
 }
 
@@ -170,7 +172,7 @@ export function toSummary(raw: Raw): CashBagSummary {
       received: num(o.received_bags ?? o.received ?? o.received_count ?? o.bags_received ?? o.count),
     };
   });
-  return { counts, resellers };
+  return { counts, in_bags: money(raw.in_bags), resellers };
 }
 
 export function toCarrier(raw: Raw): Carrier {
@@ -274,7 +276,7 @@ export async function saveCarrierResellers(userId: number, resellerIds: number[]
 
 /**
  * GET /carriers/assignable-resellers: every top-level reseller a carrier may
- * be given (carriers.manage alone; not the 100-row page of GET /resellers).
+ * be given (carriers.manage alone, without resellers.view or paging GET /resellers).
  */
 export async function fetchAssignableResellers(): Promise<{ resellers: { id: number; name: string }[]; truncated: boolean }> {
   const res = await apiFetch<{ data?: Raw[]; meta?: { truncated?: boolean } }>('/carriers/assignable-resellers');
@@ -282,10 +284,6 @@ export async function fetchAssignableResellers(): Promise<{ resellers: { id: num
     .map(r => ({ id: num(r.id), name: String(r.name ?? '') }))
     .filter(r => r.id > 0);
   return { resellers, truncated: Boolean(res?.meta?.truncated) };
-}
-
-export async function fetchTopLevelResellers(): Promise<{ id: number; name: string }[]> {
-  return (await apiFetch<{ data: { id: number; name: string }[] }>('/resellers?parent_id=null&limit=100')).data ?? [];
 }
 
 export async function fetchResellerBags(resellerId: number, page: number, limit: number): Promise<{ data: CashBag[]; meta: ListMeta | null; variance: number | string | null }> {

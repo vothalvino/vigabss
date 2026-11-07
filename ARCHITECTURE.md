@@ -358,10 +358,12 @@ the bound reseller, which may be a sub-reseller), whoever owns the client, in
 the append-only `reseller_ledger_entries`
 (`src/services/resellerLedgerService.js`, never updated or deleted): a
 collection adds its amount, its void and a deposit subtract, an adjustment is
-signed. The balance (what the reseller owes) is the sum, `in_bags` is the
-declared amount of its cash bags that are sealed and not yet received
-(`ready_for_pickup`, `in_transit`; phase 3), `cash_on_hand` is the balance
-minus `in_bags`, the effective limit is `resellers.credit_limit` or
+signed, and sealing a cash bag subtracts its declared amount (`bag_sealed`,
+phase 3, migration 006). The balance (what the reseller owes) is the sum and
+is also `cash_on_hand`; `in_bags` is the declared amount of its cash bags
+that are sealed and not yet received (`ready_for_pickup`, `in_transit`),
+reported for information and subtracted nowhere; the effective limit is
+`resellers.credit_limit` or
 the per-organization setting `reseller_default_credit_limit`, and
 `available_to_collect` is the limit minus the cash on hand, never below 0.
 A sub-reseller's users collect, read `/me` money, `/ledger`, the day's list
@@ -406,8 +408,9 @@ the allocations. Closing the cash box
 (`cashReconciliationService.closeSession`) records the count and the
 variance and leaves the ledger alone; only org-level staff with
 `reseller_ledger.manage` record cash handed in (`POST /resellers/:id/ledger`
-deposit, never a payment, at most the cash on hand; or a noted adjustment),
-which frees the limit. The ledger routes and a reseller's `credit_limit` are refused
+deposit, never a payment, at most the cash on hand; or a noted adjustment;
+no other type, `bag_sealed` included, can be posted by hand), which frees
+the limit. The ledger routes and a reseller's `credit_limit` are refused
 to bound callers. A staff deletion or edit of a reseller-collected payment
 does not touch the reseller ledger: the cash the reseller took is still owed
 until a deposit or an adjustment says otherwise.
@@ -425,11 +428,16 @@ that reseller) → `received` (staff count C); also `ready_for_pickup` →
 `received` when the reseller brings it in, `void` from the three states
 without money, `lost` from the two with money, and the returns `with_carrier`
 → `in_stock` and `at_reseller` → `with_carrier`. `received`, `void` and
-`lost` are terminal. Sealing books nothing (D moves from cash on hand to
-`in_bags` and frees the limit); receiving posts a `deposit` of −D and, when C
-differs, an `adjustment` of D − C, both with `reseller_ledger_entries.cash_bag_id`
-(net −C); a lost bag posts nothing, so D is owed as cash on hand again until
-an administrator records an adjustment. Every transition whose bag has or
+`lost` are terminal; no transition takes a sealed bag back to an empty
+state. Sealing posts, in the seal's transaction, a `bag_sealed` entry of −D
+with `reseller_ledger_entries.cash_bag_id` and the sealing user, so the
+balance and the cash on hand drop at once and the limit frees; receiving
+posts only an `adjustment` of D − C when the count C differs (a short bag
+raises the debt, an over bag lowers it; net −C over the bag's life). A bag
+being received without a `bag_sealed` entry (sealed under migration 005;
+migration 006 backfills the open ones) also gets the old `deposit` of −D, so
+no bag is counted twice or never. A lost bag posts nothing: D left the
+reseller's ledger at sealing, and the ISP absorbs the loss. Every transition whose bag has or
 gets a reseller (drop-off, seal, pickup, receive, lost, and void or return of
 an `at_reseller` bag) locks the reseller row first, then the bag (the order of
 a collection), so a seal and a concurrent collection cannot both pass the
@@ -1023,7 +1031,12 @@ types from `frontend/src/api/rows.ts` instead of restating the columns.
 Display helpers are shared: `components/ui/StatusBadge` (a page passes its
 status colour map), `lib/money`'s `formatMoney` and `lib/dates`'
 `formatDate` (calendar dates never shift a day). `src/test/sharedHelpers.test.ts`
-keeps new pages from declaring their own StatusBadge or money formatter.
+keeps new pages from declaring their own StatusBadge or money formatter. A
+staff reseller picker or filter takes its options from
+`pages/resellers/resellerOptions.tsx` (`useResellerOptions`: every page of
+`GET /resellers`, whose server cap is 100 rows, up to 5,000 with a notice past
+that), never from a single `?limit=100` page; the reseller and carrier apps
+never call `/resellers`.
 
 Prefer the typed `api.GET/POST/PUT/PATCH/DELETE(...)` client from
 `frontend/src/api/client.ts`. Use `authedFetch` when raw response bodies,

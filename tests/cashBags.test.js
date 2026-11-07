@@ -3,9 +3,10 @@
 // =============================================================================
 // The ISP registers numbered money bags and hands them to a carrier, which
 // drops them off empty at resellers; a reseller seals the cash it holds in one
-// (the limit frees at once), the carrier picks it up by its serial and the
-// ISP counts and receives it, posting the deposit and any difference to the
-// reseller ledger. Carriers are fenced to the carrier app. The database is an
+// (a bag_sealed ledger line takes the cash off its balance and frees the limit
+// at once, migration 006), the carrier picks it up by its serial and the ISP
+// counts and receives it, posting only a difference to the reseller ledger.
+// A lost bag posts nothing: the ISP absorbs it. Carriers are fenced to the carrier app. The database is an
 // in-memory fake with transaction snapshots (tests/helpers/cashBagFakeDb.js).
 // =============================================================================
 
@@ -104,10 +105,14 @@ function freshState() {
       { organization_id: ORG, carrier_user_id: CARRIER, reseller_id: 1 },
       { organization_id: ORG, carrier_user_id: CARRIER_2, reseller_id: 1 },
     ],
-    // R1 owes 800 (collections); 500 of it is sealed in bags 106 and 109.
+    // R1 collected 800 and sealed 500 of it in bags 106 and 109, which took
+    // it off its balance: it owes (and holds) 300. R2 sealed all its 50.
     ledger: [
       { id: 1, organization_id: ORG, reseller_id: 1, entry_type: 'collection', amount: '800.00', currency: 'MXN', payment_id: 500, cash_session_id: 40, cash_bag_id: null, note: null, created_by: RESELLER_USER, created_at: new Date('2026-11-02T10:00:00Z') },
       { id: 2, organization_id: ORG, reseller_id: 2, entry_type: 'collection', amount: '50.00', currency: 'MXN', payment_id: 501, cash_session_id: 41, cash_bag_id: null, note: null, created_by: RESELLER_USER, created_at: new Date('2026-11-02T10:00:00Z') },
+      { id: 3, organization_id: ORG, reseller_id: 1, entry_type: 'bag_sealed', amount: '-300.00', currency: 'MXN', payment_id: null, cash_session_id: null, cash_bag_id: 106, note: 'Bolsa BAG-106 sellada', created_by: RESELLER_USER, created_at: new Date('2026-11-02T11:00:00Z') },
+      { id: 4, organization_id: ORG, reseller_id: 2, entry_type: 'bag_sealed', amount: '-50.00', currency: 'MXN', payment_id: null, cash_session_id: null, cash_bag_id: 108, note: 'Bolsa BAG-108 sellada', created_by: RESELLER_USER, created_at: new Date('2026-11-02T11:00:00Z') },
+      { id: 5, organization_id: ORG, reseller_id: 1, entry_type: 'bag_sealed', amount: '-200.00', currency: 'MXN', payment_id: null, cash_session_id: null, cash_bag_id: 109, note: 'Bolsa BAG-109 sellada', created_by: RESELLER_USER, created_at: new Date('2026-11-02T11:00:00Z') },
     ],
     seq: { bag: 200, event: 0, ledger: 10 },
   };
@@ -117,6 +122,7 @@ const clone = (v) => globalThis.structuredClone(v);
 const cents = (v) => Math.round(Number(v) * 100);
 const fromCents = (c) => (c / 100).toFixed(2);
 const ledgerSum = (rid) => state.ledger.filter((e) => e.reseller_id === rid).reduce((t, e) => t + cents(e.amount), 0);
+const LEDGER_AT_START = 5;
 const bagBySerial = (serial, org = ORG) => state.bags.find((b) => b.serial === serial && b.organization_id === org);
 
 function handle(sql, params = []) {
@@ -543,17 +549,41 @@ describe('the carrier app', () => {
 
 // ---------------------------------------------------------------------------
 describe('sealing a bag (POST /reseller-app/bags/seal)', () => {
-  // R1 owes 800; bags 106 (300) and 109 (200) are sealed: 300 on hand, limit 1000.
-  test('moves the declared cash from cash_on_hand to in_bags and books nothing', async () => {
+  // R1 collected 800 and sealed 500 in bags 106 and 109: it owes and holds 300, limit 1000.
+  test('posts one bag_sealed line of -declared: the balance drops by it at once', async () => {
     const res = await post('/reseller-app/bags/seal', asReseller(), { serial: 'bag-105', declared_amount: 250.5 });
     expect(res.status).toBe(200);
     expect(res.body.data.bag).toEqual({ id: 105, serial: 'BAG-105', status: 'ready_for_pickup', declared_amount: 250.5, sealed_at: expect.any(String), picked_up_at: null });
     expect(res.body.data.summary).toEqual({
-      currency: 'MXN', balance: 800, in_bags: 750.5, cash_on_hand: 49.5, credit_limit: 1000, available_to_collect: 950.5,
+      currency: 'MXN', balance: 49.5, in_bags: 750.5, cash_on_hand: 49.5, credit_limit: 1000, available_to_collect: 950.5,
       empty_bags: 0, bags_ready_for_pickup: 2, bags_in_transit: 1,
     });
-    expect(state.ledger).toHaveLength(2);
+    expect(state.ledger).toHaveLength(LEDGER_AT_START + 1);
+    expect(state.ledger.filter((e) => e.cash_bag_id === 105)).toEqual([expect.objectContaining({
+      organization_id: ORG, reseller_id: 1, entry_type: 'bag_sealed', amount: '-250.50', currency: 'MXN',
+      payment_id: null, cash_session_id: null, note: 'Bolsa BAG-105 sellada', created_by: RESELLER_USER,
+    })]);
+    expect(fromCents(ledgerSum(1))).toBe('49.50');
     expect(state.events).toEqual([expect.objectContaining({ bag_id: 105, from_status: 'at_reseller', to_status: 'ready_for_pickup', amount: '250.50', actor_user_id: RESELLER_USER })]);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'cash_bag_seal', newValues: expect.objectContaining({ ledger_entry_ids: [LEDGER_AT_START + 6] }),
+    }));
+  });
+
+  test('the bag_sealed line is posted inside the transaction that seals the bag, after the locks', async () => {
+    await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-105', declared_amount: 100 });
+    const statements = conn.execute.mock.calls.map(([q]) => String(q));
+    const insert = statements.findIndex((q) => /INSERT INTO reseller_ledger_entries/.test(q));
+    const sealUpdate = statements.findIndex((q) => /UPDATE cash_bags SET status = 'ready_for_pickup'/.test(q));
+    expect(insert).toBeGreaterThan(sealUpdate);
+    expect(sealUpdate).toBeGreaterThan(-1);
+    expect(db.query.mock.calls.some(([q]) => /INSERT INTO reseller_ledger_entries/.test(q))).toBe(false);
+    expect(conn.commit).toHaveBeenCalledTimes(1);
+  });
+
+  test('a refused seal posts no ledger line', async () => {
+    await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-105', declared_amount: 300.01 });
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
   });
 
   test('locks the reseller row before the bag', async () => {
@@ -567,8 +597,9 @@ describe('sealing a bag (POST /reseller-app/bags/seal)', () => {
     expect(res.body.error).toMatchObject({ code: 'BAG_AMOUNT_EXCEEDS_CASH', details: { cash_on_hand: 300, declared_amount: 300.01 } });
     expect(bagBySerial('BAG-105').status).toBe('at_reseller');
     expect(state.events).toHaveLength(0);
-    // Exactly the cash on hand is allowed.
+    // Exactly the cash on hand is allowed, and leaves the reseller owing nothing.
     expect((await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-105', declared_amount: 300 })).status).toBe(200);
+    expect(ledgerSum(1)).toBe(0);
   });
 
   test.each([[0], [-5], [10.005]])('a declared amount of %p is a 422', async (amount) => {
@@ -599,9 +630,9 @@ describe('sealing a bag (POST /reseller-app/bags/seal)', () => {
     const res = await get('/reseller-app/bags', asReseller());
     expect(res.status).toBe(200);
     expect(res.body.data.map((b) => [b.serial, b.status])).toEqual([['BAG-105', 'at_reseller'], ['BAG-106', 'ready_for_pickup'], ['BAG-109', 'in_transit']]);
-    expect(res.body.summary).toMatchObject({ in_bags: 500, cash_on_hand: 300, empty_bags: 1, bags_ready_for_pickup: 1, bags_in_transit: 1 });
+    expect(res.body.summary).toMatchObject({ balance: 300, in_bags: 500, cash_on_hand: 300, empty_bags: 1, bags_ready_for_pickup: 1, bags_in_transit: 1 });
     const me = await get('/reseller-app/me', asReseller());
-    expect(me.body.data.money).toMatchObject({ balance: 800, in_bags: 500, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700, empty_bags: 1, bags_ready_for_pickup: 1, bags_in_transit: 1 });
+    expect(me.body.data.money).toMatchObject({ balance: 300, in_bags: 500, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700, empty_bags: 1, bags_ready_for_pickup: 1, bags_in_transit: 1 });
   });
 });
 
@@ -609,36 +640,70 @@ describe('sealing a bag (POST /reseller-app/bags/seal)', () => {
 describe('receiving a bag (POST /cash-bags/:id/receive)', () => {
   const entries = () => state.ledger.filter((e) => e.cash_bag_id === 109).map((e) => [e.entry_type, e.amount, e.note]);
 
-  test('a full bag posts a deposit of the declared amount and nothing else', async () => {
+  const SEALED = ['bag_sealed', '-200.00', 'Bolsa BAG-109 sellada'];
+
+  test('a bag that counts what was declared posts nothing more: its cash left the ledger at sealing', async () => {
     const res = await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 200 });
     expect(res.status).toBe(200);
-    expect(entries()).toEqual([['deposit', '-200.00', 'Bolsa BAG-109']]);
+    expect(entries()).toEqual([SEALED]);
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
     expect(res.body.data.bag).toMatchObject({ id: 109, status: 'received', declared_amount: 200, counted_amount: 200, variance: 0, reseller_name: 'Tienda Lupita' });
-    expect(res.body.data.ledger_entries).toEqual([expect.objectContaining({ entry_type: 'deposit', amount: -200, cash_bag_id: 109, cash_bag_serial: 'BAG-109' })]);
-    // 800 - 200 owed; bag 106 (300) still in bags.
-    expect(res.body.data.summary).toEqual({ balance: 600, in_bags: 300, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700, credit_limit_override: 1000 });
+    expect(res.body.data.ledger_entries).toEqual([]);
+    // Still 300 owed and held; bag 106 (300) is still in bags.
+    expect(res.body.data.summary).toEqual({ balance: 300, in_bags: 300, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700, credit_limit_override: 1000 });
     expect(state.events).toEqual([expect.objectContaining({ from_status: 'in_transit', to_status: 'received', amount: '200.00', actor_user_id: ADMIN })]);
   });
 
-  test('a short bag raises the debt by the difference', async () => {
+  test('a short bag raises the debt by the difference, and only that', async () => {
     const res = await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 180.5, note: 'faltante' });
     expect(res.status).toBe(200);
     expect(entries()).toEqual([
-      ['deposit', '-200.00', 'Bolsa BAG-109'],
+      SEALED,
       ['adjustment', '19.50', 'Bolsa BAG-109: declarado 200.00, contado 180.50'],
     ]);
+    expect(res.body.data.ledger_entries).toEqual([expect.objectContaining({ entry_type: 'adjustment', amount: 19.5, cash_bag_id: 109, cash_bag_serial: 'BAG-109' })]);
     expect(res.body.data.bag.variance).toBe(-19.5);
-    // Net -180.50: the reseller still owes the 19.50 it did not hand in.
-    expect(res.body.data.summary).toMatchObject({ balance: 619.5, in_bags: 300, cash_on_hand: 319.5 });
+    // Net -180.50 over the bag's life: the reseller still owes the 19.50 it did not hand in.
+    expect(res.body.data.summary).toMatchObject({ balance: 319.5, in_bags: 300, cash_on_hand: 319.5, available_to_collect: 680.5 });
   });
 
   test('an over bag lowers the debt', async () => {
     await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 210 });
     expect(entries()).toEqual([
-      ['deposit', '-200.00', 'Bolsa BAG-109'],
+      SEALED,
       ['adjustment', '-10.00', 'Bolsa BAG-109: declarado 200.00, contado 210.00'],
     ]);
-    expect(fromCents(ledgerSum(1))).toBe('590.00');
+    expect(fromCents(ledgerSum(1))).toBe('290.00');
+  });
+
+  test('a bag sealed before migration 006 with no bag_sealed line also gets the deposit, so it is counted once', async () => {
+    state.ledger = state.ledger.filter((e) => e.cash_bag_id !== 109);
+    expect(fromCents(ledgerSum(1))).toBe('500.00');
+    const res = await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 200 });
+    expect(res.status).toBe(200);
+    expect(entries()).toEqual([['deposit', '-200.00', 'Bolsa BAG-109']]);
+    expect(res.body.data.ledger_entries).toEqual([expect.objectContaining({ entry_type: 'deposit', amount: -200, cash_bag_serial: 'BAG-109' })]);
+    expect(res.body.data.summary).toMatchObject({ balance: 300, cash_on_hand: 300 });
+  });
+
+  test('a legacy bag that comes up short gets the deposit and the difference', async () => {
+    state.ledger = state.ledger.filter((e) => e.cash_bag_id !== 109);
+    await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 150 });
+    expect(entries()).toEqual([
+      ['deposit', '-200.00', 'Bolsa BAG-109'],
+      ['adjustment', '50.00', 'Bolsa BAG-109: declarado 200.00, contado 150.00'],
+    ]);
+    expect(fromCents(ledgerSum(1))).toBe('350.00');
+  });
+
+  test('a bag sealed in the app and then received nets the ledger to minus the count', async () => {
+    const before = ledgerSum(1);
+    expect((await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-105', declared_amount: 120 })).status).toBe(200);
+    expect(ledgerSum(1)).toBe(before - 12000);
+    expect((await post('/cash-bags/105/receive', asAdmin(), { counted_amount: 115 })).status).toBe(200);
+    expect(ledgerSum(1)).toBe(before - 11500);
+    expect(state.ledger.filter((e) => e.cash_bag_id === 105).map((e) => [e.entry_type, e.amount]))
+      .toEqual([['bag_sealed', '-120.00'], ['adjustment', '5.00']]);
   });
 
   test('a bag the reseller brought in person is received from ready_for_pickup, and says so', async () => {
@@ -658,27 +723,36 @@ describe('receiving a bag (POST /cash-bags/:id/receive)', () => {
     expect(empty.body.error.code).toBe('BAG_INVALID_TRANSITION');
     expect((await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 200 })).status).toBe(200);
     expect((await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 200 })).status).toBe(409);
-    expect(entries()).toHaveLength(1);
+    expect(entries()).toEqual([SEALED]);
   });
 
   test("another organization's bag is a 404, and the count needs cash_bags.receive", async () => {
     expect((await post('/cash-bags/901/receive', asAdmin(), { counted_amount: 10 })).status).toBe(404);
     expect((await post('/cash-bags/109/receive', asAdmin(['cash_bags.view', 'cash_bags.manage']), { counted_amount: 200 })).status).toBe(403);
     expect((await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 1.001 })).status).toBe(422);
-    expect(state.ledger).toHaveLength(2);
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
   });
 });
 
 // ---------------------------------------------------------------------------
 describe('void, lost and return', () => {
-  test('a lost bag posts nothing and its cash is owed as cash on hand again', async () => {
+  test('a bag lost in transit posts nothing: the reseller does not owe it again, the ISP absorbs it', async () => {
     const res = await post('/cash-bags/109/lost', asAdmin(), { reason: 'asalto en ruta' });
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ status: 'lost', declared_amount: 200 });
-    expect(state.ledger).toHaveLength(2);
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
     expect(lockOrder()).toEqual(['resellers', 'cash_bags']);
     const me = await get('/reseller-app/me', asReseller());
-    expect(me.body.data.money).toMatchObject({ balance: 800, in_bags: 300, cash_on_hand: 500, available_to_collect: 500 });
+    expect(me.body.data.money).toMatchObject({ balance: 300, in_bags: 300, cash_on_hand: 300, available_to_collect: 700 });
+  });
+
+  test('a bag lost while waiting at the reseller posts nothing either, and the balance stays reduced', async () => {
+    const res = await post('/cash-bags/106/lost', asAdmin(), { reason: 'robo en la tienda' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('lost');
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
+    const ledger = await get('/resellers/1/ledger', asAdmin());
+    expect(ledger.body.summary).toMatchObject({ balance: 300, in_bags: 200, cash_on_hand: 300, available_to_collect: 700 });
   });
 
   test.each([['in_stock', 101], ['with_carrier', 103], ['at_reseller', 105]])('a bag %s can be voided', async (_status, id) => {
@@ -774,15 +848,26 @@ describe('staff reads and the ledger', () => {
 
   test('the reseller rows and the staff ledger carry in_bags and cash_on_hand, and a deposit is capped at the cash on hand', async () => {
     const one = await get('/resellers/1', asAdmin());
-    expect(one.body.data).toMatchObject({ balance: 800, in_bags: 500, cash_on_hand: 300, effective_credit_limit: 1000, available_to_collect: 700 });
+    expect(one.body.data).toMatchObject({ balance: 300, in_bags: 500, cash_on_hand: 300, effective_credit_limit: 1000, available_to_collect: 700 });
+    const list = await get('/resellers', asAdmin());
+    expect(list.body.data.find((r) => r.id === 2)).toMatchObject({ balance: 0, in_bags: 50, cash_on_hand: 0 });
     const ledger = await get('/resellers/1/ledger', asAdmin());
-    expect(ledger.body.summary).toMatchObject({ balance: 800, in_bags: 500, cash_on_hand: 300 });
-    // The 500 in bags arrives as the bags' own deposits.
+    expect(ledger.body.summary).toMatchObject({ balance: 300, in_bags: 500, cash_on_hand: 300 });
+    // The 500 in bags already left the balance when they were sealed.
     const tooMuch = await post('/resellers/1/ledger', asAdmin(), { entry_type: 'deposit', amount: 300.01 });
     expect(tooMuch.status).toBe(422);
     expect(tooMuch.body.error.code).toBe('DEPOSIT_EXCEEDS_BALANCE');
-    expect(tooMuch.body.error.message).toMatch(/300\.00 in cash outside its sealed bags/);
+    expect(tooMuch.body.error.message).toMatch(/300\.00 in cash;/);
     expect((await post('/resellers/1/ledger', asAdmin(), { entry_type: 'deposit', amount: 300 })).status).toBe(201);
+    expect(ledgerSum(1)).toBe(0);
+  });
+
+  test('staff cannot post a bag_sealed line, or any type but a deposit or an adjustment, by hand', async () => {
+    for (const entryType of ['bag_sealed', 'collection', 'collection_void']) {
+      const res = await post('/resellers/1/ledger', asAdmin(), { entry_type: entryType, amount: -10, note: 'a mano' });
+      expect([entryType, res.status]).toEqual([entryType, 422]);
+    }
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
   });
 
   test("PUT /resellers/:id clears the carrier's address and pin when they are sent empty, and keeps them when absent", async () => {
@@ -808,7 +893,7 @@ describe('staff reads and the ledger', () => {
     await post('/cash-bags/109/receive', asAdmin(), { counted_amount: 190 });
     const ledger = await get('/resellers/1/ledger', asAdmin());
     expect(ledger.body.data.filter((e) => e.cash_bag_id === 109).map((e) => [e.entry_type, e.cash_bag_serial]))
-      .toEqual([['adjustment', 'BAG-109'], ['deposit', 'BAG-109']]);
+      .toEqual([['adjustment', 'BAG-109'], ['bag_sealed', 'BAG-109']]);
     const app2 = await get('/reseller-app/ledger', asReseller());
     expect(app2.body.data.filter((e) => e.cash_bag_serial === 'BAG-109')).toHaveLength(2);
   });
@@ -821,7 +906,7 @@ describe('staff reads and the ledger', () => {
     }
     const carrier = asCarrier([...CARRIER_PERMISSIONS, 'cash_bags.receive']);
     expect((await post('/cash-bags/109/receive', carrier, { counted_amount: 1 })).status).toBe(403);
-    expect(state.ledger).toHaveLength(2);
+    expect(state.ledger).toHaveLength(LEDGER_AT_START);
   });
 
   test('the router guard refuses a bound user even without the fence', async () => {

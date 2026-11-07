@@ -3354,7 +3354,7 @@ function generateSpec() {
       },
       '/resellers/{id}/ledger': {
         get: { tags: ['Resellers'], summary: "A reseller's cash ledger, newest first, with the summary (balance it owes, effective credit limit, available to collect). Org-level staff with reseller_ledger.view", operationId: 'getResellerLedger', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(true) } } }, 403: errorResponse('Reseller-bound callers cannot read reseller ledgers'), 404: errorResponse('Reseller not found') } },
-        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand: what it holds outside sealed bags, which post their own deposit when received) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE') } },
+        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand, the balance: the cash of a sealed bag already left it at sealing) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE') } },
       },
       '/resellers/{id}/users/{userId}': {
         put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('ResellerUserBinding'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Reseller or user not found'), 422: errorResponse('Cannot bind your own account') } },
@@ -3808,9 +3808,9 @@ function resellerAppMoneySchema() {
       'empty_bags', 'bags_ready_for_pickup', 'bags_in_transit'],
     properties: {
       currency: { type: 'string' },
-      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger), sealed bags not yet received included' },
-      in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit)' },
-      cash_on_hand: { type: 'number', description: 'balance - in_bags: the collected cash it still holds loose' },
+      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger); a sealed bag left it at sealing' },
+      in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit), already off the balance; for information' },
+      cash_on_hand: { type: 'number', description: 'The collected cash it still holds: equal to balance' },
       credit_limit: { type: 'number', description: 'Effective limit: its own, or the organization default' },
       available_to_collect: { type: 'number', description: 'max(0, credit_limit - cash_on_hand)' },
       collected_today: { type: 'number', description: 'Live collections of today (organization time zone)' },
@@ -3948,12 +3948,12 @@ function resellerAppCashSessionSchema() {
 function resellerLedgerEntrySchema(staff) {
   const properties = {
     id: { type: 'integer' },
-    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment'] },
+    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'] },
     amount: { type: 'number', description: 'Signed: + increases what the reseller owes' },
     note: nullableString(),
     created_at: { type: 'string', format: 'date-time' },
     payment_id: nullableInteger(),
-    cash_bag_serial: { type: ['string', 'null'], description: 'The received cash bag behind a deposit or an adjustment' },
+    cash_bag_serial: { type: ['string', 'null'], description: 'The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt' },
   };
   const required = ['id', 'entry_type', 'amount', 'note', 'created_at', 'payment_id', 'cash_bag_serial'];
   if (staff) {
@@ -3964,9 +3964,9 @@ function resellerLedgerEntrySchema(staff) {
 }
 function resellerLedgerSummarySchema(staff) {
   const properties = {
-    balance: { type: 'number', description: 'What the reseller owes, sealed bags not yet received included' },
-    in_bags: { type: 'number', description: 'Declared cash in sealed bags not yet received' },
-    cash_on_hand: { type: 'number', description: 'balance - in_bags' },
+    balance: { type: 'number', description: 'What the reseller owes; a sealed bag left it at sealing' },
+    in_bags: { type: 'number', description: 'Declared cash in sealed bags not yet received, already off the balance; for information' },
+    cash_on_hand: { type: 'number', description: 'Equal to balance' },
     credit_limit: { type: 'number', description: 'Effective limit' },
     available_to_collect: { type: 'number' },
   };

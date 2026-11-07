@@ -2,11 +2,12 @@
 // Reseller cash movements (GET/POST /resellers/:id/ledger)
 // =============================================================================
 // A top-level reseller's account with the ISP: every cash collection (+),
-// voided collection (−), cash handed in (deposit, −) and adjustment (±).
-// The summary is what it owes (sealed cash bags not yet received included),
-// what those bags hold, the cash it still holds outside bags, its effective
-// cash limit and what it may still collect. A deposit or an adjustment that
-// came from receiving a cash bag names the bag. With reseller_ledger.manage the page records a cash hand-in
+// voided collection (−), cash handed in (deposit, −), cash bag sealed
+// (bag_sealed, −; migration 006) and adjustment (±). The summary is what it
+// owes (the cash it still holds: a sealed bag left it at sealing), the cash
+// in its sealed bags awaiting pickup or on their way (for information), its
+// effective cash limit and what it may still collect. A line that came from
+// a cash bag (its seal, or the difference counted on receipt) names the bag. With reseller_ledger.manage the page records a cash hand-in
 // ("Registrar entrega de efectivo") or an adjustment (with a required note).
 // A hand-in is a ledger entry only, never a payment. Sub-resellers collect
 // on their top-level reseller's account, so only top-level ones are listed.
@@ -26,6 +27,7 @@ import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { toLedgerPage, toNumber, type PuntoLedgerPage } from '../punto/puntoApi';
 import { styles } from '../crudStyles';
+import { ResellerListNotice, useResellerOptions } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 const MONEY = /^-?\d+(\.\d{1,2})?$/;
@@ -96,10 +98,7 @@ export function ResellerLedgerTab() {
   const [page, setPage] = useState(1);
   const [msg, setMsg] = useState('');
 
-  const resellersQ = useQuery({
-    queryKey: ['resellers-top-level'],
-    queryFn: async () => (await apiFetch<{ data: { id: number; name: string }[] }>('/resellers?parent_id=null&limit=100')).data,
-  });
+  const resellersQ = useResellerOptions({ topLevel: true });
   const ledgerQ = useQuery({
     queryKey: ['reseller-ledger', resellerId, page],
     enabled: resellerId !== null,
@@ -129,9 +128,10 @@ export function ResellerLedgerTab() {
           onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); setMsg(''); }}
         >
           <option value="">{t('resellerLedger.selectReseller')}</option>
-          {(resellersQ.data ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
+      <ResellerListNotice list={resellersQ.data} />
 
       {msg && <p role="status" style={{ color: 'var(--success)', margin: '12px 0 0' }}>{msg}</p>}
 
@@ -145,7 +145,6 @@ export function ResellerLedgerTab() {
                 { label: t('resellerLedger.balance'), value: fmt(s.balance) },
                 ...(s.in_bags !== undefined ? [
                   { label: t('cashBags.ledger.inBags'), value: fmt(s.in_bags) },
-                  { label: t('cashBags.ledger.cashOnHand'), value: fmt(s.cash_on_hand) },
                 ] : []),
                 { label: t('resellerLedger.creditLimit'), value: fmt(s.credit_limit) },
                 { label: t('resellerLedger.available'), value: fmt(Math.max(0, toNumber(s.available_to_collect))) },

@@ -30,6 +30,7 @@ const STOCK = { ...READY, id: 4, serial: 'A-0004', status: 'in_stock', reseller_
 const ALL = [READY, TRANSIT, RECEIVED, STOCK];
 const SUMMARY = {
   counts: { in_stock: 1, with_carrier: 0, at_reseller: 0, ready_for_pickup: 1, in_transit: 1, received: 1, void: 0, lost: 0 },
+  in_bags: '1300.00',
   resellers: [{ reseller_id: 4, reseller_name: 'Punto Norte', variance: -10, received_bags: 1 }, { reseller_id: 5, reseller_name: 'Punto Sur', variance: 0, received_bags: 2 }],
 };
 const CARRIERS = [{ user_id: 30, first_name: 'Pedro', last_name: 'Ruta', email: 'ruta@example.com', phone: '5550001', status: 'active', resellers: [{ id: 4, name: 'Punto Norte' }], bags_in_hand: { with_carrier: 3, in_transit: 1 } }];
@@ -56,7 +57,11 @@ function respond(path: string, init?: RequestInit): unknown {
     return { data: { ...bag, events: [{ id: 1, from_status: 'at_reseller', to_status: 'ready_for_pickup', actor_name: 'Lupita', amount: bag?.declared_amount ?? null, note: null, created_at: '2026-11-07T15:00:00Z' }] } };
   }
   if (path === '/cash-bags/1/receive' && method === 'POST') {
-    return { data: { bag: { ...READY, status: 'received', counted_amount: '480.00' }, ledger_entries: [{ id: 7, entry_type: 'deposit', amount: -500, note: 'Bolsa A-0001', cash_bag_id: 1, cash_bag_serial: 'A-0001' }, { id: 8, entry_type: 'adjustment', amount: 20, note: 'Declarado 500.00, contado 480.00', cash_bag_id: 1, cash_bag_serial: 'A-0001' }], summary: { balance: 20 } } };
+    return { data: { bag: { ...READY, status: 'received', counted_amount: '480.00' }, ledger_entries: [{ id: 8, entry_type: 'adjustment', amount: 20, note: 'Declarado 500.00, contado 480.00', cash_bag_id: 1, cash_bag_serial: 'A-0001' }], summary: { balance: 20 } } };
+  }
+  if (path === '/cash-bags/2/receive' && method === 'POST') {
+    // The count matches: the declared amount left the ledger at sealing, nothing more is posted.
+    return { data: { bag: { ...TRANSIT, status: 'received', counted_amount: TRANSIT.declared_amount }, ledger_entries: [], summary: { balance: 0 } } };
   }
   if (path === '/cash-bags/4/void' && method === 'POST') return { data: { ...STOCK, status: 'void' } };
   if (path === '/cash-bags' && method === 'POST') {
@@ -71,12 +76,12 @@ function respond(path: string, init?: RequestInit): unknown {
   if (path === '/carriers/30/resellers' && method === 'GET') return { data: [{ id: 4, name: 'Punto Norte' }] };
   if (path === '/carriers/30/resellers' && method === 'PUT') return { data: [] };
   if (path === '/carriers/assignable-resellers') return { data: RESELLERS, meta: { total: RESELLERS.length, truncated: false } };
-  if (path === '/resellers?parent_id=null&limit=100') return { data: RESELLERS };
+  if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: RESELLERS };
   if (path.startsWith('/resellers/4/bags?')) return { data: [RECEIVED, READY], meta: { total: 2, page: 1, limit: 25 }, summary: { variance: '-10.00' } };
   if (path.startsWith('/resellers/4/ledger?')) {
     return {
-      data: [{ id: 5, entry_type: 'deposit', amount: '-300.00', note: 'Bolsa A-0003', created_at: '2026-11-06T18:00:00Z', payment_id: null, cash_bag_id: 3, cash_bag_serial: 'A-0003' }],
-      summary: { balance: '1300.00', in_bags: '1300.00', cash_on_hand: '0.00', credit_limit: '2000.00', available_to_collect: '2000.00' },
+      data: [{ id: 5, entry_type: 'bag_sealed', amount: '-300.00', note: 'Bolsa A-0003 sellada', created_at: '2026-11-06T18:00:00Z', payment_id: null, cash_bag_id: 3, cash_bag_serial: 'A-0003' }],
+      summary: { balance: '0.00', in_bags: '1300.00', cash_on_hand: '0.00', credit_limit: '2000.00', available_to_collect: '2000.00' },
       meta: { total: 1, page: 1, limit: 25 },
     };
   }
@@ -159,15 +164,33 @@ describe('board', () => {
     await user.type(counted, '480');
     expect(within(dialog).getByText('$20.00 short')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Review' }));
-    expect(within(dialog).getByText('This records $500.00 handed in by Punto Norte and an adjustment of $20.00 for the difference.')).toBeInTheDocument();
+    expect(within(dialog).getByText("This records an adjustment of $20.00 on Punto Norte's account for the difference. The declared $500.00 was taken off when the bag was sealed.")).toBeInTheDocument();
     expect(calls('POST', '/cash-bags/1/receive')).toHaveLength(0);
     await user.click(within(dialog).getByRole('button', { name: 'Confirm receipt' }));
 
     expect(await within(dialog).findByText('Bag A-0001 received.')).toBeInTheDocument();
     expect(bodyOf(calls('POST', '/cash-bags/1/receive')[0])).toEqual({ counted_amount: 480 });
     const lines = within(dialog).getByRole('list', { name: 'Movements recorded' });
-    expect(lines).toHaveTextContent('Cash handed in: -$500.00');
     expect(lines).toHaveTextContent('Adjustment: $20.00');
+    expect(lines).not.toHaveTextContent('Cash handed in');
+  });
+
+  it('says when the reseller filter is cut, outside the filter label', async () => {
+    const TOTAL = 5200;
+    override = (path) => {
+      const m = path.match(/^\/resellers\?parent_id=null&page=(\d+)&limit=100$/);
+      if (!m) return undefined;
+      const start = (Number(m[1]) - 1) * 100;
+      const data = Array.from({ length: Math.max(0, Math.min(100, TOTAL - start)) }, (_, i) => ({ id: start + i + 1, name: `Punto ${start + i + 1}`, parent_id: null }));
+      return { data, meta: { total: TOTAL, page: Number(m[1]), limit: 100 } };
+    };
+    renderPage(<CashBagsPage />);
+    const note = await screen.findByRole('note');
+    expect(note).toHaveTextContent('Showing the first 5000 of 5200 resellers.');
+    // The notice is not part of the filter's label, so it is not in its name.
+    const select = screen.getByRole('combobox', { name: 'Reseller' });
+    expect(note.closest('label')).toBeNull();
+    expect(select.closest('label')).not.toContainElement(note);
   });
 
   it('shows an over bag as over, and an equal one posts no difference', async () => {
@@ -188,7 +211,25 @@ describe('board', () => {
     await user.paste('x'.repeat(450));
     expect(note).toHaveValue('x'.repeat(400));
     await user.click(within(dialog).getByRole('button', { name: 'Review' }));
-    expect(within(dialog).getByText('This records $800.00 handed in by Punto Norte.')).toBeInTheDocument();
+    expect(within(dialog).getByText("The count matches: nothing more is posted. The declared $800.00 was taken off Punto Norte's account when the bag was sealed.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm receipt' }));
+    expect(await within(dialog).findByText("Nothing more was posted to the reseller's account: the count matches what was declared.")).toBeInTheDocument();
+    expect(within(dialog).queryByRole('list', { name: 'Movements recorded' })).not.toBeInTheDocument();
+  });
+
+  it("shows the cash in sealed bags as already off the resellers' accounts", async () => {
+    renderPage(<CashBagsPage />);
+    expect(await screen.findByText("Cash in bags awaiting pickup or on their way: $1,300.00 (already taken off the resellers' accounts).")).toBeInTheDocument();
+  });
+
+  it("the lost dialog says the reseller will not owe the bag and the loss is the company's", async () => {
+    const user = userEvent.setup();
+    renderPage(<CashBagsPage />);
+    const all = await screen.findByRole('region', { name: 'All bags' });
+    await user.click(await within(all).findByRole('button', { name: 'Open bag A-0001' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByRole('button', { name: 'Mark lost' }));
+    expect(within(dialog).getByText(/the reseller will not owe it and the loss is the company's/)).toBeInTheDocument();
   });
 
   it('opens a bag with its history and voids it with a reason', async () => {
@@ -374,15 +415,19 @@ describe('reseller page tabs', () => {
     expect(await within(await screen.findByRole('dialog')).findByText(/Lupita/)).toBeInTheDocument();
   });
 
-  it('Movimientos names the bag of a deposit and shows what bags hold', async () => {
+  it('Movimientos names the bag of a seal and shows what bags hold, apart from what the reseller owes', async () => {
     const user = userEvent.setup();
     renderPage(<ResellerLedgerTab />);
     await screen.findByRole('option', { name: 'Punto Norte' });
     await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     const summary = await screen.findByRole('region', { name: 'Summary' });
-    expect(within(summary).getByText('In sealed bags').nextElementSibling).toHaveTextContent('$1,300.00');
-    expect(within(summary).getByText('Cash outside bags').nextElementSibling).toHaveTextContent('$0.00');
+    expect(within(summary).getByText('Cash to hand in').nextElementSibling).toHaveTextContent('$0.00');
+    expect(within(summary).getByText('In bags awaiting pickup or on their way').nextElementSibling).toHaveTextContent('$1,300.00');
+    // Cash on hand is the balance now: not shown twice.
+    expect(within(summary).queryByText('Cash outside bags')).not.toBeInTheDocument();
+    expect(screen.getByText('Bag sealed')).toBeInTheDocument();
     expect(screen.getByText('Bag A-0003')).toBeInTheDocument();
+    expect(screen.getByText('-$300.00')).toBeInTheDocument();
   });
 });
 

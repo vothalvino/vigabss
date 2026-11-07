@@ -14,10 +14,15 @@ import i18n from '@/i18n';
 import { ResellerUserBindingsTab } from '../ResellerUserBindingsTab';
 
 const mocks = vi.hoisted(() => ({
-  GET: vi.fn(), PUT: vi.fn(), DELETE: vi.fn(),
+  GET: vi.fn(), PUT: vi.fn(), DELETE: vi.fn(), apiFetch: vi.fn(),
   permissions: ['resellers.view', 'resellers.update', 'users.update'] as string[],
 }));
 vi.mock('@/api/client', () => ({ api: { GET: mocks.GET, PUT: mocks.PUT, DELETE: mocks.DELETE } }));
+// The reseller picker pages through GET /resellers (resellers/resellerOptions.tsx).
+vi.mock('@/api/apiFetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/apiFetch')>()),
+  apiFetch: mocks.apiFetch,
+}));
 vi.mock('@/auth/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1, role: 'manager', permissions: mocks.permissions } }),
 }));
@@ -42,8 +47,11 @@ describe('ResellerUserBindingsTab', () => {
     await i18n.changeLanguage('en');
     vi.clearAllMocks();
     mocks.permissions = ['resellers.view', 'resellers.update', 'users.update'];
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?page=1&limit=100') return { data: [{ id: 4, name: 'Norte Fibra' }], meta: { total: 1 } };
+      throw new Error(`unexpected ${path}`);
+    });
     mocks.GET.mockImplementation((path: string) => {
-      if (path === '/resellers') return ok([{ id: 4, name: 'Norte Fibra' }]);
       if (path === '/resellers/{id}/users') {
         return ok([{ id: 9, user_id: 20, reseller_id: 4, first_name: 'Ana', last_name: 'Ruiz', email: 'ana@norte.mx', user_status: 'active', created_at: '2026-10-01T00:00:00Z' }]);
       }

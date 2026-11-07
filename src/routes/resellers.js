@@ -239,8 +239,9 @@ function creditLimitFromBody(body) {
 
 // Rows of /resellers carry the money position: the effective credit limit
 // (credit_limit is the reseller's own column, null = the organization
-// default), the ledger balance, the cash sealed in bags (in_bags), the cash
-// still on hand and what it may still collect.
+// default), the ledger balance, which is also the cash still on hand (a
+// sealed bag's cash leaves it at sealing), the cash in sealed bags on their
+// way to the ISP (in_bags, for information) and what it may still collect.
 async function withMoney(orgId, rows) {
   const list = Array.isArray(rows) ? rows : [rows];
   if (!list.length) return rows;
@@ -314,7 +315,7 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
       `SELECT r.*, p.name AS parent_name
        FROM resellers r
        LEFT JOIN resellers p ON r.parent_id = p.id
-       WHERE ${where} ORDER BY r.level ASC, r.name ASC LIMIT ${limitNum} OFFSET ${offset}`,
+       WHERE ${where} ORDER BY r.level ASC, r.name ASC, r.id ASC LIMIT ${limitNum} OFFSET ${offset}`,
       params,
     );
     const [[{ total }]] = await db.query(
@@ -1090,10 +1091,12 @@ router.put(
 // Collections are booked on the top-level reseller of the user who took the
 // money, so a sub-reseller has no ledger of its own. A deposit records cash
 // the reseller handed in and frees its credit limit; it is never a payments
-// row. Org-level staff only: what a reseller owes is the ISP's record.
+// row. Staff post only deposits and adjustments: a collection, its void and a
+// sealed bag (bag_sealed) are written by the flows they record. Org-level
+// staff only: what a reseller owes is the ISP's record.
 
 const ledgerEntrySchema = {
-  entry_type: { type: 'string', required: true, enum: ['deposit', 'adjustment'] },
+  entry_type: { type: 'string', required: true, enum: resellerLedgerService.MANUAL_ENTRY_TYPES },
   amount:     { type: 'number', required: true, min: -9999999999.99, max: 9999999999.99 },
   note:       { type: 'string', max: 500 },
 };
@@ -1152,14 +1155,14 @@ router.post(
         // The same lock a collection takes, so the balance cannot move under us.
         const reseller = await resellerLedgerService.lockReseller(exec, req.orgId, found.id);
         if (!reseller) throw new NotFoundError('Reseller');
-        // A deposit is cash the reseller held loose (cash_on_hand: the balance
-        // minus what it sealed in bags, which arrive as their own deposit when
-        // received); more would let it collect past its limit afterwards. An
-        // adjustment corrects anything else.
+        // A deposit is cash the reseller still holds (cash_on_hand, the
+        // balance: what it sealed in bags already left it at sealing); more
+        // would let it collect past its limit afterwards. An adjustment
+        // corrects anything else.
         const position = await resellerLedgerService.summaryFor(req.orgId, reseller.id, { exec, reseller });
         if (entryType === 'deposit' && money.toCents(amount) > money.toCents(position.cash_on_hand)) {
           const err = new ValidationError(
-            `The reseller holds ${position.cash_on_hand.toFixed(2)} in cash outside its sealed bags; a deposit cannot be more than that`,
+            `The reseller holds ${position.cash_on_hand.toFixed(2)} in cash; a deposit cannot be more than that`,
           );
           err.code = 'DEPOSIT_EXCEEDS_BALANCE';
           throw err;

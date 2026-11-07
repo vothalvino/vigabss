@@ -137,9 +137,9 @@ function handle(sql, params = []) {
     return [[{ balance: fromCents(ledgerSum(Number(params[1]))) }]];
   }
   if (/INSERT INTO reseller_ledger_entries/.test(s)) {
-    const [, resellerId, entryType, amount, currency, paymentId, cashSessionId, note, createdBy] = params;
+    const [orgId, resellerId, entryType, amount, currency, paymentId, cashSessionId, note, createdBy, cashBagId] = params;
     const id = ++state.seq.ledger;
-    state.ledger.push({ id, reseller_id: resellerId, entry_type: entryType, amount: Number(amount).toFixed(2), currency, payment_id: paymentId, cash_session_id: cashSessionId, note, created_by: createdBy, created_at: new Date() });
+    state.ledger.push({ id, organization_id: orgId, reseller_id: resellerId, entry_type: entryType, amount: Number(amount).toFixed(2), currency, payment_id: paymentId, cash_session_id: cashSessionId, cash_bag_id: cashBagId ?? null, note, created_by: createdBy, created_at: new Date() });
     return [{ insertId: id }];
   }
   if (/FROM reseller_ledger_entries\s+WHERE organization_id = \? AND reseller_id = \? AND payment_id = \? AND entry_type = 'collection'/.test(s)) {
@@ -699,17 +699,22 @@ describe('cash bags free the limit (phase 3)', () => {
     expect(refused.body.error.details).toMatchObject({ cash_on_hand: 300, in_bags: 0, empty_bags: 1 });
     expect(refused.body.error.message).toMatch(/fill a cash bag/);
 
-    // Sealing books nothing and frees the limit at once.
+    // Sealing takes the cash off the ledger (bag_sealed) and frees the limit at once.
     const sealed = await post('/reseller-app/bags/seal', token, { serial: 'bag-1', declared_amount: 300 });
     expect(sealed.status).toBe(200);
-    expect(sealed.body.data.summary).toMatchObject({ balance: 300, in_bags: 300, cash_on_hand: 0, available_to_collect: 300, empty_bags: 0 });
-    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection']);
+    expect(sealed.body.data.summary).toMatchObject({ balance: 0, in_bags: 300, cash_on_hand: 0, available_to_collect: 300, empty_bags: 0 });
+    expect(state.ledger.map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['bag_sealed', '-300.00']]);
 
     const again = await collect(token, { collect_token: tokenForClient(21), amount: 300 });
     expect(again.status).toBe(201);
-    // What it owes still counts the bag until the ISP receives it.
+    // It owes only the new collection; the bag is the ISP's cash on its way.
     const me = await get('/reseller-app/me', token);
-    expect(me.body.data.money).toMatchObject({ balance: 600, in_bags: 300, cash_on_hand: 300, available_to_collect: 0 });
+    expect(me.body.data.money).toMatchObject({ balance: 300, in_bags: 300, cash_on_hand: 300, available_to_collect: 0 });
+    const ledger = await get('/reseller-app/ledger', token);
+    expect(ledger.body.data.map((e) => [e.entry_type, e.amount, e.cash_bag_serial])).toEqual([
+      ['collection', 300, null], ['bag_sealed', -300, 'BAG-1'], ['collection', 300, null],
+    ].reverse());
+    expect(ledger.body.summary).toMatchObject({ balance: 300, in_bags: 300, cash_on_hand: 300 });
   });
 
   test('a collection whose cash is sealed in a bag can no longer be voided', async () => {
@@ -721,7 +726,7 @@ describe('cash bags free the limit (phase 3)', () => {
     expect(voided.status).toBe(409);
     expect(voided.body.error.code).toBe('CASH_SEALED_IN_BAG');
     expect(state.payments[0].status).toBe('completed');
-    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection']);
+    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection', 'bag_sealed']);
   });
 
   test('without empty bags the refusal says so', async () => {

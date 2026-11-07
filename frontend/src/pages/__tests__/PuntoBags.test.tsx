@@ -31,8 +31,10 @@ vi.mock('@/api/apiFetch', async (importOriginal) => ({
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: mocks.user, logout: mocks.logout }) }));
 
 // At the limit: 2,000 owed, 500 already in a sealed bag, 1,500 in hand.
+// The 500 in sealed bags already left the balance (bag_sealed, migration 006):
+// the reseller owes and holds 1500.
 const MONEY = {
-  currency: 'MXN', balance: '2000.00', in_bags: '500.00', cash_on_hand: '1500.00', credit_limit: '1500.00',
+  currency: 'MXN', balance: '1500.00', in_bags: '500.00', cash_on_hand: '1500.00', credit_limit: '1500.00',
   available_to_collect: '0.00', collected_today: '350.00', empty_bags: 2,
 };
 let money: Record<string, unknown> = MONEY;
@@ -69,7 +71,7 @@ function respond(path: string, init?: RequestInit): unknown {
   if (path === '/reseller-app/bags') return { data: BAGS };
   if (path === '/reseller-app/bags/seal' && method === 'POST') {
     const body = JSON.parse(String(init?.body));
-    return { data: { bag: { id: 11, serial: body.serial, status: 'ready_for_pickup', declared_amount: String(body.declared_amount), sealed_at: '2026-11-07T17:00:00Z', picked_up_at: null }, money: { ...MONEY, cash_on_hand: '0.00', in_bags: '2000.00', available_to_collect: '1500.00' } } };
+    return { data: { bag: { id: 11, serial: body.serial, status: 'ready_for_pickup', declared_amount: String(body.declared_amount), sealed_at: '2026-11-07T17:00:00Z', picked_up_at: null }, money: { ...MONEY, balance: '0.00', cash_on_hand: '0.00', in_bags: '2000.00', available_to_collect: '1500.00' } } };
   }
   if (path === '/reseller-app/collect/client/31') return { data: OWN };
   if (path === '/reseller-app/cash-session') return { data: { current: null, recent: [] } };
@@ -77,10 +79,10 @@ function respond(path: string, init?: RequestInit): unknown {
   if (path.startsWith('/reseller-app/ledger?')) {
     return {
       data: [
-        { id: 4, entry_type: 'adjustment', amount: '10.00', note: 'Declarado 500.00, contado 490.00', created_at: '2026-11-07T19:00:00Z', payment_id: null, cash_bag_id: 7, cash_bag_serial: 'B-0007' },
-        { id: 3, entry_type: 'deposit', amount: '-500.00', note: 'Bolsa B-0007', created_at: '2026-11-07T19:00:00Z', payment_id: null, cash_bag_id: 7, cash_bag_serial: 'B-0007' },
+        { id: 4, entry_type: 'adjustment', amount: '10.00', note: 'Declarado 500.00, contado 490.00', created_at: '2026-11-07T19:00:00Z', payment_id: null, cash_bag_serial: 'B-0007' },
+        { id: 3, entry_type: 'bag_sealed', amount: '-500.00', note: 'Bolsa B-0007 sellada', created_at: '2026-11-07T18:00:00Z', payment_id: null, cash_bag_serial: 'B-0007' },
       ],
-      summary: { balance: '2000.00', in_bags: '500.00', cash_on_hand: '1500.00', credit_limit: '1500.00', available_to_collect: '0.00' },
+      summary: { balance: '1500.00', in_bags: '500.00', cash_on_hand: '1500.00', credit_limit: '1500.00', available_to_collect: '0.00' },
       meta: { total: 2, page: 1, limit: 20 },
     };
   }
@@ -125,8 +127,11 @@ describe('Mis bolsas', () => {
     const user = userEvent.setup();
     renderAt('/punto/bolsas');
     const summary = await screen.findByRole('region', { name: 'Your cash and bags' });
-    expect(within(summary).getByText('Cash outside bags').parentElement).toHaveTextContent('$1,500.00');
-    expect(within(summary).getByText('In sealed bags').parentElement).toHaveTextContent('$500.00');
+    expect(within(summary).getByText('Cash on hand').parentElement).toHaveTextContent('$1,500.00');
+    expect(within(summary).getByText('In bags awaiting pickup or on their way').parentElement).toHaveTextContent('$500.00');
+    expect(within(summary).getByText('You no longer owe this cash: it was taken off what you hand in when you sealed the bag.')).toBeInTheDocument();
+    // What it owes is the cash on hand: not shown a second time.
+    expect(within(summary).queryByText('You must hand in')).not.toBeInTheDocument();
 
     const form = await screen.findByRole('region', { name: 'Fill a bag' });
     await user.click(within(form).getByRole('radio', { name: 'B-0012' }));
@@ -139,7 +144,7 @@ describe('Mis bolsas', () => {
     expect(calls('POST', '/reseller-app/bags/seal')).toHaveLength(0);
     await user.click(within(form).getByRole('button', { name: 'Yes, seal the bag' }));
 
-    expect(await screen.findByText("Bag B-0012 sealed with $1,200.50. It's ready for the carrier.")).toBeInTheDocument();
+    expect(await screen.findByText("Bag B-0012 sealed with $1,200.50: it was taken off what you hand in. It's ready for the carrier.")).toBeInTheDocument();
     const [post] = calls('POST', '/reseller-app/bags/seal');
     expect(bodyOf(post)).toEqual({ serial: 'B-0012', declared_amount: 1200.5 });
     // The money and the bag list are asked again.
@@ -267,7 +272,9 @@ describe('Inicio', () => {
     renderAt('/punto');
     const card = await screen.findByRole('region', { name: 'My bags' });
     await waitFor(() => expect(within(card).getByText('Empty bags').parentElement).toHaveTextContent('2'));
-    expect(within(card).getByText('Cash outside bags').parentElement).toHaveTextContent('$1,500.00 of $1,500.00');
+    expect(within(card).getByText('Cash on hand').parentElement).toHaveTextContent('$1,500.00 of $1,500.00');
+    expect(within(card).getByText('In bags awaiting pickup or on their way').parentElement).toHaveTextContent('$500.00');
+    expect(within(card).getByText('Sealed cash is no longer yours to hand in: it is waiting for the carrier or on its way to the company.')).toBeInTheDocument();
     expect(within(card).getByText(/1 waiting for the carrier/)).toHaveTextContent('1 on its way');
     expect(within(card).getByRole('link', { name: 'Fill a bag' })).toHaveAttribute('href', '/punto/bolsas');
     const moneyCard = screen.getByRole('region', { name: 'Your cash' });
@@ -332,9 +339,14 @@ describe('Mi caja', () => {
     expect(box).not.toHaveTextContent('Caja abierta');
     expect(screen.getByRole('link', { name: 'Mis bolsas' })).toHaveAttribute('href', '/punto/bolsas');
     const ledger = screen.getByRole('region', { name: 'Movimientos' });
-    expect(await within(ledger).findAllByText('Bolsa B-0007')).not.toHaveLength(0);
-    expect(within(ledger).getByText('En bolsas selladas').nextElementSibling).toHaveTextContent('$500.00');
-    expect(within(ledger).getByText('Efectivo en mano').nextElementSibling).toHaveTextContent('$1,500.00');
+    // GET /reseller-app/ledger sends cash_bag_serial (no cash_bag_id): both the
+    // seal and the receipt's difference name the bag.
+    expect(await within(ledger).findAllByText('Bolsa B-0007')).toHaveLength(2);
+    expect(within(ledger).getByText('Bolsa sellada')).toBeInTheDocument();
+    expect(within(ledger).getByText('Debes entregar').nextElementSibling).toHaveTextContent('$1,500.00');
+    expect(within(ledger).getByText('En bolsas por recoger o en camino').nextElementSibling).toHaveTextContent('$500.00');
+    // Cash on hand is the balance: Mi caja does not repeat it.
+    expect(within(ledger).queryByText('Efectivo en mano')).not.toBeInTheDocument();
   });
 });
 

@@ -6,9 +6,11 @@
 //   2. the amount put in it, prefilled with the cash on hand (more than 0, at
 //      most the cash on hand, two decimals);
 //   3. confirm: POST /reseller-app/bags/seal. The bag is then ready for the
-//      carrier and its amount no longer counts against the cash limit, so
-//      the reseller can collect again at once (409 BAG_AMOUNT_EXCEEDS_CASH
-//      when the amount is more than the cash it holds).
+//      carrier and its amount is taken off what the reseller owes at once
+//      ("Bolsa sellada" in Mi caja's movements), so it no longer counts
+//      against the cash limit and the reseller can collect again (409
+//      BAG_AMOUNT_EXCEEDS_CASH when the amount is more than the cash it
+//      holds).
 // The ISP counts the bag when it arrives; a difference shows up later as an
 // adjustment in Mi caja's movements. Reached from Inicio and Mi caja (not a
 // bottom tab). Needs reseller_app.bags.
@@ -57,7 +59,7 @@ function MoneySummary({ money }: { money: PuntoMoney }) {
       </div>
       <p style={mutedText}>{t('punto.money.limit', { limit: fmt(limit) })}</p>
       <div className="punto-money-row"><span>{t('puntoBags.money.inBags')}</span><strong>{fmt(money.in_bags)}</strong></div>
-      <div className="punto-money-row"><span>{t('punto.money.owe')}</span><strong>{fmt(money.balance)}</strong></div>
+      <p style={mutedText}>{t('puntoBags.money.inBagsHelp')}</p>
       <div className="punto-money-row"><span>{t('punto.money.canCollect')}</span><strong>{fmt(Math.max(0, toNumber(money.available_to_collect)))}</strong></div>
     </section>
   );

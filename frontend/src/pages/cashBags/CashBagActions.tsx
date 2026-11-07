@@ -3,15 +3,17 @@
 // =============================================================================
 // Receive (cash_bags.receive): the bag arrived (in_transit) or the reseller
 // brought it in person (ready_for_pickup). The counted cash is compared with
-// what the reseller declared before confirming. POST /cash-bags/:id/receive
-// books a deposit of the declared amount on the reseller's ledger and, when
-// the count differs, an adjustment of the difference (a short bag raises
-// what the reseller owes, an over bag lowers it).
+// what the reseller declared before confirming. The declared amount left the
+// reseller's ledger when the bag was sealed (bag_sealed, migration 006), so
+// POST /cash-bags/:id/receive books only a difference: an adjustment when the
+// count differs (a short bag raises what the reseller owes, an over bag
+// lowers it), nothing when it matches.
 // Void (cash_bags.manage): a bag that never held declared cash (in stock,
 // with a carrier or empty at a reseller) is taken out of use. Lost
 // (cash_bags.manage): a sealed bag that never arrived. No ledger entry is
-// posted: its declared cash counts as the reseller's cash on hand again,
-// still owed, until an adjustment says otherwise. Both need a reason.
+// posted: the reseller does not owe the declared amount (it left its ledger
+// at sealing) and the loss is the ISP's, unless an administrator records an
+// adjustment. Both need a reason.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';

@@ -219,6 +219,7 @@ function CollectionRow({ c, currency, voidable }: { c: PuntoCollection; currency
 
 const LEDGER_TONE: Record<string, string> = {
   collection: 'var(--text-primary)', collection_void: 'var(--text-secondary)', deposit: 'var(--success)', adjustment: 'var(--warning)',
+  bag_sealed: 'var(--success)',
 };
 
 function Ledger({ currency }: { currency: string }) {
@@ -239,7 +240,6 @@ function Ledger({ currency }: { currency: string }) {
         <dl style={{ margin: '0 0 10px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
           <dt>{t('punto.money.owe')}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{fmt(s.balance)}</dd>
           {s.in_bags !== undefined && <><dt>{t('puntoBags.money.inBags')}</dt><dd style={{ margin: 0 }}>{fmt(s.in_bags)}</dd></>}
-          {s.in_bags !== undefined && <><dt>{t('puntoBags.money.cashOnHand')}</dt><dd style={{ margin: 0 }}>{fmt(s.cash_on_hand)}</dd></>}
           <dt>{t('punto.ledger.limit')}</dt><dd style={{ margin: 0 }}>{fmt(s.credit_limit)}</dd>
           <dt>{t('punto.money.canCollect')}</dt><dd style={{ margin: 0 }}>{fmt(Math.max(0, toNumber(s.available_to_collect)))}</dd>
         </dl>
@@ -254,7 +254,7 @@ function Ledger({ currency }: { currency: string }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{t(`punto.ledger.types.${e.entry_type}`, { defaultValue: e.entry_type })}</div>
                   <div style={mutedText}>{formatDateTime(e.created_at)}</div>
-                  {e.cash_bag_id ? <div style={mutedText}>{t('puntoBags.ledgerBag', { serial: e.cash_bag_serial || `#${e.cash_bag_id}` })}</div> : null}
+                  {e.cash_bag_serial ? <div style={mutedText}>{t('puntoBags.ledgerBag', { serial: e.cash_bag_serial })}</div> : null}
                   {e.note && <div style={{ ...mutedText, overflowWrap: 'anywhere' }}>{e.note}</div>}
                 </div>
                 <strong style={{ color: LEDGER_TONE[e.entry_type] ?? 'var(--text-primary)', whiteSpace: 'nowrap' }}>

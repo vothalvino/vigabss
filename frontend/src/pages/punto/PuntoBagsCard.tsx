@@ -2,11 +2,12 @@
 // Reseller app (/punto) — "Mis bolsas" card on Inicio, and the bag pieces
 // =============================================================================
 // The ISP hands the reseller numbered cash bags. Sealing one with the cash in
-// it (Mis bolsas, /punto/bolsas) takes that cash off the reseller's cash on
-// hand at once, which frees its cash limit; the carrier then picks the bag
-// up and the ISP counts it on arrival. The card shows the empty bags at
-// hand, the cash outside bags against the limit, and the bags waiting for
-// the carrier or on their way. It needs reseller_app.bags.
+// it (Mis bolsas, /punto/bolsas) takes that cash off what the reseller owes
+// at once (a "Bolsa sellada" line in its movements), which frees its cash
+// limit; the carrier then picks the bag up and the ISP counts it on arrival.
+// The card shows the empty bags at hand, the cash it holds against the
+// limit, and the sealed cash it no longer owes, waiting for the carrier or on
+// its way. It needs reseller_app.bags.
 // =============================================================================
 
 import { Link } from 'react-router-dom';
@@ -63,6 +64,7 @@ export function PuntoBagsCard({ money }: { money: PuntoMoney }) {
           <strong>{fmt(money.in_bags)}</strong>
         </div>
       )}
+      {money.in_bags !== undefined && toNumber(money.in_bags) > 0 && <p style={mutedText}>{t('puntoBags.card.inBagsNote')}</p>}
       <p style={mutedText}>
         {t('puntoBags.card.waiting', { count: counts.ready })} · {t('puntoBags.card.onTheirWay', { count: counts.transit })}
       </p>

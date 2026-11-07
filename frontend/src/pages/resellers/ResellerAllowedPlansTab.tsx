@@ -17,6 +17,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
+import { ResellerListNotice, useResellerOptions } from './resellerOptions';
 
 interface PlanRow { id: number; name: string; price: string | number; currency?: string | null; status?: string }
 interface AllowedRow { plan_id: number; name: string; price: string | number }
@@ -45,10 +46,7 @@ export function ResellerAllowedPlansTab() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const resellersQ = useQuery({
-    queryKey: ['resellers-top-level'],
-    queryFn: async () => (await apiFetch<{ data: { id: number; name: string }[] }>('/resellers?parent_id=null&limit=100')).data,
-  });
+  const resellersQ = useResellerOptions({ topLevel: true });
   const plansQ = useQuery({
     queryKey: ['reseller-allowed-plans-catalogue'],
     queryFn: fetchAllPlans,
@@ -99,9 +97,10 @@ export function ResellerAllowedPlansTab() {
           onChange={e => { setResellerId(Number(e.target.value) || null); setMsg(null); }}
         >
           <option value="">{t('resellerPlans.selectReseller')}</option>
-          {(resellersQ.data ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
+      <ResellerListNotice list={resellersQ.data} />
 
       {msg && <p role={msg.ok ? 'status' : 'alert'} style={{ ...(msg.ok ? styles.msg : styles.msgError), padding: '0.75rem 0', fontStyle: 'normal' }}>{msg.text}</p>}
 

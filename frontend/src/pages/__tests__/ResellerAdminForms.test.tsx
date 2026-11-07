@@ -46,7 +46,7 @@ beforeEach(() => {
 describe('ResellerFormModal', () => {
   beforeEach(() => {
     mocks.apiFetch.mockImplementation(async (path: string) => {
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
       return { data: { id: 10 } };
     });
   });
@@ -134,7 +134,7 @@ describe('ResellerPage', () => {
   it('refreshes the reseller pickers of the other tabs after a save', async () => {
     mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
       if (init?.method === 'POST') return { data: { id: 10 } };
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [] };
       return { data: [], meta: { total: 0, page: 1, limit: 25 } };
     });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -167,7 +167,7 @@ describe('ResellerPage', () => {
 describe('ResellerAllowedPlansTab', () => {
   beforeEach(() => {
     mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
       if (path.startsWith('/plans?')) {
         return { data: [
           { id: 3, name: 'Fibra 100', price: '499.00', currency: 'MXN', status: 'active' },
@@ -243,11 +243,11 @@ describe('ResellerAllowedPlansTab', () => {
 describe('Create login (Staff access tab)', () => {
   const ok = (data: unknown) => Promise.resolve({ data: { data }, error: undefined });
   beforeEach(() => {
-    mocks.GET.mockImplementation((path: string) => {
-      if (path === '/resellers') return ok([{ id: 4, name: 'Punto Norte' }]);
-      return ok([]);
+    mocks.GET.mockImplementation(() => ok([]));
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }], meta: { total: 1 } };
+      return { data: { user_id: 50, email: 'caja@example.com', reseller_id: 4 } };
     });
-    mocks.apiFetch.mockResolvedValue({ data: { user_id: 50, email: 'caja@example.com', reseller_id: 4 } });
   });
 
   async function openTab() {
@@ -274,7 +274,10 @@ describe('Create login (Staff access tab)', () => {
 
   it('shows the password-policy refusal from the server', async () => {
     const { ApiRequestError } = await import('@/api/apiFetch');
-    mocks.apiFetch.mockRejectedValue(new ApiRequestError('Password must be at least 10 characters', 422));
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }], meta: { total: 1 } };
+      throw new ApiRequestError('Password must be at least 10 characters', 422);
+    });
     await openTab();
     const form = screen.getByRole('form', { name: 'Create login' });
     const user = userEvent.setup();
@@ -301,7 +304,7 @@ describe('Create login (Staff access tab)', () => {
 describe('ResellerFormModal cash limit', () => {
   beforeEach(() => {
     mocks.apiFetch.mockImplementation(async (path: string) => {
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [] };
       if (path === '/settings') return { data: [{ key: 'reseller_default_credit_limit', value: '2000.00', scope: 'org', editable: true }] };
       return { data: { id: 10 } };
     });
@@ -370,7 +373,7 @@ describe('ResellerFormModal cash limit', () => {
 describe('ResellerFormModal location (for the carrier)', () => {
   beforeEach(() => {
     mocks.apiFetch.mockImplementation(async (path: string) => {
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [] };
       return { data: { id: 10 } };
     });
   });
@@ -448,7 +451,7 @@ describe('ResellerLedgerTab', () => {
   beforeEach(() => {
     mocks.permissions = ['resellers.view', 'reseller_ledger.view', 'reseller_ledger.manage', 'payments.view'];
     mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
-      if (path === '/resellers?parent_id=null&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
       if (path.startsWith('/resellers/4/ledger?') && !init?.method) return LEDGER;
       if (path === '/resellers/4/ledger' && init?.method === 'POST') return { data: { id: 3 } };
       throw new Error(`unexpected ${path}`);

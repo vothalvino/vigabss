@@ -5,7 +5,22 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Sealing a cash bag now takes the money off the reseller's account at
+  once.** When a *Punto de Venta* seals a bag, the declared amount is
+  removed from what it owes the ISP right away, with a "Bolsa sellada" line
+  in its movements. The bag's cash is then shown apart, as waiting for the
+  carrier or on its way, and no longer counts as the reseller's.
+  - **Receiving a bag** only records a difference: if the counted cash
+    matches what was declared nothing more is posted; a short bag raises
+    what the reseller owes and an over bag lowers it.
+  - **A lost bag is the ISP's loss.** Marking a sealed bag lost posts
+    nothing, so the reseller does not owe the declared amount again.
+  - Staff cannot record a "Bolsa sellada" line by hand.
+- **Reseller drop-downs list every reseller.** The reseller pickers and
+  filters in Resellers, Leads and Cash bags used to show only the first 100;
+  they now load them all (up to 5,000, with a notice when there are more).
+- Migration 006 adds the new ledger line and posts it for the bags that
+  were already sealed or on their way when you upgrade.
 
 ## 0.1.0-alpha.12 — 2026-11-07
 
