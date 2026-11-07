@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying VigaBSS 0.1.0-alpha.9 in production environments. Choose the deployment method that best fits your infrastructure.
+This guide covers deploying VigaBSS 0.1.0-alpha.10 in production environments. Choose the deployment method that best fits your infrastructure.
 
 > **Alpha release:** validate restore, upgrade, billing, and device automation
 > against a non-production deployment before serving customers.
@@ -37,7 +37,7 @@ data and pass that installation's path explicitly when needed.
 
 ## One-Line Installer (recommended)
 
-The fastest way to deploy VigaBSS 0.1.0-alpha.9 on a fresh Ubuntu/Debian server:
+The fastest way to deploy VigaBSS 0.1.0-alpha.10 on a fresh Ubuntu/Debian server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
@@ -753,7 +753,7 @@ sudo chown -R vigabss:vigabss /opt/vigabss
 
 ```ini
 [Unit]
-Description=VigaBSS 0.1.0-alpha.9
+Description=VigaBSS 0.1.0-alpha.10
 After=network.target mysql.service
 
 [Service]
@@ -1141,7 +1141,7 @@ than the real client IP, and the allowlist will not work as expected.
 
 ```bash
 curl https://isp.example.com/health
-# {"status":"ok","version":"0.1.0-alpha.9","uptime":3600,"relay":"standalone","timestamp":"..."}
+# {"status":"ok","version":"0.1.0-alpha.10","uptime":3600,"relay":"standalone","timestamp":"..."}
 
 curl -H "Authorization: Bearer $METRICS_TOKEN" http://app:3000/health?detail=true
 # Adds memory usage and DB latency. In production this needs METRICS_TOKEN;
@@ -1222,7 +1222,7 @@ Available metrics:
 
 ## Kubernetes Deployment
 
-Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.9.
+Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.10.
 
 The checked-in raw manifests intentionally retain the `fireisp` namespace,
 resource names, selectors, and PVC name. Treat these as stable compatibility
@@ -1888,7 +1888,7 @@ JOB_QUEUE_CONCURRENCY=5
 
 ## Helm Chart Deployment
 
-VigaBSS 0.1.0-alpha.9 ships a production-grade Helm chart under `charts/vigabss/` that
+VigaBSS 0.1.0-alpha.10 ships a production-grade Helm chart under `charts/vigabss/` that
 templates every Kubernetes resource (Namespace, ConfigMap, Secret, Deployment,
 Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 
@@ -1929,7 +1929,7 @@ chmod 600 values-secret.yaml
 # Install into the vigabss namespace (creates it automatically)
 helm install vigabss vigabss/vigabss \
   --namespace vigabss --create-namespace \
-  --version 0.1.0-alpha.9 \
+  --version 0.1.0-alpha.10 \
   -f values-secret.yaml
 ```
 
@@ -1961,7 +1961,7 @@ replicaCount: 3
 
 image:
   repository: ghcr.io/vothalvino/vigabss
-  tag: "0.1.0-alpha.9"
+  tag: "0.1.0-alpha.10"
 
 ingress:
   hostname: isp.example.com
@@ -2031,9 +2031,9 @@ kubectl rollout status -n vigabss deployment/vigabss --timeout=180s
 ```bash
 helm upgrade vigabss vigabss/vigabss \
   --namespace vigabss \
-  --version 0.1.0-alpha.9 \
+  --version 0.1.0-alpha.10 \
   -f my-values.yaml \
-  --set-string image.tag=0.1.0-alpha.9
+  --set-string image.tag=0.1.0-alpha.10
 ```
 
 ### Uninstalling
@@ -2080,7 +2080,7 @@ spec:
 
   source:
     repoURL: https://github.com/vothalvino/vigabss
-    targetRevision: main          # or a tag, e.g. v0.1.0-alpha.9
+    targetRevision: main          # or a tag, e.g. v0.1.0-alpha.10
     path: charts/vigabss
     helm:
       valueFiles:
@@ -2090,7 +2090,7 @@ spec:
       # Fine-grained overrides (avoid plain-text secrets here):
       parameters:
         - name: image.tag
-          value: "0.1.0-alpha.9"
+          value: "0.1.0-alpha.10"
         - name: ingress.hostname
           value: isp.example.com
         - name: ingress.tls.enabled
@@ -2188,6 +2188,6 @@ To cut a new chart release, bump `version` in `charts/vigabss/Chart.yaml`
 (and `appVersion` if the app changed) and push a matching git tag:
 
 ```bash
-git tag v0.1.0-alpha.9
-git push origin v0.1.0-alpha.9
+git tag v0.1.0-alpha.10
+git push origin v0.1.0-alpha.10
 ```

@@ -1,10 +1,10 @@
-# VigaBSS 0.1.0-alpha.9 — Grafana Dashboards
+# VigaBSS 0.1.0-alpha.10 — Grafana Dashboards
 
 The JSON filenames, dashboard UIDs, and `fireisp` tags are retained as stable
 Grafana import/provisioning identifiers. Their visible dashboard titles use the
 VigaBSS product name; renaming a UID can create duplicate dashboards.
 
-This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 0.1.0-alpha.9. All dashboards use Prometheus as the data source.
+This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 0.1.0-alpha.10. All dashboards use Prometheus as the data source.
 
 ## Dashboards
 
