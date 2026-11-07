@@ -5,7 +5,30 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller app, phase 2: resellers collect cash.** A *Punto de Venta* can
+  now take cash payments, up to a credit limit: the most collected cash it
+  may hold before handing it in to the ISP.
+  - **Cobrar:** the reseller's own customers, or any subscriber found by
+    exact customer number or phone. A customer that isn't the reseller's own
+    shows only a masked name. The payment pays the oldest invoices first,
+    reconnects a suspended service and issues the payment complement (REP).
+  - **Receipt:** printable on 58 or 80 mm paper, or shared by WhatsApp. It
+    says the reseller collected on the ISP's behalf.
+  - **Mi caja:** today's collections, a same-day void by the user who
+    collected, and closing the cash box with the counted amount.
+  - **Credit limit:** a default for every reseller in the organization
+    settings (2000.00), which each reseller's form can override. Over the limit, the
+    collection is refused and the app says how much can still be collected.
+  - **Cash ledger:** what each reseller owes the ISP. Staff record the cash
+    it hands in, and adjustments, in the reseller's new **Movimientos** tab.
+    A sub-reseller's cash is booked on its top-level reseller.
+  - **Payments** shows the reseller that collected a payment and can be
+    filtered by it.
+  - Restoring a deleted payment is now refused unless it was completed, and
+    always for a collection a reseller voided.
+  - The `/punto` header no longer cuts off the reseller's name.
+  - Migration 004 adds the credit limit, the collecting reseller on payments
+    and the cash ledger. Its rollback refuses to run once collections exist.
 
 ## 0.1.0-alpha.10 — 2026-11-07
 

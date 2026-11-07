@@ -2,8 +2,10 @@
 // Reseller create / edit form (POST /resellers, PUT /resellers/:id)
 // =============================================================================
 // A reseller is a commission agent ("Punto de Venta"). The form holds what
-// phase 1 uses: contact details, an optional parent (a top-level reseller,
-// create only: PUT does not move a reseller), the commission percentage,
+// the reseller app uses: contact details, an optional parent (a top-level
+// reseller, create only: PUT does not move a reseller), the commission
+// percentage, the cash limit (how much collected cash it may hold before
+// handing it in; blank = the organization default, sent as null on an edit),
 // status and notes. Branding and portal fields are not edited here.
 // =============================================================================
 
@@ -11,6 +13,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/api/apiFetch';
 import { useMutation } from '@/api/useMutation';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
+import { formatMoney } from '@/lib/money';
 import {
   cancelBtn, errorBox, extractApiError, inputStyle, labelStyle, modalBox, overlay, submitBtn, twoCol,
 } from '@/components/ClientFormModal';
@@ -26,6 +31,9 @@ export interface ResellerFormInitial {
   commission_rate: number | string;
   status: string;
   notes?: string | null;
+  /** The reseller's own cash limit; null means the organization default. */
+  credit_limit?: number | string | null;
+  effective_credit_limit?: number | string | null;
 }
 
 export interface ResellerBody {
@@ -37,7 +45,11 @@ export interface ResellerBody {
   commission_rate: number;
   status: string;
   notes?: string;
+  credit_limit?: number | null;
 }
+
+const ORG_DEFAULT_KEY = 'reseller_default_credit_limit';
+const MONEY = /^\d+(\.\d{1,2})?$/;
 
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
 
@@ -50,6 +62,8 @@ interface Props {
 
 export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const initialLimit = initial?.credit_limit === null || initial?.credit_limit === undefined ? '' : String(Number(initial.credit_limit));
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     contact_name: initial?.contact_name ?? '',
@@ -59,8 +73,25 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
     commission_rate: initial ? String(Number(initial.commission_rate)) : '0',
     status: initial?.status ?? 'active',
     notes: initial?.notes ?? '',
+    credit_limit: initialLimit,
   });
   const [parents, setParents] = useState<{ id: number; name: string }[]>([]);
+  // The organization default, for the placeholder of a blank cash limit. A
+  // reseller already on the default shows it as its effective limit; else it
+  // comes from GET /settings when the caller may read settings.
+  const knownDefault = initial && initialLimit === '' && initial.effective_credit_limit != null ? String(initial.effective_credit_limit) : null;
+  const [orgDefault, setOrgDefault] = useState<string | null>(knownDefault);
+  const canReadSettings = can(user, 'settings.view');
+
+  useEffect(() => {
+    if (knownDefault !== null || !canReadSettings) return;
+    apiFetch<{ data: { key: string; value: string | null }[] }>('/settings')
+      .then(res => {
+        const row = Array.isArray(res?.data) ? res.data.find(s => s.key === ORG_DEFAULT_KEY) : undefined;
+        if (row?.value) setOrgDefault(row.value);
+      })
+      .catch(() => {});
+  }, [knownDefault, canReadSettings]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -91,7 +122,16 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       setError(t('resellerForm.rateInvalid'));
       return;
     }
+    const limit = form.credit_limit.trim();
+    if (limit !== '' && !MONEY.test(limit)) {
+      setError(t('resellerForm.creditLimitInvalid'));
+      return;
+    }
     const body: ResellerBody = { name, commission_rate: rate, status: form.status };
+    // Blank means the organization default: left out on a create, null on an
+    // edit that clears an own limit.
+    if (limit !== '') body.credit_limit = Number(limit);
+    else if (mode === 'edit' && initialLimit !== '') body.credit_limit = null;
     for (const key of ['contact_name', 'email', 'phone', 'notes'] as const) {
       const value = form[key].trim();
       // An edit sends a cleared field as '' so it is cleared; a create leaves it out.
@@ -149,6 +189,18 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
             </select>
           </div>
         </div>
+
+        <label style={labelStyle} htmlFor="rf-credit-limit">{t('resellerForm.creditLimit')}</label>
+        <input
+          id="rf-credit-limit"
+          inputMode="decimal"
+          style={inputStyle}
+          value={form.credit_limit}
+          onChange={set('credit_limit')}
+          aria-describedby="rf-credit-limit-help"
+          placeholder={orgDefault !== null ? t('resellerForm.creditLimitDefault', { amount: formatMoney(orgDefault, user?.organization_currency) }) : t('resellerForm.creditLimitDefaultUnknown')}
+        />
+        <p id="rf-credit-limit-help" style={{ ...labelStyle, fontWeight: 400, marginTop: 4 }}>{t('resellerForm.creditLimitHelp')}</p>
 
         <label style={labelStyle} htmlFor="rf-notes">{t('resellerForm.notes')}</label>
         <textarea id="rf-notes" rows={3} style={inputStyle} value={form.notes} onChange={set('notes')} />

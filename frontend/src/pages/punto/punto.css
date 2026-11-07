@@ -15,38 +15,43 @@
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 16px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
 
-.punto-header-title {
-  min-width: 0;
+/* Two rows: the reseller's name with "Sign out", then the subtitle with the
+   language picker. The name keeps the whole first row and wraps instead of
+   being cut to a few letters on a 360px phone. */
+.punto-header-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .punto-header-name {
+  flex: 1;
+  min-width: 0;
   font-weight: 700;
   font-size: 1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.punto-header-signout {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
 }
 
 .punto-header-sub {
   font-size: 0.75rem;
   color: var(--text-secondary);
-}
-
-.punto-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .punto-main {
@@ -66,7 +71,8 @@
   bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   background: var(--bg-card);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
@@ -229,4 +235,133 @@
 .punto-btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.punto-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.punto-btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Money card on Inicio: how much of the cash limit is in use. */
+.punto-meter {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+
+.punto-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.punto-money-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.punto-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.95rem;
+}
+
+.punto-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.punto-amount-big {
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Receipt: shown as a card, printed on a 58mm thermal roll. */
+.punto-receipt {
+  max-width: 340px;
+  margin: 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.punto-receipt hr {
+  border: none;
+  border-top: 1px dashed var(--border-strong);
+  margin: 8px 0;
+}
+
+.punto-receipt-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.punto-receipt-line > span:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 2mm;
+  }
+
+  .punto-no-print,
+  .punto-header,
+  .punto-tabs {
+    display: none !important;
+  }
+
+  .punto-shell,
+  .punto-main {
+    min-height: 0;
+    padding: 0 !important;
+    max-width: none;
+    background: #fff;
+    color: #000;
+  }
+
+  .punto-receipt {
+    width: 54mm;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: #fff;
+    color: #000;
+    font-size: 8.5pt;
+  }
+
+  .punto-receipt hr {
+    border-top-color: #000;
+  }
 }

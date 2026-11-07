@@ -130,4 +130,19 @@ describe('known keys get shaped editors', () => {
       { value: 'true', label: 'Enabled' },
     ]);
   });
+
+  it('names the reseller cash-limit default and edits it as an amount', async () => {
+    respondWith([{
+      key: 'reseller_default_credit_limit', value: '2000.00', description: 'Default reseller cash limit',
+      scope: 'org', editable: true,
+    }]);
+    renderSettings();
+    expect(await screen.findByText('Default cash limit for resellers')).toBeInTheDocument();
+    expect(screen.getByText('reseller_default_credit_limit')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const input = screen.getByDisplayValue('2000.00');
+    expect(input).toHaveAttribute('type', 'number');
+    expect(input).toHaveAttribute('min', '0');
+    expect(input).toHaveAttribute('step', '0.01');
+  });
 });

@@ -19,7 +19,7 @@ import { PuntoLeads } from '../punto/PuntoLeads';
 
 const RESELLER_USER = {
   id: 7, role: 'billing', organization_currency: 'MXN',
-  permissions: ['reseller_app.use', 'reseller_app.signup'],
+  permissions: ['reseller_app.use', 'reseller_app.signup', 'reseller_app.collect'],
   reseller_binding: { reseller_id: 4, reseller_name: 'Punto Norte' },
 };
 
@@ -100,12 +100,12 @@ beforeEach(async () => {
 afterEach(async () => { await i18n.changeLanguage('en'); });
 
 describe('PuntoLayout', () => {
-  it('shows the reseller name and the four tabs, and no staff navigation', async () => {
+  it('shows the reseller name and the five tabs, and no staff navigation', async () => {
     renderAt('/punto');
     expect(screen.getByText('Punto Norte')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Main menu' });
     const links = within(nav).getAllByRole('link');
-    expect(links.map(l => l.getAttribute('href'))).toEqual(['/punto', '/punto/clientes', '/punto/nuevo', '/punto/prospectos']);
+    expect(links.map(l => l.getAttribute('href'))).toEqual(['/punto', '/punto/cobrar', '/punto/clientes', '/punto/nuevo', '/punto/caja']);
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveClass('active');
     await screen.findByText('12');
     // Only reseller-app endpoints were called.
@@ -116,15 +116,26 @@ describe('PuntoLayout', () => {
     await i18n.changeLanguage('es');
     renderAt('/punto');
     const nav = screen.getByRole('navigation', { name: 'Menú principal' });
-    expect(within(nav).getAllByRole('link').map(l => l.textContent)).toEqual(['Inicio', 'Clientes', 'Nuevo cliente', 'Prospectos']);
+    expect(within(nav).getAllByRole('link').map(l => l.textContent)).toEqual(['Inicio', 'Cobrar', 'Clientes', 'Nuevo', 'Mi caja']);
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 
-  it('hides the sign-up tab and button without reseller_app.signup', async () => {
+  it('gives a long reseller name its own header row, apart from the language picker', () => {
+    mocks.user = { ...RESELLER_USER, reseller_binding: { reseller_id: 4, reseller_name: 'Abarrotes y Papelería La Esperanza de San Juan' } };
+    renderAt('/punto');
+    const name = screen.getByText('Abarrotes y Papelería La Esperanza de San Juan');
+    const language = screen.getByRole('combobox', { name: 'Language' });
+    // The name shares its row only with "Sign out"; the picker is on the next row.
+    expect(name.closest('.punto-header-row')).toContainElement(screen.getByRole('button', { name: 'Sign out' }));
+    expect(name.closest('.punto-header-row')).not.toContainElement(language);
+    expect(language.closest('.punto-header-row')).not.toBeNull();
+  });
+
+  it('hides the sign-up and collect tabs without reseller_app.signup and reseller_app.collect', async () => {
     mocks.user = { ...RESELLER_USER, permissions: ['reseller_app.use'] };
     renderAt('/punto');
     const nav = screen.getByRole('navigation', { name: 'Main menu' });
-    expect(within(nav).getAllByRole('link').map(l => l.getAttribute('href'))).toEqual(['/punto', '/punto/clientes', '/punto/prospectos']);
+    expect(within(nav).getAllByRole('link').map(l => l.getAttribute('href'))).toEqual(['/punto', '/punto/clientes', '/punto/caja']);
     await screen.findByText('12');
     expect(screen.queryByRole('link', { name: 'New client' })).not.toBeInTheDocument();
   });
@@ -156,8 +167,8 @@ describe('PuntoHome (Inicio)', () => {
     expect(within(summary).getByText('2').closest('a')).toHaveAttribute('href', '/punto/clientes?overdue=1');
     expect(within(summary).getByText('5').closest('a')).toHaveTextContent('Open prospects');
     expect(screen.getAllByRole('link', { name: 'New client' }).some(a => a.getAttribute('href') === '/punto/nuevo')).toBe(true);
-    // Phase 1 shows no cash collection or daily cut.
-    expect(screen.queryByText(/cobrar|corte/i)).not.toBeInTheDocument();
+    // Without the money block in /me there is no cash card.
+    expect(screen.queryByRole('region', { name: 'Your cash' })).not.toBeInTheDocument();
   });
 
   it('reports a load failure', async () => {
@@ -177,6 +188,8 @@ describe('PuntoClients (Clientes)', () => {
     expect(within(beto).getByText('Overdue')).toBeInTheDocument();
     expect(beto.textContent).toMatch(/450\.00/);
     expect(mocks.apiFetch).toHaveBeenCalledWith('/reseller-app/clients?page=1&limit=20');
+    // Prospects are no longer a tab: Clientes links to them.
+    expect(screen.getByRole('link', { name: 'Prospects' })).toHaveAttribute('href', '/punto/prospectos');
   });
 
   it('searches and filters by status', async () => {
@@ -209,6 +222,14 @@ describe('PuntoClients (Clientes)', () => {
     expect(within(invoices).getByText('Overdue')).toBeInTheDocument();
     // A DATE column renders on its calendar day in Mexico City.
     expect(within(invoices).getByText(/Due 5 oct/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Collect a payment' })).toHaveAttribute('href', '/punto/cobrar?cliente=31');
+  });
+
+  it('offers no collect button without reseller_app.collect', async () => {
+    mocks.user = { ...RESELLER_USER, permissions: ['reseller_app.use'] };
+    renderAt('/punto/clientes/31');
+    expect(await screen.findByRole('heading', { name: 'Ana López' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Collect a payment' })).not.toBeInTheDocument();
   });
 
   it('says so when the client is not in the reseller subtree', async () => {

@@ -37,12 +37,17 @@
 //  GET    /resellers/:id/allowed-plans     plans the reseller may offer
 //  PUT    /resellers/:id/allowed-plans     replace that set
 //
+//  Reseller cash ledger (migration 004)
+//  GET    /resellers/:id/ledger            entries and summary (balance, limit, available)
+//  POST   /resellers/:id/ledger            record a deposit (cash handed in) or an adjustment
+//
 //  Every route is confined to the caller's reseller scope: a bound user only
 //  sees its own subtree (404 outside it, GET / filtered), an unbound
 //  reseller_admin is refused, and org-level staff see every reseller in their
 //  organization. Binding management, allowed plans, suspend, commission
 //  approval, plan prices and the resource and billing-entity writes are
-//  org-level only (requireOrgLevelResellerAccess, requireIspDecision). See
+//  org-level only (requireOrgLevelResellerAccess, requireIspDecision), and so
+//  are the cash ledger and a reseller's credit_limit. See
 //  middleware/resellerScope.js.
 // =============================================================================
 
@@ -64,6 +69,8 @@ const db = require('../config/database');
 const { inPlaceholders } = require('../utils/sqlBuild');
 const { runInPrimaryContext } = require('../utils/primaryContext');
 const { ownedReferences } = require('../utils/ownedReferences');
+const money = require('../utils/money');
+const resellerLedgerService = require('../services/resellerLedgerService');
 
 const router = Router();
 router.use(authenticate);
@@ -80,6 +87,8 @@ const createResellerSchema = {
   contact_name:        { type: 'string', max: 255 },
   parent_id:           { type: 'number' },
   commission_rate:     { type: 'number', min: 0, max: 100 },
+  // Cash the reseller may hold before handing it in; null = organization default.
+  credit_limit:        { type: 'number', min: 0, max: 9999999999.99, nullable: true },
   status:              { type: 'string', enum: ['active', 'suspended', 'inactive'] },
   brand_logo_url:      { type: 'string', max: 500 },
   brand_primary_color: { type: 'string', max: 7 },
@@ -95,6 +104,8 @@ const updateResellerSchema = {
   phone:               { type: 'string', max: 30 },
   contact_name:        { type: 'string', max: 255 },
   commission_rate:     { type: 'number', min: 0, max: 100 },
+  // Cash the reseller may hold before handing it in; null = organization default.
+  credit_limit:        { type: 'number', min: 0, max: 9999999999.99, nullable: true },
   status:              { type: 'string', enum: ['active', 'suspended', 'inactive'] },
   brand_logo_url:      { type: 'string', max: 500 },
   brand_primary_color: { type: 'string', max: 7 },
@@ -185,8 +196,9 @@ const requireOrgLevelResellerAccess = orgLevelOnly('Reseller-bound users cannot 
 const requireIspDecision = orgLevelOnly('Only the ISP can change this for a reseller');
 
 // A reseller-bound caller may name and describe its sub-resellers, but what a
-// reseller earns and whether it may operate are the ISP's decisions.
-const ORG_LEVEL_RESELLER_FIELDS = ['commission_rate', 'status'];
+// reseller earns, how much cash it may hold and whether it may operate are
+// the ISP's decisions.
+const ORG_LEVEL_RESELLER_FIELDS = ['commission_rate', 'status', 'credit_limit'];
 function rejectResellerEscalation(req) {
   if (req.resellerScope.all) return;
   const body = req.body || {};
@@ -194,6 +206,35 @@ function rejectResellerEscalation(req) {
   if (set.length) {
     throw new ForbiddenError(`Reseller-bound users cannot set ${set.join(' or ')}`);
   }
+}
+
+// credit_limit: a non-negative amount with at most 2 decimals, or null for the
+// organization default. Returns { present, value }.
+function creditLimitFromBody(body) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, 'credit_limit') || body.credit_limit === undefined) {
+    return { present: false, value: null };
+  }
+  const value = body.credit_limit;
+  if (value === null || value === '') return { present: true, value: null };
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || money.round(value) !== value) {
+    throw new ValidationError('credit_limit must be an amount of 0 or more with at most 2 decimals, or null for the organization default');
+  }
+  return { present: true, value };
+}
+
+// Rows of /resellers carry the effective credit limit and the ledger balance.
+async function withMoney(orgId, rows) {
+  const list = Array.isArray(rows) ? rows : [rows];
+  if (!list.length) return rows;
+  const [balances, orgDefault] = await Promise.all([
+    resellerLedgerService.balancesFor(orgId, list.map((r) => r.id)),
+    resellerLedgerService.defaultCreditLimit(orgId),
+  ]);
+  for (const r of list) {
+    r.effective_credit_limit = resellerLedgerService.effectiveCreditLimit(r.credit_limit, orgDefault);
+    r.balance = balances.get(Number(r.id)) ?? 0;
+  }
+  return rows;
 }
 
 // =============================================================================
@@ -234,6 +275,7 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM resellers r WHERE ${where}`, params,
     );
+    await withMoney(req.orgId, rows);
     res.json({ data: rows, meta: { total, page: pageNum, limit: limitNum } });
   } catch (err) { next(err); }
 });
@@ -248,6 +290,7 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
     } = req.body;
 
     rejectResellerEscalation(req);
+    const creditLimit = creditLimitFromBody(req.body);
     // A reseller-bound caller may only add sub-resellers inside its subtree.
     if (!req.resellerScope.all && !parent_id) {
       throw new ForbiddenError('Reseller-bound users can only create sub-resellers of their own reseller');
@@ -270,16 +313,17 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
     const [result] = await db.query(
       `INSERT INTO resellers (organization_id, parent_id, level, name, email, phone, contact_name,
         commission_rate, status, brand_logo_url, brand_primary_color, brand_accent_color,
-        portal_domain, portal_name, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        portal_domain, portal_name, notes, credit_limit)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.orgId, parent_id || null, level, name, email || null, phone || null,
         contact_name || null, commission_rate, status,
         brand_logo_url || null, brand_primary_color || null, brand_accent_color || null,
-        portal_domain || null, portal_name || null, notes || null],
+        portal_domain || null, portal_name || null, notes || null, creditLimit.value],
     );
     const [[row]] = await db.query(
       'SELECT * FROM resellers WHERE id = ? AND organization_id = ?', [result.insertId, req.orgId],
     );
+    if (row) await withMoney(req.orgId, row);
     res.status(201).json({ data: row });
   } catch (err) { next(err); }
 });
@@ -288,6 +332,7 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
 router.get('/:id', requirePermission('resellers.view'), async (req, res, next) => {
   try {
     const row = await getResellerOrThrow(req);
+    await withMoney(req.orgId, row);
     res.json({ data: row });
   } catch (err) { next(err); }
 });
@@ -297,6 +342,9 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
   try {
     await getResellerOrThrow(req);
     rejectResellerEscalation(req);
+    // credit_limit may be set back to null (the organization default), so it
+    // is not COALESCEd like the other fields: IF(sent, value, unchanged).
+    const creditLimit = creditLimitFromBody(req.body);
     const {
       name, email, phone, contact_name, commission_rate,
       status, brand_logo_url, brand_primary_color, brand_accent_color,
@@ -311,7 +359,7 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
         brand_primary_color = COALESCE(?, brand_primary_color),
         brand_accent_color = COALESCE(?, brand_accent_color),
         portal_domain = COALESCE(?, portal_domain), portal_name = COALESCE(?, portal_name),
-        notes = COALESCE(?, notes)
+        notes = COALESCE(?, notes), credit_limit = IF(?, ?, credit_limit)
        WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
       // Coalesce each optional field to null: an omitted key is `undefined`,
       // which mysql2's execute() rejects ("Bind parameters must not contain
@@ -319,11 +367,13 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
       [name ?? null, email ?? null, phone ?? null, contact_name ?? null,
         commission_rate ?? null, status ?? null, brand_logo_url ?? null,
         brand_primary_color ?? null, brand_accent_color ?? null,
-        portal_domain ?? null, portal_name ?? null, notes ?? null, req.params.id, req.orgId],
+        portal_domain ?? null, portal_name ?? null, notes ?? null,
+        creditLimit.present ? 1 : 0, creditLimit.value, req.params.id, req.orgId],
     );
     const [[row]] = await db.query(
       'SELECT * FROM resellers WHERE id = ? AND organization_id = ?', [req.params.id, req.orgId],
     );
+    if (row) await withMoney(req.orgId, row);
     res.json({ data: row });
   } catch (err) { next(err); }
 });
@@ -971,6 +1021,120 @@ router.put(
         newValues: { plan_ids: planIds },
       });
       res.json({ data: await listAllowedPlans(req.orgId, reseller.id) });
+    } catch (err) { next(err); }
+  },
+);
+
+// =============================================================================
+// Reseller cash ledger (reseller app phase 2, migration 004)
+// =============================================================================
+// What a collecting reseller owes the ISP (services/resellerLedgerService.js).
+// Collections are booked on the top-level reseller of the user who took the
+// money, so a sub-reseller has no ledger of its own. A deposit records cash
+// the reseller handed in and frees its credit limit; it is never a payments
+// row. Org-level staff only: what a reseller owes is the ISP's record.
+
+const ledgerEntrySchema = {
+  entry_type: { type: 'string', required: true, enum: ['deposit', 'adjustment'] },
+  amount:     { type: 'number', required: true, min: -9999999999.99, max: 9999999999.99 },
+  note:       { type: 'string', max: 500 },
+};
+
+function ledgerSummary(summary) {
+  return {
+    balance: summary.balance,
+    cash_on_hand: summary.cash_on_hand,
+    credit_limit: summary.credit_limit,
+    available_to_collect: summary.available_to_collect,
+    credit_limit_override: summary.credit_limit_override,
+  };
+}
+
+// GET /resellers/:id/ledger
+router.get('/:id/ledger', requirePermission('reseller_ledger.view'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 25), 100);
+    const [{ rows, total }, summary] = await Promise.all([
+      resellerLedgerService.listEntries(req.orgId, reseller.id, { limit, offset: (page - 1) * limit }),
+      resellerLedgerService.summaryFor(req.orgId, reseller.id, { reseller }),
+    ]);
+    res.json({ data: rows, summary: ledgerSummary(summary), meta: { total, page, limit } });
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/ledger — a deposit (cash handed in) or an adjustment
+router.post(
+  '/:id/ledger',
+  requirePermission('reseller_ledger.manage'),
+  requireIspDecision,
+  validate(ledgerEntrySchema),
+  async (req, res, next) => {
+    try {
+      const found = await getResellerOrThrow(req);
+      if (found.parent_id !== null && found.parent_id !== undefined) {
+        throw new ValidationError('Cash is booked on the top-level reseller; record this on its parent reseller');
+      }
+      const { entry_type: entryType, amount } = req.body;
+      const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim() : null;
+      if (money.round(amount) !== amount) throw new ValidationError('amount must have at most 2 decimals');
+      if (entryType === 'deposit' && !(amount > 0)) throw new ValidationError('A deposit amount must be more than 0');
+      if (entryType === 'adjustment' && amount === 0) throw new ValidationError('An adjustment amount must not be 0');
+      if (entryType === 'adjustment' && !note) throw new ValidationError('An adjustment needs a note explaining it');
+
+      const currency = await Organization.getCurrency(req.orgId);
+      const conn = await db.getConnection();
+      const exec = conn.execute.bind(conn);
+      let entryId;
+      let signed;
+      try {
+        await conn.beginTransaction();
+        // The same lock a collection takes, so the balance cannot move under us.
+        const reseller = await resellerLedgerService.lockReseller(exec, req.orgId, found.id);
+        if (!reseller) throw new NotFoundError('Reseller');
+        const balance = await resellerLedgerService.ledgerBalance(req.orgId, reseller.id, exec);
+        // A deposit is cash the reseller held; more than it holds would let it
+        // collect past its limit afterwards. An adjustment corrects anything else.
+        if (entryType === 'deposit' && money.toCents(amount) > money.toCents(balance)) {
+          const err = new ValidationError(`The reseller holds ${balance.toFixed(2)}; a deposit cannot be more than that`);
+          err.code = 'DEPOSIT_EXCEEDS_BALANCE';
+          throw err;
+        }
+        signed = entryType === 'deposit' ? -amount : amount;
+        entryId = await resellerLedgerService.appendEntry(exec, {
+          orgId: req.orgId, resellerId: reseller.id, entryType, amount: signed, currency,
+          note, createdBy: req.user.id,
+        });
+        await conn.commit();
+      } catch (err) {
+        try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
+        throw err;
+      } finally {
+        conn.release();
+      }
+
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: entryType === 'deposit' ? 'reseller_deposit' : 'reseller_adjustment',
+        tableName: 'reseller_ledger_entries',
+        recordId: entryId,
+        newValues: { reseller_id: Number(found.id), entry_type: entryType, amount: signed, currency, note },
+      });
+      const [[row]] = await db.query(
+        `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by
+           FROM reseller_ledger_entries WHERE id = ? AND organization_id = ?`,
+        [entryId, req.orgId],
+      );
+      const summary = await resellerLedgerService.summaryFor(req.orgId, found.id);
+      res.status(201).json({
+        data: row ? resellerLedgerService.entryRow(row) : {
+          id: entryId, entry_type: entryType, amount: signed, currency, note,
+          created_at: null, payment_id: null, cash_session_id: null, created_by: req.user.id,
+        },
+        summary: ledgerSummary(summary),
+      });
     } catch (err) { next(err); }
   },
 );

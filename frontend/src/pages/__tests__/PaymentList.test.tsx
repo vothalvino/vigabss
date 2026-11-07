@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PaymentList } from '../PaymentList';
 
 // Payment row actions are gated per slug (FE-13); this suite drives them as an admin.
@@ -111,5 +111,31 @@ describe('PaymentList page', () => {
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
+  });
+
+  it('marks a reseller collection and filters by the collecting reseller from the URL', async () => {
+    mockApiGet.mockImplementation((path: string) => {
+      if (path === '/payments') {
+        return Promise.resolve({ data: { data: [{ ...payment1, reseller_id: 4, reseller_name: 'Punto Norte' }], meta: { total: 1, page: 1, limit: 25, totalPages: 1 } }, error: undefined });
+      }
+      if (path === '/clients') return Promise.resolve({ data: { data: [client10] }, error: undefined });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={['/payments?reseller_id=4']}>
+          <Routes><Route path="/payments" element={<PaymentList />} /></Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('Reseller: Punto Norte')).toBeInTheDocument();
+    expect(mockApiGet).toHaveBeenCalledWith('/payments', { params: { query: expect.objectContaining({ reseller_id: 4 }) } });
+    expect(screen.getByText('Collected by: Punto Norte')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all payments' }));
+    await waitFor(() => expect(screen.queryByText('Collected by: Punto Norte')).not.toBeInTheDocument());
+    const paymentCalls = mockApiGet.mock.calls.filter(([p]) => p === '/payments');
+    const last = paymentCalls[paymentCalls.length - 1];
+    expect((last[1] as { params: { query: Record<string, unknown> } }).params.query).not.toHaveProperty('reseller_id');
   });
 });

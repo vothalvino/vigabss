@@ -456,6 +456,9 @@
   "reseller_ip_pool_allocations": {
     "ip_pool_id": "ip_pools"
   },
+  "reseller_ledger_entries": {
+    "payment_id": "payments"
+  },
   "reseller_olt_port_assignments": {
     "olt_port_id": "olt_ports"
   },

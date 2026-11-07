@@ -1,17 +1,21 @@
 // =============================================================================
-// VigaBSS 5.0 — Reseller app (Punto de Venta), phase 1
+// VigaBSS 5.0 — Reseller app (Punto de Venta), phases 1 and 2
 // =============================================================================
 // A reseller is a commission agent: it signs up neighbours as leads, which the
-// ISP converts, signs and installs. A staff user bound to a reseller
-// (reseller_user_bindings) uses these routes from the /punto web app.
+// ISP converts, signs and installs, and it collects cash from the ISP's
+// subscribers within a credit limit (phase 2, routes/resellerAppCollect.js).
+// A staff user bound to a reseller (reseller_user_bindings) uses these routes
+// from the /punto web app.
 //
-//  GET  /reseller-app/me                    the bound reseller and its counts
+//  GET  /reseller-app/me                    the bound reseller, its counts and its cash position
 //  GET  /reseller-app/clients               clients of the reseller subtree
 //  GET  /reseller-app/clients/:id           one of those clients
 //  GET  /reseller-app/plans                 plans the reseller may offer
 //  GET  /reseller-app/leads                 leads the subtree captured
 //  POST /reseller-app/leads                 sign up a customer as a lead
 //  GET  /reseller-app/leads/:id/feasibility coverage summary for such a lead
+//  ...and the phase-2 collection, receipt, cash-box and ledger routes of
+//  routes/resellerAppCollect.js, mounted below with the same guards.
 //
 // Every route needs a binding: org-level staff get 403 (they use the staff
 // pages). The subtree is the bound reseller and its sub-resellers
@@ -35,6 +39,8 @@ const { businessToday } = require('../utils/businessDate');
 const { PAYABLE_STATUSES } = require('../services/paymentAllocationService');
 const leadFeasibilityService = require('../services/leadFeasibilityService');
 const auditLog = require('../services/auditLog');
+const resellerLedgerService = require('../services/resellerLedgerService');
+const resellerCollectionService = require('../services/resellerCollectionService');
 const Organization = require('../models/Organization');
 const db = require('../config/database');
 
@@ -110,30 +116,13 @@ async function assertClientInResellerScope(req, clientId) {
 }
 
 /**
- * The top-level reseller of `resellerId`: itself, or its parent when it is a
- * sub-reseller (the hierarchy has two levels). Allowed plans are set on the
- * top-level reseller and apply to its sub-resellers too.
- */
-async function topLevelResellerId(orgId, resellerId) {
-  const [[reseller]] = await db.query(
-    'SELECT id, parent_id FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [resellerId, orgId],
-  );
-  if (!reseller || reseller.parent_id === null || reseller.parent_id === undefined) return resellerId;
-  const [[parent]] = await db.query(
-    'SELECT id, parent_id FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [reseller.parent_id, orgId],
-  );
-  return parent ? Number(parent.id) : resellerId;
-}
-
-/**
  * Plans the bound reseller may offer: the reseller_allowed_plans rows of its
  * top-level reseller, or every active plan of the organization when there
  * are none. Only active, live plans are ever offered.
  */
 async function allowedPlans(orgId, boundResellerId) {
-  const resellerId = await topLevelResellerId(orgId, boundResellerId);
+  // Allowed plans are set on the top-level reseller and apply to its sub-resellers.
+  const resellerId = await resellerLedgerService.topLevelResellerId(orgId, boundResellerId);
   const [[{ total }]] = await db.query(
     'SELECT COUNT(*) AS total FROM reseller_allowed_plans WHERE organization_id = ? AND reseller_id = ?',
     [orgId, resellerId],
@@ -302,6 +291,14 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
       [req.orgId, ...ids, ...PAYABLE_STATUSES, businessToday()],
     );
 
+    // The cash position of the collecting (top-level) reseller.
+    const currency = await Organization.getCurrency(req.orgId);
+    const collectorId = await resellerLedgerService.collectingResellerId(req);
+    const [summary, collectedToday] = await Promise.all([
+      resellerLedgerService.summaryFor(req.orgId, collectorId),
+      resellerCollectionService.collectedToday(req.orgId, collectorId),
+    ]);
+
     res.json({
       data: {
         reseller: {
@@ -312,12 +309,20 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
           commission_rate: Number(reseller.commission_rate),
           parent_id: reseller.parent_id === null ? null : Number(reseller.parent_id),
         },
-        currency: await Organization.getCurrency(req.orgId),
+        currency,
         counts: {
           active_clients: Number(clientCounts?.active_clients) || 0,
           suspended_clients: Number(clientCounts?.suspended_clients) || 0,
           open_leads: Number(leadCounts?.open_leads) || 0,
           overdue_clients: Number(overdue?.overdue_clients) || 0,
+        },
+        money: {
+          currency,
+          balance: summary.balance,
+          cash_on_hand: summary.cash_on_hand,
+          credit_limit: summary.credit_limit,
+          available_to_collect: summary.available_to_collect,
+          collected_today: collectedToday,
         },
       },
     });
@@ -585,6 +590,9 @@ router.get('/leads/:id/feasibility', requirePermission('reseller_app.use'), asyn
     res.json({ data: resellerFeasibilitySummary(result) });
   } catch (err) { next(err); }
 });
+
+// Phase 2: cash collection, receipts, the cash box and the ledger.
+router.use(require('./resellerAppCollect'));
 
 module.exports = router;
 module.exports.assertClientInResellerScope = assertClientInResellerScope;

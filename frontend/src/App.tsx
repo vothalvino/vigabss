@@ -55,6 +55,9 @@ const PuntoClients = lazy(() => import('@/pages/punto/PuntoClients').then((m) =>
 const PuntoClientDetail = lazy(() => import('@/pages/punto/PuntoClientDetail').then((m) => ({ default: m.PuntoClientDetail })));
 const PuntoNewClient = lazy(() => import('@/pages/punto/PuntoNewClient').then((m) => ({ default: m.PuntoNewClient })));
 const PuntoLeads = lazy(() => import('@/pages/punto/PuntoLeads').then((m) => ({ default: m.PuntoLeads })));
+const PuntoCollect = lazy(() => import('@/pages/punto/PuntoCollect').then((m) => ({ default: m.PuntoCollect })));
+const PuntoReceipt = lazy(() => import('@/pages/punto/PuntoReceipt').then((m) => ({ default: m.PuntoReceipt })));
+const PuntoCash = lazy(() => import('@/pages/punto/PuntoCash').then((m) => ({ default: m.PuntoCash })));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ClientList = lazy(() => import('@/pages/ClientList').then((m) => ({ default: m.ClientList })));
 const ClientDetail = lazy(() => import('@/pages/ClientDetail').then((m) => ({ default: m.ClientDetail })));
@@ -242,6 +245,9 @@ export function App() {
                   <Route path="/punto/clientes/:id" element={<PuntoClientDetail />} />
                   <Route path="/punto/nuevo" element={<PuntoNewClient />} />
                   <Route path="/punto/prospectos" element={<PuntoLeads />} />
+                  <Route path="/punto/cobrar" element={<PuntoCollect />} />
+                  <Route path="/punto/recibo/:id" element={<PuntoReceipt />} />
+                  <Route path="/punto/caja" element={<PuntoCash />} />
                 </Route>
               </Route>
 

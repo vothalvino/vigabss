@@ -15,7 +15,7 @@ const lifecycleService = require('../services/lifecycleService');
 const leadFeasibilityService = require('../services/leadFeasibilityService');
 const auditLog = require('../services/auditLog');
 const db = require('../config/database');
-const { inPlaceholders } = require('../utils/sqlBuild');
+const { addResellerNames, withResellerNames } = require('../utils/resellerNames');
 
 const router = Router();
 // The sales agent must be a user of this organization.
@@ -25,40 +25,7 @@ router.use(authenticate);
 router.use(orgScope);
 
 // Lead rows carry reseller_id (migration 003); the list and detail add the
-// reseller's name. The join binds the reseller to the lead's organization.
-async function addResellerNames(data, orgId) {
-  const rows = Array.isArray(data) ? data : (data && typeof data === 'object' ? [data] : []);
-  const ids = [...new Set(rows.map((r) => r.reseller_id).filter((id) => id !== null && id !== undefined).map(Number))];
-  const names = new Map();
-  if (ids.length) {
-    const [found] = await db.query(
-      /* includes deleted rows: a lead keeps the name of the reseller that captured it */
-      `SELECT id, name FROM resellers WHERE organization_id = ? AND id IN (${inPlaceholders(ids)})`,
-      [orgId, ...ids],
-    );
-    for (const r of found) names.set(Number(r.id), r.name);
-  }
-  for (const row of rows) {
-    if (!('reseller_id' in row)) continue;
-    row.reseller_name = row.reseller_id === null || row.reseller_id === undefined
-      ? null
-      : names.get(Number(row.reseller_id)) ?? null;
-  }
-}
-
-// Run a crudController handler and add reseller names to the `data` it sends.
-function withResellerNames(handler) {
-  return (req, res, next) => {
-    const send = res.json.bind(res);
-    res.json = (body) => {
-      res.json = send;
-      if (res.statusCode >= 400 || !body || body.data === undefined) return send(body);
-      addResellerNames(body.data, req.orgId).then(() => send(body), next);
-      return res;
-    };
-    return handler(req, res, next);
-  };
-}
+// reseller's name (utils/resellerNames.js).
 
 // List leads, with an optional free-text `search` (partial name/email/phone/
 // company, exact numeric id) for the create-service-order lead picker. Falls

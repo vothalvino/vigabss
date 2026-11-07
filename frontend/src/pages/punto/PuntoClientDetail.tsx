@@ -3,12 +3,15 @@
 // =============================================================================
 // GET /reseller-app/clients/:id: contact details, contracts with their plan,
 // and the latest invoices. A client outside the reseller's subtree is a 404.
+// "Cobrar" opens the collection for this client (/punto/cobrar?cliente=<id>).
 // =============================================================================
 
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiRequestError } from '@/api/apiFetch';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
@@ -21,6 +24,8 @@ const row = { display: 'flex', justifyContent: 'space-between', gap: 8, alignIte
 export function PuntoClientDetail() {
   const { t } = useTranslation();
   const currency = usePuntoCurrency();
+  const { user } = useAuth();
+  const canCollect = can(user, 'reseller_app.collect');
   const id = Number(useParams().id);
   const valid = Number.isInteger(id) && id > 0;
   const q = useQuery({ queryKey: puntoKeys.client(id), queryFn: () => fetchPuntoClient(id), enabled: valid });
@@ -56,6 +61,11 @@ export function PuntoClientDetail() {
             {formatMoney(c.balance_due, currency)}
           </dd>
         </dl>
+        {canCollect && toNumber(c.balance_due) > 0 && (
+          <Link to={`/punto/cobrar?cliente=${c.id}`} className="punto-btn-primary" style={{ marginTop: 12 }}>
+            {t('punto.clientDetail.collect')}
+          </Link>
+        )}
       </div>
 
       <section className="punto-card" aria-labelledby="punto-contracts">

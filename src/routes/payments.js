@@ -19,6 +19,7 @@ const paymentAllocationService = require('../services/paymentAllocationService')
 const db = require('../config/database');
 const { AppError } = require('../utils/errors');
 const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
+const { withResellerNames } = require('../utils/resellerNames');
 
 const router = Router();
 
@@ -97,8 +98,10 @@ const ctrl = crudController(Payment, {
     }
     delete body.client_id;
     // Who took the money is a fact of the create, not an editable field: the
-    // cash reconciliation of that cashier's session reads it.
+    // cash reconciliation of that cashier's session reads it. reseller_id is
+    // set only by the reseller app's collection (migration 004).
     delete body.recorded_by;
+    delete body.reseller_id;
     await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
   },
   // The ledger credit and the invoice allocations are reversed (and restored)
@@ -115,6 +118,38 @@ const ctrl = crudController(Payment, {
     // while the balance now shows it owed again.
     await billingService.reversePaymentAllocations(old.id, exec);
   },
+  // Restore re-credits the client and revives the allocations, so only a
+  // completed payment may come back (PAYMENT_NOT_SETTLED: nothing else may
+  // settle invoices). A reseller app void leaves a cancelled, deleted payment
+  // with soft-deleted allocations and a 'collection_void' in the reseller
+  // ledger; reviving it would mark invoices paid with cash nobody holds.
+  beforeRestore: async (req, exec) => {
+    const [rows] = await exec(
+      `/* includes deleted rows: restore acts on a soft-deleted payment */
+       SELECT p.id, p.status,
+              EXISTS (SELECT 1 FROM reseller_ledger_entries e
+                       WHERE e.organization_id = p.organization_id AND e.payment_id = p.id
+                         AND e.entry_type = 'collection_void') AS reseller_voided
+         FROM payments p
+        WHERE p.id = ? AND p.organization_id = ?
+        FOR UPDATE`,
+      [req.params.id, req.orgId],
+    );
+    const payment = rows && rows[0];
+    if (!payment) return; // Model.restore answers 404
+    if (Number(payment.reseller_voided) === 1) {
+      throw new AppError(
+        'This payment is a reseller collection that was voided; it cannot be restored. Record a new payment instead.',
+        409, 'PAYMENT_VOIDED_BY_RESELLER',
+      );
+    }
+    if (payment.status !== 'completed') {
+      throw new AppError(
+        `Only a completed payment can be restored; this one is ${payment.status}.`,
+        409, 'PAYMENT_NOT_RESTORABLE',
+      );
+    }
+  },
   afterRestore: async (payment, req, exec) => {
     await billingService.reversePaymentCredit(payment.id, exec); // idempotent — avoid a double credit
     await billingService.recordPaymentCredit(payment, req.orgId, exec);
@@ -125,16 +160,20 @@ const ctrl = crudController(Payment, {
 router.use(authenticate);
 router.use(orgScope);
 
-router.get('/', requirePermission('payments.view'), ctrl.list);
-router.get('/:id', requirePermission('payments.view'), ctrl.get);
+// Rows carry reseller_id (the reseller that collected the payment in the
+// reseller app, migration 004) and reseller_name; ?reseller_id= filters.
+router.get('/', requirePermission('payments.view'), withResellerNames(ctrl.list));
+router.get('/:id', requirePermission('payments.view'), withResellerNames(ctrl.get));
 
 // Create a payment and optionally allocate + reconnect
 router.post('/', requirePermission('payments.create'), validate(createPayment, { strip: false }), async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     // The cash reconciliation session of the staff member who records the
-    // payment sums it; never taken from the body.
+    // payment sums it; never taken from the body. Nor is reseller_id: only a
+    // reseller app collection sets it.
     req.body.recorded_by = req.user?.id ?? null;
+    delete req.body.reseller_id;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would

@@ -2,7 +2,8 @@
 // VigaBSS 5.0 — Payment List
 // =============================================================================
 // Standalone page at /payments. Shows all payments across all clients with:
-//   • Filtering by status
+//   • Filtering by status, and by the collecting reseller (?reseller_id=, linked
+//     from the reseller's Movements tab); a reseller collection carries a badge
 //   • Paginated table (client name, client ID, amount, method, status, date, reference)
 //   • "Record Payment" button opens an inline modal form
 //   • Per-row "Allocations" button expands inline to show invoice allocations
@@ -11,7 +12,7 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStore, authedFetch } from '@/api/client';
@@ -64,9 +65,10 @@ interface GatewayTransaction {
 
 const API_BASE = '/api/v1';
 
-async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string): Promise<PaymentsResponse> {
+async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string, resellerId: number | null): Promise<PaymentsResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
+  if (resellerId) query.reseller_id = resellerId;
   const res = await api.GET('/payments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payments');
   return res.data;
@@ -285,6 +287,11 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
           <Link to={`/clients/${payment.client_id}`} style={{ color: '#374151', textDecoration: 'none' }}>
             {clientName ?? String(payment.client_id)}
           </Link>
+          {payment.reseller_name && (
+            <span style={resellerBadge} title={t('paymentList.collectedByReseller', { name: payment.reseller_name })}>
+              {t('paymentList.resellerBadge', { name: payment.reseller_name })}
+            </span>
+          )}
         </td>
         {/* Client ID — narrow */}
         <td style={{ padding: '10px 8px', color: '#9ca3af', fontSize: '0.8rem', whiteSpace: 'nowrap', width: 40 }}>
@@ -358,10 +365,13 @@ export function PaymentList() {
   const [showRecord, setShowRecord] = useState(false);
   const sort = useTableSort('created_at', 'DESC');
   const qc = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const resellerParam = Number(params.get('reseller_id'));
+  const resellerId = Number.isInteger(resellerParam) && resellerParam > 0 ? resellerParam : null;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir],
-    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order),
+    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, resellerId],
+    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order, resellerId),
     placeholderData: prev => prev,
   });
 
@@ -404,6 +414,18 @@ export function PaymentList() {
           </button>
         ))}
       </div>
+
+      {resellerId && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: '1rem' }}>
+          <span style={resellerBadge}>
+            {t('paymentList.resellerFilter', { name: extractList<Payment>(data).find(p => p.reseller_name)?.reseller_name ?? `#${resellerId}` })}
+          </span>
+          <button type="button" style={{ ...actionBtn, width: 'auto', padding: '0 10px', background: '#f3f4f6' }}
+            onClick={() => { const p = new URLSearchParams(params); p.delete('reseller_id'); setParams(p, { replace: true }); setPage(1); }}>
+            {t('paymentList.clearResellerFilter')}
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {isLoading && <p style={{ color: '#888' }}>{t('paymentList.loading')}</p>}
@@ -478,6 +500,10 @@ const submitBtn: React.CSSProperties = {
   background: 'var(--accent)', color: '#fff', border: 'none',
   padding: '7px 18px', borderRadius: 6, cursor: 'pointer',
   fontWeight: 600, fontSize: '0.875rem',
+};
+const resellerBadge: React.CSSProperties = {
+  display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 10,
+  background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 600,
 };
 const actionBtn: React.CSSProperties = {
   width: 28, height: 28, padding: 0, border: 'none', borderRadius: 5,

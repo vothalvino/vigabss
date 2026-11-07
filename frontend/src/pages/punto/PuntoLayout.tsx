@@ -6,8 +6,11 @@
 // navigation and no request to a staff endpoint, which the server refuses to
 // a bound account. Mobile first: a bottom tab bar on narrow screens and a tab
 // row under the header from 768px (punto.css). Tabs follow the account's
-// permissions: without reseller_app.use only a no-access notice is shown, and
-// "Nuevo cliente" needs reseller_app.signup.
+// permissions: without reseller_app.use only a no-access notice is shown,
+// "Cobrar" needs reseller_app.collect and "Nuevo" reseller_app.signup.
+// Prospectos is not a tab: Inicio and Clientes link to it. The header gives
+// the reseller's name its own line; the language picker sits on the second
+// line so a long name is not cut to a few letters at 360px.
 // =============================================================================
 
 import { Suspense, type ReactNode } from 'react';
@@ -34,10 +37,18 @@ const ICONS = {
       <path d="M12 8v8M8 12h8" />
     </>
   ),
-  leads: (
+  collect: (
     <>
-      <rect x="4" y="3" width="16" height="18" rx="2" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6 9.5v5M18 9.5v5" />
+    </>
+  ),
+  cash: (
+    <>
+      <path d="M3 8h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+      <path d="M3 8l2.5-4h13L21 8" />
+      <path d="M10 12.5h4" />
     </>
   ),
 } satisfies Record<string, ReactNode>;
@@ -53,9 +64,10 @@ function TabIcon({ name }: { name: keyof typeof ICONS }) {
 // `permission` is what the tab's requests need beyond reseller_app.use.
 const TABS = [
   { to: '/punto', end: true, icon: 'home', labelKey: 'punto.nav.home', permission: null },
+  { to: '/punto/cobrar', end: false, icon: 'collect', labelKey: 'punto.nav.collect', permission: 'reseller_app.collect' },
   { to: '/punto/clientes', end: false, icon: 'clients', labelKey: 'punto.nav.clients', permission: null },
   { to: '/punto/nuevo', end: false, icon: 'add', labelKey: 'punto.nav.newClient', permission: 'reseller_app.signup' },
-  { to: '/punto/prospectos', end: false, icon: 'leads', labelKey: 'punto.nav.leads', permission: null },
+  { to: '/punto/caja', end: false, icon: 'cash', labelKey: 'punto.nav.cash', permission: null },
 ] as const;
 
 /**
@@ -88,20 +100,20 @@ export function PuntoLayout() {
   return (
     <div className="punto-shell">
       <header className="punto-header">
-        <div className="punto-header-title">
+        <div className="punto-header-row">
           <span className="punto-header-name">{user?.reseller_binding?.reseller_name ?? t('punto.layout.title')}</span>
-          <span className="punto-header-sub">{t('punto.layout.subtitle')}</span>
-        </div>
-        <div className="punto-header-actions">
-          <LanguageSwitcher style={{ maxWidth: 110 }} />
-          <button type="button" className="punto-btn-secondary" onClick={() => { void signOut(); }}>
+          <button type="button" className="punto-btn-secondary punto-header-signout" onClick={() => { void signOut(); }}>
             {t('punto.layout.signOut')}
           </button>
+        </div>
+        <div className="punto-header-row">
+          <span className="punto-header-sub">{t('punto.layout.subtitle')}</span>
+          <LanguageSwitcher style={{ maxWidth: 120, fontSize: '0.78rem', padding: '2px 4px' }} />
         </div>
       </header>
 
       {canUse && (
-        <nav className="punto-tabs" aria-label={t('punto.layout.navLabel')}>
+        <nav className="punto-tabs punto-no-print" aria-label={t('punto.layout.navLabel')}>
           {tabs.map(tab => (
             <NavLink
               key={tab.to}

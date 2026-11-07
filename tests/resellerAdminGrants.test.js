@@ -10,8 +10,9 @@
 // Migration 003 moves the group to the reseller app: it gains reseller_app.*
 // and loses the reseller administration views (resellers.view and the plan
 // price, commission, IP pool, bandwidth quota, OLT port and billing entity
-// views). This replays the baseline grants and every later migration's
-// grants and revocations.
+// views). Migration 004 adds reseller_app.collect (cash collection); the
+// reseller ledger permissions go to admin only. This replays the baseline
+// grants and every later migration's grants and revocations.
 // =============================================================================
 'use strict';
 
@@ -59,10 +60,38 @@ test('after the migrations, reseller_admin holds no organization-wide permission
   expect(held.filter((name) => !ALLOWED.test(name)).sort()).toEqual([]);
   // It still works as a reseller role.
   expect(held).toEqual(expect.arrayContaining([
-    'reseller_app.use', 'reseller_app.signup',
+    'reseller_app.use', 'reseller_app.signup', 'reseller_app.collect',
     'reseller_portal.dashboard', 'reseller_portal.manage_customers',
   ]));
   expect(held).not.toContain('resellers.view');
+  // What a reseller owes is the ISP's record: never the reseller's to edit.
+  expect(held).not.toContain('reseller_ledger.view');
+  expect(held).not.toContain('reseller_ledger.manage');
+  // Nor the staff cash-reconciliation surface (its own cash box is in the app).
+  expect(held.filter((name) => name.startsWith('cash_reconciliation.'))).toEqual([]);
+});
+
+test('migration 004 grants the collection to reseller_admin and admin, and the ledger to admin', () => {
+  const sql = fs.readFileSync(path.join(MIGRATIONS, '004_reseller_app_phase2.sql'), 'utf8').replace(/--.*$/gm, '');
+  const grants = [...sql.matchAll(/INSERT\s+IGNORE\s+INTO\s+role_permissions[^;]*?p\.name\s+IN\s*\(([^)]*)\)[^;]*?r\.name\s*=\s*'(\w+)'/gi)]
+    .map((m) => [m[2], names(m[1]).sort()]);
+  expect(grants).toEqual([
+    ['reseller_admin', ['reseller_app.collect']],
+    ['admin', ['reseller_app.collect', 'reseller_ledger.manage', 'reseller_ledger.view']],
+  ]);
+  const seeded = names(sql.match(/INSERT IGNORE INTO permissions \(name, description, module\) VALUES([\s\S]*?);/)[1])
+    .filter((n) => /^[a-z_]+\.[a-z_]+$/.test(n)).sort();
+  expect(seeded).toEqual(['reseller_app.collect', 'reseller_ledger.manage', 'reseller_ledger.view']);
+});
+
+test('the rollback of migration 004 refuses while cash records exist and drops the permissions', () => {
+  const rollback = fs.readFileSync(path.join(ROLLBACKS, '004_reseller_app_phase2.sql'), 'utf8').replace(/--.*$/gm, '');
+  const refuse = rollback.indexOf("SIGNAL SQLSTATE '45000'");
+  expect(refuse).toBeGreaterThan(-1);
+  expect(refuse).toBeLessThan(rollback.indexOf('DROP TABLE IF EXISTS reseller_ledger_entries'));
+  expect(refuse).toBeLessThan(rollback.indexOf('DROP COLUMN reseller_id'));
+  expect(names(rollback.match(/DELETE FROM permissions WHERE name IN \(([^)]*)\)/i)[1]).sort())
+    .toEqual(['reseller_app.collect', 'reseller_ledger.manage', 'reseller_ledger.view']);
 });
 
 // The first `p.name IN (...)` list of a file, sorted.

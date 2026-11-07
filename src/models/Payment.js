@@ -20,6 +20,11 @@ class Payment extends BaseModel {
     ];
   }
 
+  // reseller_id (migration 004) is set only by the reseller app's collection
+  // (services/resellerCollectionService.js), so it is not fillable; staff
+  // lists may filter on it.
+  static get filterableColumns() { return ['reseller_id']; }
+
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }

@@ -6,9 +6,11 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import ResellerPage from '../ResellerPage';
 import { ResellerFormModal } from '../resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from '../resellers/ResellerAllowedPlansTab';
+import { ResellerLedgerTab } from '../resellers/ResellerLedgerTab';
 import { ResellerUserBindingsTab } from '../ResellerUserBindingsTab';
 
 const mocks = vi.hoisted(() => ({
@@ -22,7 +24,7 @@ vi.mock('@/api/apiFetch', async (importOriginal) => ({
 }));
 vi.mock('@/api/client', () => ({ api: { GET: mocks.GET, PUT: mocks.PUT, DELETE: mocks.DELETE } }));
 vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, role: 'manager', permissions: mocks.permissions } }),
+  useAuth: () => ({ user: { id: 1, role: 'manager', organization_currency: 'MXN', permissions: mocks.permissions } }),
 }));
 
 const wrap = (ui: ReactNode) => render(
@@ -293,5 +295,160 @@ describe('Create login (Staff access tab)', () => {
     mocks.permissions = ['resellers.view', 'resellers.update', 'users.update'];
     await openTab();
     expect(screen.queryByRole('form', { name: 'Create login' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ResellerFormModal cash limit', () => {
+  beforeEach(() => {
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?parent_id=null&limit=100') return { data: [] };
+      if (path === '/settings') return { data: [{ key: 'reseller_default_credit_limit', value: '2000.00', scope: 'org', editable: true }] };
+      return { data: { id: 10 } };
+    });
+  });
+
+  it('sends an own limit on create and shows the organization default as the placeholder', async () => {
+    mocks.permissions = [...mocks.permissions, 'settings.view'];
+    wrap(<ResellerFormModal mode="create" onClose={vi.fn()} onSaved={vi.fn()} />);
+    const user = userEvent.setup();
+    const limit = screen.getByLabelText('Cash limit');
+    await waitFor(() => expect(limit).toHaveAttribute('placeholder', 'Organization default: $2,000.00'));
+    await user.type(screen.getByLabelText(/^Name/), 'Punto Sur');
+    await user.type(limit, '1500.50');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
+    expect(bodyOf('POST', '/resellers')).toEqual({ name: 'Punto Sur', commission_rate: 0, status: 'active', credit_limit: 1500.5 });
+  });
+
+  it('leaves a blank limit out of a create and does not read settings without settings.view', async () => {
+    wrap(<ResellerFormModal mode="create" onClose={vi.fn()} onSaved={vi.fn()} />);
+    const user = userEvent.setup();
+    expect(screen.getByLabelText('Cash limit')).toHaveAttribute('placeholder', 'Organization default');
+    await user.type(screen.getByLabelText(/^Name/), 'Punto Sur');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
+    expect(bodyOf('POST', '/resellers')).not.toHaveProperty('credit_limit');
+    expect(callsTo('GET', '/settings')).toHaveLength(0);
+  });
+
+  it('clears an own limit with null on edit, and refuses a bad amount', async () => {
+    wrap(
+      <ResellerFormModal
+        mode="edit"
+        initial={{ id: 9, name: 'Punto Sur', email: null, phone: null, contact_name: null, parent_id: null, commission_rate: '5.00', status: 'active', notes: null, credit_limit: '1500.00', effective_credit_limit: '1500.00' }}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup();
+    const limit = screen.getByLabelText('Cash limit');
+    expect(limit).toHaveValue('1500');
+    await user.clear(limit);
+    await user.type(limit, '12.345');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('0 or more with up to two decimals');
+    await user.clear(limit);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo('PUT', '/resellers/9')).toHaveLength(1));
+    expect(bodyOf('PUT', '/resellers/9')).toEqual({ name: 'Punto Sur', commission_rate: 5, status: 'active', credit_limit: null });
+  });
+
+  it('shows the effective default of a reseller already on it', () => {
+    wrap(
+      <ResellerFormModal
+        mode="edit"
+        initial={{ id: 9, name: 'Punto Sur', email: null, phone: null, contact_name: null, parent_id: null, commission_rate: '5.00', status: 'active', notes: null, credit_limit: null, effective_credit_limit: '2500.00' }}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Cash limit')).toHaveAttribute('placeholder', 'Organization default: $2,500.00');
+    expect(mocks.apiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('ResellerLedgerTab', () => {
+  const LEDGER = {
+    data: [
+      { id: 2, entry_type: 'collection', amount: '350.00', note: null, created_at: '2026-11-07T16:05:00Z', payment_id: 101 },
+      { id: 1, entry_type: 'deposit', amount: '-500.00', note: 'Entrega semanal', created_at: '2026-11-06T18:00:00Z', payment_id: null },
+    ],
+    summary: { balance: '850.00', cash_on_hand: '850.00', credit_limit: '2000.00', available_to_collect: '1150.00' },
+    meta: { total: 2, page: 1, limit: 25 },
+  };
+  const wrapRouter = (ui: ReactNode) => wrap(<MemoryRouter>{ui}</MemoryRouter>);
+
+  beforeEach(() => {
+    mocks.permissions = ['resellers.view', 'reseller_ledger.view', 'reseller_ledger.manage', 'payments.view'];
+    mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/resellers?parent_id=null&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path.startsWith('/resellers/4/ledger?') && !init?.method) return LEDGER;
+      if (path === '/resellers/4/ledger' && init?.method === 'POST') return { data: { id: 3 } };
+      throw new Error(`unexpected ${path}`);
+    });
+  });
+
+  it('shows the summary and the movements of a reseller', async () => {
+    wrapRouter(<ResellerLedgerTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    const summary = await screen.findByRole('region', { name: 'Summary' });
+    expect(within(summary).getByText('Cash to hand in').parentElement).toHaveTextContent('$850.00');
+    expect(within(summary).getByText('Cash limit').parentElement).toHaveTextContent('$2,000.00');
+    expect(within(summary).getByText('Can still collect').parentElement).toHaveTextContent('$1,150.00');
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers/4/ledger?page=1&limit=25');
+    const deposit = screen.getByText('Entrega semanal').closest('tr')!;
+    expect(deposit).toHaveTextContent('Cash handed in');
+    expect(deposit).toHaveTextContent('-$500.00');
+    expect(screen.getByRole('link', { name: '#101' })).toHaveAttribute('href', '/payments/101');
+    expect(screen.getByRole('link', { name: "See this reseller's payments" })).toHaveAttribute('href', '/payments?reseller_id=4');
+  });
+
+  it('records a cash hand-in and an adjustment', async () => {
+    wrapRouter(<ResellerLedgerTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    const deposit = await screen.findByRole('form', { name: 'Record cash handed in' });
+    await user.type(within(deposit).getByLabelText('Amount received'), '-5');
+    await user.click(within(deposit).getByRole('button', { name: 'Record hand-in' }));
+    expect(within(deposit).getByRole('alert')).toHaveTextContent('greater than zero');
+    await user.clear(within(deposit).getByLabelText('Amount received'));
+    await user.type(within(deposit).getByLabelText('Amount received'), '500');
+    await user.click(within(deposit).getByRole('button', { name: 'Record hand-in' }));
+    expect(await screen.findByText('Cash hand-in of $500.00 recorded.')).toBeInTheDocument();
+    expect(JSON.parse(String((callsTo('POST', '/resellers/4/ledger')[0][1] as RequestInit).body))).toEqual({ entry_type: 'deposit', amount: 500 });
+
+    const adjustment = screen.getByRole('form', { name: 'Adjustment' });
+    await user.type(within(adjustment).getByLabelText('Amount (+ or −)'), '-20');
+    await user.click(within(adjustment).getByRole('button', { name: 'Record adjustment' }));
+    expect(within(adjustment).getByRole('alert')).toHaveTextContent('An adjustment needs a note.');
+    await user.type(within(adjustment).getByLabelText('Note (required)'), 'Billete falso');
+    await user.click(within(adjustment).getByRole('button', { name: 'Record adjustment' }));
+    await waitFor(() => expect(callsTo('POST', '/resellers/4/ledger')).toHaveLength(2));
+    expect(JSON.parse(String((callsTo('POST', '/resellers/4/ledger')[1][1] as RequestInit).body))).toEqual({ entry_type: 'adjustment', amount: -20, note: 'Billete falso' });
+  });
+
+  it('is read only without reseller_ledger.manage', async () => {
+    mocks.permissions = ['resellers.view', 'reseller_ledger.view'];
+    wrapRouter(<ResellerLedgerTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    await screen.findByRole('region', { name: 'Summary' });
+    expect(screen.queryByRole('form', { name: 'Record cash handed in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Adjustment' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: "See this reseller's payments" })).not.toBeInTheDocument();
+  });
+
+  it('is a ResellerPage tab only with reseller_ledger.view', () => {
+    mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
+    const { unmount } = wrap(<ResellerPage />);
+    expect(screen.getByRole('button', { name: 'Movements' })).toBeInTheDocument();
+    unmount();
+    mocks.permissions = ['resellers.view'];
+    wrap(<ResellerPage />);
+    expect(screen.queryByRole('button', { name: 'Movements' })).not.toBeInTheDocument();
   });
 });

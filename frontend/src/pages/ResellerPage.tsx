@@ -5,9 +5,11 @@
 // leads in the reseller app (/punto). Tabs:
 //   1. Resellers      — hierarchy list, create and edit
 //   2. Allowed plans  — the plans a top-level reseller may offer
-//   3. Commissions    — commission earnings per reseller (read only)
-//   4. Portal         — reseller dashboard numbers
-//   5. Staff access   — reseller logins and bindings
+//   3. Movements      — the cash a reseller collected and handed in, its cash
+//                       limit, and recording a hand-in (reseller_ledger.*)
+//   4. Commissions    — commission earnings per reseller (read only)
+//   5. Portal         — reseller dashboard numbers
+//   6. Staff access   — reseller logins and bindings
 // Plan price overrides, network resources (IP pools, bandwidth quota, OLT
 // ports), billing entities and branding are not part of the commission-agent
 // model and are not shown; their API routes are unchanged.
@@ -22,12 +24,13 @@ import { can } from '@/auth/permissions';
 import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 import { ResellerFormModal } from './resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
+import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'resellers' | 'allowedPlans' | 'commissions' | 'portal' | 'staffAccess';
+type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'commissions' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
@@ -41,6 +44,9 @@ interface Reseller {
   status: string;
   commission_rate: number | string;
   notes: string | null;
+  credit_limit?: number | string | null;
+  effective_credit_limit?: number | string | null;
+  balance?: number | string | null;
 }
 
 interface Commission {
@@ -371,9 +377,10 @@ function PortalTab() {
 // Main page component
 // ---------------------------------------------------------------------------
 
-const TABS: { key: Tab; labelKey: string }[] = [
+const TABS: { key: Tab; labelKey: string; permission?: string }[] = [
   { key: 'resellers', labelKey: 'reseller.tabResellers' },
   { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans' },
+  { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view' },
   { key: 'commissions', labelKey: 'reseller.tabCommissions' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
   { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
@@ -381,7 +388,9 @@ const TABS: { key: Tab; labelKey: string }[] = [
 
 export default function ResellerPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('resellers');
+  const tabs = TABS.filter(tab => !tab.permission || can(user, tab.permission));
 
   return (
     <div style={{ padding: 24, fontFamily: 'sans-serif' }}>
@@ -389,7 +398,7 @@ export default function ResellerPage() {
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #dee2e6' }}>
-        {TABS.map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -409,6 +418,7 @@ export default function ResellerPage() {
       {/* Tab content */}
       {activeTab === 'resellers' && <ResellersTab />}
       {activeTab === 'allowedPlans' && <ResellerAllowedPlansTab />}
+      {activeTab === 'ledger' && <ResellerLedgerTab />}
       {activeTab === 'commissions' && <CommissionsTab />}
       {activeTab === 'portal' && <PortalTab />}
       {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}

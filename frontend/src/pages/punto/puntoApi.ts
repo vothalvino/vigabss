@@ -7,7 +7,7 @@
 // other prefixes, so nothing under /punto may call a staff endpoint.
 // =============================================================================
 
-import { apiFetch } from '@/api/apiFetch';
+import { ApiRequestError, apiFetch } from '@/api/apiFetch';
 
 export interface PuntoMe {
   reseller: {
@@ -25,6 +25,22 @@ export interface PuntoMe {
     open_leads: number;
     overdue_clients: number;
   };
+  /** Phase 2: the cash this reseller holds for the ISP and what it may still collect. */
+  money?: PuntoMoney;
+}
+
+/**
+ * The collecting reseller's cash position (its top-level reseller's ledger).
+ * `balance` is what it owes the ISP; `cash_on_hand` is the same in phase 2;
+ * `credit_limit` is the effective limit (its own or the organization default).
+ */
+export interface PuntoMoney {
+  currency: string;
+  balance: number | string;
+  cash_on_hand: number | string;
+  credit_limit: number | string;
+  available_to_collect: number | string;
+  collected_today: number | string;
 }
 
 export interface PuntoListMeta { total: number; page: number; limit: number }
@@ -120,6 +136,124 @@ export interface PuntoFeasibility {
   ftth: { nearby: boolean; distance_band: PuntoDistanceBand; has_free_ports: boolean | null };
 }
 
+export interface PuntoOpenInvoice {
+  id: number;
+  invoice_number: string | null;
+  balance: number | string;
+  due_date: string | null;
+}
+
+/**
+ * A subscriber the reseller may collect from (GET /reseller-app/collect/lookup
+ * or /collect/client/:id). `own` is false for a subscriber outside the
+ * reseller's subtree: its name is masked and no contact data is sent.
+ * `collect_token` is a short-lived signed token that POST /payments needs.
+ */
+export interface PuntoCollectTarget {
+  collect_token: string;
+  own: boolean;
+  client_number: number | string;
+  name: string;
+  status: string;
+  amount_due: number | string;
+  open_invoices: PuntoOpenInvoice[];
+}
+
+export interface PuntoCollectBody {
+  collect_token: string;
+  amount: number;
+  invoice_ids?: number[];
+  note?: string;
+}
+
+export interface PuntoCollectResult {
+  payment_id: number;
+  amount: number | string;
+  allocated: { invoice_id: number; amount: number | string }[];
+  client_number: number | string;
+  client_name: string;
+  reconnected: boolean | null;
+  receipt_url: string;
+}
+
+/** One collection of this reseller (GET /reseller-app/payments). */
+export interface PuntoCollection {
+  id: number;
+  client_number: number | string;
+  client_name: string;
+  own: boolean;
+  amount: number | string;
+  collected_at: string | null;
+  status: 'completed' | 'voided' | string;
+  invoice_numbers: string[];
+  cash_session_id: number | null;
+  /** The server's verdict (same business day, open cash box); absent on older responses. */
+  voidable?: boolean;
+}
+
+export interface PuntoReceipt {
+  receipt_number: string;
+  issued_at: string;
+  /** 'voided' once the collection was voided. */
+  status?: 'completed' | 'voided' | string;
+  isp: { name: string; rfc?: string | null; address?: string | null; phone?: string | null };
+  collected_by: { reseller_name: string; user_name: string | null };
+  client: { number: number | string; name: string; own?: boolean };
+  amount: number | string;
+  currency: string;
+  payment_method: string;
+  allocations: { invoice_number: string | null; amount: number | string }[];
+  remaining_balance: number | string | null;
+  legend: string;
+  plain_text?: string | null;
+}
+
+export interface PuntoOpenSession {
+  id: number;
+  opened_at: string;
+  expected_total: number | string;
+  collections_count: number;
+}
+
+export interface PuntoClosedSession {
+  id: number;
+  opened_at: string;
+  closed_at: string | null;
+  expected_total: number | string;
+  counted_total: number | string | null;
+  variance: number | string | null;
+  status: string;
+}
+
+export interface PuntoCashSession {
+  current: PuntoOpenSession | null;
+  recent: PuntoClosedSession[];
+}
+
+export type PuntoLedgerType = 'collection' | 'collection_void' | 'deposit' | 'adjustment';
+
+export interface PuntoLedgerEntry {
+  id: number;
+  entry_type: PuntoLedgerType | string;
+  amount: number | string;
+  note: string | null;
+  created_at: string;
+  payment_id: number | null;
+}
+
+export interface PuntoLedgerSummary {
+  balance: number | string;
+  cash_on_hand: number | string;
+  credit_limit: number | string;
+  available_to_collect: number | string;
+}
+
+export interface PuntoLedgerPage {
+  data: PuntoLedgerEntry[];
+  summary: PuntoLedgerSummary | null;
+  meta: PuntoListMeta | null;
+}
+
 export const puntoKeys = {
   me: ['punto', 'me'] as const,
   clients: (search: string, status: string, overdue: boolean, page: number) => ['punto', 'clients', search, status, overdue, page] as const,
@@ -127,7 +261,20 @@ export const puntoKeys = {
   plans: ['punto', 'plans'] as const,
   leads: (page: number) => ['punto', 'leads', page] as const,
   feasibility: (id: number) => ['punto', 'feasibility', id] as const,
+  collectClient: (id: number) => ['punto', 'collect-client', id] as const,
+  receipt: (id: number) => ['punto', 'receipt', id] as const,
+  collections: (date: string, page: number) => ['punto', 'collections', date, page] as const,
+  cashSession: ['punto', 'cash-session'] as const,
+  ledger: (page: number) => ['punto', 'ledger', page] as const,
 };
+
+/** Every query a collection, a void or a cash-box close changes. */
+export const PUNTO_MONEY_QUERIES = [
+  puntoKeys.me,
+  ['punto', 'collections'],
+  puntoKeys.cashSession,
+  ['punto', 'ledger'],
+] as const;
 
 export async function fetchPuntoMe(): Promise<PuntoMe> {
   return (await apiFetch<{ data: PuntoMe }>('/reseller-app/me')).data;
@@ -159,6 +306,113 @@ export async function createPuntoLead(body: PuntoLeadBody): Promise<PuntoLead> {
 
 export async function fetchPuntoFeasibility(id: number): Promise<PuntoFeasibility> {
   return (await apiFetch<{ data: PuntoFeasibility }>(`/reseller-app/leads/${id}/feasibility`)).data;
+}
+
+export async function lookupPuntoCollect(q: string): Promise<PuntoCollectTarget[]> {
+  const res = await apiFetch<{ data: PuntoCollectTarget[] }>(`/reseller-app/collect/lookup?q=${encodeURIComponent(q)}`);
+  return res.data ?? [];
+}
+
+export async function fetchPuntoCollectClient(id: number): Promise<PuntoCollectTarget> {
+  return (await apiFetch<{ data: PuntoCollectTarget }>(`/reseller-app/collect/client/${id}`)).data;
+}
+
+/**
+ * Record a cash collection. `idempotencyKey` is the same for every retry of
+ * one attempt, so a lost response cannot make the subscriber pay twice.
+ */
+export async function createPuntoCollection(body: PuntoCollectBody, idempotencyKey: string): Promise<PuntoCollectResult> {
+  return (await apiFetch<{ data: PuntoCollectResult }>('/reseller-app/payments', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(body),
+  })).data;
+}
+
+/** A row of GET /reseller-app/payments, tolerating the name/time aliases. */
+function toCollection(raw: Record<string, unknown>): PuntoCollection {
+  const invoices = raw.invoice_numbers;
+  return {
+    id: Number(raw.id ?? raw.payment_id),
+    client_number: (raw.client_number ?? '') as number | string,
+    client_name: String(raw.client_name ?? raw.name ?? ''),
+    own: Boolean(raw.own),
+    amount: (raw.amount ?? 0) as number | string,
+    collected_at: (raw.collected_at ?? raw.created_at ?? raw.time ?? null) as string | null,
+    status: String(raw.status ?? 'completed'),
+    invoice_numbers: Array.isArray(invoices)
+      ? invoices.map(String)
+      : typeof invoices === 'string' && invoices ? invoices.split(',').map(v => v.trim()) : [],
+    cash_session_id: raw.cash_session_id == null ? null : Number(raw.cash_session_id),
+    ...(typeof raw.voidable === 'boolean' ? { voidable: raw.voidable } : {}),
+  };
+}
+
+export async function fetchPuntoCollections(params: { date?: string; page: number; limit: number }) {
+  const q = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+  if (params.date) q.set('date', params.date);
+  const res = await apiFetch<{ data: Record<string, unknown>[]; meta?: PuntoListMeta }>(`/reseller-app/payments?${q.toString()}`);
+  return { data: (res.data ?? []).map(toCollection), meta: res.meta ?? null };
+}
+
+export async function voidPuntoCollection(id: number, reason: string): Promise<void> {
+  await apiFetch(`/reseller-app/payments/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) });
+}
+
+export async function fetchPuntoReceipt(id: number): Promise<PuntoReceipt> {
+  return (await apiFetch<{ data: PuntoReceipt }>(`/reseller-app/payments/${id}/receipt`)).data;
+}
+
+/** GET /reseller-app/cash-session: `{ current, recent }` (aliases accepted). */
+export async function fetchPuntoCashSession(): Promise<PuntoCashSession> {
+  const res = await apiFetch<{ data?: unknown; recent?: unknown; closed?: unknown }>('/reseller-app/cash-session');
+  const data = (res.data ?? null) as Record<string, unknown> | null;
+  // Either { data: { current, recent } } or { data: <open session|null>, recent }.
+  const wrapped = data && ('current' in data || 'open' in data || 'recent' in data || 'closed' in data);
+  const current = (wrapped ? data.current ?? data.open ?? null : data) as PuntoOpenSession | null;
+  const recent = (wrapped ? data.recent ?? data.closed : res.recent ?? res.closed) as PuntoClosedSession[] | undefined;
+  return { current: current && current.id ? current : null, recent: Array.isArray(recent) ? recent : [] };
+}
+
+export async function closePuntoCashSession(body: { counted_total: number; notes?: string }): Promise<PuntoClosedSession> {
+  return (await apiFetch<{ data: PuntoClosedSession }>('/reseller-app/cash-session/close', { method: 'POST', body: JSON.stringify(body) })).data;
+}
+
+/** A ledger page: entries plus the summary (top level or in meta). */
+export function toLedgerPage(res: { data?: PuntoLedgerEntry[]; summary?: PuntoLedgerSummary; meta?: PuntoListMeta & { summary?: PuntoLedgerSummary } }): PuntoLedgerPage {
+  return { data: res.data ?? [], summary: res.summary ?? res.meta?.summary ?? null, meta: res.meta ?? null };
+}
+
+export async function fetchPuntoLedger(page: number, limit: number): Promise<PuntoLedgerPage> {
+  return toLedgerPage(await apiFetch(`/reseller-app/ledger?page=${page}&limit=${limit}`));
+}
+
+/** The CREDIT_LIMIT refusal of POST /payments, with what may still be collected. */
+export function creditLimitError(err: unknown): { available: number | null } | null {
+  if (!(err instanceof ApiRequestError) || err.status !== 409) return null;
+  const body = (err.body ?? {}) as Record<string, unknown>;
+  const e = (typeof body.error === 'object' && body.error ? body.error : {}) as Record<string, unknown>;
+  const details = (e.details && typeof e.details === 'object' && !Array.isArray(e.details) ? e.details : {}) as Record<string, unknown>;
+  const code = e.code ?? body.code;
+  const available = e.available_to_collect ?? details.available_to_collect ?? body.available_to_collect;
+  // A 409 without the code is some other conflict (a void rule, say).
+  if (code !== 'CREDIT_LIMIT' && available === undefined) return null;
+  return { available: available === undefined || available === null ? null : toNumber(available as number | string) };
+}
+
+/** The `error.code` of a refused request (e.g. 'VOID_WINDOW_CLOSED'), or null. */
+export function apiErrorCode(err: unknown): string | null {
+  if (!(err instanceof ApiRequestError)) return null;
+  const body = (err.body ?? {}) as Record<string, unknown>;
+  const e = (typeof body.error === 'object' && body.error ? body.error : {}) as Record<string, unknown>;
+  const code = e.code ?? body.code;
+  return typeof code === 'string' ? code : null;
+}
+
+/** A key for one collection attempt. */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
 
 /** A DECIMAL that may arrive as a string. */
