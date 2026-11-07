@@ -199,7 +199,8 @@ function generateSpec() {
       { name: 'Router Drivers', description: '§18.3 vendor router API integration — MikroTik live, Cisco/Juniper/ZTE/Huawei/REST stubbed' },
       { name: 'Analytics', description: '§18.4 heuristic analytics — z-score anomaly detection, predictive failure, alert correlation, bandwidth forecast, churn scoring' },
       { name: 'Resellers', description: '§19 Multi-Tenancy / Reseller Support — hierarchy, pricing, commissions, resource allocation, and reseller portal' },
-      { name: 'Reseller Portal', description: '§19.3 Reseller portal endpoints — dashboard, customer management, invoices, inventory' },
+      { name: 'Reseller Portal', description: '§19.3 Reseller portal endpoints — dashboard, customer list, invoices, inventory' },
+      { name: 'Reseller App', description: 'Reseller app (Punto de Venta) for users bound to a reseller — own clients, plans, and lead sign-ups' },
       { name: 'Integration Providers', description: '§20.2 Third-party integration provider catalog — read-only list of supported providers seeded at migration 348' },
       { name: 'Integration Connections', description: '§20.2 Per-org configured integration connections — credentials encrypted at rest, never returned in responses' },
       { name: 'AI Support', description: '§21 AI customer support — conversations, knowledge base, channel configs, diagnostics, and KPI metrics' },
@@ -211,7 +212,7 @@ function generateSpec() {
       '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: r200('Token + User, or a two-factor challenge') } },
       '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 24 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
       '/auth/logout': { post: { tags: ['Auth'], summary: 'Logout — revokes the presented refresh token (cookie or body) and clears auth cookies; no bearer required, so it still works after the access token expires', operationId: 'logout', requestBody: jsonBody('auth_refreshToken'), responses: r200('Message') } },
-      '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
+      '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile (reseller_binding: {reseller_id, reseller_name} when the user is bound to a reseller in the active organization, else null)', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
       '/auth/password-reset/request': { post: { tags: ['Auth'], summary: 'Request password reset email', operationId: 'requestPasswordReset', requestBody: jsonBody('email'), responses: r200('Message') } },
       '/auth/password-reset': { post: { tags: ['Auth'], summary: 'Reset password with token', operationId: 'resetPassword', requestBody: jsonBody('token + password'), responses: r200('Message') } },
       '/auth/change-password': { post: { tags: ['Auth'], summary: 'Change password (authenticated)', operationId: 'changePassword', security: [{ bearerAuth: [] }], requestBody: jsonBody('currentPassword + newPassword'), responses: r200('Message') } },
@@ -353,7 +354,7 @@ function generateSpec() {
       // query param (partial name/email/phone/company + exact id match — see
       // routes/leads.js); falls through to the generic list when omitted.
       '/leads': {
-        get: { tags: ['Leads'], summary: 'List leads (optional free-text search)', operationId: 'listLeads', security: [{ bearerAuth: [] }], parameters: [searchParam()], responses: r200('Lead[]') },
+        get: { tags: ['Leads'], summary: 'List leads (optional free-text search); each row carries reseller_id and reseller_name', operationId: 'listLeads', security: [{ bearerAuth: [] }], parameters: [searchParam(), pageParam(), limitParam(), { name: 'reseller_id', in: 'query', required: false, schema: { type: 'integer' }, description: 'Only leads captured by this reseller in the reseller app' }], responses: r200('Lead[]') },
         post: { tags: ['Leads'], summary: 'Create a Lead', operationId: 'createLead', security: [{ bearerAuth: [] }], requestBody: jsonBody('Lead'), responses: r201('Lead') },
       },
       '/leads/pipeline': { get: { tags: ['Leads'], summary: 'Lead counts grouped by pipeline stage', operationId: 'getLeadPipeline', security: [{ bearerAuth: [] }], responses: r200('Pipeline counts') } },
@@ -3300,45 +3301,50 @@ function generateSpec() {
         delete: { tags: ['Resellers'], summary: 'Delete reseller', operationId: 'deleteReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/resellers/{id}/suspend': {
-        post: { tags: ['Resellers'], summary: 'Toggle reseller suspension', operationId: 'suspendReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Status') },
+        post: { tags: ['Resellers'], summary: 'Toggle reseller suspension', operationId: 'suspendReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('Status'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/plan-prices': {
         get: { tags: ['Resellers'], summary: 'List custom plan prices', operationId: 'listResellerPlanPrices', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('PlanPrice[]') },
-        post: { tags: ['Resellers'], summary: 'Set custom plan price', operationId: 'setResellerPlanPrice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('PlanPrice'), responses: r201('PlanPrice') },
+        post: { tags: ['Resellers'], summary: 'Set custom plan price', operationId: 'setResellerPlanPrice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('PlanPrice'), responses: { ...r201('PlanPrice'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/plan-prices/{ppId}': {
-        delete: { tags: ['Resellers'], summary: 'Remove custom plan price', operationId: 'deleteResellerPlanPrice', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'ppId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r204() },
+        delete: { tags: ['Resellers'], summary: 'Remove custom plan price', operationId: 'deleteResellerPlanPrice', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'ppId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/commissions': {
         get: { tags: ['Resellers'], summary: 'List commission records', operationId: 'listResellerCommissions', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Commission[]') },
       },
       '/resellers/{id}/commissions/{cId}/approve': {
-        post: { tags: ['Resellers'], summary: 'Approve or mark commission paid', operationId: 'approveResellerCommission', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'cId', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: jsonBody('status'), responses: r200('Commission') },
+        post: { tags: ['Resellers'], summary: 'Approve or mark commission paid', operationId: 'approveResellerCommission', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'cId', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: jsonBody('status'), responses: { ...r200('Commission'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/ip-pools': {
         get: { tags: ['Resellers'], summary: 'List IP pool allocations', operationId: 'listResellerIpPools', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('IpPoolAllocation[]') },
-        post: { tags: ['Resellers'], summary: 'Add IP pool allocation', operationId: 'addResellerIpPool', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('ip_pool_id'), responses: r201('IpPoolAllocation') },
+        post: { tags: ['Resellers'], summary: 'Add IP pool allocation', operationId: 'addResellerIpPool', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('ip_pool_id'), responses: { ...r201('IpPoolAllocation'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/ip-pools/{allocId}': {
-        delete: { tags: ['Resellers'], summary: 'Remove IP pool allocation', operationId: 'removeResellerIpPool', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'allocId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r204() },
+        delete: { tags: ['Resellers'], summary: 'Remove IP pool allocation', operationId: 'removeResellerIpPool', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'allocId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/bandwidth-quota': {
         get: { tags: ['Resellers'], summary: 'Get bandwidth quota', operationId: 'getResellerBandwidthQuota', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('BandwidthQuota') },
-        put: { tags: ['Resellers'], summary: 'Set bandwidth quota', operationId: 'setResellerBandwidthQuota', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('BandwidthQuota'), responses: r200('BandwidthQuota') },
+        put: { tags: ['Resellers'], summary: 'Set bandwidth quota', operationId: 'setResellerBandwidthQuota', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('BandwidthQuota'), responses: { ...r200('BandwidthQuota'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/olt-ports': {
         get: { tags: ['Resellers'], summary: 'List OLT port assignments', operationId: 'listResellerOltPorts', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('OltPortAssignment[]') },
-        post: { tags: ['Resellers'], summary: 'Add OLT port assignment', operationId: 'addResellerOltPort', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('olt_port_id'), responses: r201('OltPortAssignment') },
+        post: { tags: ['Resellers'], summary: 'Add OLT port assignment', operationId: 'addResellerOltPort', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('olt_port_id'), responses: { ...r201('OltPortAssignment'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/olt-ports/{aId}': {
-        delete: { tags: ['Resellers'], summary: 'Remove OLT port assignment', operationId: 'removeResellerOltPort', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'aId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r204() },
+        delete: { tags: ['Resellers'], summary: 'Remove OLT port assignment', operationId: 'removeResellerOltPort', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'aId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/billing-entity': {
         get: { tags: ['Resellers'], summary: 'Get billing entity', operationId: 'getResellerBillingEntity', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('BillingEntity') },
-        put: { tags: ['Resellers'], summary: 'Upsert billing entity', operationId: 'upsertResellerBillingEntity', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('BillingEntity'), responses: r200('BillingEntity') },
+        put: { tags: ['Resellers'], summary: 'Upsert billing entity', operationId: 'upsertResellerBillingEntity', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('BillingEntity'), responses: { ...r200('BillingEntity'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/users': {
         get: { tags: ['Resellers'], summary: 'List users bound to the reseller (confined to its subtree)', operationId: 'listResellerUserBindings', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ResellerUserBinding[]') },
+        post: { tags: ['Resellers'], summary: 'Create a reseller login: a staff user in the reseller_admin group, bound to this reseller (org-level admins only; requires resellers.update and users.create)', operationId: 'createResellerLogin', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody(resellerLoginRequestSchema(), 'The new login'), responses: { 201: { description: 'Created login', content: { 'application/json': { schema: dataEnvelopeSchema(resellerLoginResultSchema()) } } }, 403: errorResponse('Reseller-bound callers cannot create logins'), 404: errorResponse('Reseller not found'), 409: errorResponse('A user with this email already exists'), 422: errorResponse('Validation failed or the password breaks the password policy') } },
+      },
+      '/resellers/{id}/allowed-plans': {
+        get: { tags: ['Resellers'], summary: 'Plans the reseller may offer in the reseller app (none means every active plan; org-level admins only)', operationId: 'listResellerAllowedPlans', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'Allowed plans', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'array', items: resellerAllowedPlanSchema() }) } } }, 403: errorResponse('Reseller-bound callers cannot manage allowed plans'), 404: errorResponse('Reseller not found') } },
+        put: { tags: ['Resellers'], summary: 'Replace the plans a top-level reseller and its sub-resellers may offer (org-level admins only; an empty list allows every active plan)', operationId: 'setResellerAllowedPlans', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['plan_ids'], properties: { plan_ids: { type: 'array', items: { type: 'integer', minimum: 1 } } } }, 'Plan ids of the organization'), responses: { 200: { description: 'Allowed plans', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'array', items: resellerAllowedPlanSchema() }) } } }, 403: errorResponse('Reseller-bound callers cannot manage allowed plans'), 404: errorResponse('Reseller not found'), 422: errorResponse('A plan does not belong to the organization, or the reseller is a sub-reseller') } },
       },
       '/resellers/{id}/users/{userId}': {
         put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('ResellerUserBinding'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Reseller or user not found'), 422: errorResponse('Cannot bind your own account') } },
@@ -3351,19 +3357,34 @@ function generateSpec() {
       },
       '/reseller-portal/{id}/clients': {
         get: { tags: ['Reseller Portal'], summary: 'List reseller clients', operationId: 'listResellerPortalClients', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Client[]') },
-        post: { tags: ['Reseller Portal'], summary: 'Create client under reseller', operationId: 'createResellerPortalClient', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('Client'), responses: r201('Client') },
-      },
-      '/reseller-portal/{id}/clients/{cId}/suspend': {
-        post: { tags: ['Reseller Portal'], summary: 'Suspend or reactivate client', operationId: 'suspendResellerPortalClient', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'cId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('Status') },
-      },
-      '/reseller-portal/{id}/clients/{cId}/cancel': {
-        post: { tags: ['Reseller Portal'], summary: 'Cancel (set inactive) client', operationId: 'cancelResellerPortalClient', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'cId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('Status') },
       },
       '/reseller-portal/{id}/invoices': {
         get: { tags: ['Reseller Portal'], summary: 'List reseller client invoices', operationId: 'listResellerPortalInvoices', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Invoice[]') },
       },
       '/reseller-portal/{id}/inventory': {
         get: { tags: ['Reseller Portal'], summary: 'List reseller assigned inventory', operationId: 'listResellerPortalInventory', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('AssetAssignment[]') },
+      },
+
+      // ---- Reseller app (Punto de Venta), phase 1 ----
+      // Every operation needs a reseller binding: org-level staff get 403.
+      '/reseller-app/me': {
+        get: { tags: ['Reseller App'], summary: 'The bound reseller, the organization currency and the subtree counts', operationId: 'getResellerAppMe', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Reseller summary', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppMeSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
+      },
+      '/reseller-app/clients': {
+        get: { tags: ['Reseller App'], summary: 'Clients of the bound reseller and its sub-resellers', operationId: 'listResellerAppClients', security: [{ bearerAuth: [] }], parameters: [{ ...searchParam(), description: 'Partial name, phone or email' }, { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['active', 'inactive', 'suspended'] } }, { name: 'overdue', in: 'query', required: false, description: 'Only clients with an unpaid invoice past its due date (1 or true)', schema: { type: 'string', enum: ['1', 'true', '0', 'false'] } }, pageParam(), limitParam()], responses: { 200: { description: 'Clients', content: { 'application/json': { schema: listEnvelopeSchema(resellerAppClientSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 422: errorResponse('Unknown status or overdue value') } },
+      },
+      '/reseller-app/clients/{id}': {
+        get: { tags: ['Reseller App'], summary: 'One client of the reseller subtree, with its contracts and latest 20 invoices', operationId: 'getResellerAppClient', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'Client', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppClientDetailSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 404: errorResponse('Client not found in the reseller subtree') } },
+      },
+      '/reseller-app/plans': {
+        get: { tags: ['Reseller App'], summary: 'Plans the bound reseller may offer (the allowed plans of its top-level reseller, or every active plan when there are none)', operationId: 'listResellerAppPlans', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Plans', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'array', items: resellerAppPlanSchema() }) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
+      },
+      '/reseller-app/leads': {
+        get: { tags: ['Reseller App'], summary: 'Leads the reseller subtree captured', operationId: 'listResellerAppLeads', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: { 200: { description: 'Leads', content: { 'application/json': { schema: listEnvelopeSchema(resellerAppLeadSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
+        post: { tags: ['Reseller App'], summary: 'Sign up a customer as a lead of the bound reseller (needs reseller_app.signup)', operationId: 'createResellerAppLead', security: [{ bearerAuth: [] }], requestBody: typedJsonBody(resellerAppLeadRequestSchema(), 'The prospect'), responses: { 201: { description: 'Lead', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppLeadSchema()) } } }, 403: errorResponse('Not a reseller account, or the reseller is not active'), 422: errorResponse('Validation failed, or the plan is not offered by the reseller') } },
+      },
+      '/reseller-app/leads/{id}/feasibility': {
+        get: { tags: ['Reseller App'], summary: 'Coverage summary for a lead of the reseller subtree: zones in service and coarse wireless/FTTH flags, without network ids, names, coordinates or RF data', operationId: 'getResellerAppLeadFeasibility', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'Coverage summary', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppFeasibilitySchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 404: errorResponse('Lead not found in the reseller subtree') } },
       },
 
       // ---- §20.2 Integration Providers ----
@@ -3540,6 +3561,202 @@ function jsonBody(desc) {
 }
 function typedJsonBody(schema, description, required = true) {
   return { description, required, content: { 'application/json': { schema } } };
+}
+
+// ---- Reseller app (routes/resellerApp.js) ----
+function dataEnvelopeSchema(data) {
+  return { type: 'object', required: ['data'], properties: { data } };
+}
+function listEnvelopeSchema(item) {
+  return {
+    type: 'object',
+    required: ['data', 'meta'],
+    properties: {
+      data: { type: 'array', items: item },
+      meta: { type: 'object', required: ['total', 'page', 'limit'], properties: { total: { type: 'integer' }, page: { type: 'integer' }, limit: { type: 'integer' } } },
+    },
+  };
+}
+function resellerAppMeSchema() {
+  return {
+    type: 'object',
+    required: ['reseller', 'currency', 'counts'],
+    properties: {
+      reseller: {
+        type: 'object',
+        required: ['id', 'name', 'level', 'status', 'commission_rate', 'parent_id'],
+        properties: {
+          id: { type: 'integer' }, name: { type: 'string' }, level: { type: 'integer' },
+          status: { type: 'string', enum: ['active', 'suspended', 'inactive'] },
+          commission_rate: { type: 'number' }, parent_id: nullableInteger(),
+        },
+      },
+      currency: { type: 'string' },
+      counts: {
+        type: 'object',
+        required: ['active_clients', 'suspended_clients', 'open_leads', 'overdue_clients'],
+        properties: {
+          active_clients: { type: 'integer' }, suspended_clients: { type: 'integer' },
+          open_leads: { type: 'integer' }, overdue_clients: { type: 'integer', description: 'Clients with an unpaid invoice past its due date' },
+        },
+      },
+    },
+  };
+}
+function resellerAppClientSchema() {
+  return {
+    type: 'object',
+    required: ['id', 'name', 'phone', 'email', 'status', 'reseller_id', 'balance_due', 'overdue'],
+    properties: {
+      id: { type: 'integer' }, name: { type: 'string' }, phone: nullableString(), email: nullableString(),
+      status: { type: 'string', enum: ['active', 'inactive', 'suspended'] }, reseller_id: { type: 'integer' },
+      balance_due: { type: 'number', description: 'Still owed on issued, sent and overdue invoices' },
+      overdue: { type: 'boolean' },
+    },
+  };
+}
+function resellerAppClientDetailSchema() {
+  return {
+    type: 'object',
+    required: ['id', 'name', 'phone', 'email', 'address', 'status', 'reseller_id', 'balance_due', 'contracts', 'invoices'],
+    properties: {
+      id: { type: 'integer' }, name: { type: 'string' }, phone: nullableString(), email: nullableString(),
+      address: nullableString(), city: nullableString(),
+      status: { type: 'string', enum: ['active', 'inactive', 'suspended'] }, reseller_id: { type: 'integer' },
+      balance_due: { type: 'number' },
+      contracts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'status', 'plan_name', 'monthly_price'],
+          properties: { id: { type: 'integer' }, status: { type: 'string' }, plan_name: nullableString(), monthly_price: { type: ['number', 'null'] } },
+        },
+      },
+      invoices: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'invoice_number', 'status', 'total', 'balance', 'due_date', 'issue_date'],
+          properties: {
+            id: { type: 'integer' }, invoice_number: { type: 'string' }, status: { type: 'string' },
+            total: { type: 'number' }, balance: { type: 'number' },
+            due_date: { type: 'string', format: 'date-time' }, issue_date: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  };
+}
+function resellerAppFeasibilitySchema() {
+  const band = { type: ['string', 'null'], enum: ['under_1km', 'under_3km', 'farther', null], description: 'Distance to the nearest one; null when there is none' };
+  return {
+    type: 'object',
+    required: ['has_coordinates', 'covered', 'coverage_zones', 'zone_lookup_failed', 'wireless', 'ftth'],
+    properties: {
+      has_coordinates: { type: 'boolean' },
+      covered: { type: 'boolean', description: 'Inside a coverage zone that is active or degraded' },
+      coverage_zones: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'zone_type', 'status', 'max_download_mbps', 'max_upload_mbps'],
+          properties: {
+            name: { type: 'string' },
+            zone_type: { type: ['string', 'null'] },
+            status: { type: 'string', enum: ['active', 'degraded'] },
+            max_download_mbps: { type: ['number', 'null'] },
+            max_upload_mbps: { type: ['number', 'null'] },
+          },
+        },
+      },
+      zone_lookup_failed: { type: 'boolean' },
+      wireless: {
+        type: 'object',
+        required: ['nearby', 'distance_band'],
+        properties: { nearby: { type: 'boolean', description: 'An AP sector within 3 km' }, distance_band: band },
+      },
+      ftth: {
+        type: 'object',
+        required: ['nearby', 'distance_band', 'has_free_ports'],
+        properties: {
+          nearby: { type: 'boolean', description: 'An active ODF frame within 3 km' },
+          distance_band: band,
+          has_free_ports: { type: ['boolean', 'null'], description: 'Free ports on a nearby frame; null when unknown or none is nearby' },
+        },
+      },
+    },
+  };
+}
+
+function resellerAppPlanSchema() {
+  return {
+    type: 'object',
+    required: ['id', 'name', 'price', 'download_speed', 'upload_speed'],
+    properties: {
+      id: { type: 'integer' }, name: { type: 'string' }, price: { type: 'number' },
+      download_speed: { type: 'integer', description: 'Mbps' }, upload_speed: { type: 'integer', description: 'Mbps' },
+    },
+  };
+}
+function resellerAppLeadSchema() {
+  return {
+    type: 'object',
+    required: ['id', 'name', 'phone', 'status', 'desired_plan_id', 'desired_plan_name', 'created_at', 'converted_client_id'],
+    properties: {
+      id: { type: 'integer' }, name: { type: 'string' }, phone: nullableString(),
+      status: { type: 'string', enum: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'] },
+      desired_plan_id: nullableInteger(), desired_plan_name: nullableString(),
+      created_at: { type: 'string', format: 'date-time' }, converted_client_id: nullableInteger(),
+    },
+  };
+}
+function resellerAppLeadRequestSchema() {
+  return {
+    type: 'object',
+    required: ['name', 'phone'],
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 200 },
+      phone: { type: 'string', minLength: 1, maxLength: 30 },
+      email: { type: 'string', format: 'email' },
+      address: { type: 'string', maxLength: 500 },
+      city: { type: 'string', maxLength: 100 },
+      latitude: { type: 'number', minimum: -90, maximum: 90 },
+      longitude: { type: 'number', minimum: -180, maximum: 180 },
+      desired_plan_id: { type: 'integer', minimum: 1, description: 'One of GET /reseller-app/plans' },
+      rfc: { type: 'string', maxLength: 13 },
+      razon_social: { type: 'string', maxLength: 254 },
+      regimen_fiscal: { type: 'string', maxLength: 3 },
+      codigo_postal_fiscal: { type: 'string', maxLength: 5 },
+      notes: { type: 'string' },
+    },
+  };
+}
+function resellerAllowedPlanSchema() {
+  return {
+    type: 'object',
+    required: ['plan_id', 'name', 'price'],
+    properties: { plan_id: { type: 'integer' }, name: { type: 'string' }, price: { type: 'number' } },
+  };
+}
+function resellerLoginRequestSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['first_name', 'last_name', 'email', 'password'],
+    properties: {
+      first_name: { type: 'string', minLength: 1, maxLength: 100 },
+      last_name: { type: 'string', minLength: 1, maxLength: 100 },
+      email: { type: 'string', format: 'email' },
+      password: { type: 'string', minLength: 8, maxLength: 128 },
+    },
+  };
+}
+function resellerLoginResultSchema() {
+  return {
+    type: 'object',
+    required: ['user_id', 'email', 'reseller_id'],
+    properties: { user_id: { type: 'integer' }, email: { type: 'string' }, reseller_id: { type: 'integer' } },
+  };
 }
 
 function errorResponse(description) {

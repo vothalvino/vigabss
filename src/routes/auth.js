@@ -12,6 +12,7 @@ const Organization = require('../models/Organization');
 const { sanitizeUser } = require('../utils/userSanitize');
 const { isInstallOperatorUser } = require('../services/installOperator');
 const { isSuperAdminUser } = require('../services/globalOrganizationAccess');
+const { lookupBinding: lookupResellerBinding, requestBindingChecksAvailable } = require('../middleware/resellerScope');
 const config = require('../config');
 const { tokenResponseBody } = require('../utils/browserTokens');
 const logger = require('../utils/logger');
@@ -154,8 +155,24 @@ async function enrichAuthUser(user, activeOrgId) {
     logger.warn({ err }, 'Could not resolve installation-global account status');
   }
 
+  // A user bound to a reseller in the active organization is sent to the
+  // reseller app by the SPA. The server enforces the binding on its own
+  // (middleware/resellerFence.js); this only decides where the SPA lands.
+  let resellerBinding = null;
+  if (activeOrgId && !isOperator && !isSuperAdmin && requestBindingChecksAvailable()) {
+    try {
+      const binding = await lookupResellerBinding(user.id, activeOrgId);
+      if (binding) {
+        resellerBinding = { reseller_id: Number(binding.reseller_id), reseller_name: binding.reseller_name ?? null };
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Could not resolve the reseller binding');
+    }
+  }
+
   return {
     ...user,
+    reseller_binding: resellerBinding,
     organization_currency: activeOrgId ? await Organization.getCurrency(activeOrgId) : 'MXN',
     organization_locale: activeOrgId ? await Organization.getLocale(activeOrgId) : 'global',
     group,

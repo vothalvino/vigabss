@@ -6,7 +6,8 @@
 // (PUT/DELETE /resellers/:id/users/:userId, migration 471) but no screen did,
 // so confining a reseller's staff meant calling it by hand. Binding needs
 // resellers.update and users.update and an organization-level admin; the
-// server refuses binding your own account.
+// server refuses binding your own account. "Create login" makes a new staff
+// user already bound to the reseller (POST /resellers/:id/users).
 // =============================================================================
 
 import { useState } from 'react';
@@ -20,6 +21,7 @@ import { can } from '@/auth/permissions';
 import { formatDate } from '@/lib/dates';
 import { styles } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { ResellerCreateLoginForm } from './resellers/ResellerCreateLoginForm';
 
 type ResellerOption = { id: number; name: string };
 type Binding = {
@@ -45,6 +47,7 @@ export function ResellerUserBindingsTab() {
   const [userId, setUserId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canManage = can(user, 'resellers.update') && can(user, 'users.update');
+  const canCreateLogin = can(user, 'resellers.update') && can(user, 'users.create');
 
   const resellersQ = useQuery({
     queryKey: ['resellers-options'],
@@ -163,6 +166,10 @@ export function ResellerUserBindingsTab() {
             </table>
           )}
 
+          {(canManage || canCreateLogin) && (
+            <p style={{ ...styles.msg, textAlign: 'left', padding: '12px 0 0' }}>{t('resellerAccess.groupHint')}</p>
+          )}
+
           {canManage && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 12, flexWrap: 'wrap' }}>
               <label style={styles.filterLabel}>
@@ -176,6 +183,17 @@ export function ResellerUserBindingsTab() {
                 {t('resellerAccess.bind')}
               </button>
             </div>
+          )}
+
+          {canCreateLogin && (
+            <ResellerCreateLoginForm
+              resellerId={resellerId}
+              onCreated={() => {
+                setError(null);
+                refresh();
+                void qc.invalidateQueries({ queryKey: ['staff-users-options'] });
+              }}
+            />
           )}
         </>
       )}

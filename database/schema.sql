@@ -206,6 +206,8 @@ CREATE TABLE IF NOT EXISTS leads (
     longitude           DECIMAL(10,7)   NULL,
     desired_plan_id     BIGINT UNSIGNED NULL
                             COMMENT 'Service plan the prospect asked for at intake; prefills the service order (migration 445)',
+    reseller_id         BIGINT UNSIGNED NULL DEFAULT NULL
+                            COMMENT 'Reseller that captured the lead in the reseller app; copied to the client on conversion (migration 003)',
     rfc                 VARCHAR(13)     NULL
                             COMMENT 'MX taxpayer id captured at intake; copied to the client fiscal profile on conversion (migration 446)',
     curp                VARCHAR(18)     NULL COMMENT 'MX personal id (CURP) captured at intake (migration 446)',
@@ -226,6 +228,7 @@ CREATE TABLE IF NOT EXISTS leads (
     KEY idx_leads_converted_client_id (converted_client_id),
     KEY idx_leads_desired_plan_id (desired_plan_id),
     KEY idx_leads_deleted_at (deleted_at),
+    KEY idx_leads_reseller_id (reseller_id),
     CONSTRAINT fk_leads_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_leads_desired_plan FOREIGN KEY (desired_plan_id)
@@ -233,7 +236,9 @@ CREATE TABLE IF NOT EXISTS leads (
     CONSTRAINT fk_leads_assigned_to FOREIGN KEY (assigned_to)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_leads_converted_client FOREIGN KEY (converted_client_id)
-        REFERENCES clients (id) ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES clients (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_leads_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -15123,6 +15128,30 @@ CREATE TABLE IF NOT EXISTS reseller_user_bindings (
         REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Binds a staff user to one reseller subtree per organization (TNB-13)';
+
+-- ---------------------------------------------------------------------------
+-- Table: reseller_allowed_plans (migration 003)
+-- Purpose: Plans a reseller may offer in the reseller app. A reseller with no
+--          rows may offer every active plan of its organization.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reseller_allowed_plans (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller and the plan',
+    reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Reseller allowed to offer the plan',
+    plan_id         BIGINT UNSIGNED NOT NULL COMMENT 'Plan the reseller may offer',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_reseller_allowed_plans (reseller_id, plan_id),
+    KEY idx_reseller_allowed_plans_org (organization_id),
+    KEY idx_reseller_allowed_plans_plan (plan_id),
+    CONSTRAINT fk_reseller_allowed_plans_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_allowed_plans_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_allowed_plans_plan FOREIGN KEY (plan_id)
+        REFERENCES plans (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Plans a reseller may offer in the reseller app; none means every active plan (migration 003)';
 
 -- ---------------------------------------------------------------------------
 -- Column added to clients by migration 345 (§19.1 reseller scoping):

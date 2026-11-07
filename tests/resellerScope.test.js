@@ -19,20 +19,12 @@ jest.mock('../src/config/database', () => ({
 }));
 jest.mock('../src/models/User');
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn() }));
-jest.mock('../src/services/quotaService', () => ({
-  checkQuota: jest.fn(),
-  getQuota: jest.fn(),
-  getUsage: jest.fn(),
-  getQuotaWithUsage: jest.fn(),
-}));
 
 const request = require('supertest');
 const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const User = require('../src/models/User');
-const quotaService = require('../src/services/quotaService');
-const { ValidationError } = require('../src/utils/errors');
 const app = require('../src/app');
 
 const ORG = 1;
@@ -43,11 +35,6 @@ const RESELLERS = {
   3: { id: 3, organization_id: ORG, parent_id: 1, level: 2, name: 'R3', status: 'active' },
 };
 const CHILDREN = { 1: [{ id: 3 }] };
-const CLIENTS = {
-  31: { id: 31, status: 'active', reseller_id: 3 }, // R1's sub-reseller client
-  21: { id: 21, status: 'active', reseller_id: 2 }, // R2's client
-};
-
 let binding; // reseller_user_bindings row for the caller, or undefined
 let groupName; // the caller's live group name, or undefined
 
@@ -68,13 +55,7 @@ function installDb() {
     if (/FROM reseller_billing_entities/.test(s)) {
       return [[{ reseller_id: Number(params[0]), bank_account: '000', bank_clabe: '012345678901234567' }]];
     }
-    if (/SELECT id, status, reseller_id FROM clients WHERE id = \?/.test(s)) {
-      const c = CLIENTS[Number(params[0])];
-      return [c ? [c] : []];
-    }
     if (/FROM clients WHERE organization_id = \? AND reseller_id IN/.test(s) && /COUNT/.test(s)) return [[{ total: 0 }]];
-    if (/INSERT INTO clients/.test(s)) return [{ insertId: 77 }];
-    if (/UPDATE clients SET status/.test(s)) return [{ affectedRows: 1 }];
     if (/INSERT INTO reseller_user_bindings/.test(s)) return [{ affectedRows: 1 }];
     if (/FROM reseller_user_bindings WHERE organization_id = \? AND user_id = \?/.test(s)) {
       return [[{ id: 5, organization_id: ORG, user_id: Number(params[1]), reseller_id: 1 }]];
@@ -123,7 +104,6 @@ beforeEach(() => {
   jest.resetAllMocks();
   binding = undefined;
   groupName = undefined;
-  quotaService.checkQuota.mockResolvedValue();
   installDb();
 });
 
@@ -147,26 +127,10 @@ describe('TNB-13 — a user bound to R1 is confined to R1 and its sub-resellers'
     expect(res.status).toBe(404);
   });
 
-  test('POST a customer under another reseller is 404 and inserts nothing', async () => {
-    const res = await post('/reseller-portal/2/clients', asResellerAdmin(), { name: 'Stolen' });
-    expect(res.status).toBe(404);
-    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO clients/.test(sql))).toBe(false);
-  });
-
-  test("suspending another reseller's customer through the caller's own id is 404", async () => {
-    const res = await post('/reseller-portal/1/clients/21/suspend', asResellerAdmin());
-    expect(res.status).toBe(404);
-    expect(db.query.mock.calls.some(([sql]) => /UPDATE clients/.test(sql))).toBe(false);
-  });
-
   test('own reseller and sub-reseller remain reachable', async () => {
     const token = asResellerAdmin();
     expect((await get('/resellers/1/billing-entity', token)).status).toBe(200);
     expect((await get('/reseller-portal/3/dashboard', token)).status).toBe(200);
-    // A master may manage its sub-reseller's customer.
-    const res = await post('/reseller-portal/1/clients/31/suspend', token);
-    expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('suspended');
   });
 
   test('GET /resellers is filtered to the subtree in SQL', async () => {
@@ -220,26 +184,17 @@ describe('TNB-13 — org-level staff keep cross-reseller access in their org', (
   });
 });
 
-describe('TNB-13 — portal customer creation uses the shared client rules', () => {
-  test('the tenant client quota is enforced', async () => {
-    quotaService.checkQuota.mockRejectedValue(new ValidationError('Tenant quota exceeded'));
-    const res = await post('/reseller-portal/2/clients', asOrgAdmin(), { name: 'Over quota' });
-    expect(res.status).toBe(422);
-    expect(quotaService.checkQuota).toHaveBeenCalledWith(ORG, 'clients');
-    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO clients/.test(sql))).toBe(false);
-  });
-
-  test('the client create schema is validated', async () => {
-    const res = await post('/reseller-portal/2/clients', asOrgAdmin(), { name: 'X', email: 'not-an-email' });
-    expect(res.status).toBe(422);
-    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO clients/.test(sql))).toBe(false);
-  });
-
-  test('a valid customer is created under the URL reseller', async () => {
-    const res = await post('/reseller-portal/2/clients', asOrgAdmin(), { name: 'Ok', email: 'ok@example.com' });
-    expect(res.status).toBe(201);
-    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO clients/.test(sql));
-    expect(insert[1].slice(0, 3)).toEqual([ORG, '2', 'Ok']);
+// A reseller signs customers up as leads in the reseller app; the portal no
+// longer creates, suspends or cancels clients (migration 003).
+describe('reseller portal client writes are gone', () => {
+  test.each([
+    '/reseller-portal/2/clients',
+    '/reseller-portal/1/clients/31/suspend',
+    '/reseller-portal/1/clients/31/cancel',
+  ])('POST %s is 404 and writes nothing', async (path) => {
+    const res = await post(path, asOrgAdmin(), { name: 'Ok', email: 'ok@example.com' });
+    expect(res.status).toBe(404);
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO clients|UPDATE clients/.test(sql))).toBe(false);
   });
 });
 

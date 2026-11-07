@@ -750,46 +750,20 @@ describe('GET /api/v1/reseller-portal/:id/clients', () => {
   });
 });
 
-describe('POST /api/v1/reseller-portal/:id/clients', () => {
-  it('returns 201 and creates client under reseller', async () => {
+// The portal no longer writes clients: a reseller signs customers up as
+// leads in the reseller app (migration 003).
+describe('reseller portal client writes were removed', () => {
+  it.each([
+    '/api/v1/reseller-portal/1/clients',
+    '/api/v1/reseller-portal/1/clients/3/suspend',
+    '/api/v1/reseller-portal/1/clients/3/cancel',
+  ])('POST %s is 404', async (path) => {
     const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients')
+      .post(path)
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
       .send({ name: 'New Client', email: 'new@test.com' });
-    expect(res.status).toBe(201);
-    expect(res.body.data).toHaveProperty('name');
-  });
-
-  it('returns 422 when name is missing', async () => {
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10')
-      .send({ email: 'new@test.com' });
-    expect(res.status).toBe(422);
-  });
-});
-
-describe('POST /api/v1/reseller-portal/:id/clients/:cId/suspend', () => {
-  it('returns 200 and toggles client status', async () => {
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients/3/suspend')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('status');
-  });
-});
-
-describe('POST /api/v1/reseller-portal/:id/clients/:cId/cancel', () => {
-  it('returns 200 and sets client inactive', async () => {
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients/3/cancel')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('status', 'inactive');
+    expect(res.status).toBe(404);
   });
 });
 
@@ -1047,76 +1021,6 @@ describe('POST /api/v1/resellers/:id/commissions/:cId/approve with paid status',
 });
 
 describe('Portal: inactive reseller and wrong reseller checks', () => {
-  it('returns 422 when creating client under inactive reseller', async () => {
-    db.query.mockImplementation((sql) => {
-      const s = typeof sql === 'string' ? sql : '';
-      if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
-        return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 }]]);
-      }
-      if (s.includes('FROM organizations')) {
-        return Promise.resolve([[{ id: 10, name: 'Test Org' }]]);
-      }
-      if (s.includes('FROM resellers') && s.includes('organization_id')) {
-        return Promise.resolve([[{ ...sampleReseller, status: 'suspended' }]]);
-      }
-      return Promise.resolve([[]]);
-    });
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10')
-      .send({ name: 'New Client' });
-    expect(res.status).toBe(422);
-  });
-
-  it('returns 404 when suspending client that belongs to a reseller outside the subtree (TNB-13: no ownership oracle)', async () => {
-    db.query.mockImplementation((sql) => {
-      const s = typeof sql === 'string' ? sql : '';
-      if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
-        return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 }]]);
-      }
-      if (s.includes('FROM organizations')) {
-        return Promise.resolve([[{ id: 10, name: 'Test Org' }]]);
-      }
-      if (s.includes('FROM resellers') && s.includes('organization_id')) {
-        return Promise.resolve([[sampleReseller]]); // reseller id=1
-      }
-      if (s.includes('SELECT id, status, reseller_id FROM clients')) {
-        return Promise.resolve([[{ id: 3, status: 'active', reseller_id: 99 }]]); // wrong reseller
-      }
-      return Promise.resolve([[]]);
-    });
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients/3/suspend')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10');
-    expect(res.status).toBe(404);
-  });
-
-  it('returns 404 when cancelling client that belongs to a reseller outside the subtree (TNB-13: no ownership oracle)', async () => {
-    db.query.mockImplementation((sql) => {
-      const s = typeof sql === 'string' ? sql : '';
-      if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
-        return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 }]]);
-      }
-      if (s.includes('FROM organizations')) {
-        return Promise.resolve([[{ id: 10, name: 'Test Org' }]]);
-      }
-      if (s.includes('FROM resellers') && s.includes('organization_id')) {
-        return Promise.resolve([[sampleReseller]]); // reseller id=1
-      }
-      if (s.includes('SELECT id, status, reseller_id FROM clients')) {
-        return Promise.resolve([[{ id: 3, reseller_id: 99 }]]); // wrong reseller
-      }
-      return Promise.resolve([[]]);
-    });
-    const res = await request(app)
-      .post('/api/v1/reseller-portal/1/clients/3/cancel')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10');
-    expect(res.status).toBe(404);
-  });
-
   it('returns 200 with empty list when reseller has no clients (invoices)', async () => {
     db.query.mockImplementation((sql) => {
       const s = typeof sql === 'string' ? sql : '';
@@ -1270,7 +1174,7 @@ describe('reseller IN-bind regression (execute() does not expand array binds)', 
     expect(invoiceCalls.length).toBeGreaterThanOrEqual(2);
     for (const [sql, params] of invoiceCalls) {
       expect(sql).toMatch(/client_id IN \(\?, \?\)/);
-      expect(params).toEqual([3, 4]);
+      expect(params).toEqual([10, 3, 4]);
     }
     expectFlatBinds();
   });

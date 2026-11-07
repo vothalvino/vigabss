@@ -22,6 +22,10 @@ class Lead extends BaseModel {
     ];
   }
 
+  // reseller_id is written only by the reseller app (routes/resellerApp.js),
+  // never through the staff lead form; staff may filter the list by it.
+  static get filterableColumns() { return ['reseller_id']; }
+
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }

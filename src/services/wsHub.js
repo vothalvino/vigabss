@@ -336,8 +336,20 @@ class WsHub {
         hasGlobalOrganizationAccess: principal.hasGlobalOrganizationAccess,
       },
     };
+    // A reseller-bound account is fenced to the reseller app over HTTP; the
+    // hub's channels carry organization-wide events, so it may not join.
+    const resellerPrincipal = {
+      userId: user.id,
+      orgId,
+      hasGlobalOrganizationAccess: principal.hasGlobalOrganizationAccess,
+    };
+    if (await realtimeAccess.resellerBound(resellerPrincipal)) {
+      ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Reseller accounts can only use the reseller app' }));
+      ws.close(4003, 'Forbidden');
+      return;
+    }
     ws._grants = await realtimeAccess.resolveGrants(ws._req);
-    ws._principal = { userId: user.id, tokenVersion: payload.tv };
+    ws._principal = { ...resellerPrincipal, tokenVersion: payload.tv };
     if (ws.readyState !== WebSocket.OPEN) return;
 
     clearTimeout(authTimer);

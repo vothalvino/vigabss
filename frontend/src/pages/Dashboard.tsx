@@ -9,7 +9,8 @@
 // A user who can load none of the console's data (a reseller user, a custom
 // group without operations access) used to land on it anyway: every request
 // answered 403 and the tiles read "MRR $0", "Devices online 0/0". They go to
-// the first page they can open instead, Resellers first.
+// the first page they can open instead, Resellers first. An account bound to
+// a reseller goes to the reseller app (/punto).
 // =============================================================================
 
 import { Navigate } from 'react-router-dom';
@@ -32,6 +33,8 @@ export function landingWithoutOperations(user: NavUser): string | null {
 
 export function Dashboard() {
   const { user } = useAuth();
+  // A reseller-bound account has its own app (PrivateRoute redirects too).
+  if (user?.reseller_binding) return <Navigate to="/punto" replace />;
   if (user?.role === 'technician') return <TechnicianDashboard />;
   const landing = user ? landingWithoutOperations(user) : null;
   if (landing) return <Navigate to={landing} replace />;

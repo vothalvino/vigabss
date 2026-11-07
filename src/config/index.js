@@ -104,6 +104,8 @@ const config = {
     // compromised authorized session consume the broad SPA/API allowance.
     trapForwardingTest: parseIntEnv('RATE_LIMIT_TRAP_FORWARDING_TEST', 10),
     emailSettingsTest: parseIntEnv('RATE_LIMIT_EMAIL_SETTINGS_TEST', 5),
+    // POST /reseller-app/leads per reseller per window (lead sign-ups).
+    resellerSignup: parseIntEnv('RATE_LIMIT_RESELLER_SIGNUP', 30),
     // Per-organization rolling-24h RECIPIENT-count budget for POST
     // /bulk/email (not a request count — one request already fans out to up
     // to 1000 recipients, so request-count alone under-protects against

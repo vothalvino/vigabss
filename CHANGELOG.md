@@ -5,7 +5,43 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller app, phase 1: resellers can sign up customers.** A reseller is
+  now a *Punto de Venta*: a commission agent who signs up neighbours, while
+  the ISP converts, signs the contract and installs. A user bound to a
+  reseller lands on **`/punto`**, a phone-first app in Spanish, English and
+  Portuguese with four screens:
+  - **Inicio:** counts of active, suspended and overdue clients, and open
+    leads.
+  - **Clientes:** the reseller's own customers, with balances and invoices.
+  - **Nuevo cliente:** captures a lead with the plan, the tax details and the
+    phone's location, and shows a coverage summary.
+  - **Prospectos:** the reseller's leads.
+
+  Leads appear in the ISP's lead inbox tagged with the reseller. Once a lead
+  is converted, the customer shows in the reseller's list.
+- **Admin:**
+  - New and edit forms for resellers.
+  - An **Allowed plans** tab; if no plans are selected, every active plan is
+    allowed.
+  - **Create login**, which creates a reseller user and binds it in one step.
+  - The lead list shows the reseller and can be filtered by it.
+  - Half-built tabs are hidden: plan prices, resources, billing entity,
+    branding, and per-row commission approval.
+- **Security:**
+  - A reseller-bound account can only reach the reseller app, sign-in,
+    two-factor and notifications. Every other API returns 403, whatever its
+    permissions, and the staff WebSocket refuses it.
+  - Bound users can no longer change commission, status or other ISP-owned
+    reseller settings.
+  - The reseller portal no longer returns full client and invoice rows
+    (password and reset hashes, CURP, notes).
+  - The coverage summary does not reveal network devices or coordinates.
+- **Removed:** the reseller portal's suspend, cancel and create-client
+  endpoints. They only changed a status field and left the subscriber online.
+- **Migration 003:**
+  - Adds `leads.reseller_id` and the `reseller_allowed_plans` table.
+  - Grants `reseller_app.use` and `reseller_app.signup` to reseller_admin,
+    and removes its reseller administration view grants.
 
 ## 0.1.0-alpha.8 — 2026-11-06
 

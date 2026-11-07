@@ -282,6 +282,20 @@ const emailSettingsTestLimiter = rateLimit({
   store: new CacheStore('rl_email_settings_test:'),
 });
 
+// POST /reseller-app/leads only, per reseller (all of its logins share one
+// budget). Each sign-up can be followed by a coverage check of coordinates
+// the reseller chose, so a script must not be able to sweep a map with it.
+// Mounted after auth, orgScope and resellerScope.
+const resellerSignupLimiter = rateLimit({
+  windowMs: rl.windowMs,
+  max: rl.resellerSignup,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: RATE_LIMITED_BODY('Too many sign-ups in a short time; wait before trying again'),
+  keyGenerator: req => `reseller-signup:${req.orgId}:${req.resellerScope?.rootId ?? `user-${req.user?.id || 'unknown'}`}`,
+  store: new CacheStore('rl_reseller_signup:'),
+});
+
 // api_key_rate_limits predates the collector endpoints. NULL columns mean the
 // table defaults, not "unlimited"; the route-specific collectors still retain
 // their independent hard ceilings outside this policy layer.
@@ -496,6 +510,7 @@ module.exports = {
   acsLimiter,
   trapForwardingTestLimiter,
   emailSettingsTestLimiter,
+  resellerSignupLimiter,
   tenantApiLimiter,
   checkBulkEmailDailyBudget,
   CacheStore,

@@ -5,9 +5,6 @@
 //  §19.3 Reseller Portal (admin-side endpoints; reseller_admin role consumes)
 //  GET    /reseller-portal/:id/dashboard       aggregate stats for reseller
 //  GET    /reseller-portal/:id/clients         list clients scoped to reseller
-//  POST   /reseller-portal/:id/clients         create client under reseller
-//  POST   /reseller-portal/:id/clients/:cId/suspend   suspend client
-//  POST   /reseller-portal/:id/clients/:cId/cancel    cancel (set inactive) client
 //  GET    /reseller-portal/:id/invoices        list invoices for reseller clients
 //  GET    /reseller-portal/:id/inventory       list inventory scoped to reseller
 //
@@ -15,17 +12,18 @@
 //  to a reseller (reseller_user_bindings) only reaches its own subtree, an
 //  unbound reseller_admin is refused, and org-level staff keep access to every
 //  reseller in their organization. See middleware/resellerScope.js.
+//
+//  A reseller does not create, suspend or cancel customers: it signs them up
+//  as leads in the reseller app (routes/resellerApp.js), and the ISP converts
+//  and manages them.
 // =============================================================================
 
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
-const { validate } = require('../middleware/validate');
-const { quotaCheck } = require('../middleware/checkQuota');
 const { resellerScope, assertResellerInScope } = require('../middleware/resellerScope');
-const { createClient } = require('../middleware/schemas/clients');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+const { NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
 const resellerService = require('../services/resellerService');
 const { inPlaceholders } = require('../utils/sqlBuild');
@@ -49,21 +47,17 @@ async function getResellerOrThrow(req) {
   return row;
 }
 
-// Clients a reseller may manage: its own and its sub-resellers' (the same
-// subtree the list endpoints show).
-async function getResellerClientOrThrow(req) {
-  const subtree = (await resellerService.getResellerSubtree(
-    [parseInt(req.params.id, 10)], req.orgId,
-  )).map(Number);
-  const [[client]] = await db.query(
-    'SELECT id, status, reseller_id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [req.params.cId, req.orgId],
-  );
-  if (!client || client.reseller_id === null || !subtree.includes(Number(client.reseller_id))) {
-    throw new NotFoundError('Client');
-  }
-  return client;
-}
+// A reseller is a third party: these routes return named columns only, never
+// a whole row. clients carries the subscriber-portal password and reset
+// hashes, the CURP and the ISP's notes; invoices and asset assignments carry
+// internal notes.
+const CLIENT_COLUMNS = [
+  'id', 'name', 'phone', 'email', 'status', 'reseller_id', 'address', 'city', 'created_at',
+].join(', ');
+const INVOICE_COLUMNS = [
+  'i.id', 'i.client_id', 'i.contract_id', 'i.invoice_number', 'i.issue_date', 'i.due_date',
+  'i.subtotal', 'i.tax_amount', 'i.total', 'i.currency', 'i.status', 'i.paid_at',
+].join(', ');
 
 // =============================================================================
 // Dashboard (§19.3)
@@ -107,66 +101,13 @@ router.get('/:id/clients', requirePermission('reseller_portal.manage_customers')
 
     const where = conditions.join(' AND ');
     const [rows] = await db.query(
-      `SELECT * FROM clients WHERE ${where} ORDER BY name ASC LIMIT ${limitNum} OFFSET ${offset}`,
+      `SELECT ${CLIENT_COLUMNS} FROM clients WHERE ${where} ORDER BY name ASC LIMIT ${limitNum} OFFSET ${offset}`,
       params,
     );
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM clients WHERE ${where}`, params,
     );
     res.json({ data: rows, meta: { total, page: pageNum, limit: limitNum } });
-  } catch (err) { next(err); }
-});
-
-// POST /reseller-portal/:id/clients
-// Same validation and tenant client quota as POST /clients: this path used to
-// skip both, so a reseller could exceed the organization's max_clients.
-router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'), quotaCheck('clients'), validate(createClient, { strip: false }), async (req, res, next) => {
-  try {
-    const reseller = await getResellerOrThrow(req);
-    if (reseller.status !== 'active') {
-      throw new ValidationError('Reseller is not active');
-    }
-    const { name, email, phone, client_type = 'personal', address, city, state, country, zip_code, notes } = req.body;
-
-    // The organization's locale, as for every other way a client is created.
-    const [result] = await db.query(
-      `INSERT INTO clients
-         (organization_id, reseller_id, name, email, phone, client_type, address, city, state, country, zip_code, notes, locale)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-         COALESCE((SELECT o.locale FROM organizations o WHERE o.id = ? AND o.deleted_at IS NULL), 'global'))`,
-      [req.orgId, req.params.id, name, email || null, phone || null,
-        client_type, address || null, city || null, state || null,
-        country || null, zip_code || null, notes || null, req.orgId],
-    );
-    const [[row]] = await db.query('SELECT * FROM clients WHERE id = ?', [result.insertId]);
-    res.status(201).json({ data: row });
-  } catch (err) { next(err); }
-});
-
-// POST /reseller-portal/:id/clients/:cId/suspend
-router.post('/:id/clients/:cId/suspend', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
-  try {
-    await getResellerOrThrow(req);
-    const client = await getResellerClientOrThrow(req);
-    const newStatus = client.status === 'suspended' ? 'active' : 'suspended';
-    await db.query(
-      'UPDATE clients SET status = ? WHERE id = ? AND organization_id = ?',
-      [newStatus, req.params.cId, req.orgId],
-    );
-    res.json({ data: { id: parseInt(req.params.cId, 10), status: newStatus } });
-  } catch (err) { next(err); }
-});
-
-// POST /reseller-portal/:id/clients/:cId/cancel
-router.post('/:id/clients/:cId/cancel', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
-  try {
-    await getResellerOrThrow(req);
-    await getResellerClientOrThrow(req);
-    await db.query(
-      'UPDATE clients SET status = ? WHERE id = ? AND organization_id = ?',
-      ['inactive', req.params.cId, req.orgId],
-    );
-    res.json({ data: { id: parseInt(req.params.cId, 10), status: 'inactive' } });
   } catch (err) { next(err); }
 });
 
@@ -192,15 +133,15 @@ router.get('/:id/invoices', requirePermission('reseller_portal.invoices'), async
       return res.json({ data: [], meta: { total: 0, page: pageNum, limit: limitNum } });
     }
 
-    const conditions = [`i.client_id IN (${inPlaceholders(clientIds)})`, 'i.deleted_at IS NULL'];
-    const params = [...clientIds];
+    const conditions = [`i.organization_id = ? AND i.client_id IN (${inPlaceholders(clientIds)})`, 'i.deleted_at IS NULL'];
+    const params = [req.orgId, ...clientIds];
     if (status) { conditions.push('i.status = ?'); params.push(status); }
 
     const where = conditions.join(' AND ');
     const [rows] = await db.query(
-      `SELECT i.*, c.name AS client_name
+      `SELECT ${INVOICE_COLUMNS}, c.name AS client_name
        FROM invoices i
-       LEFT JOIN clients c ON i.client_id = c.id
+       LEFT JOIN clients c ON i.client_id = c.id AND c.organization_id = i.organization_id
        WHERE ${where} ORDER BY i.issue_date DESC LIMIT ${limitNum} OFFSET ${offset}`,
       params,
     );
@@ -235,7 +176,7 @@ router.get('/:id/inventory', requirePermission('reseller_portal.inventory'), asy
 
     const idsIn = inPlaceholders(clientIds);
     const [rows] = await db.query(
-      `SELECT aa.*, a.name AS asset_name, a.serial_number, a.model, a.manufacturer,
+      `SELECT aa.id, aa.asset_id, aa.client_id, aa.assigned_at, a.name AS asset_name, a.serial_number, a.model, a.manufacturer,
               c.name AS client_name
        FROM asset_assignments aa
        JOIN assets a ON aa.asset_id = a.id

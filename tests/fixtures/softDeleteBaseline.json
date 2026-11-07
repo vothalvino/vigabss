@@ -33,7 +33,7 @@
   "src/routes/radius.js": 4,
   "src/routes/rateLimitTemplates.js": 2,
   "src/routes/remediationRules.js": 4,
-  "src/routes/resellerPortal.js": 8,
+  "src/routes/resellerPortal.js": 7,
   "src/routes/resellers.js": 5,
   "src/routes/roles.js": 1,
   "src/routes/routerDrivers.js": 2,

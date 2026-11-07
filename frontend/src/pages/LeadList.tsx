@@ -48,6 +48,9 @@ interface Lead {
   razon_social: string | null;
   regimen_fiscal: string | null;
   codigo_postal_fiscal: string | null;
+  /** The reseller that captured the lead in the reseller app, if any. */
+  reseller_id?: number | null;
+  reseller_name?: string | null;
   created_at: string;
 }
 
@@ -103,10 +106,17 @@ type LeadSubmitBody = Omit<LeadFormBody, 'email' | 'phone' | 'company' | 'addres
 const SOURCES = ['website', 'referral', 'phone', 'walk_in', 'social', 'campaign', 'other'];
 const STAGES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 
-async function fetchLeads(page: number, pageSize: number): Promise<LeadsResponse> {
-  const res = await api.GET('/leads', { params: { query: { page, limit: pageSize } as never } });
+async function fetchLeads(page: number, pageSize: number, resellerId: number | null): Promise<LeadsResponse> {
+  const query = resellerId ? { page, limit: pageSize, reseller_id: resellerId } : { page, limit: pageSize };
+  const res = await api.GET('/leads', { params: { query: query as never } });
   if (res.error) throw new Error('Failed to load leads');
   return res.data as unknown as LeadsResponse;
+}
+
+async function fetchResellerOptions(): Promise<{ id: number; name: string }[]> {
+  const res = await api.GET('/resellers', { params: { query: { limit: 100 } } });
+  if (res.error) return [];
+  return (res.data as { data: { id: number; name: string }[] }).data ?? [];
 }
 
 async function fetchPipeline(): Promise<Record<string, number>> {
@@ -684,6 +694,7 @@ export function LeadList() {
   const [actionError, setActionError] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [resellerId, setResellerId] = useState<number | null>(null);
 
   const canCreate = can(user, 'leads.create');
   const canUpdate = can(user, 'leads.update');
@@ -692,9 +703,16 @@ export function LeadList() {
     && can(user, 'service_orders.update')
     && can(user, 'installations.start');
 
+  const canFilterByReseller = can(user, 'resellers.view');
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['leads', page, pageSize],
-    queryFn: () => fetchLeads(page, pageSize),
+    queryKey: ['leads', page, pageSize, resellerId],
+    queryFn: () => fetchLeads(page, pageSize, resellerId),
+  });
+  const { data: resellers } = useQuery({
+    queryKey: ['leads', 'reseller-options'],
+    queryFn: fetchResellerOptions,
+    enabled: canFilterByReseller,
   });
   const { data: pipeline } = useQuery({ queryKey: ['leads', 'pipeline'], queryFn: fetchPipeline });
 
@@ -755,6 +773,23 @@ export function LeadList() {
         </div>
       )}
 
+      {canFilterByReseller && (resellers?.length ?? 0) > 0 && (
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label htmlFor="lead-reseller-filter" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: 8 }}>
+            {t('leadReseller.resellerFilter')}
+          </label>
+          <select
+            id="lead-reseller-filter"
+            value={resellerId ?? ''}
+            onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); }}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--input-border)' }}
+          >
+            <option value="">{t('leadReseller.resellerFilterAll')}</option>
+            {(resellers ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+      )}
+
       {actionError && <div style={errorBox}>{actionError}</div>}
       {isLoading && <p>{t('ui.leadList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
@@ -778,7 +813,20 @@ export function LeadList() {
             )}
             {data.data.map(l => (
               <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '8px', fontWeight: 600 }}>{l.name}</td>
+                <td style={{ padding: '8px', fontWeight: 600 }}>
+                  {l.name}
+                  {l.reseller_name && (
+                    <span
+                      title={t('leadReseller.resellerBadgeTitle')}
+                      style={{
+                        marginLeft: 6, padding: '1px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600,
+                        background: 'var(--accent-soft)', color: 'var(--accent)', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t('leadReseller.resellerBadge', { name: l.reseller_name })}
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding: '8px' }}>{l.company ?? '—'}</td>
                 <td style={{ padding: '8px', textTransform: 'capitalize' }}>{l.source.replace('_', ' ')}</td>
                 <td style={{ padding: '8px', textTransform: 'capitalize' }}>{l.status}</td>

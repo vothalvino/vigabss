@@ -292,7 +292,7 @@ Reseller scoping by `reseller_id` is an additional business filter, not a hard
 tenant boundary and not a substitute for `organization_id`/tenant routing.
 Which resellers a staff caller may act on is resolved server-side by
 `src/middleware/resellerScope.js` (`req.resellerScope`) for every
-`/resellers` and `/reseller-portal` route: a `reseller_user_bindings` row
+`/resellers`, `/reseller-portal` and `/reseller-app` route: a `reseller_user_bindings` row
 (migration 471) confines the user to that reseller and its sub-resellers
 (404 outside it, lists filtered) whatever permissions it holds; an unbound
 user in the `reseller_admin` group is refused with 403; other unbound staff
@@ -300,6 +300,40 @@ reach every reseller in their organization through ordinary permissions.
 Binding management (`PUT/DELETE /resellers/:id/users/:userId`) needs
 `resellers.update` and `users.update` and is refused to bound callers. A
 custom group meant for reseller staff must have its users bound.
+
+A bound user works in the reseller app (`src/routes/resellerApp.js`,
+`/api/v1/reseller-app`, the SPA's `/punto`): its subtree's clients, the plans
+its reseller may offer (the `reseller_allowed_plans` of its top-level
+reseller, which its sub-resellers share, or every active plan when there are
+none), and lead sign-ups that the ISP converts; every route there answers
+403 to an unbound caller. `src/middleware/resellerFence.js`, mounted on the
+v1 router before the routes, confines any bound principal (session or API
+token, not a validated global-access principal) to `/auth`, `/2fa`,
+`/notifications`, `/reseller-app`, `/resellers` and `/reseller-portal`; any
+other path is 403 whatever its group grants. The fence authenticates the
+request itself (route guards are idempotent), skips public routes and
+requests without credentials, and shares one binding lookup per request with
+`resellerScope` (`bindingForRequest`). Like `orgScope`, it and the
+`reseller_binding` of `/auth/me` run only when the database module has
+`withTenantContext`, which the real module always has; query-only test
+doubles skip them. A lead captured there carries `leads.reseller_id`, which
+`lifecycleService` copies to the client on conversion when that reseller is
+still live in the organization. A bound caller may not set `commission_rate`
+or `status` on `POST`/`PUT /resellers`; logins (`POST /resellers/:id/users`),
+allowed plans, suspension, commission approval, plan prices and the
+resource and billing-entity writes are org-level only (a binding may be given
+to a user in any group, so the binding, not the group, decides). The fence
+also covers real-time feeds: the staff WebSocket hub refuses a bound user, and
+`realtimeAccess.stillAuthorized` ends an open SSE, GraphQL or WebSocket stream
+once its user is bound. Reseller-facing reads name their columns: no
+`SELECT *` row from `clients` (portal and reset hashes, CURP, notes) or
+`invoices` reaches a reseller. `GET /reseller-app/leads/:id/feasibility`
+deliberately does not return the staff desk-check payload: the reseller picks
+the coordinates, so it gets a summary (zones that are `active` or `degraded`,
+and AP/ODF proximity as distance bands within 3 km, free FTTH ports as a
+boolean) without device or frame ids, names, coordinates, RF figures or error
+text, and `POST /reseller-app/leads` has a per-reseller limiter
+(`RATE_LIMIT_RESELLER_SIGNUP`).
 
 ### RBAC resolution
 
@@ -889,6 +923,13 @@ trees for staff and subscriber users:
 
 - `AuthContext` + `PrivateRoute` protect staff/admin operations.
 - `PortalAuthContext` + `PortalRoute` protect the subscriber portal.
+- The reseller app (`/punto`, `frontend/src/pages/punto/`) is for staff
+  accounts with a `reseller_binding` (from `/auth/me`). `PuntoRoute` guards it
+  and sends unbound users to `/`; `PrivateRoute` sends a bound user from every
+  staff route to `/punto`. `PuntoLayout` is separate from the staff `Layout`
+  and calls only `/auth/*` and `/reseller-app/*`, which the reseller fence
+  allows. It shows a no-access notice without `reseller_app.use` and hides
+  the sign-up without `reseller_app.signup`.
 - `App.tsx` is the route source of truth.
 - TanStack Query owns server-state fetching/caching where adopted.
 - `frontend/src/api/client.ts` owns authenticated transport behavior.

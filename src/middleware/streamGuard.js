@@ -57,6 +57,9 @@ function streamGuard({ when = () => true } = {}) {
       userId: req.user.id,
       tokenVersion: req.authSession?.tokenVersion,
       apiTokenId: req.user.apiTokenId || null,
+      // A binding added while the stream is open ends it (reseller fence).
+      orgId: req.orgId ?? null,
+      hasGlobalOrganizationAccess: Boolean(req.user.hasGlobalOrganizationAccess),
     };
     const revalidate = setInterval(() => {
       realtimeAccess.stillAuthorized(principal)

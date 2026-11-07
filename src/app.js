@@ -126,6 +126,7 @@ const bulkRoutes = require('./routes/bulk');
 const mapConfigRoutes = require('./routes/mapConfig');
 const portalRoutes = require('./routes/portal');
 const { applyDefaultDeny } = require('./middleware/v1DefaultDeny');
+const { resellerFence } = require('./middleware/resellerFence');
 const portalKbRoutes = require('./routes/portalKb');
 const portalServiceRequestsRoutes = require('./routes/portalServiceRequests');
 const smsRoutes = require('./routes/sms');
@@ -199,6 +200,7 @@ const routerDriversRoutes = require('./routes/routerDrivers');
 const analyticsAIRoutes = require('./routes/analyticsAI');
 const resellerRoutes = require('./routes/resellers');
 const resellerPortalRoutes = require('./routes/resellerPortal');
+const resellerAppRoutes = require('./routes/resellerApp');
 const integrationRoutes = require('./routes/integrations');
 // §21 AI Customer Support
 const supportConversationRoutes = require('./routes/supportConversations');
@@ -656,6 +658,10 @@ app.post('/acs/cwmp',
 // ---------------------------------------------------------------------------
 const v1 = express.Router();
 
+// A user bound to a reseller reaches only the reseller app and its own
+// account routes (middleware/resellerFence.js).
+v1.use(resellerFence);
+
 // Authenticate first so the opt-in, per-organization IP policy can be loaded.
 // ADMIN_IP_ALLOWLIST, when present, remains an installation-wide override.
 const adminIpAllowlist = [authenticate, enforceAdminIpAllowlist];
@@ -841,6 +847,7 @@ v1.use('/analytics', analyticsAIRoutes);
 // §19 Multi-Tenancy / Reseller Support
 v1.use('/resellers', resellerRoutes);
 v1.use('/reseller-portal', resellerPortalRoutes);
+v1.use('/reseller-app', resellerAppRoutes);
 
 // §20 APIs & Integrations
 v1.use('/integrations', ...adminIpAllowlist, integrationRoutes);
