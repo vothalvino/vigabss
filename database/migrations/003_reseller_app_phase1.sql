@@ -11,7 +11,9 @@
 --     row is ever removed.
 --   * reseller_allowed_plans — the plans a reseller may offer. No rows means
 --     every active plan of the organization.
---   * reseller_app.use and reseller_app.signup, granted to reseller_admin.
+--   * reseller_app.use and reseller_app.signup, granted to reseller_admin, and
+--     to admin, which holds every non-platform permission. The routes still
+--     refuse anyone not bound to a reseller.
 --   * reseller_admin loses the reseller administration views (resellers.view
 --     and the plan price, commission, IP pool, bandwidth quota, OLT port and
 --     billing entity views): a reseller user works in the reseller app, not
@@ -80,6 +82,15 @@ SELECT r.id, p.id
   FROM roles r
   JOIN permissions p ON p.name IN ('reseller_app.use', 'reseller_app.signup')
  WHERE r.name = 'reseller_admin'
+   AND r.is_system = 1;
+
+-- admin holds every non-platform permission (seed invariant); the reseller
+-- app still refuses any user that is not bound to a reseller.
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+  FROM roles r
+  JOIN permissions p ON p.name IN ('reseller_app.use', 'reseller_app.signup')
+ WHERE r.name = 'admin'
    AND r.is_system = 1;
 
 DELETE rp
