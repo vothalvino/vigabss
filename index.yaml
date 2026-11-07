@@ -2,6 +2,28 @@ apiVersion: v1
 entries:
   vigabss:
   - apiVersion: v2
+    appVersion: 0.1.0-alpha.9
+    created: "2026-11-07T05:39:25.044382418Z"
+    description: VigaBSS 0.1.0-alpha.9 — ISP management platform (billing, RADIUS,
+      SNMP, CFDI)
+    digest: a137984768c9c1c45b83e52dc87cc736487e09a070a62e435d15718cda3e0037
+    home: https://github.com/vothalvino/vigabss
+    keywords:
+    - isp
+    - billing
+    - radius
+    - mikrotik
+    maintainers:
+    - name: VigaBSS
+      url: https://github.com/vothalvino/vigabss
+    name: vigabss
+    sources:
+    - https://github.com/vothalvino/vigabss
+    type: application
+    urls:
+    - https://github.com/vothalvino/vigabss/releases/download/vigabss-0.1.0-alpha.9/vigabss-0.1.0-alpha.9.tgz
+    version: 0.1.0-alpha.9
+  - apiVersion: v2
     appVersion: 0.1.0-alpha.8
     created: "2026-11-07T00:24:54.404152997Z"
     description: VigaBSS 0.1.0-alpha.8 — ISP management platform (billing, RADIUS,
@@ -89,4 +111,4 @@ entries:
     urls:
     - https://github.com/vothalvino/vigabss/releases/download/vigabss-0.1.0-alpha.5/vigabss-0.1.0-alpha.5.tgz
     version: 0.1.0-alpha.5
-generated: "2026-11-07T00:24:54.404170991Z"
+generated: "2026-11-07T05:39:25.04441552Z"
