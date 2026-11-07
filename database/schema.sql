@@ -14921,6 +14921,10 @@ CREATE TABLE IF NOT EXISTS resellers (
     email               VARCHAR(255)    NULL,
     phone               VARCHAR(30)     NULL,
     contact_name        VARCHAR(255)    NULL,
+    address             VARCHAR(255)    NULL     DEFAULT NULL COMMENT 'Street address of the point of sale, for the carrier route (migration 005)',
+    city                VARCHAR(100)    NULL     DEFAULT NULL COMMENT 'City of the point of sale (migration 005)',
+    latitude            DECIMAL(10, 7)  NULL     DEFAULT NULL COMMENT 'Point of sale latitude, for the carrier map link (migration 005)',
+    longitude           DECIMAL(10, 7)  NULL     DEFAULT NULL COMMENT 'Point of sale longitude (migration 005)',
     status              ENUM('active', 'suspended', 'inactive') NOT NULL DEFAULT 'active',
     commission_rate     DECIMAL(5, 2)  NOT NULL DEFAULT 0.00,
     credit_limit        DECIMAL(12, 2)  NULL     DEFAULT NULL COMMENT 'Collected cash the reseller may hold before handing it in; NULL = organization default (migration 004)',
@@ -15159,6 +15163,105 @@ CREATE TABLE IF NOT EXISTS reseller_allowed_plans (
   COMMENT='Plans a reseller may offer in the reseller app; none means every active plan (migration 003)';
 
 -- ---------------------------------------------------------------------------
+-- Table: cash_bags (migration 005)
+-- Purpose: Numbered money bags. A reseller seals the cash it holds in one, a
+--          carrier brings it to the ISP, which counts and receives it. The
+--          status is the state machine of services/cashBagService.js; the
+--          declared amount of a sealed or travelling bag is in_bags, which is
+--          taken out of the reseller's cash on hand.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cash_bags (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id  BIGINT UNSIGNED NOT NULL COMMENT 'Organization that owns the bag',
+    serial           VARCHAR(64)     NOT NULL COMMENT 'Serial printed on the bag, trimmed and uppercase',
+    status           ENUM('in_stock', 'with_carrier', 'at_reseller', 'ready_for_pickup', 'in_transit', 'received', 'void', 'lost')
+                       NOT NULL DEFAULT 'in_stock' COMMENT 'State machine of services/cashBagService.js',
+    reseller_id      BIGINT UNSIGNED NULL     COMMENT 'Top-level reseller holding (or that filled) the bag',
+    carrier_user_id  BIGINT UNSIGNED NULL     COMMENT 'Carrier that holds, dropped off or picked up the bag (primary-DB users.id; no FK)',
+    declared_amount  DECIMAL(12, 2)  NULL     COMMENT 'Cash the reseller declared when sealing',
+    counted_amount   DECIMAL(12, 2)  NULL     COMMENT 'Cash the ISP counted on receipt',
+    currency         CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
+    sealed_at        DATETIME        NULL,
+    sealed_by        BIGINT UNSIGNED NULL     COMMENT 'Reseller user that sealed it (primary-DB users.id; no FK)',
+    picked_up_at     DATETIME        NULL,
+    picked_up_by     BIGINT UNSIGNED NULL     COMMENT 'Carrier that picked it up (primary-DB users.id; no FK)',
+    received_at      DATETIME        NULL,
+    received_by      BIGINT UNSIGNED NULL     COMMENT 'Staff user that counted and received it (primary-DB users.id; no FK)',
+    notes            VARCHAR(500)    NULL,
+    created_by       BIGINT UNSIGNED NOT NULL COMMENT 'Staff user that registered it (primary-DB users.id; no FK)',
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at       DATETIME        DEFAULT NULL COMMENT 'Soft delete; a bag with any money history is never deleted',
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_cash_bags_org_serial (organization_id, serial),
+    KEY idx_cash_bags_org_status (organization_id, status),
+    KEY idx_cash_bags_reseller_status (reseller_id, status),
+    KEY idx_cash_bags_carrier_status (carrier_user_id, status),
+    CONSTRAINT fk_cash_bags_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_bags_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Numbered money bags a reseller fills and a carrier brings to the ISP (migration 005)';
+
+-- ---------------------------------------------------------------------------
+-- Table: cash_bag_events (migration 005)
+-- Purpose: Append-only history of each cash bag: every transition, its actor
+--          and time, and the amount declared (seal) or counted (receive).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cash_bag_events (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id  BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the bag',
+    bag_id           BIGINT UNSIGNED NOT NULL COMMENT 'The bag',
+    from_status      ENUM('in_stock', 'with_carrier', 'at_reseller', 'ready_for_pickup', 'in_transit', 'received', 'void', 'lost')
+                       NULL COMMENT 'NULL when the bag was registered',
+    to_status        ENUM('in_stock', 'with_carrier', 'at_reseller', 'ready_for_pickup', 'in_transit', 'received', 'void', 'lost')
+                       NOT NULL,
+    actor_user_id    BIGINT UNSIGNED NOT NULL COMMENT 'User that made the change (primary-DB users.id; no FK)',
+    amount           DECIMAL(12, 2)  NULL     COMMENT 'Declared on seal, counted on receive',
+    reseller_id      BIGINT UNSIGNED NULL     COMMENT 'Reseller of the bag at the change',
+    carrier_user_id  BIGINT UNSIGNED NULL     COMMENT 'Carrier of the bag at the change (primary-DB users.id; no FK)',
+    latitude         DECIMAL(10, 7)  NULL     COMMENT 'Where the carrier was, when the app sent it',
+    longitude        DECIMAL(10, 7)  NULL,
+    note             VARCHAR(500)    NULL,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cash_bag_events_bag (bag_id, id),
+    KEY idx_cash_bag_events_org (organization_id, created_at),
+    KEY idx_cash_bag_events_reseller (reseller_id),
+    CONSTRAINT fk_cash_bag_events_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_bag_events_bag FOREIGN KEY (bag_id)
+        REFERENCES cash_bags (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_bag_events_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Append-only history of each cash bag: every transition, who and when (migration 005)';
+
+-- ---------------------------------------------------------------------------
+-- Table: carrier_reseller_assignments (migration 005)
+-- Purpose: Top-level resellers a carrier account may see and visit in the
+--          carrier app.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS carrier_reseller_assignments (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id  BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the carrier and the reseller',
+    carrier_user_id  BIGINT UNSIGNED NOT NULL COMMENT 'Carrier account (primary-DB users.id; no FK)',
+    reseller_id      BIGINT UNSIGNED NOT NULL COMMENT 'Top-level reseller the carrier may see and visit',
+    created_by       BIGINT UNSIGNED NULL     COMMENT 'Administrator that assigned it (primary-DB users.id; no FK)',
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_carrier_reseller (carrier_user_id, reseller_id),
+    KEY idx_carrier_reseller_org (organization_id),
+    KEY idx_carrier_reseller_reseller (reseller_id),
+    CONSTRAINT fk_carrier_reseller_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_carrier_reseller_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Top-level resellers a carrier account may see in the carrier app (migration 005)';
+
+-- ---------------------------------------------------------------------------
 -- Table: reseller_ledger_entries (migration 004)
 -- Purpose: Append-only cash ledger of a collecting (top-level) reseller. The
 --          sum of amount is what it owes the ISP: a collection adds, its void
@@ -15175,6 +15278,7 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     currency        CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
     payment_id      BIGINT UNSIGNED NULL     COMMENT 'The collected payment (collection, collection_void)',
     cash_session_id BIGINT UNSIGNED NULL     COMMENT 'The collecting user''s cash session (collection, collection_void)',
+    cash_bag_id     BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'The received cash bag behind a deposit or an adjustment (migration 005)',
     note            VARCHAR(500)    NULL,
     created_by      BIGINT UNSIGNED NOT NULL COMMENT 'User who recorded the entry',
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -15183,6 +15287,7 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     KEY idx_reseller_ledger_org (organization_id),
     KEY idx_reseller_ledger_payment (payment_id),
     KEY idx_reseller_ledger_cash_session (cash_session_id),
+    KEY idx_reseller_ledger_cash_bag (cash_bag_id),
     KEY idx_reseller_ledger_created_by (created_by),
     CONSTRAINT fk_reseller_ledger_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -15192,6 +15297,8 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
         REFERENCES payments (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_reseller_ledger_cash_session FOREIGN KEY (cash_session_id)
         REFERENCES cash_reconciliation_sessions (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_cash_bag FOREIGN KEY (cash_bag_id)
+        REFERENCES cash_bags (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_reseller_ledger_created_by FOREIGN KEY (created_by)
         REFERENCES users (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

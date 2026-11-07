@@ -5,6 +5,7 @@
 //   • Redirects unauthenticated users to /login
 //   • Renders the not-allowed page when the user may not open the page
 //   • Sends an account bound to a reseller to the reseller app (/punto)
+//   • Sends a cash-bag carrier to the route app (/ruta)
 //   • Shows a full-page spinner while auth state is initialising
 //
 // A page in the nav registry opens when the session's resolved permissions
@@ -18,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { permitsByPermissions, routeForPath } from '@/nav/routes';
 import { useAuth } from './AuthContext';
 import { ForcePasswordChange } from './ForcePasswordChange';
+import { isCarrier } from './carrier';
 import { hasRole } from './roles';
 
 export { hasRole };
@@ -89,6 +91,11 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
   // refuses the staff endpoints to it, so the console would show only errors.
   if (user.reseller_binding) {
     return <Navigate to="/punto" replace />;
+  }
+
+  // A carrier uses the route app only; the server fences it the same way.
+  if (isCarrier(user)) {
+    return <Navigate to="/ruta" replace />;
   }
 
   const route = routeForPath(location.pathname);

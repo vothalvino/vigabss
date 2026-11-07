@@ -348,6 +348,12 @@ class WsHub {
       ws.close(4003, 'Forbidden');
       return;
     }
+    // A carrier is fenced to the carrier app the same way.
+    if (await realtimeAccess.carrierAccount({ ...resellerPrincipal, groupId: user.group_id ?? null })) {
+      ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Carrier accounts can only use the carrier app' }));
+      ws.close(4003, 'Forbidden');
+      return;
+    }
     ws._grants = await realtimeAccess.resolveGrants(ws._req);
     ws._principal = { ...resellerPrincipal, tokenVersion: payload.tv };
     if (ws.readyState !== WebSocket.OPEN) return;

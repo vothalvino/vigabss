@@ -14,14 +14,22 @@
 // Every figure the app and the staff pages show comes from here:
 //
 //   balance              = SUM(amount)          what the reseller owes the ISP
-//   cash_on_hand         = balance              (phase 3 subtracts bagged cash)
+//   in_bags              = SUM(cash_bags.declared_amount) of its bags sealed
+//                          and not yet received (ready_for_pickup, in_transit)
+//   cash_on_hand         = balance - in_bags    cash it still holds loose
 //   credit_limit         = COALESCE(resellers.credit_limit,
 //                                   reseller_default_credit_limit setting)
 //   available_to_collect = max(0, credit_limit - cash_on_hand)
 //
+// Sealing a bag (phase 3, services/cashBagService.js) books nothing: the bag's
+// declared amount moves from cash_on_hand to in_bags, which frees the limit,
+// and balance still counts it until the ISP receives the bag (a deposit of
+// the declared amount, and an adjustment for any difference with the count).
+// A lost bag leaves in_bags, so its amount is owed as cash on hand again.
+//
 // Rows are never updated or deleted; a correction is a new entry. A writer
 // locks the reseller row first (lockReseller) so the credit check and the
-// entry it guards cannot interleave with another collection or deposit.
+// entry it guards cannot interleave with another collection, deposit or seal.
 // =============================================================================
 
 const db = require('../config/database');
@@ -91,15 +99,74 @@ async function collectingResellerId(req) {
   return id;
 }
 
-/** The figures derived from a balance and a limit. */
-function summarize(balance, creditLimit) {
-  const cashOnHand = toMoney(balance);
+/** The figures derived from a balance, the cash in sealed bags and a limit. */
+function summarize(balance, creditLimit, inBagsAmount = 0) {
+  const bagged = toMoney(inBagsAmount);
+  const cashOnHand = money.sub(toMoney(balance), bagged);
   const limit = toMoney(creditLimit);
   return {
     balance: toMoney(balance),
+    in_bags: bagged,
     cash_on_hand: cashOnHand,
     credit_limit: limit,
     available_to_collect: Math.max(0, money.sub(limit, cashOnHand)),
+  };
+}
+
+// Bags whose declared cash has left the reseller's hands but not reached the ISP.
+const IN_BAGS_STATUSES = ['ready_for_pickup', 'in_transit'];
+
+/** SUM(declared_amount) of the reseller's sealed, not yet received bags, on `exec`. */
+async function inBags(orgId, resellerId, exec = defaultExec()) {
+  requireOrgId(orgId, 'resellerLedgerService.inBags');
+  const [rows] = await exec(
+    `SELECT COALESCE(SUM(declared_amount), 0) AS in_bags
+       FROM cash_bags
+      WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL
+        AND status IN ('ready_for_pickup', 'in_transit')`,
+    [orgId, resellerId],
+  );
+  return toMoney(rows && rows[0] ? rows[0].in_bags : 0);
+}
+
+/** in_bags of several resellers of one organization, as Map(id → amount). */
+async function inBagsFor(orgId, resellerIds, exec = defaultExec()) {
+  requireOrgId(orgId, 'resellerLedgerService.inBagsFor');
+  const ids = [...new Set((resellerIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  const out = new Map(ids.map((id) => [id, 0]));
+  if (!ids.length) return out;
+  const [rows] = await exec(
+    `SELECT reseller_id, COALESCE(SUM(declared_amount), 0) AS in_bags
+       FROM cash_bags
+      WHERE organization_id = ? AND reseller_id IN (${inPlaceholders(ids)}) AND deleted_at IS NULL
+        AND status IN ('ready_for_pickup', 'in_transit')
+      GROUP BY reseller_id`,
+    [orgId, ...ids],
+  );
+  for (const r of rows || []) out.set(Number(r.reseller_id), toMoney(r.in_bags));
+  return out;
+}
+
+/**
+ * How many of the reseller's bags are in each live status:
+ * { at_reseller (empty bags it may fill), ready_for_pickup, in_transit }.
+ */
+async function bagCounts(orgId, resellerId, exec = defaultExec()) {
+  requireOrgId(orgId, 'resellerLedgerService.bagCounts');
+  const [rows] = await exec(
+    `SELECT COALESCE(SUM(status = 'at_reseller'), 0) AS at_reseller,
+            COALESCE(SUM(status = 'ready_for_pickup'), 0) AS ready_for_pickup,
+            COALESCE(SUM(status = 'in_transit'), 0) AS in_transit
+       FROM cash_bags
+      WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL
+        AND status IN ('at_reseller', 'ready_for_pickup', 'in_transit')`,
+    [orgId, resellerId],
+  );
+  const row = (rows && rows[0]) || {};
+  return {
+    at_reseller: Number(row.at_reseller) || 0,
+    ready_for_pickup: Number(row.ready_for_pickup) || 0,
+    in_transit: Number(row.in_transit) || 0,
   };
 }
 
@@ -132,7 +199,7 @@ async function lockReseller(exec, orgId, resellerId) {
 }
 
 /**
- * The summary of one reseller: { balance, cash_on_hand, credit_limit,
+ * The summary of one reseller: { balance, in_bags, cash_on_hand, credit_limit,
  * available_to_collect, credit_limit_override }. credit_limit is the effective
  * limit; credit_limit_override is the reseller's own (null = the default).
  * Pass `reseller` (a row with credit_limit) when it is already loaded.
@@ -147,12 +214,12 @@ async function summaryFor(orgId, resellerId, { exec = defaultExec(), reseller = 
     );
     row = rows && rows[0] ? rows[0] : { credit_limit: null };
   }
-  const [balance, orgDefault] = await Promise.all([
-    ledgerBalance(orgId, resellerId, exec),
-    row.credit_limit === null || row.credit_limit === undefined ? defaultCreditLimit(orgId, exec) : null,
-  ]);
+  // One after the other: `exec` may be a transaction's connection.
+  const balance = await ledgerBalance(orgId, resellerId, exec);
+  const bagged = await inBags(orgId, resellerId, exec);
+  const orgDefault = row.credit_limit === null || row.credit_limit === undefined ? await defaultCreditLimit(orgId, exec) : null;
   return {
-    ...summarize(balance, effectiveCreditLimit(row.credit_limit, orgDefault)),
+    ...summarize(balance, effectiveCreditLimit(row.credit_limit, orgDefault), bagged),
     credit_limit_override: row.credit_limit === null || row.credit_limit === undefined ? null : toMoney(row.credit_limit),
   };
 }
@@ -181,14 +248,16 @@ async function balancesFor(orgId, resellerIds, exec = defaultExec()) {
  */
 async function appendEntry(exec, {
   orgId, resellerId, entryType, amount, currency, paymentId = null, cashSessionId = null, note = null, createdBy,
+  cashBagId = null,
 }) {
   requireOrgId(orgId, 'resellerLedgerService.appendEntry');
   if (!ENTRY_TYPES.includes(entryType)) throw new Error(`Unknown reseller ledger entry type: ${entryType}`);
+  // cash_bag_id goes last, so the column order of phase 2 is unchanged.
   const [result] = await exec(
     `INSERT INTO reseller_ledger_entries
-       (organization_id, reseller_id, entry_type, amount, currency, payment_id, cash_session_id, note, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [orgId, resellerId, entryType, toMoney(amount), currency, paymentId, cashSessionId, note, createdBy],
+       (organization_id, reseller_id, entry_type, amount, currency, payment_id, cash_session_id, note, created_by, cash_bag_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [orgId, resellerId, entryType, toMoney(amount), currency, paymentId, cashSessionId, note, createdBy, cashBagId],
   );
   return result.insertId;
 }
@@ -204,20 +273,39 @@ function entryRow(r) {
     payment_id: r.payment_id === null || r.payment_id === undefined ? null : Number(r.payment_id),
     cash_session_id: r.cash_session_id === null || r.cash_session_id === undefined ? null : Number(r.cash_session_id),
     created_by: r.created_by === null || r.created_by === undefined ? null : Number(r.created_by),
+    cash_bag_id: r.cash_bag_id === null || r.cash_bag_id === undefined ? null : Number(r.cash_bag_id),
+    cash_bag_serial: r.cash_bag_serial ?? null,
   };
+}
+
+/** Set cash_bag_serial on the rows that name a bag (a deposit or adjustment of a received bag). */
+async function withBagSerials(orgId, rows) {
+  const ids = [...new Set((rows || []).map((r) => Number(r.cash_bag_id)).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return rows;
+  const [bags] = await db.query(
+    `/* includes deleted rows: a ledger line keeps naming the bag it was posted for */
+     SELECT id, serial FROM cash_bags WHERE organization_id = ? AND id IN (${inPlaceholders(ids)})`,
+    [orgId, ...ids],
+  );
+  const serials = new Map((bags || []).map((b) => [Number(b.id), b.serial]));
+  for (const r of rows) {
+    if (r.cash_bag_id !== null && r.cash_bag_id !== undefined) r.cash_bag_serial = serials.get(Number(r.cash_bag_id)) ?? null;
+  }
+  return rows;
 }
 
 /** A page of a reseller's entries, newest first: { rows, total }. */
 async function listEntries(orgId, resellerId, { limit, offset }) {
   requireOrgId(orgId, 'resellerLedgerService.listEntries');
   const [rows] = await db.query(
-    `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by
+    `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by, cash_bag_id
        FROM reseller_ledger_entries
       WHERE organization_id = ? AND reseller_id = ?
       ORDER BY created_at DESC, id DESC
       LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
     [orgId, resellerId],
   );
+  await withBagSerials(orgId, rows);
   const [[count]] = await db.query(
     'SELECT COUNT(*) AS total FROM reseller_ledger_entries WHERE organization_id = ? AND reseller_id = ?',
     [orgId, resellerId],
@@ -232,11 +320,16 @@ module.exports = {
   topLevelResellerId,
   collectingResellerId,
   summarize,
+  IN_BAGS_STATUSES,
+  inBags,
+  inBagsFor,
+  bagCounts,
   ledgerBalance,
   lockReseller,
   summaryFor,
   balancesFor,
   appendEntry,
   listEntries,
+  withBagSerials,
   entryRow,
 };

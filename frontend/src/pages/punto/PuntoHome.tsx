@@ -2,8 +2,9 @@
 // Reseller app (/punto) — Inicio
 // =============================================================================
 // The reseller's numbers from GET /reseller-app/me: the cash it holds for the
-// ISP against its limit (money), today's collections, the phase-1 counts,
-// and the main actions (collect, new sign-up).
+// ISP against its limit (money), today's collections, its cash bags (with
+// reseller_app.bags), the phase-1 counts, and the main actions (collect, new
+// sign-up).
 // =============================================================================
 
 import { Link } from 'react-router-dom';
@@ -14,6 +15,7 @@ import { can } from '@/auth/permissions';
 import { ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
 import { fetchPuntoMe, puntoKeys, toNumber, type PuntoMoney } from './puntoApi';
+import { PuntoBagsCard } from './PuntoBagsCard';
 import { mutedText, pageTitle } from './puntoUi';
 
 /**
@@ -21,7 +23,7 @@ import { mutedText, pageTitle } from './puntoUi';
  * limit) and today's total. At the limit the server refuses new collections,
  * so the card says how to keep collecting.
  */
-export function MoneyCard({ money, canCollect }: { money: PuntoMoney; canCollect: boolean }) {
+export function MoneyCard({ money, canCollect, canBags = false }: { money: PuntoMoney; canCollect: boolean; canBags?: boolean }) {
   const { t } = useTranslation();
   const limit = toNumber(money.credit_limit);
   const held = toNumber(money.cash_on_hand);
@@ -38,6 +40,12 @@ export function MoneyCard({ money, canCollect }: { money: PuntoMoney; canCollect
         <span>{t('punto.money.owe')}</span>
         <strong style={{ fontSize: '1.4rem' }}>{fmt(money.balance)}</strong>
       </div>
+      {money.in_bags !== undefined && toNumber(money.in_bags) > 0 && (
+        <div className="punto-money-row">
+          <span>{t('puntoBags.money.inBags')}</span>
+          <strong>{fmt(money.in_bags)}</strong>
+        </div>
+      )}
       <div className="punto-money-row">
         <span>{t('punto.money.canCollect')}</span>
         <strong style={{ fontSize: '1.15rem', color }}>{fmt(available)}</strong>
@@ -58,6 +66,9 @@ export function MoneyCard({ money, canCollect }: { money: PuntoMoney; canCollect
         <p role="alert" style={{ margin: 0, padding: '10px 12px', borderRadius: 8, background: 'var(--danger-soft)', color: 'var(--danger)', fontWeight: 600 }}>
           {t('punto.money.atLimit')}
         </p>
+      )}
+      {atLimit && canBags && toNumber(money.empty_bags ?? 0) > 0 && (
+        <Link to="/punto/bolsas" className="punto-btn-primary">{t('puntoBags.fillToCollect')}</Link>
       )}
       <div className="punto-money-row" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
         <span>{t('punto.money.collectedToday')}</span>
@@ -83,6 +94,7 @@ export function PuntoHome() {
   const { user } = useAuth();
   const canSignup = can(user, 'reseller_app.signup');
   const canCollect = can(user, 'reseller_app.collect');
+  const canBags = can(user, 'reseller_app.bags');
   const me = useQuery({ queryKey: puntoKeys.me, queryFn: fetchPuntoMe });
 
   return (
@@ -94,7 +106,8 @@ export function PuntoHome() {
 
       {me.isLoading && <LoadingState />}
       {me.isError && <ErrorState message={t('punto.home.loadError')} onRetry={() => { void me.refetch(); }} />}
-      {me.data?.money && <MoneyCard money={me.data.money} canCollect={canCollect} />}
+      {me.data?.money && <MoneyCard money={me.data.money} canCollect={canCollect} canBags={canBags} />}
+      {me.data?.money && canBags && <PuntoBagsCard money={me.data.money} />}
 
       {canSignup && (
         <Link to="/punto/nuevo" className={me.data?.money && canCollect ? 'punto-btn-secondary' : 'punto-btn-primary'}>

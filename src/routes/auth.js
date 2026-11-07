@@ -13,6 +13,7 @@ const { sanitizeUser } = require('../utils/userSanitize');
 const { isInstallOperatorUser } = require('../services/installOperator');
 const { isSuperAdminUser } = require('../services/globalOrganizationAccess');
 const { lookupBinding: lookupResellerBinding, requestBindingChecksAvailable } = require('../middleware/resellerScope');
+const { CARRIER_GROUP_NAME } = require('../services/carrierAccount');
 const config = require('../config');
 const { tokenResponseBody } = require('../utils/browserTokens');
 const logger = require('../utils/logger');
@@ -170,9 +171,15 @@ async function enrichAuthUser(user, activeOrgId) {
     }
   }
 
+  // A user in the carrier group is sent to the carrier app (/ruta); the
+  // fence enforces it on the server (services/carrierAccount.js).
+  const carrier = Boolean(group && group.name === CARRIER_GROUP_NAME && Number(group.is_system) === 1
+    && !isOperator && !isSuperAdmin);
+
   return {
     ...user,
     reseller_binding: resellerBinding,
+    carrier,
     organization_currency: activeOrgId ? await Organization.getCurrency(activeOrgId) : 'MXN',
     organization_locale: activeOrgId ? await Organization.getLocale(activeOrgId) : 'global',
     group,

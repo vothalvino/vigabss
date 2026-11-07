@@ -31,16 +31,23 @@ export interface PuntoMe {
 
 /**
  * The collecting reseller's cash position (its top-level reseller's ledger).
- * `balance` is what it owes the ISP; `cash_on_hand` is the same in phase 2;
- * `credit_limit` is the effective limit (its own or the organization default).
+ * `balance` is what it owes the ISP, including sealed bags not yet received;
+ * `in_bags` is what its sealed bags (ready for pickup or on their way) hold;
+ * `cash_on_hand` is the cash outside bags (balance − in_bags), which is what
+ * counts against `credit_limit` (its own or the organization default).
+ * `empty_bags` is how many empty bags it has to fill.
  */
 export interface PuntoMoney {
   currency: string;
   balance: number | string;
+  in_bags?: number | string;
   cash_on_hand: number | string;
   credit_limit: number | string;
   available_to_collect: number | string;
   collected_today: number | string;
+  empty_bags?: number;
+  bags_ready_for_pickup?: number;
+  bags_in_transit?: number;
 }
 
 export interface PuntoListMeta { total: number; page: number; limit: number }
@@ -239,10 +246,14 @@ export interface PuntoLedgerEntry {
   note: string | null;
   created_at: string;
   payment_id: number | null;
+  /** The cash bag a deposit or an adjustment came from (its receipt). */
+  cash_bag_id?: number | null;
+  cash_bag_serial?: string | null;
 }
 
 export interface PuntoLedgerSummary {
   balance: number | string;
+  in_bags?: number | string;
   cash_on_hand: number | string;
   credit_limit: number | string;
   available_to_collect: number | string;
@@ -266,15 +277,35 @@ export const puntoKeys = {
   collections: (date: string, page: number) => ['punto', 'collections', date, page] as const,
   cashSession: ['punto', 'cash-session'] as const,
   ledger: (page: number) => ['punto', 'ledger', page] as const,
+  bags: ['punto', 'bags'] as const,
 };
 
-/** Every query a collection, a void or a cash-box close changes. */
+/** Every query a collection, a void, a cash-box close or a sealed bag changes. */
 export const PUNTO_MONEY_QUERIES = [
   puntoKeys.me,
   ['punto', 'collections'],
   puntoKeys.cashSession,
   ['punto', 'ledger'],
+  puntoKeys.bags,
 ] as const;
+
+/**
+ * A cash bag at the reseller (GET /reseller-app/bags): empty (at_reseller),
+ * sealed with the declared amount (ready_for_pickup) or picked up by the
+ * carrier (in_transit). Received, void and lost bags are not listed.
+ */
+export type PuntoBagStatus = 'at_reseller' | 'ready_for_pickup' | 'in_transit';
+
+export interface PuntoBag {
+  id: number;
+  serial: string;
+  status: PuntoBagStatus | string;
+  declared_amount: number | string | null;
+  sealed_at: string | null;
+  picked_up_at: string | null;
+}
+
+export interface PuntoSealResult { bag: PuntoBag | null; money: PuntoMoney | PuntoLedgerSummary | null }
 
 export async function fetchPuntoMe(): Promise<PuntoMe> {
   return (await apiFetch<{ data: PuntoMe }>('/reseller-app/me')).data;
@@ -387,8 +418,41 @@ export async function fetchPuntoLedger(page: number, limit: number): Promise<Pun
   return toLedgerPage(await apiFetch(`/reseller-app/ledger?page=${page}&limit=${limit}`));
 }
 
-/** The CREDIT_LIMIT refusal of POST /payments, with what may still be collected. */
-export function creditLimitError(err: unknown): { available: number | null } | null {
+function toBag(raw: Record<string, unknown>): PuntoBag {
+  return {
+    id: Number(raw.id ?? 0),
+    serial: String(raw.serial ?? ''),
+    status: String(raw.status ?? ''),
+    declared_amount: (raw.declared_amount ?? null) as number | string | null,
+    sealed_at: (raw.sealed_at ?? null) as string | null,
+    picked_up_at: (raw.picked_up_at ?? null) as string | null,
+  };
+}
+
+export async function fetchPuntoBags(): Promise<PuntoBag[]> {
+  const res = await apiFetch<{ data?: Record<string, unknown>[] }>('/reseller-app/bags');
+  return (Array.isArray(res?.data) ? res.data : []).map(toBag);
+}
+
+/** Seal an empty bag with the cash put in it: frees that much of the cash limit. */
+export async function sealPuntoBag(body: { serial: string; declared_amount: number }): Promise<PuntoSealResult> {
+  const res = await apiFetch<{ data?: Record<string, unknown> }>('/reseller-app/bags/seal', { method: 'POST', body: JSON.stringify(body) });
+  const data = (res?.data ?? {}) as Record<string, unknown>;
+  const bag = data.bag && typeof data.bag === 'object' ? toBag(data.bag as Record<string, unknown>) : (data.serial ? toBag(data) : null);
+  const money = (data.money ?? data.summary ?? null) as PuntoMoney | PuntoLedgerSummary | null;
+  return { bag, money };
+}
+
+/** A field of a refusal: error.<name>, error.details.<name> or <name>. */
+function errorField(err: ApiRequestError, name: string): unknown {
+  const body = (err.body ?? {}) as Record<string, unknown>;
+  const e = (typeof body.error === 'object' && body.error ? body.error : {}) as Record<string, unknown>;
+  const details = (e.details && typeof e.details === 'object' && !Array.isArray(e.details) ? e.details : {}) as Record<string, unknown>;
+  return e[name] ?? details[name] ?? body[name];
+}
+
+/** The CREDIT_LIMIT refusal of POST /payments, with what may still be collected and the empty bags at hand. */
+export function creditLimitError(err: unknown): { available: number | null; emptyBags: number | null } | null {
   if (!(err instanceof ApiRequestError) || err.status !== 409) return null;
   const body = (err.body ?? {}) as Record<string, unknown>;
   const e = (typeof body.error === 'object' && body.error ? body.error : {}) as Record<string, unknown>;
@@ -397,7 +461,11 @@ export function creditLimitError(err: unknown): { available: number | null } | n
   const available = e.available_to_collect ?? details.available_to_collect ?? body.available_to_collect;
   // A 409 without the code is some other conflict (a void rule, say).
   if (code !== 'CREDIT_LIMIT' && available === undefined) return null;
-  return { available: available === undefined || available === null ? null : toNumber(available as number | string) };
+  const emptyBags = errorField(err, 'empty_bags');
+  return {
+    available: available === undefined || available === null ? null : toNumber(available as number | string),
+    emptyBags: emptyBags === undefined || emptyBags === null ? null : toNumber(emptyBags as number | string),
+  };
 }
 
 /** The `error.code` of a refused request (e.g. 'VOID_WINDOW_CLOSED'), or null. */

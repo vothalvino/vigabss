@@ -201,6 +201,9 @@ const analyticsAIRoutes = require('./routes/analyticsAI');
 const resellerRoutes = require('./routes/resellers');
 const resellerPortalRoutes = require('./routes/resellerPortal');
 const resellerAppRoutes = require('./routes/resellerApp');
+const carrierAppRoutes = require('./routes/carrierApp');
+const cashBagRoutes = require('./routes/cashBags');
+const carrierRoutes = require('./routes/carriers');
 const integrationRoutes = require('./routes/integrations');
 // §21 AI Customer Support
 const supportConversationRoutes = require('./routes/supportConversations');
@@ -658,8 +661,9 @@ app.post('/acs/cwmp',
 // ---------------------------------------------------------------------------
 const v1 = express.Router();
 
-// A user bound to a reseller reaches only the reseller app and its own
-// account routes (middleware/resellerFence.js).
+// A user bound to a reseller reaches only the reseller app, and a carrier only
+// the carrier app, besides their own account routes
+// (middleware/resellerFence.js).
 v1.use(resellerFence);
 
 // Authenticate first so the opt-in, per-organization IP policy can be loaded.
@@ -848,6 +852,10 @@ v1.use('/analytics', analyticsAIRoutes);
 v1.use('/resellers', resellerRoutes);
 v1.use('/reseller-portal', resellerPortalRoutes);
 v1.use('/reseller-app', resellerAppRoutes);
+// Reseller app phase 3: cash bags, carriers and the carrier app.
+v1.use('/carrier-app', carrierAppRoutes);
+v1.use('/cash-bags', cashBagRoutes);
+v1.use('/carriers', carrierRoutes);
 
 // §20 APIs & Integrations
 v1.use('/integrations', ...adminIpAllowlist, integrationRoutes);

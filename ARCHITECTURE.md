@@ -311,7 +311,15 @@ v1 router before the routes, confines any bound principal (session or API
 token, not a validated global-access principal) to `/auth`, `/2fa`,
 `/security-admin/webauthn` (its own passkeys), `/notifications`,
 `/reseller-app`, `/resellers` and `/reseller-portal`; any
-other path is 403 whatever its group grants. The fence authenticates the
+other path is 403 whatever its group grants. The same fence confines a
+carrier (a user whose `users.group_id` is the seeded system group `carrier`,
+`src/services/carrierAccount.js`; `authenticate` carries the group id on
+`req.user` as a non-enumerable `groupId`) to those account prefixes and
+`/carrier-app`; a user who is both gets only the account prefixes, so both
+directions are refused (422): binding a carrier to a reseller
+(`PUT /resellers/:id/users/:userId`), and giving the carrier group to a user
+bound to a reseller in any of its organizations (`PUT`/`PATCH /users/:id`,
+`PATCH /users/:id/group`). The fence authenticates the
 request itself (route guards are idempotent), skips public routes and
 requests without credentials, and shares one binding lookup per request with
 `resellerScope` (`bindingForRequest`). Like `orgScope`, it and the
@@ -324,9 +332,9 @@ or `status` on `POST`/`PUT /resellers`; logins (`POST /resellers/:id/users`),
 allowed plans, suspension, commission approval, plan prices and the
 resource and billing-entity writes are org-level only (a binding may be given
 to a user in any group, so the binding, not the group, decides). The fence
-also covers real-time feeds: the staff WebSocket hub refuses a bound user, and
-`realtimeAccess.stillAuthorized` ends an open SSE, GraphQL or WebSocket stream
-once its user is bound. Reseller-facing reads name their columns: no
+also covers real-time feeds: the staff WebSocket hub refuses a bound user or a
+carrier, and `realtimeAccess.stillAuthorized` ends an open SSE, GraphQL or
+WebSocket stream once its user is bound or moved into the carrier group. Reseller-facing reads name their columns: no
 `SELECT *` row from `clients` (portal and reset hashes, CURP, notes) or
 `invoices` reaches a reseller. `GET /reseller-app/leads/:id/feasibility`
 deliberately does not return the staff desk-check payload: the reseller picks
@@ -350,8 +358,10 @@ the bound reseller, which may be a sub-reseller), whoever owns the client, in
 the append-only `reseller_ledger_entries`
 (`src/services/resellerLedgerService.js`, never updated or deleted): a
 collection adds its amount, its void and a deposit subtract, an adjustment is
-signed. The balance (what the reseller owes) is the sum, `cash_on_hand` equals
-it until cash bags exist, the effective limit is `resellers.credit_limit` or
+signed. The balance (what the reseller owes) is the sum, `in_bags` is the
+declared amount of its cash bags that are sealed and not yet received
+(`ready_for_pickup`, `in_transit`; phase 3), `cash_on_hand` is the balance
+minus `in_bags`, the effective limit is `resellers.credit_limit` or
 the per-organization setting `reseller_default_credit_limit`, and
 `available_to_collect` is the limit minus the cash on hand, never below 0.
 A sub-reseller's users collect, read `/me` money, `/ledger`, the day's list
@@ -396,11 +406,55 @@ the allocations. Closing the cash box
 (`cashReconciliationService.closeSession`) records the count and the
 variance and leaves the ledger alone; only org-level staff with
 `reseller_ledger.manage` record cash handed in (`POST /resellers/:id/ledger`
-deposit, never a payment, at most the balance; or a noted adjustment), which
-frees the limit. The ledger routes and a reseller's `credit_limit` are refused
+deposit, never a payment, at most the cash on hand; or a noted adjustment),
+which frees the limit. The ledger routes and a reseller's `credit_limit` are refused
 to bound callers. A staff deletion or edit of a reseller-collected payment
 does not touch the reseller ledger: the cash the reseller took is still owed
 until a deposit or an adjustment says otherwise.
+
+Phase 3 (migration 005) moves the cash in numbered money bags
+(`src/services/cashBagService.js`, the only writer of `cash_bags` and the
+append-only `cash_bag_events`). The bag's status is a state machine checked
+inside the transaction that holds the bag row (`FOR UPDATE`, status
+re-checked, conditional `UPDATE`), and every change writes an event with the
+actor: `in_stock` → `with_carrier` (staff hand a batch to a carrier) →
+`at_reseller` (the carrier drops it off; `reseller_id` is always a top-level
+reseller) → `ready_for_pickup` (the reseller seals it with a declared amount D,
+0 < D ≤ cash on hand) → `in_transit` (the carrier picks it up by its serial at
+that reseller) → `received` (staff count C); also `ready_for_pickup` →
+`received` when the reseller brings it in, `void` from the three states
+without money, `lost` from the two with money, and the returns `with_carrier`
+→ `in_stock` and `at_reseller` → `with_carrier`. `received`, `void` and
+`lost` are terminal. Sealing books nothing (D moves from cash on hand to
+`in_bags` and frees the limit); receiving posts a `deposit` of −D and, when C
+differs, an `adjustment` of D − C, both with `reseller_ledger_entries.cash_bag_id`
+(net −C); a lost bag posts nothing, so D is owed as cash on hand again until
+an administrator records an adjustment. Every transition whose bag has or
+gets a reseller (drop-off, seal, pickup, receive, lost, and void or return of
+an `at_reseller` bag) locks the reseller row first, then the bag (the order of
+a collection), so a seal and a concurrent collection cannot both pass the
+credit check, and two transitions of one bag cannot deadlock: the
+`cash_bag_events` row and the drop-off's `reseller_id` check their foreign
+key with a shared lock on the reseller row, which would otherwise be taken
+after the bag. A bag that changed reseller between the read and the lock is
+a 409 `BAG_CHANGED`; only a handover (no reseller) locks the bags alone. A carrier (`src/routes/carrierApp.js`,
+`/api/v1/carrier-app`) sees only the top-level resellers of its
+`carrier_reseller_assignments` and never an amount; a pickup of an unknown
+serial, another reseller's or organization's bag, an unassigned reseller or a
+bag that is not ready is the same 404, and a drop-off is all or nothing over
+the carrier's own stock. Staff manage bags at `/api/v1/cash-bags`
+(`src/routes/cashBags.js`), carriers at `/api/v1/carriers`
+(`src/routes/carriers.js`; creating a carrier login also needs `users.create`,
+like a reseller login, and `GET /carriers/assignable-resellers` lists every
+live top-level reseller for the assignment picker with `carriers.manage`
+alone) and read a reseller's bags at
+`GET /resellers/:id/bags`; all of them are org-level only (refused to
+reseller-bound users and carriers). The 409 `CREDIT_LIMIT` of a collection
+carries `empty_bags` so the app can ask the reseller to fill one, and a void
+is refused (409 `CASH_SEALED_IN_BAG`) when the collection's cash is no longer
+on hand. Bag and
+assignment user ids are primary-database `users.id` without a foreign key,
+like `reseller_user_bindings.user_id`.
 
 ### RBAC resolution
 
@@ -1008,7 +1062,27 @@ trees for staff and subscriber users:
   as translated text. Staff see a reseller's cash ledger in the reseller
   page's Movimientos tab (`reseller_ledger.view`; deposits and adjustments
   need `reseller_ledger.manage`) and a reseller badge and `?reseller_id=`
-  filter on the payments list.
+  filter on the payments list. Mis bolsas (`/punto/bolsas`, reached from
+  Inicio's "Mis bolsas" card and from Mi caja, not a bottom tab; needs
+  `reseller_app.bags`) lists the bags from `/reseller-app/bags` and seals an
+  empty one with a declared amount (`BAG_AMOUNT_EXCEEDS_CASH` shown as
+  text); Cobrar's `CREDIT_LIMIT` refusal links there when `empty_bags > 0`.
+- The carrier app (`/ruta`, `frontend/src/pages/ruta/`) is for accounts in
+  the system `carrier` group (`carrier: true` from `/auth/me`, read by
+  `auth/carrier.ts`). `RutaRoute` guards it (a bound user goes to `/punto`,
+  anyone else to `/`); `PrivateRoute` and `PuntoRoute` send a carrier to
+  `/ruta`. `RutaLayout` calls only `/auth/*` and `/carrier-app/*`, which the
+  carrier fence allows, and never shows an amount. Screens: Inicio (assigned
+  resellers), Recoger (`/ruta/recoger`), Entregar (`/ruta/entregar`, both
+  `carrier_app.pickup`) and Mis bolsas (`/ruta/mis-bolsas`). Serials are
+  typed, or scanned with `components/SerialScanInput.tsx` when the browser
+  has `BarcodeDetector`. Staff manage bags and carriers on the Bolsas de
+  efectivo page (`/cash-bags`, `frontend/src/pages/cashBags/`;
+  `cash_bags.view`, its Transportistas tab `carriers.manage`), in the
+  reseller page's Bolsas tab, and set a reseller's address and coordinates
+  (for the carrier) in the reseller form; an edit sends a cleared address,
+  city or coordinate pair as null and `PUT /resellers/:id` clears it (an
+  absent field is kept).
 - `App.tsx` is the route source of truth.
 - TanStack Query owns server-state fetching/caching where adopted.
 - `frontend/src/api/client.ts` owns authenticated transport behavior.

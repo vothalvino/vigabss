@@ -3,8 +3,10 @@
 // =============================================================================
 // A top-level reseller's account with the ISP: every cash collection (+),
 // voided collection (−), cash handed in (deposit, −) and adjustment (±).
-// The summary is what it owes, its effective cash limit and what it may
-// still collect. With reseller_ledger.manage the page records a cash hand-in
+// The summary is what it owes (sealed cash bags not yet received included),
+// what those bags hold, the cash it still holds outside bags, its effective
+// cash limit and what it may still collect. A deposit or an adjustment that
+// came from receiving a cash bag names the bag. With reseller_ledger.manage the page records a cash hand-in
 // ("Registrar entrega de efectivo") or an adjustment (with a required note).
 // A hand-in is a ledger entry only, never a payment. Sub-resellers collect
 // on their top-level reseller's account, so only top-level ones are listed.
@@ -141,6 +143,10 @@ export function ResellerLedgerTab() {
             <section aria-label={t('resellerLedger.summary')} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '16px 0' }}>
               {[
                 { label: t('resellerLedger.balance'), value: fmt(s.balance) },
+                ...(s.in_bags !== undefined ? [
+                  { label: t('cashBags.ledger.inBags'), value: fmt(s.in_bags) },
+                  { label: t('cashBags.ledger.cashOnHand'), value: fmt(s.cash_on_hand) },
+                ] : []),
                 { label: t('resellerLedger.creditLimit'), value: fmt(s.credit_limit) },
                 { label: t('resellerLedger.available'), value: fmt(Math.max(0, toNumber(s.available_to_collect))) },
               ].map(card => (
@@ -182,7 +188,10 @@ export function ResellerLedgerTab() {
                     <td style={styles.td}>{formatDate(e.created_at, DATETIME)}</td>
                     <td style={styles.td}>{t(`resellerLedger.types.${e.entry_type}`, { defaultValue: e.entry_type })}</td>
                     <td style={styles.tdNum}>{toNumber(e.amount) > 0 ? `+${fmt(e.amount)}` : fmt(e.amount)}</td>
-                    <td style={styles.td}>{e.note || '—'}</td>
+                    <td style={styles.td}>
+                      {e.cash_bag_id ? <div style={{ fontWeight: 600 }}>{t('cashBags.ledger.bag', { serial: e.cash_bag_serial || `#${e.cash_bag_id}` })}</div> : null}
+                      {e.note || (e.cash_bag_id ? null : '—')}
+                    </td>
                     <td style={styles.td}>
                       {e.payment_id ? (canSeePayments ? <Link to={`/payments/${e.payment_id}`}>#{e.payment_id}</Link> : `#${e.payment_id}`) : '—'}
                     </td>
