@@ -42,6 +42,7 @@ const leadFeasibilityService = require('../services/leadFeasibilityService');
 const auditLog = require('../services/auditLog');
 const resellerLedgerService = require('../services/resellerLedgerService');
 const resellerCollectionService = require('../services/resellerCollectionService');
+const resellerCommissionService = require('../services/resellerCommissionService');
 const Organization = require('../models/Organization');
 const db = require('../config/database');
 
@@ -295,11 +296,17 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
     // The cash position of the collecting (top-level) reseller.
     const currency = await Organization.getCurrency(req.orgId);
     const collectorId = await resellerLedgerService.collectingResellerId(req);
-    const [summary, collectedToday, bags] = await Promise.all([
+    const [summary, collectedToday, bags, commissionMonth, topRows] = await Promise.all([
       resellerLedgerService.summaryFor(req.orgId, collectorId),
       resellerCollectionService.collectedToday(req.orgId, collectorId),
       resellerLedgerService.bagCounts(req.orgId, collectorId),
+      // Commissions are earned and booked on the top-level reseller (phase 4).
+      resellerCommissionService.commissionThisMonth(req.orgId, collectorId),
+      Number(collectorId) === Number(reseller.id)
+        ? Promise.resolve(null)
+        : db.query('SELECT commission_rate FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [collectorId, req.orgId]),
     ]);
+    const topRate = topRows ? topRows[0]?.[0]?.commission_rate : reseller.commission_rate;
 
     res.json({
       data: {
@@ -331,6 +338,11 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
           empty_bags: bags.at_reseller,
           bags_ready_for_pickup: bags.ready_for_pickup,
           bags_in_transit: bags.in_transit,
+          // Commission (phase 4): the rate of the top-level reseller, which
+          // applies to every client of its subtree, and what it earned this
+          // month and still keeps (reversed commissions excluded).
+          commission_rate: Number(topRate) || 0,
+          commission_month: commissionMonth,
         },
       },
     });

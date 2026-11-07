@@ -17,6 +17,13 @@ jest.mock('../src/config/database', () => ({
 
 jest.mock('../src/models/Invoice');
 jest.mock('../src/models/User');
+// The reseller commission sync (phase 4) has its own suite
+// (tests/resellerCommissions.test.js); these tests only see that it runs.
+jest.mock('../src/services/resellerCommissionService', () => ({
+  syncCommissionByInvoice: jest.fn().mockResolvedValue({ action: 'none' }),
+  syncResellerCommission: jest.fn().mockResolvedValue({ action: 'none' }),
+  syncResellerCommissionBestEffort: jest.fn().mockResolvedValue({ action: 'none' }),
+}));
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn() }));
 
 const request  = require('supertest');
@@ -181,16 +188,16 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
       // soft-delete old allocation
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       // insert new allocation
-      .mockResolvedValueOnce([{ insertId: 200 }]);
+      .mockResolvedValueOnce([{ insertId: 200 }])
+      // refreshInvoicePaidStatus (×2), now inside the transaction (phase 4)
+      .mockResolvedValueOnce([[{ total: '100.00', organization_id: 1, allocated: '0.00' }]])  // refresh from-invoice
+      .mockResolvedValueOnce([{ affectedRows: 0 }])                       // UPDATE issued: it was not paid
+      .mockResolvedValueOnce([[{ total: '100.00', organization_id: 1, allocated: '100.00' }]]) // refresh to-invoice
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);                      // UPDATE paid
 
     db.getConnection.mockResolvedValue(conn);
 
-    // db.query calls for refreshInvoicePaidStatus (×2) + SELECT new alloc
     db.query
-      .mockResolvedValueOnce([[{ total: '100.00', allocated: '0.00' }]])  // refresh from-invoice
-      .mockResolvedValueOnce([{ affectedRows: 0 }])                       // UPDATE issued
-      .mockResolvedValueOnce([[{ total: '100.00', allocated: '100.00' }]]) // refresh to-invoice
-      .mockResolvedValueOnce([{ affectedRows: 1 }])                       // UPDATE paid
       .mockResolvedValueOnce([[]])                                        // REP hook: no PPD CFDI on invoice 31
       .mockResolvedValueOnce([[{ id: 200, payment_id: 20, invoice_id: 31, amount: '100.00' }]]); // final select
 
@@ -202,6 +209,16 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.invoice_id).toBe(31);
     expect(conn.commit).toHaveBeenCalled();
+    // Only the invoice that changed (31, now paid) syncs its reseller
+    // commission, on the reallocation's transaction, before it commits.
+    const resellerCommissionService = require('../src/services/resellerCommissionService');
+    expect(resellerCommissionService.syncCommissionByInvoice).toHaveBeenCalledTimes(1);
+    const [syncExec, syncInvoice] = resellerCommissionService.syncCommissionByInvoice.mock.calls[0];
+    expect(syncInvoice).toBe(31);
+    await syncExec('SELECT 1', []);
+    expect(conn.execute).toHaveBeenLastCalledWith('SELECT 1', []);
+    const paidUpdate = conn.execute.mock.calls.findIndex(([q]) => /UPDATE invoices SET status = 'paid'/.test(q));
+    expect(paidUpdate).toBeGreaterThan(0);
   });
 
   test('returns 422 when payment has no allocation to from_invoice_id', async () => {
@@ -609,16 +626,16 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
         { id: 31, client_id: 5, status: 'issued' },
       ]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])      // soft-delete old alloc
-      .mockResolvedValueOnce([{ insertId: 201 }]);        // insert new alloc
-
-    db.getConnection.mockResolvedValue(conn);
-
-    // refreshInvoicePaidStatus (×2) + SELECT new alloc
-    db.query
+      .mockResolvedValueOnce([{ insertId: 201 }])         // insert new alloc
+      // refreshInvoicePaidStatus (×2), inside the transaction
       .mockResolvedValueOnce([[{ total: '100.00', allocated: '0.00' }]])
       .mockResolvedValueOnce([{ affectedRows: 0 }])
       .mockResolvedValueOnce([[{ total: '100.00', allocated: '100.00' }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    db.getConnection.mockResolvedValue(conn);
+
+    db.query
       .mockResolvedValueOnce([[]])                                        // REP hook: no PPD CFDI on invoice 31
       .mockResolvedValueOnce([[{ id: 201, payment_id: 20, invoice_id: 31, amount: '100.00' }]]);
 
@@ -647,14 +664,13 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
       .mockResolvedValueOnce([[{ id: 55, payment_id: 20, invoice_id: 10, amount: '200.00' }]])
       .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // soft-delete allocation
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // refreshInvoicePaidStatus, in the transaction (phase 4): SELECT (now
+      // under-allocated) + UPDATE to 'issued'
+      .mockResolvedValueOnce([[{ total: '200.00', organization_id: 1, allocated: '0.00' }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
     db.getConnection.mockResolvedValue(conn);
-
-    // refreshInvoicePaidStatus: SELECT (now under-allocated) + UPDATE to 'issued'
-    db.query
-      .mockResolvedValueOnce([[{ total: '200.00', allocated: '0.00' }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
     const res = await request(app)
       .post('/api/v1/payments/20/unapply')
@@ -675,8 +691,13 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
     expect(softDeleteCall).toBeDefined();
     expect(softDeleteCall[1]).toContain(55); // allocation id
 
-    // Confirm refreshInvoicePaidStatus was called (consumes 2 db.query calls)
-    expect(db.query).toHaveBeenCalled();
+    // refreshInvoicePaidStatus ran before the commit, on the transaction, and
+    // the un-paid invoice synced (reversed) its reseller commission there.
+    const statusUpdate = conn.execute.mock.calls.findIndex(([q]) => /UPDATE invoices SET status = 'issued'/.test(q));
+    expect(statusUpdate).toBeGreaterThan(0);
+    expect(conn.commit.mock.invocationCallOrder[0]).toBeGreaterThan(conn.execute.mock.invocationCallOrder[statusUpdate]);
+    const resellerCommissionService = require('../src/services/resellerCommissionService');
+    expect(resellerCommissionService.syncCommissionByInvoice).toHaveBeenCalledWith(expect.any(Function), 10, 1);
   });
 
   test('returns 422 ALLOCATION_NOT_FOUND when no live allocation exists', async () => {

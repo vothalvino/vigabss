@@ -14972,20 +14972,29 @@ CREATE TABLE IF NOT EXISTS reseller_plan_prices (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Per-reseller custom plan pricing overrides (§19.1)';
 
 -- ---------------------------------------------------------------------------
--- Table: reseller_commissions (migration 344 — §19.1)
+-- Table: reseller_commissions (migration 344 — §19.1; engine of migration 007)
+-- Purpose: One commission per (top-level reseller, invoice), written only by
+--          services/resellerCommissionService.js: earned (with a commission
+--          ledger line) when the invoice is paid, reversed (commission_reversal)
+--          when it stops being paid, restored when it is paid again.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reseller_commissions (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller (migration 007)',
     reseller_id     BIGINT UNSIGNED NOT NULL,
     invoice_id      BIGINT UNSIGNED NOT NULL,
     client_id       BIGINT UNSIGNED NOT NULL,
     commission_rate DECIMAL(5, 2)   NOT NULL,
+    base_amount     DECIMAL(12, 2)  NULL     DEFAULT NULL COMMENT 'Invoice subtotal, excluding taxes, the rate applies to; NULL on rows older than migration 007',
     invoice_total   DECIMAL(12, 2)  NOT NULL,
     commission_amount DECIMAL(12, 2) NOT NULL,
     currency        VARCHAR(3)      NOT NULL DEFAULT 'USD',
-    status          ENUM('pending', 'approved', 'paid', 'cancelled') NOT NULL DEFAULT 'pending',
+    status          ENUM('earned', 'reversed') NOT NULL DEFAULT 'earned'
+                      COMMENT 'earned while the invoice is paid, reversed while it is not (migration 007)',
     paid_at         DATETIME        NULL,
     notes           TEXT            NULL,
+    earned_at       TIMESTAMP       NULL     DEFAULT NULL COMMENT 'When the commission last became standing: the invoice was paid (migration 007)',
+    reversed_at     TIMESTAMP       NULL     DEFAULT NULL COMMENT 'Set while the invoice is no longer paid; cleared when it is paid again (migration 007)',
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -14994,12 +15003,15 @@ CREATE TABLE IF NOT EXISTS reseller_commissions (
     KEY idx_reseller_commissions_invoice_id (invoice_id),
     KEY idx_reseller_commissions_client_id (client_id),
     KEY idx_reseller_commissions_status (status),
+    KEY idx_reseller_commissions_org_reseller_earned (organization_id, reseller_id, earned_at),
     CONSTRAINT fk_rc_reseller FOREIGN KEY (reseller_id)
         REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_rc_invoice FOREIGN KEY (invoice_id)
         REFERENCES invoices (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_rc_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_rc_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Commission earnings per reseller per invoice (§19.1)';
 
 -- ---------------------------------------------------------------------------
@@ -15266,22 +15278,26 @@ CREATE TABLE IF NOT EXISTS carrier_reseller_assignments (
 -- Purpose: Append-only cash ledger of a collecting (top-level) reseller. The
 --          sum of amount is what it owes the ISP: a collection adds, its void,
 --          a deposit and a sealed cash bag (bag_sealed, migration 006)
---          subtract, an adjustment does either. Never updated or deleted; a
---          correction is a new entry.
+--          subtract, an adjustment does either; a commission it keeps from
+--          the cash subtracts, its reversal and a payout of what the ISP owed
+--          it add (migration 007). Never updated or deleted; a correction is
+--          a new entry.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller',
     reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Collecting (top-level) reseller',
-    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed') NOT NULL
-                      COMMENT 'collection +, collection_void -, deposit -, adjustment +/-, bag_sealed - (migration 006)',
+    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout') NOT NULL
+                      COMMENT 'collection +, collection_void -, deposit -, adjustment +/-, bag_sealed - (006), commission -, commission_reversal +, payout + (007)',
     amount          DECIMAL(12, 2)  NOT NULL COMMENT 'Signed: positive increases what the reseller owes the ISP',
     currency        CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
     payment_id      BIGINT UNSIGNED NULL     COMMENT 'The collected payment (collection, collection_void)',
     cash_session_id BIGINT UNSIGNED NULL     COMMENT 'The collecting user''s cash session (collection, collection_void)',
     cash_bag_id     BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'The received cash bag behind a deposit or an adjustment (migration 005)',
+    invoice_id      BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'The invoice behind a commission or commission_reversal (migration 007)',
+    commission_id   BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'The reseller_commissions row a commission or commission_reversal books (migration 007)',
     note            VARCHAR(500)    NULL,
-    created_by      BIGINT UNSIGNED NOT NULL COMMENT 'User who recorded the entry',
+    created_by      BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'User who recorded the entry; NULL = posted by the system (commission lines, migration 007)',
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_reseller_ledger_reseller_created (reseller_id, created_at),
@@ -15290,6 +15306,8 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     KEY idx_reseller_ledger_cash_session (cash_session_id),
     KEY idx_reseller_ledger_cash_bag (cash_bag_id),
     KEY idx_reseller_ledger_created_by (created_by),
+    KEY idx_reseller_ledger_invoice (invoice_id),
+    KEY idx_reseller_ledger_commission (commission_id),
     CONSTRAINT fk_reseller_ledger_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_reseller_ledger_reseller FOREIGN KEY (reseller_id)
@@ -15301,7 +15319,11 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     CONSTRAINT fk_reseller_ledger_cash_bag FOREIGN KEY (cash_bag_id)
         REFERENCES cash_bags (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_reseller_ledger_created_by FOREIGN KEY (created_by)
-        REFERENCES users (id) ON DELETE RESTRICT ON UPDATE CASCADE
+        REFERENCES users (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_invoice FOREIGN KEY (invoice_id)
+        REFERENCES invoices (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_commission FOREIGN KEY (commission_id)
+        REFERENCES reseller_commissions (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Append-only cash ledger of a collecting reseller; the sum is what it owes the ISP (migration 004)';
 

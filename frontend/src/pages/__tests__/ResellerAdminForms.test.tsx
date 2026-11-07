@@ -7,10 +7,13 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import i18n from '@/i18n';
 import ResellerPage from '../ResellerPage';
 import { ResellerFormModal } from '../resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from '../resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from '../resellers/ResellerLedgerTab';
+import { ResellerCommissionsTab } from '../resellers/ResellerCommissionsTab';
+import { ApiRequestError } from '@/api/apiFetch';
 import { ResellerUserBindingsTab } from '../ResellerUserBindingsTab';
 
 const mocks = vi.hoisted(() => ({
@@ -120,6 +123,7 @@ describe('ResellerFormModal', () => {
 
 describe('ResellerPage', () => {
   it('shows only the phase-1 tabs and opens the new-reseller form', async () => {
+    mocks.permissions = [...mocks.permissions, 'reseller_commissions.view'];
     mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
     wrap(<ResellerPage />);
     const tabs = screen.getAllByRole('button').map(b => b.textContent);
@@ -512,6 +516,85 @@ describe('ResellerLedgerTab', () => {
     expect(screen.queryByRole('link', { name: "See this reseller's payments" })).not.toBeInTheDocument();
   });
 
+  it('shows commission lines with their invoice, a negative balance as owed to the reseller, and records a payout', async () => {
+    const ledger = {
+      data: [
+        { id: 5, entry_type: 'payout', amount: '20.00', note: 'Transferencia', created_at: '2026-11-07T19:00:00Z', payment_id: null, invoice_id: null, invoice_number: null, commission_id: null },
+        { id: 4, entry_type: 'commission_reversal', amount: '38.79', note: null, created_at: '2026-11-07T18:00:00Z', payment_id: null, invoice_id: 811, invoice_number: 'F-0811', commission_id: 1 },
+        { id: 3, entry_type: 'commission', amount: '-38.79', note: null, created_at: '2026-11-07T17:00:00Z', payment_id: null, invoice_id: 811, invoice_number: 'F-0811', commission_id: 1 },
+      ],
+      summary: { balance: '-120.50', cash_on_hand: '-120.50', credit_limit: '2000.00', available_to_collect: '2120.50' },
+      meta: { total: 3, page: 1, limit: 25 },
+    };
+    mocks.permissions = [...mocks.permissions, 'invoices.view'];
+    mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path.startsWith('/resellers/4/ledger?') && !init?.method) return ledger;
+      if (path === '/resellers/4/ledger' && init?.method === 'POST') return { data: { id: 6 } };
+      throw new Error(`unexpected ${path}`);
+    });
+    wrapRouter(<ResellerLedgerTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    const summary = await screen.findByRole('region', { name: 'Summary' });
+    expect(within(summary).getByText('Company owes the reseller').parentElement).toHaveTextContent('$120.50');
+    expect(within(summary).queryByText('Cash to hand in')).not.toBeInTheDocument();
+
+    const kept = screen.getByText('Commission kept').closest('tr')!;
+    expect(kept).toHaveTextContent('-$38.79');
+    expect(within(kept).getByRole('link', { name: 'Invoice F-0811' })).toHaveAttribute('href', '/invoices/811');
+    const reversed = screen.getByText('Commission reversed').closest('tr')!;
+    expect(reversed).toHaveTextContent('+$38.79');
+    const payoutRow = screen.getByText('Transferencia').closest('tr')!;
+    expect(payoutRow).toHaveTextContent('Payout');
+
+    const payout = screen.getByRole('form', { name: 'Record a payout' });
+    expect(payout).toHaveTextContent('The company owes this reseller $120.50.');
+    await user.type(within(payout).getByLabelText('Amount paid'), '200');
+    await user.click(within(payout).getByRole('button', { name: 'Record payout' }));
+    expect(within(payout).getByRole('alert')).toHaveTextContent('cannot be more than what the company owes');
+    expect(callsTo('POST', '/resellers/4/ledger')).toHaveLength(0);
+    await user.clear(within(payout).getByLabelText('Amount paid'));
+    await user.type(within(payout).getByLabelText('Amount paid'), '120.50');
+    await user.type(within(payout).getByLabelText('Note (optional)'), 'SPEI 123');
+    await user.click(within(payout).getByRole('button', { name: 'Record payout' }));
+    expect(await screen.findByText('Payout of $120.50 recorded.')).toBeInTheDocument();
+    expect(bodyOf('POST', '/resellers/4/ledger')).toEqual({ entry_type: 'payout', amount: 120.5, note: 'SPEI 123' });
+  });
+
+  it('names an invoice without a link without invoices.view, and translates a refused payout', async () => {
+    const ledger = {
+      data: [{ id: 3, entry_type: 'commission', amount: '-38.79', note: null, created_at: '2026-11-07T17:00:00Z', payment_id: null, invoice_id: 811, invoice_number: 'F-0811', commission_id: 1 }],
+      summary: { balance: '-38.79', cash_on_hand: '-38.79', credit_limit: '2000.00', available_to_collect: '2038.79' },
+      meta: { total: 1, page: 1, limit: 25 },
+    };
+    mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path.startsWith('/resellers/4/ledger?') && !init?.method) return ledger;
+      if (path === '/resellers/4/ledger' && init?.method === 'POST') {
+        throw new ApiRequestError('The ISP owes the reseller 0.00', 422, { error: { code: 'PAYOUT_EXCEEDS_OWED', message: 'The ISP owes the reseller 0.00' } });
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+    await i18n.changeLanguage('es');
+    try {
+      wrapRouter(<ResellerLedgerTab />);
+      const user = userEvent.setup();
+      await screen.findByRole('option', { name: 'Punto Norte' });
+      await user.selectOptions(screen.getByLabelText('Revendedor'), '4');
+      const row = (await screen.findByText('Comisión')).closest('tr')!;
+      expect(within(row).getByText('Factura F-0811')).toBeInTheDocument();
+      expect(within(row).queryByRole('link', { name: 'Factura F-0811' })).not.toBeInTheDocument();
+      const payout = screen.getByRole('form', { name: 'Registrar pago al revendedor' });
+      await user.type(within(payout).getByLabelText('Monto pagado'), '38.79');
+      await user.click(within(payout).getByRole('button', { name: 'Registrar pago' }));
+      expect(await within(payout).findByRole('alert')).toHaveTextContent('Un pago no puede ser mayor a lo que la empresa le debe al revendedor.');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('is a ResellerPage tab only with reseller_ledger.view', () => {
     mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
     const { unmount } = wrap(<ResellerPage />);
@@ -520,5 +603,80 @@ describe('ResellerLedgerTab', () => {
     mocks.permissions = ['resellers.view'];
     wrap(<ResellerPage />);
     expect(screen.queryByRole('button', { name: 'Movements' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ResellerCommissionsTab', () => {
+  const PAGE = {
+    data: [
+      {
+        id: 2, reseller_id: 4, invoice_id: 812, invoice_number: 'F-0812', client_id: 32, client_name: 'Beto Ruiz',
+        commission_rate: 10, base_amount: 300, invoice_total: 348, commission_amount: 30, currency: 'MXN',
+        status: 'reversed', earned_at: '2026-11-05T17:00:00Z', reversed_at: '2026-11-06T17:00:00Z', created_at: '2026-11-05T17:00:00Z',
+      },
+      {
+        id: 1, reseller_id: 4, invoice_id: 811, invoice_number: 'F-0811', client_id: 31, client_name: 'Ana López',
+        commission_rate: 10, base_amount: 387.93, invoice_total: 450, commission_amount: 38.79, currency: 'MXN',
+        status: 'earned', earned_at: '2026-11-07T17:00:00Z', reversed_at: null, created_at: '2026-11-07T17:00:00Z',
+      },
+    ],
+    summary: { earned: 38.79, reversed: 30, earned_this_month: 38.79 },
+    meta: { total: 2, page: 1, limit: 25 },
+  };
+  const wrapRouter = (ui: ReactNode) => wrap(<MemoryRouter>{ui}</MemoryRouter>);
+
+  beforeEach(() => {
+    mocks.permissions = ['resellers.view', 'reseller_commissions.view', 'invoices.view'];
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [{ id: 4, name: 'Punto Norte' }] };
+      if (path.startsWith('/resellers/4/commissions?')) return PAGE;
+      throw new Error(`unexpected ${path}`);
+    });
+  });
+
+  it('lists a top-level reseller\'s commissions with base, rate, amount and status', async () => {
+    wrapRouter(<ResellerCommissionsTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    const summary = await screen.findByRole('region', { name: 'Summary' });
+    expect(within(summary).getByText('Earned this month').parentElement).toHaveTextContent('$38.79');
+    expect(within(summary).getByText('Reversed').parentElement).toHaveTextContent('$30.00');
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers/4/commissions?page=1&limit=25');
+
+    const earned = screen.getByText('Ana López').closest('tr')!;
+    expect(within(earned).getByRole('link', { name: 'F-0811' })).toHaveAttribute('href', '/invoices/811');
+    expect(earned).toHaveTextContent('$387.93');
+    expect(earned).toHaveTextContent('10%');
+    expect(earned).toHaveTextContent('$38.79');
+    expect(earned).toHaveTextContent('Earned');
+    const reversed = screen.getByText('Beto Ruiz').closest('tr')!;
+    expect(reversed).toHaveTextContent('Reversed');
+    expect(reversed).toHaveTextContent(/Reversed 6 nov 2026/i);
+    // Nothing is approved or paid by hand any more.
+    expect(screen.queryByRole('button', { name: /approve/i })).not.toBeInTheDocument();
+  });
+
+  it('filters by status and names the invoice without a link without invoices.view', async () => {
+    mocks.permissions = ['resellers.view', 'reseller_commissions.view'];
+    wrapRouter(<ResellerCommissionsTab />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    await screen.findByText('Ana López');
+    expect(screen.queryByRole('link', { name: 'F-0811' })).not.toBeInTheDocument();
+    expect(screen.getByText('F-0811')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Status'), 'reversed');
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers/4/commissions?status=reversed&page=1&limit=25'));
+  });
+
+  it('is a ResellerPage tab only with reseller_commissions.view', () => {
+    mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
+    const { unmount } = wrap(<ResellerPage />);
+    expect(screen.getByRole('button', { name: 'Commissions' })).toBeInTheDocument();
+    unmount();
+    mocks.permissions = ['resellers.view'];
+    wrap(<ResellerPage />);
+    expect(screen.queryByRole('button', { name: 'Commissions' })).not.toBeInTheDocument();
   });
 });

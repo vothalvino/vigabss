@@ -21,9 +21,9 @@ const rollback = sqlOnly(read('rollbacks'));
 const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
 
 describe('migration 006', () => {
-  test('is the latest migration, with a rollback of the same name', () => {
-    const files = fs.readdirSync(path.join(__dirname, '..', 'database', 'migrations')).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe(FILE);
+  test('has a rollback of the same name', () => {
+    // No longer the latest: migration 007 (commissions) follows it.
+    expect(fs.existsSync(path.join(__dirname, '..', 'database', 'migrations', FILE))).toBe(true);
     expect(fs.existsSync(path.join(__dirname, '..', 'database', 'rollbacks', FILE))).toBe(true);
   });
 
@@ -32,9 +32,9 @@ describe('migration 006', () => {
     expect(migration).toMatch(/DROP PROCEDURE IF EXISTS m006_bag_sealed_entry_type; DELIMITER \$\$ CREATE PROCEDURE m006_bag_sealed_entry_type\(\)/);
   });
 
-  test('schema.sql has the same ENUM', () => {
+  test('schema.sql keeps the value (migration 007 adds the commission types after it)', () => {
     const table = schema.slice(schema.indexOf('CREATE TABLE IF NOT EXISTS reseller_ledger_entries'));
-    expect(table.slice(0, table.indexOf(';'))).toMatch(/entry_type\s+ENUM\('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'\) NOT NULL/);
+    expect(table.slice(0, table.indexOf(';'))).toMatch(/entry_type\s+ENUM\('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', /);
   });
 
   describe('the backfill', () => {
@@ -105,6 +105,8 @@ describe('the money figures (resellerLedgerService.summarize)', () => {
 
   test('bag_sealed is a ledger type staff cannot post by hand', () => {
     expect(ledger.ENTRY_TYPES).toContain('bag_sealed');
-    expect(ledger.MANUAL_ENTRY_TYPES).toEqual(['deposit', 'adjustment']);
+    expect(ledger.MANUAL_ENTRY_TYPES).not.toContain('bag_sealed');
+    // Phase 4 (migration 007) adds the payout to what staff may post.
+    expect(ledger.MANUAL_ENTRY_TYPES).toEqual(['deposit', 'adjustment', 'payout']);
   });
 });

@@ -15,7 +15,10 @@
 //   • the last closed sessions and the movements of the reseller's account
 //     (GET /reseller-app/ledger) with its balance, what its sealed cash bags
 //     hold, its cash on hand and cash limit; a bag's receipt (deposit) and
-//     count difference (adjustment) name the bag;
+//     count difference (adjustment) name the bag, and a commission it kept
+//     (or its reversal, when the invoice stopped being paid) names the
+//     invoice. A negative balance is what the ISP owes it ("Te debemos"),
+//     which the ISP pays it with a payout line;
 //   • a link to Mis bolsas (/punto/bolsas) with reseller_app.bags.
 // The cash-box card is titled "Tu caja" and says whether one is open.
 // =============================================================================
@@ -54,6 +57,7 @@ const VOID_REFUSALS: Record<string, string> = {
   NOT_YOUR_COLLECTION: 'punto.cash.voidNotYours',
   PAYMENT_HAS_REP: 'punto.cash.voidHasRep',
   CASH_SEALED_IN_BAG: 'punto.cash.voidSealedInBag',
+  LOCK_CONTENTION: 'punto.cash.voidChanged',
 };
 
 function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
@@ -219,7 +223,7 @@ function CollectionRow({ c, currency, voidable }: { c: PuntoCollection; currency
 
 const LEDGER_TONE: Record<string, string> = {
   collection: 'var(--text-primary)', collection_void: 'var(--text-secondary)', deposit: 'var(--success)', adjustment: 'var(--warning)',
-  bag_sealed: 'var(--success)',
+  bag_sealed: 'var(--success)', commission: 'var(--success)', commission_reversal: 'var(--warning)', payout: 'var(--text-primary)',
 };
 
 function Ledger({ currency }: { currency: string }) {
@@ -229,6 +233,7 @@ function Ledger({ currency }: { currency: string }) {
   const fmt = (v: number | string) => formatMoney(v, currency);
   const total = q.data?.meta?.total ?? 0;
   const s = q.data?.summary;
+  const balance = s ? toNumber(s.balance) : 0;
 
   return (
     <section className="punto-card" aria-labelledby="punto-ledger-title">
@@ -238,7 +243,9 @@ function Ledger({ currency }: { currency: string }) {
       {q.isError && <ErrorState message={t('punto.ledger.loadError')} onRetry={() => { void q.refetch(); }} />}
       {s && (
         <dl style={{ margin: '0 0 10px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
-          <dt>{t('punto.money.owe')}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{fmt(s.balance)}</dd>
+          {balance < 0
+            ? <><dt>{t('punto.money.owedToYou')}</dt><dd style={{ margin: 0, fontWeight: 700, color: 'var(--success)' }}>{fmt(-balance)}</dd></>
+            : <><dt>{t('punto.money.owe')}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{fmt(s.balance)}</dd></>}
           {s.in_bags !== undefined && <><dt>{t('puntoBags.money.inBags')}</dt><dd style={{ margin: 0 }}>{fmt(s.in_bags)}</dd></>}
           <dt>{t('punto.ledger.limit')}</dt><dd style={{ margin: 0 }}>{fmt(s.credit_limit)}</dd>
           <dt>{t('punto.money.canCollect')}</dt><dd style={{ margin: 0 }}>{fmt(Math.max(0, toNumber(s.available_to_collect)))}</dd>
@@ -255,6 +262,7 @@ function Ledger({ currency }: { currency: string }) {
                   <div style={{ fontWeight: 600 }}>{t(`punto.ledger.types.${e.entry_type}`, { defaultValue: e.entry_type })}</div>
                   <div style={mutedText}>{formatDateTime(e.created_at)}</div>
                   {e.cash_bag_serial ? <div style={mutedText}>{t('puntoBags.ledgerBag', { serial: e.cash_bag_serial })}</div> : null}
+                  {e.invoice_number ? <div style={mutedText}>{t('punto.ledger.invoice', { number: e.invoice_number })}</div> : null}
                   {e.note && <div style={{ ...mutedText, overflowWrap: 'anywhere' }}>{e.note}</div>}
                 </div>
                 <strong style={{ color: LEDGER_TONE[e.entry_type] ?? 'var(--text-primary)', whiteSpace: 'nowrap' }}>

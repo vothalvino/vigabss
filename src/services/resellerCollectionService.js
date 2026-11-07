@@ -6,8 +6,11 @@
 // CFDI issuer, so a collection is an ordinary completed cash payment of the
 // client, posted exactly like a staff or gateway payment:
 //
-//   one transaction, reseller row locked first (resellerLedgerService), then
-//   the client's invoices (DAL-04: before any plain read fixes the snapshot):
+//   one transaction, the client's invoices locked first, then the collecting
+//   reseller FOR UPDATE and the reseller that earns the client's commission
+//   in share mode, in ascending id order (phase 4 lock order, see
+//   resellerCommissionService.js), all before any plain read fixes the
+//   snapshot (DAL-04):
 //     credit check  cash_on_hand + amount <= effective credit limit, else 409
 //                   (cash_on_hand = the balance; a sealed bag's cash left it)
 //     cash session  the collecting user's open session, opened if none
@@ -19,6 +22,9 @@
 //     allocation    getInvoicesWithBalance and allocateAcrossInvoices, the
 //                   waterfall of POST /payments/:id/allocate-auto
 //     reseller      reseller_ledger_entries 'collection' +amount
+//     commission    an invoice it paid off syncs the reseller commission of
+//                   the client's owner (finalizeIfFullyPaid), which may be
+//                   another reseller than the collecting one
 //   after commit, best effort (logged, never failing the response):
 //     businessEvents.emitPaymentReceived,
 //     paymentAllocationService.reconnectIfSuspended per invoice it paid off,
@@ -52,6 +58,7 @@ const billingService = require('./billingService');
 const repService = require('./repService');
 const auditLog = require('./auditLog');
 const ledger = require('./resellerLedgerService');
+const commissions = require('./resellerCommissionService');
 const thermal = require('./thermalReceiptService');
 const Organization = require('../models/Organization');
 
@@ -324,6 +331,10 @@ async function collect(req, body, idempotencyKey = null) {
   }
   const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
   const currency = await Organization.getCurrency(orgId);
+  // The reseller that earns this client's commissions, read before the
+  // transaction (a plain read inside it would fix its snapshot before the
+  // locks): its row is locked below, in id order with the collector's.
+  const ownerId = await commissions.commissionResellerForClient(db.query.bind(db), orgId, token.clientId);
 
   const conn = await db.getConnection();
   const exec = conn.execute.bind(conn);
@@ -331,13 +342,27 @@ async function collect(req, body, idempotencyKey = null) {
   try {
     await conn.beginTransaction();
 
-    // 1. The collecting reseller, locked: collections and deposits of one
-    // reseller serialize here, so the credit check below cannot race.
-    const reseller = await ledger.lockReseller(exec, orgId, collectorId);
+    // 1. The client's invoices, locked before anything else of this
+    // transaction (DAL-04): under REPEATABLE READ the first plain read fixes
+    // the snapshot, and the balance_due subquery and the over-allocation
+    // trigger sum payment_allocations from it, so a snapshot taken before
+    // another allocator (another reseller, staff, a gateway) committed would
+    // let this collection over-allocate an invoice. Lock order: invoices ->
+    // resellers (phase 4): another allocator that holds these invoices and
+    // syncs a commission waits for a reseller row in share mode, and must not
+    // find us holding that row while we wait for its invoices.
+    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, { clientIds: [token.clientId] });
+
+    // 2. The collecting reseller FOR UPDATE (collections, deposits and bags of
+    // one reseller serialize here, so the credit check below cannot race), and
+    // the commission owner in share mode, in ascending id order.
+    const reseller = await ledger.lockResellers(exec, orgId, {
+      exclusiveId: collectorId, sharedIds: ownerId ? [ownerId] : [],
+    });
     if (!reseller) throw new NotFoundError('Reseller');
 
-    // 2. A retry of a collection already made answers what it answered (a
-    // concurrent retry waits on the reseller lock and finds it here).
+    // 3. A retry of a collection already made answers what it answered (a
+    // concurrent retry waits on the same locks and finds it here).
     if (storedKey) {
       const replay = await storedAnswer(exec, orgId, storedKey, true);
       if (replay) {
@@ -353,14 +378,6 @@ async function collect(req, body, idempotencyKey = null) {
     if (reseller.status !== 'active') {
       throw new ForbiddenError('Your reseller account is not active; contact the ISP');
     }
-
-    // 3. The client's invoices, locked before the first plain read of this
-    // transaction (DAL-04). Under REPEATABLE READ that read fixes the snapshot,
-    // and the balance_due subquery and the over-allocation trigger sum
-    // payment_allocations from it: a snapshot taken before another allocator
-    // (another reseller, staff, a gateway) committed would let this
-    // collection over-allocate an invoice. Lock order: reseller -> invoices.
-    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, { clientIds: [token.clientId] });
 
     // 4. The bound reseller (when it is a sub-reseller) must be active too.
     if (boundId !== collectorId) {
@@ -519,15 +536,40 @@ async function voidCollection(req, paymentId, reason) {
   const collectorId = await ledger.collectingResellerId(req);
   const id = Number(paymentId);
   if (!Number.isInteger(id) || id < 1) throw new NotFoundError('Payment');
+  // Read before the transaction (see collect), locked below in order: the
+  // reseller that earns the commission the void may reverse, and the invoices
+  // the payment is allocated to (normally its client's; a reassigned
+  // payment's too). A locking read of payment_allocations inside the
+  // transaction would take a next-key lock on its payment_id index, up to the
+  // supremum for a recent payment, and block every allocator's insert while
+  // this void waits for that allocator's invoices.
+  const [clientRows] = await db.query(
+    `/* includes deleted rows: only names the client; the transaction re-checks the payment */
+     SELECT client_id FROM payments WHERE id = ? AND organization_id = ? AND reseller_id = ?`,
+    [id, orgId, collectorId],
+  );
+  const ownerId = clientRows && clientRows[0]
+    ? await commissions.commissionResellerForClient(db.query.bind(db), orgId, clientRows[0].client_id)
+    : null;
+  const allocatedInvoiceIds = async (exec) => {
+    const [rows] = await exec(
+      `/* includes deleted rows: a voided (deleted) payment has no live allocation; the transaction answers 409 */
+       SELECT DISTINCT pa.invoice_id FROM payment_allocations pa
+         JOIN payments p ON p.id = pa.payment_id AND p.organization_id = ? AND p.reseller_id = ?
+        WHERE pa.payment_id = ? AND pa.deleted_at IS NULL`,
+      [orgId, collectorId, id],
+    );
+    return [...new Set((rows || []).map((r) => Number(r.invoice_id)).filter(Boolean))];
+  };
+  const preInvoiceIds = await allocatedInvoiceIds(db.query.bind(db));
 
   const conn = await db.getConnection();
   const exec = conn.execute.bind(conn);
   let voided;
   try {
     await conn.beginTransaction();
-    const reseller = await ledger.lockReseller(exec, orgId, collectorId);
-    if (!reseller) throw new NotFoundError('Reseller');
-
+    // Lock order (phase 4): payment -> invoices -> resellers, every lock
+    // before the first plain read of the transaction.
     const [payRows] = await exec(
       `/* includes deleted rows: a voided collection answers 409, not 404 */
        SELECT id, client_id, amount, currency, status, created_at, deleted_at, recorded_by
@@ -538,9 +580,24 @@ async function voidCollection(req, paymentId, reason) {
     );
     const payment = payRows && payRows[0];
     if (!payment) throw new NotFoundError('Payment');
-    // Its client's invoices, before the first plain read (DAL-04): the
-    // reversal below recomputes their status from the allocations it sees.
-    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, { clientIds: [payment.client_id] });
+    // Its client's invoices and those it is allocated to, before the first
+    // plain read (DAL-04): the reversal below recomputes their status from
+    // the allocations it sees.
+    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, {
+      clientIds: [payment.client_id], invoiceIds: preInvoiceIds,
+    });
+    const reseller = await ledger.lockResellers(exec, orgId, {
+      exclusiveId: collectorId, sharedIds: ownerId ? [ownerId] : [],
+    });
+    if (!reseller) throw new NotFoundError('Reseller');
+    // The first plain read. With the payment locked no allocator can change
+    // its allocations now; if one moved them between the read above and the
+    // lock (a staff reallocation), the invoices locked are not the ones to
+    // recompute, and the void is refused for a retry.
+    const invoiceIds = await allocatedInvoiceIds(exec);
+    if (invoiceIds.some((invoiceId) => !preInvoiceIds.includes(invoiceId))) {
+      throw conflict('This collection changed while it was being voided; try again.', 'LOCK_CONTENTION');
+    }
     if (payment.deleted_at || payment.status !== 'completed') {
       throw conflict('This collection is already voided.', 'ALREADY_VOIDED');
     }
@@ -590,22 +647,17 @@ async function voidCollection(req, paymentId, reason) {
     }
 
     // The cash goes back to the customer from the drawer: it must still be on
-    // hand, not sealed in a cash bag (phase 3), or the reseller's cash on hand
-    // would go below zero and free more than its limit.
-    const position = await ledger.summaryFor(orgId, collectorId, { exec, reseller });
-    if (money.toCents(entry.amount) > money.toCents(position.cash_on_hand)) {
+    // hand, not sealed in a cash bag (phase 3). Checked against the cash the
+    // reseller holds, not the balance: the commissions it kept (phase 4) lower
+    // what it owes, not the cash in its drawer.
+    const held = await ledger.cashHeld(orgId, collectorId, exec);
+    if (money.toCents(entry.amount) > money.toCents(held)) {
       throw conflict('The cash of this collection is already sealed in a cash bag; ask the ISP to correct it.', 'CASH_SEALED_IN_BAG');
     }
 
     // The staff deletion's reversal (routes/payments.js beforeDelete), with
-    // the invoices locked first.
-    const [allocRows] = await exec(
-      'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
-      [id],
-    );
-    const invoiceIds = (allocRows || []).map((r) => Number(r.invoice_id)).filter(Boolean);
-    // Normally all on the client locked above; a reassigned payment's too.
-    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, { invoiceIds });
+    // the invoices locked above; an invoice it un-pays reverses its reseller
+    // commission (refreshInvoicePaidStatus).
     await billingService.reversePaymentCredit(id, exec);
     await billingService.reversePaymentAllocations(id, exec);
 

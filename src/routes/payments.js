@@ -619,15 +619,16 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       throw allocErr; // unexpected/infra error — outer catch rolls back + 500s
     }
 
+    // Re-derive the paid status of both invoices (both locked above) and sync
+    // their reseller commissions, in this transaction: from_invoice may stop
+    // being paid and to_invoice become paid (phase 4).
+    await billingService.refreshAllThenSync(conn.execute.bind(conn), [from_invoice_id, to_invoice_id]);
+
     await conn.commit();
     // Committed — release the pool slot before the slow post-commit work
-    // (status refreshes + REP/PAC I/O must not hold a connection).
+    // (REP/PAC I/O must not hold a connection).
     conn.release();
     connReleased = true;
-
-    // Re-derive paid status for both invoices (outside the transaction — reads committed state)
-    await billingService.refreshInvoicePaidStatus(from_invoice_id);
-    await billingService.refreshInvoicePaidStatus(to_invoice_id);
 
     // REP for the NEW allocation. A REP on the moved-from invoice refused the
     // move above, so none is left standing for this money.
@@ -749,7 +750,7 @@ router.post('/:id/reassign', requirePermission('payments.update'), async (req, r
 // unallocated credit on the same client. The payment's ledger 'payment'
 // credit is NOT touched — only the invoice link is removed.
 // billingService.refreshInvoicePaidStatus reverts the invoice paid→issued
-// if no other allocations still cover it.
+// if no other allocations still cover it, in the same transaction.
 router.post('/:id/unapply', requirePermission('payments.update'), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
@@ -794,11 +795,12 @@ router.post('/:id/unapply', requirePermission('payments.update'), async (req, re
       [allocRows[0].id],
     );
 
-    await conn.commit();
+    // Re-derive the invoice's paid status in this transaction: it reverts
+    // paid -> issued if no longer fully covered, and that reverses its
+    // reseller commission (phase 4).
+    await billingService.refreshInvoicePaidStatus(invoice_id, conn.execute.bind(conn));
 
-    // Re-derive paid status for the invoice (outside the transaction — reads committed state).
-    // This reverts the invoice paid→issued if no longer fully covered.
-    await billingService.refreshInvoicePaidStatus(invoice_id);
+    await conn.commit();
 
     res.json({ data: { payment_id: paymentId, invoice_id: Number(invoice_id), unapplied: true } });
   } catch (err) {

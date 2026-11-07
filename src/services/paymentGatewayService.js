@@ -10,7 +10,6 @@ const crypto = require('crypto');
 const { businessToday } = require('../utils/businessDate');
 const { notePaymentWebhook, noteReconcileFailure } = require('../utils/opsMetrics');
 const db = require('../config/database');
-const { creditAppliedSql } = require('../utils/invoiceBalance');
 const { URLSearchParams } = require('url');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const { decrypt, isConfigured: isEncryptionConfigured } = require('../utils/encryption');
@@ -1521,28 +1520,6 @@ async function reconcilePayment(transactionId) {
 }
 
 /**
- * Re-derive an invoice's paid status from its live allocations on the open
- * transaction (same rule as billingService.refreshInvoicePaidStatus).
- */
-async function refreshInvoicePaidStatusOn(exec, invoiceId) {
-  const [rows] = await exec(
-    `SELECT i.total,
-            COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
-              + ${creditAppliedSql('i')} AS allocated
-       FROM invoices i WHERE i.id = ?`,
-    [invoiceId],
-  );
-  const inv = rows[0];
-  if (!inv) return;
-  if (parseFloat(inv.allocated) >= parseFloat(inv.total)) {
-    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
-  } else {
-    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
-  }
-}
-
-/**
  * Reverse the bookkeeping of a REFUNDED gateway payment.
  *
  * Reconciled through a payment (payment_id set): mark that payment refunded,
@@ -1580,9 +1557,10 @@ async function reverseRefund(transactionId) {
     );
     if (allocs.length > 0) {
       await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [payment.id]);
-      for (const { invoice_id: invoiceId } of allocs) {
-        await refreshInvoicePaidStatusOn(exec, invoiceId);
-      }
+      // Each invoice re-opened (the shared recompute, paid only from a payable
+      // status), then the reseller commission of each one that changed is
+      // reversed, all in this transaction (phase 4).
+      await require('./billingService').refreshAllThenSync(exec, allocs.map((a) => a.invoice_id));
     }
     // A soft-deleted payment already had its ledger credit removed by the
     // payments DELETE hook; only offset a credit that still stands.

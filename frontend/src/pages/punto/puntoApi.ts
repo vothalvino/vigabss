@@ -36,7 +36,8 @@ export interface PuntoMe {
  * against `credit_limit` (its own or the organization default). `in_bags` is
  * what its sealed bags (ready for pickup or on their way) hold, no longer
  * owed by the reseller; it is shown for information.
- * `empty_bags` is how many empty bags it has to fill.
+ * `empty_bags` is how many empty bags it has to fill. A negative `balance`
+ * is what the ISP owes the reseller: its commissions passed the cash it holds.
  */
 export interface PuntoMoney {
   currency: string;
@@ -49,6 +50,14 @@ export interface PuntoMoney {
   empty_bags?: number;
   bags_ready_for_pickup?: number;
   bags_in_transit?: number;
+  /**
+   * Phase 4: the commission rate (%) of the top-level reseller, which applies
+   * to every client of its subtree, and the commission it earned this
+   * business month and still keeps (reversed ones left out). The reseller
+   * keeps its commission from the cash, so it is already taken off `balance`.
+   */
+  commission_rate?: number | string;
+  commission_month?: number | string;
 }
 
 export interface PuntoListMeta { total: number; page: number; limit: number }
@@ -238,7 +247,9 @@ export interface PuntoCashSession {
   recent: PuntoClosedSession[];
 }
 
-export type PuntoLedgerType = 'collection' | 'collection_void' | 'deposit' | 'adjustment' | 'bag_sealed';
+export type PuntoLedgerType =
+  | 'collection' | 'collection_void' | 'deposit' | 'adjustment' | 'bag_sealed'
+  | 'commission' | 'commission_reversal' | 'payout';
 
 export interface PuntoLedgerEntry {
   id: number;
@@ -255,6 +266,13 @@ export interface PuntoLedgerEntry {
    */
   cash_bag_id?: number | null;
   cash_bag_serial?: string | null;
+  /**
+   * The invoice of a commission or commission_reversal line (phase 4). Both
+   * ledgers send the number; only the staff one sends the ids.
+   */
+  invoice_id?: number | null;
+  invoice_number?: string | null;
+  commission_id?: number | null;
 }
 
 export interface PuntoLedgerSummary {

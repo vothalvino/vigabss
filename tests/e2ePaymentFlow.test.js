@@ -15,6 +15,13 @@ jest.mock('../src/config/database', () => ({
 }));
 
 jest.mock('../src/models/User');
+// The reseller commission sync (phase 4) has its own suite
+// (tests/resellerCommissions.test.js); these tests only see that it runs.
+jest.mock('../src/services/resellerCommissionService', () => ({
+  syncCommissionByInvoice: jest.fn().mockResolvedValue({ action: 'none' }),
+  syncResellerCommission: jest.fn().mockResolvedValue({ action: 'none' }),
+  syncResellerCommissionBestEffort: jest.fn().mockResolvedValue({ action: 'none' }),
+}));
 
 const request = require('supertest');
 const jwt = require('./helpers/staffJwt');

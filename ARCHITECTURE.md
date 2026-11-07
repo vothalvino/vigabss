@@ -329,7 +329,7 @@ doubles skip them. A lead captured there carries `leads.reseller_id`, which
 `lifecycleService` copies to the client on conversion when that reseller is
 still live in the organization. A bound caller may not set `commission_rate`
 or `status` on `POST`/`PUT /resellers`; logins (`POST /resellers/:id/users`),
-allowed plans, suspension, commission approval, plan prices and the
+allowed plans, suspension, plan prices and the
 resource and billing-entity writes are org-level only (a binding may be given
 to a user in any group, so the binding, not the group, decides). The fence
 also covers real-time feeds: the staff WebSocket hub refuses a bound user or a
@@ -369,11 +369,13 @@ the per-organization setting `reseller_default_credit_limit`, and
 A sub-reseller's users collect, read `/me` money, `/ledger`, the day's list
 and receipts, and void against that top-level reseller, which is the only one
 staff deposit on; the bound sub-reseller must also be active to collect.
-`POST /reseller-app/payments` runs in one transaction that locks the reseller
-row first (every ledger writer does), then the client's invoices before its
-first plain read (DAL-04: under REPEATABLE READ that read fixes the snapshot
-the balance_due subquery and the over-allocation trigger sum allocations
-from, and other allocators do not take the reseller lock), refuses with 409
+`POST /reseller-app/payments` runs in one transaction that locks the client's
+invoices first, then the collecting reseller row FOR UPDATE (every writer of a
+reseller's own money takes that lock) and, in ascending id order with it, the
+reseller that earns the client's commission in share mode (phase 4 lock order,
+see "Reseller commissions" below), all before its first plain read (DAL-04:
+under REPEATABLE READ that read fixes the snapshot the balance_due subquery,
+the over-allocation trigger and the credit check read), refuses with 409
 `CREDIT_LIMIT` when the
 cash on hand plus the amount would pass the limit (exactly at it is allowed),
 opens the user's cash session if none is open, inserts the payment, writes
@@ -397,8 +399,13 @@ to the collecting reseller and, within it, to the user whose cash session holds
 the collection (409 `NOT_YOUR_COLLECTION` for a colleague; the list marks only
 the caller's collections `voidable`), on the business day of the collection,
 while that session is open and no REP binds the payment (409 otherwise); it
-locks the client's invoices first, reverses the client credit and the
-allocations like a staff deletion, cancels and soft-deletes the payment and
+locks the payment, its client's and allocated invoices, then the reseller rows
+(the same order; the allocated invoices are read before the transaction, since
+a locking read of `payment_allocations` would gap-lock the inserts of
+allocators that hold invoices it waits for, and a reallocation between that
+read and the lock is a 409 `LOCK_CONTENTION` retry), reverses the client credit and the
+allocations like a staff deletion (which reverses the commission of an
+invoice it un-pays), cancels and soft-deletes the payment and
 appends `collection_void` with the negated amount of the `collection` entry
 (not the payment's current amount, which staff may have edited), so the pair
 nets to zero. Staff `POST /payments/:id/restore` refuses (409) a payment that
@@ -408,9 +415,10 @@ the allocations. Closing the cash box
 (`cashReconciliationService.closeSession`) records the count and the
 variance and leaves the ledger alone; only org-level staff with
 `reseller_ledger.manage` record cash handed in (`POST /resellers/:id/ledger`
-deposit, never a payment, at most the cash on hand; or a noted adjustment;
-no other type, `bag_sealed` included, can be posted by hand), which frees
-the limit. The ledger routes and a reseller's `credit_limit` are refused
+deposit, never a payment, at most the cash on hand; a payout, at most what
+the ISP owes it (minus a negative balance, phase 4); or a noted adjustment;
+no other type, `bag_sealed` and the commission lines included, can be posted
+by hand), which frees the limit. The ledger routes and a reseller's `credit_limit` are refused
 to bound callers. A staff deletion or edit of a reseller-collected payment
 does not touch the reseller ledger: the cash the reseller took is still owed
 until a deposit or an adjustment says otherwise.
@@ -460,9 +468,105 @@ alone) and read a reseller's bags at
 reseller-bound users and carriers). The 409 `CREDIT_LIMIT` of a collection
 carries `empty_bags` so the app can ask the reseller to fill one, and a void
 is refused (409 `CASH_SEALED_IN_BAG`) when the collection's cash is no longer
-on hand. Bag and
+on hand (checked against the cash the reseller holds, its ledger without the
+commission and payout lines, `resellerLedgerService.cashHeld`). Bag and
 assignment user ids are primary-database `users.id` without a foreign key,
 like `reseller_user_bindings.user_id`.
+
+#### Reseller commissions (phase 4, migration 007)
+
+A reseller earns `commission_rate` % of the **subtotal** (taxes excluded, in
+the invoice currency, rounded to cents with `utils/money`) of every paid
+invoice of a client it brought in (`clients.reseller_id`), whoever collected
+the money (staff, a gateway, another reseller, the portal). The rate and the
+account are those of the top-level reseller (the root of `parent_id`), also
+for its sub-resellers' clients. Nothing is earned for a client without a live
+reseller, a top-level rate of 0, a zero subtotal, an invoice in another
+currency than the organization's, or an invoice whose `paid_at` is before the
+go-live point: the per-organization `organization_settings` row
+`reseller_commissions_since` (UTC, written by migration 007 for every existing
+organization, not in the settings catalog), else, for an organization created
+later, its `created_at`. An invoice without `paid_at` (an imported `paid` one)
+never earns. `paid_at` is written only by the paid-status recomputes: the
+invoice PUT/PATCH drop it from the body. There is no backfill; the phase 5 gap
+sweep bounds itself by the same point. An invoice settled by credit notes, in
+whole or in part, counts as paid and earns on its full subtotal.
+The reseller keeps the commission from the cash it holds, so it is a line of
+its ledger: `commission` (−amount) when the invoice becomes paid,
+`commission_reversal` (+amount) when it stops being paid, each naming
+`invoice_id` and `commission_id`, with `created_by` NULL (posted by the
+system). A negative balance is what the ISP owes the reseller ("Te debemos");
+`cash_on_hand` stays the balance, so the credit limit counts what the reseller
+holds for the ISP, net of its commission. `reseller_commissions` has one row
+per (reseller, invoice) (status `earned`/`reversed`, `base_amount`,
+`earned_at`, `reversed_at`); paying an invoice again restores its row
+(`reversed_at` cleared, rate and amount recomputed) and posts a new line.
+
+`src/services/resellerCommissionService.js` is the only writer of
+`reseller_commissions` and of the two commission lines.
+`syncResellerCommission(exec, invoiceId, orgId)` runs inside the caller's
+transaction and reconciles the commission with the invoice as it stands
+(paid and nothing standing: earn or restore; not paid, deleted or about to be
+deleted, and a standing row: reverse; otherwise nothing). It is idempotent:
+the decision is read under row locks and every change is a conditional write
+whose `affectedRows` says whether this call made it, and a stale snapshot that
+misses a row hits the unique key and re-reads it. Every place that changes an
+invoice's paid state calls it in its transaction:
+`paymentAllocationService.finalizeIfFullyPaid` (every allocator: allocate,
+allocate-auto, gateway reconcile, reseller collect, installments, group pay),
+`billingService.refreshInvoicePaidStatus` when its UPDATE changed the row
+(payment delete and restore, unapply and reallocate, now inside their
+transactions, gateway refunds and lost disputes, reseller voids, adding an
+invoice line; without a caller transaction it opens its own), the
+credit-note recompute (`creditNoteApplicationService`, so issue, cancel,
+delete, restore, re-point and SAT cancellation of an egreso),
+`billingService.settleInvoiceTerminal` for every invoice voided or cancelled
+at SAT, whatever status it read first (that read takes no lock, so a payment
+can land before its UPDATE; its statements are not one transaction, so the
+sync runs in one of its own and a failure is only logged, for the phase 5
+sweep; re-settling runs it again), and the invoice crud hooks: a hand edit
+(`afterUpdate`), a delete of an invoice paid by credit notes alone
+(`beforeDelete`, `unpaid`) and a restore (`afterRestore`, which first
+re-derives the paid status, since the delete released the notes, except for
+an invoice marked paid outside the system, `paid_at` NULL, which stays
+paid). The shared
+recomputes mark an invoice paid only from `issued`, `sent` or `overdue`, so a
+payment restore reviving allocations a void released cannot pay a void,
+cancelled or draft invoice. A dispute that is not lost, and a refund to client
+credit or as a credit note, leave the invoice paid and the commission standing.
+`tests/resellerCommissions.test.js` fails on a new SQL writer of
+`invoices.status` outside these.
+
+Lock order, the same in every transaction that touches reseller money:
+payment → invoices → reseller rows → commission row or cash bag. The engine
+locks the invoice first (the caller already holds it). To earn, it finds the
+commission row by a plain read and locks it by primary key (a locking read of
+a missing key takes a gap lock, and two inserts into one gap deadlock; a row
+the snapshot misses hits the unique key). To reverse, which inserts no
+commission row, it share-locks the resellers it may book to (those of the
+rows the snapshot shows and the client's commission reseller), then finds the
+rows by a locking read: most un-pay paths fix their REPEATABLE READ snapshot
+before they lock the invoice, and a plain read would miss a commission
+committed in between. Reseller rows are taken only in share mode, which never
+conflict with each other. A
+writer of one reseller's own money (collection, void, deposit, payout,
+adjustment, cash bag) takes that row FOR UPDATE; a collection and a void
+lock their invoices before it and the commission owner in share mode in
+ascending id order, and the others lock no invoice, so no transaction holds an
+exclusive reseller lock while it waits for an invoice. Paths that settle
+several invoices lock or update them all before the first sync
+(`billingService.refreshAllThenSync`).
+
+Staff read a reseller's commissions at `GET /resellers/:id/commissions`
+(`reseller_commissions.view`; base, rate, amount, status, invoice; a summary
+of earned, reversed and earned this month); the old per-row approve route is
+gone. The reseller app's `/me` money adds `commission_rate` (the top-level
+rate) and `commission_month` (standing commissions earned this business
+month), and its `/ledger` rows name the invoice of a commission line. The
+reseller portal dashboard counts revenue by `paid_at` this business month and
+`pending_commission` as the standing commission its subtree's clients earned
+this month. Statements, settlement (`settlement_id`) and the gap sweep are
+phase 5.
 
 ### RBAC resolution
 
@@ -1072,9 +1176,16 @@ trees for staff and subscriber users:
   caja (`/punto/caja`) lists the day's collections (voidable as the server's
   `voidable` says), closes the cash box and shows the ledger. The server's
   refusal codes (`CREDIT_LIMIT`, `COLLECT_TOKEN_*`, the void codes) are shown
-  as translated text. Staff see a reseller's cash ledger in the reseller
-  page's Movimientos tab (`reseller_ledger.view`; deposits and adjustments
-  need `reseller_ledger.manage`) and a reseller badge and `?reseller_id=`
+  as translated text. Inicio also shows the commission of the month from
+  `/me`'s `money` (hidden for a rate of 0), and Inicio and Mi caja say "Te
+  debemos" with the amount instead of "Debes entregar" when the balance is
+  negative; Mi caja names the invoice of a commission line. Staff see a
+  reseller's cash ledger in the reseller page's Movimientos tab
+  (`reseller_ledger.view`; deposits, payouts and adjustments need
+  `reseller_ledger.manage`, and the payout form shows and enforces what the
+  ISP owes; commission lines link their invoice with `invoices.view`), its
+  commissions in the Comisiones tab (`reseller_commissions.view`, top-level
+  resellers only, read only), and a reseller badge and `?reseller_id=`
   filter on the payments list. Mis bolsas (`/punto/bolsas`, reached from
   Inicio's "Mis bolsas" card and from Mi caja, not a bottom tab; needs
   `reseller_app.bags`) lists the bags from `/reseller-app/bags` and seals an

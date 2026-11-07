@@ -43,9 +43,10 @@ const ledgerInsert = () => db.query.mock.calls.find(c => /INSERT INTO client_bal
 const ledgerDeleteCredit = () => db.query.mock.calls.find(c => /DELETE FROM client_balance_ledger/.test(c[0]));
 const ledgerZero = () => db.query.mock.calls.find(c => /UPDATE client_balance_ledger\s+SET amount = 0/.test(c[0]));
 
+let conn;
 beforeEach(() => {
   jest.clearAllMocks();
-  mockTxConnection(db);
+  conn = mockTxConnection(db);
 });
 
 describe('PATCH /invoices/:id — void', () => {
@@ -123,10 +124,15 @@ describe('PATCH /invoices/:id — void', () => {
       .mockResolvedValueOnce([[]]); // allocation guard: no payments applied
     const res = await request(app).patch('/api/v1/invoices/5').send({ status: 'void' });
     expect(res.status).toBe(200);
-    // Only the two guard SELECTs ran — the ledger was never touched
-    expect(db.query).toHaveBeenCalledTimes(2);
+    // Only the two guard SELECTs ran on the pool — the ledger was never
+    // touched. The reseller commission sync (phase 4) runs on a transaction
+    // of its own every time the invoice is settled (idempotent; re-settling
+    // retries a sync that failed), and only reads there: nothing to reverse.
+    const onTx = conn.execute.mock.calls.length + conn.query.mock.calls.length;
+    expect(db.query).toHaveBeenCalledTimes(2 + onTx);
     expect(db.query.mock.calls[0][0]).toMatch(/FROM cfdi_documents/);
     expect(db.query.mock.calls[1][0]).toMatch(/FROM payment_allocations/);
+    expect([...conn.execute.mock.calls, ...conn.query.mock.calls].every(([q]) => /^\s*(\/\*[\s\S]*?\*\/\s*)?SELECT/.test(q))).toBe(true);
     expect(ledgerDeleteCredit()).toBeFalsy();
     expect(ledgerZero()).toBeFalsy();
   });

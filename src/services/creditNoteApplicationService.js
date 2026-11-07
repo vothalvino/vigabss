@@ -9,7 +9,8 @@
 //   * a draft, cancelled or deleted note, or one whose invoice is gone or no
 //     longer payable, applies nothing;
 //   * once the invoice is covered it turns 'paid', and back to 'issued' when a
-//     released application uncovers it.
+//     released application uncovers it; either change syncs the invoice's
+//     reseller commission on the same transaction (phase 4).
 //
 // The ledger is untouched here: creditNoteLedgerService already credits a
 // posted note's total, and the computed balance counts only the unapplied
@@ -80,8 +81,15 @@ async function syncApplication(exec, note, orgId, opts = {}) {
         [note.id, invoiceId, target],
       );
     }
+    // Both invoices first, then their reseller commissions (phase 4): the
+    // invoice locks come before any reseller lock (resellerCommissionService).
+    const changed = [];
     for (const id of new Set([current?.invoice_id, invoiceId].filter(Boolean).map(String))) {
-      await refreshPaidStatus(exec, id);
+      const outcome = await refreshPaidStatus(exec, id);
+      if (outcome.changed) changed.push(outcome);
+    }
+    for (const { invoiceId: id, orgId: invoiceOrg } of changed) {
+      await require('./resellerCommissionService').syncCommissionByInvoice(exec, id, invoiceOrg);
     }
   }
 
@@ -110,22 +118,30 @@ async function releaseForInvoice(exec, invoiceId) {
   return rows.map((r) => r.credit_note_id);
 }
 
+/**
+ * Re-derive one invoice's paid status. Returns { changed, invoiceId, orgId };
+ * the caller syncs the reseller commission of a changed invoice.
+ */
 async function refreshPaidStatus(exec, invoiceId) {
   const [rows] = await exec(
-    `SELECT i.total,
+    `SELECT i.total, i.organization_id,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
                        WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
               + ${creditAppliedSql('i')} AS covered
        FROM invoices i WHERE i.id = ? AND i.deleted_at IS NULL`,
     [invoiceId],
   );
-  const inv = rows[0];
-  if (!inv) return;
-  if (Number(inv.covered) >= Number(inv.total) - 0.005) {
-    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status IN ('issued', 'sent', 'overdue')", [invoiceId]);
-  } else {
-    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
-  }
+  const inv = rows && rows[0];
+  if (!inv) return { changed: false, invoiceId };
+  const result = Number(inv.covered) >= Number(inv.total) - 0.005
+    ? await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status IN ('issued', 'sent', 'overdue')", [invoiceId])
+    : await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
+  const header = (Array.isArray(result) ? result[0] : result) || {};
+  return {
+    changed: Number(header.affectedRows) === 1,
+    invoiceId,
+    orgId: inv.organization_id === undefined ? undefined : inv.organization_id,
+  };
 }
 
 module.exports = { syncApplication, releaseForInvoice };

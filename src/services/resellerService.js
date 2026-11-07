@@ -5,15 +5,15 @@
 //   - getResellerSubtree  — resolve all reseller IDs in a subtree (for scoping)
 //   - getResellerClientIds — all client IDs belonging to a reseller subtree
 //   - getResellerDashboard — §19.3 aggregate stats for a reseller
-//   - recordCommission     — auto-create commission record when invoice is paid
+//   - syncResellerCommission — the commission engine (resellerCommissionService)
 //
 // Reseller scoping is a product-feature ownership filter (like organization_id).
 // It is NOT a hard multi-tenant security isolation layer.
 // =============================================================================
 
 const db = require('../config/database');
-const { sqlBusinessToday } = require('../utils/businessDate');
-const Organization = require('../models/Organization');
+const { businessToday, businessDayStartUtc } = require('../utils/businessDate');
+const money = require('../utils/money');
 const { inPlaceholders } = require('../utils/sqlBuild');
 
 /**
@@ -60,11 +60,17 @@ async function getResellerClientIds(resellerIds, orgId) {
 }
 
 /**
- * Dashboard aggregates for a reseller (§19.3):
- *   - subscriber_count : active clients
- *   - total_revenue    : sum of paid invoices this month
- *   - open_tickets     : open tickets on their clients
- *   - pending_commissions : sum of pending commission amounts
+ * Dashboard aggregates for a reseller (§19.3), over its subtree:
+ *   - subscriber_count   : active clients
+ *   - total_revenue      : total of its clients' invoices paid this business
+ *                          month (by paid_at, organization time zone)
+ *   - open_tickets       : open tickets on their clients
+ *   - pending_commission : commission earned this business month on its
+ *                          clients' invoices and still standing (phase 4; the
+ *                          name is kept for the response shape). Commissions
+ *                          are booked on the top-level reseller, so a
+ *                          sub-reseller's figure is the part of its parent's
+ *                          that its own clients earned.
  *
  * @param {number} resellerId
  * @param {number} orgId
@@ -86,88 +92,50 @@ async function getResellerDashboard(resellerId, orgId) {
   if (clientIds.length === 0) return result;
 
   const idsIn = inPlaceholders(clientIds);
+  const monthStart = businessDayStartUtc(`${businessToday().slice(0, 7)}-01`);
 
   const [[subRow]] = await db.query(
-    `SELECT COUNT(*) AS cnt FROM clients WHERE id IN (${idsIn}) AND status = ? AND deleted_at IS NULL`,
-    [...clientIds, 'active'],
+    `SELECT COUNT(*) AS cnt FROM clients
+      WHERE organization_id = ? AND id IN (${idsIn}) AND status = ? AND deleted_at IS NULL`,
+    [orgId, ...clientIds, 'active'],
   );
-  result.subscriber_count = subRow.cnt;
+  result.subscriber_count = Number(subRow.cnt) || 0;
 
   const [[revRow]] = await db.query(
     `SELECT COALESCE(SUM(total), 0) AS rev
      FROM invoices
-     WHERE client_id IN (${idsIn})
+     WHERE organization_id = ? AND client_id IN (${idsIn})
        AND deleted_at IS NULL
        AND status = 'paid'
-       AND YEAR(issue_date) = YEAR(${sqlBusinessToday()})
-       AND MONTH(issue_date) = MONTH(${sqlBusinessToday()})`,
-    [...clientIds],
+       AND paid_at >= ?`,
+    [orgId, ...clientIds, monthStart],
   );
-  result.total_revenue = parseFloat(revRow.rev) || 0;
+  result.total_revenue = money.round(revRow.rev || 0);
 
   const [[tickRow]] = await db.query(
     `SELECT COUNT(*) AS cnt FROM tickets
-     WHERE client_id IN (${idsIn}) AND status NOT IN ('resolved','closed') AND deleted_at IS NULL`,
-    [...clientIds],
+     WHERE organization_id = ? AND client_id IN (${idsIn}) AND status NOT IN ('resolved','closed') AND deleted_at IS NULL`,
+    [orgId, ...clientIds],
   );
-  result.open_tickets = tickRow.cnt;
+  result.open_tickets = Number(tickRow.cnt) || 0;
 
   const [[commRow]] = await db.query(
     `SELECT COALESCE(SUM(commission_amount), 0) AS total
      FROM reseller_commissions
-     WHERE reseller_id = ? AND status = 'pending'`,
-    [resellerId],
+     WHERE organization_id = ? AND client_id IN (${idsIn})
+       AND status = 'earned' AND reversed_at IS NULL AND earned_at >= ?`,
+    [orgId, ...clientIds, monthStart],
   );
-  result.pending_commission = parseFloat(commRow.total) || 0;
+  result.pending_commission = money.round(commRow.total || 0);
 
   return result;
-}
-
-/**
- * Record a commission entry when an invoice is paid for a reseller's client.
- * Idempotent — uses INSERT IGNORE via unique key (reseller_id, invoice_id).
- *
- * @param {number} invoiceId
- * @param {number} orgId
- * @returns {Promise<void>}
- */
-async function recordCommission(invoiceId, orgId) {
-  const [[inv]] = await db.query(
-    'SELECT id, client_id, total, currency FROM invoices WHERE id = ? AND organization_id = ?',
-    [invoiceId, orgId],
-  );
-  if (!inv) return;
-
-  const [[client]] = await db.query(
-    'SELECT reseller_id FROM clients WHERE id = ? AND deleted_at IS NULL',
-    [inv.client_id],
-  );
-  if (!client || !client.reseller_id) return;
-
-  const [[reseller]] = await db.query(
-    'SELECT id, commission_rate FROM resellers WHERE id = ? AND deleted_at IS NULL',
-    [client.reseller_id],
-  );
-  if (!reseller) return;
-
-  const commissionAmount = ((parseFloat(inv.total) * reseller.commission_rate) / 100).toFixed(2);
-
-  // invoices.currency is NOT NULL so the fallback should never fire — but
-  // when it does, use the org's currency, never a hardcoded 'USD'.
-  const currency = inv.currency || await Organization.getCurrency(orgId);
-
-  await db.query(
-    `INSERT IGNORE INTO reseller_commissions
-       (reseller_id, invoice_id, client_id, commission_rate, invoice_total, commission_amount, currency)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [reseller.id, invoiceId, inv.client_id, reseller.commission_rate,
-      inv.total, commissionAmount, currency],
-  );
 }
 
 module.exports = {
   getResellerSubtree,
   getResellerClientIds,
   getResellerDashboard,
-  recordCommission,
+  // The commission engine (phase 4) replaced recordCommission, which nothing
+  // called; see resellerCommissionService.js.
+  syncResellerCommission: (...args) => require('./resellerCommissionService').syncResellerCommission(...args),
 };

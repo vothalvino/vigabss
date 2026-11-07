@@ -1143,23 +1143,72 @@ async function applyCreditNoteLineItemToTotals(exec, creditNoteId, taxRate, line
   return delta;
 }
 
-async function refreshInvoicePaidStatus(invoiceId, exec = db.query.bind(db)) {
+/**
+ * Re-derive an invoice's paid status from its live payment allocations and
+ * credit-note applications: covered -> 'paid' (only from a payable status:
+ * a payment restore that revives allocations a void released must not mark a
+ * void, cancelled or draft invoice paid), uncovered -> back to 'issued'.
+ *
+ * A change syncs the reseller commission of the invoice on the same exec
+ * (phase 4), unless `syncCommission: false`: a caller that recomputes several
+ * invoices updates them all first and syncs after, so it holds every invoice
+ * lock before it takes a reseller lock (resellerCommissionService header).
+ *
+ * Without `exec` the recompute and the sync run in a transaction of their
+ * own (a caller that has already committed its change, such as adding an
+ * invoice line).
+ *
+ * @returns {Promise<boolean>} true when the status changed
+ */
+async function refreshInvoicePaidStatus(invoiceId, exec = null, { syncCommission = true } = {}) {
+  if (!exec) {
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const changed = await refreshInvoicePaidStatus(invoiceId, conn.execute.bind(conn), { syncCommission });
+      await conn.commit();
+      return changed;
+    } catch (err) {
+      try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
   const [rows] = await exec(
-    `SELECT i.total,
+    `SELECT i.total, i.organization_id,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
                        WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
               + ${creditAppliedSql('i')} AS allocated
        FROM invoices i WHERE i.id = ? AND i.deleted_at IS NULL`,
     [invoiceId],
   );
-  const inv = rows[0];
-  if (!inv) return;
-  if (parseFloat(inv.allocated) >= parseFloat(inv.total)) {
-    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
-  } else {
-    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
+  const inv = rows && rows[0];
+  if (!inv) return false;
+  const result = parseFloat(inv.allocated) >= parseFloat(inv.total)
+    ? await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status IN ('issued', 'sent', 'overdue')", [invoiceId])
+    : await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
+  const header = (Array.isArray(result) ? result[0] : result) || {};
+  const changed = Number(header.affectedRows) === 1;
+  if (changed && syncCommission) {
+    await resellerCommissions().syncCommissionByInvoice(exec, invoiceId, inv.organization_id);
+  }
+  return changed;
+}
+
+/**
+ * Sync the reseller commission of every invoice in `invoiceIds` whose status
+ * the caller just changed (refreshInvoicePaidStatus with syncCommission:
+ * false), after all of them were updated.
+ */
+async function syncCommissionsAfterRefresh(exec, invoiceIds) {
+  for (const invoiceId of invoiceIds) {
+    await resellerCommissions().syncCommissionByInvoice(exec, invoiceId);
   }
 }
+
+// Lazy: resellerCommissionService pulls in the reseller ledger.
+const resellerCommissions = () => require('./resellerCommissionService');
 
 /**
  * Release (soft-delete) all live payment_allocations for a single invoice.
@@ -1191,9 +1240,16 @@ async function reversePaymentAllocations(paymentId, exec = db.query.bind(db)) {
   );
   if (!allocs.length) return;
   await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [paymentId]);
-  for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
+  await refreshAllThenSync(exec, allocs.map((a) => a.invoice_id));
+}
+
+/** Recompute each invoice's paid status, then sync the commissions of those that changed. */
+async function refreshAllThenSync(exec, invoiceIds) {
+  const changed = [];
+  for (const invoiceId of invoiceIds) {
+    if (invoiceId && await refreshInvoicePaidStatus(invoiceId, exec, { syncCommission: false })) changed.push(invoiceId);
   }
+  await syncCommissionsAfterRefresh(exec, changed);
 }
 
 /**
@@ -1208,9 +1264,7 @@ async function restorePaymentAllocations(paymentId, exec = db.query.bind(db)) {
   );
   if (!allocs.length) return;
   await exec('UPDATE payment_allocations SET deleted_at = NULL WHERE payment_id = ? AND deleted_at IS NOT NULL', [paymentId]);
-  for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
-  }
+  await refreshAllThenSync(exec, allocs.map((a) => a.invoice_id));
 }
 
 /**
@@ -1373,6 +1427,16 @@ async function settleInvoiceTerminal(invoiceId, orgId, userId, { status, action,
     );
   }
 
+  // A voided or SAT-cancelled invoice is not paid: a reseller commission
+  // standing on it is reversed. The statements above are not one transaction,
+  // so the sync runs in one of its own, after the status change, whatever
+  // status `existing` showed: that read took no lock, and an allocation that
+  // paid the invoice (and earned its commission) between it and the UPDATE is
+  // released above all the same. The sync is idempotent and posts nothing
+  // when no commission stands. A failure is logged (the void is already done);
+  // re-settling the invoice runs the sync again.
+  await resellerCommissions().syncResellerCommissionBestEffort(existing.id, orgId);
+
   await auditLog.log({
     userId: userId ?? null,
     organizationId: orgId,
@@ -1394,7 +1458,8 @@ async function settleInvoiceTerminal(invoiceId, orgId, userId, { status, action,
 module.exports = {
   generateBillingPeriod, generateInvoice, createOneOffInvoice, calculateProration,
   recordPaymentCredit, reversePaymentCredit,
-  reversePaymentAllocations, restorePaymentAllocations, refreshInvoicePaidStatus, applyLineItemToTotals, applyQuoteLineItemToTotals,
+  reversePaymentAllocations, restorePaymentAllocations, refreshInvoicePaidStatus, refreshAllThenSync,
+  applyLineItemToTotals, applyQuoteLineItemToTotals,
   applyCreditNoteLineItemToTotals,
   releaseInvoiceAllocations, invoiceTaxFraction, resolveTaxContext, assertTaxCoherent,
   normalizePostalCode, postalSpecMatch, resolveRegionRate,

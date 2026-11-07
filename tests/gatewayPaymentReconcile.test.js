@@ -38,6 +38,7 @@ const db = require('../src/config/database');
 const suspensionService = require('../src/services/suspensionService');
 const repService = require('../src/services/repService');
 const paymentGatewayService = require('../src/services/paymentGatewayService');
+const { handleCommissionSql } = require('./helpers/commissionFakeDb');
 
 const ORG = 42;
 const CLIENT = 5;
@@ -159,14 +160,22 @@ async function run(sql, params = []) {
     inv.paid_at = 'now';
     return [{ affectedRows: 1 }];
   }
-  if (/^SELECT i\.total, COALESCE/.test(s)) {
-    const inv = state.invoices.find((i) => i.id === p[0]);
-    return [inv ? [{ total: inv.total, allocated: liveAllocated(inv.id).toFixed(2) }] : []];
+  if (/^SELECT i\.total, (i\.organization_id, )?COALESCE/.test(s)) {
+    const inv = state.invoices.find((i) => i.id === p[0] && (!/deleted_at IS NULL/.test(s) || !i.deleted_at));
+    return [inv ? [{ total: inv.total, organization_id: inv.organization_id, allocated: liveAllocated(inv.id).toFixed(2) }] : []];
   }
   if (/^UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = \? AND status = 'paid'/.test(s)) {
     const inv = state.invoices.find((i) => i.id === p[0]);
-    if (inv && inv.status === 'paid') { inv.status = 'issued'; inv.paid_at = null; }
-    return [{ affectedRows: 1 }];
+    const changed = Boolean(inv && inv.status === 'paid');
+    if (changed) { inv.status = 'issued'; inv.paid_at = null; }
+    return [{ affectedRows: changed ? 1 : 0 }];
+  }
+  // The shared recompute marks paid only from a payable status (phase 4).
+  if (/^UPDATE invoices SET status = 'paid', paid_at = NOW\(\) WHERE id = \? AND status IN \('issued', 'sent', 'overdue'\)/.test(s)) {
+    const inv = state.invoices.find((i) => i.id === p[0]);
+    const changed = Boolean(inv && PAYABLE.includes(inv.status));
+    if (changed) { inv.status = 'paid'; inv.paid_at = 'now'; }
+    return [{ affectedRows: changed ? 1 : 0 }];
   }
   if (/^UPDATE invoices SET status = 'paid', paid_at = NOW\(\) WHERE id = \? AND status <> 'paid'/.test(s)) {
     const inv = state.invoices.find((i) => i.id === p[0]);
@@ -271,7 +280,25 @@ async function run(sql, params = []) {
     return [state.reps.filter((r) => r.payment_id === p[0] && r.organization_id === p[1]
       && ['draft', 'vigente', 'cancel_pending'].includes(r.sat_status)).slice(0, 1).map(clone)];
   }
+  // --- reseller commissions (phase 4): the client of these tests has no
+  // reseller (unless a test gives it one), so a sync finds nothing to do.
+  const commission = handleCommissionSql(commissionView(), s, p);
+  if (commission !== undefined) return commission;
   throw new Error(`fake db: unhandled SQL: ${s.slice(0, 140)}`);
+}
+
+function commissionView() {
+  if (!state.resellerSide) state.resellerSide = { commissions: [], ledger: [], seq: {}, clients: {}, resellers: {} };
+  return {
+    // paid_at 'now' is this fake's marker for NOW(); the engine reads a time
+    // (an invoice without paid_at never earns).
+    invoices: Object.fromEntries(state.invoices.map((i) => [i.id, i.paid_at === 'now' ? { ...i, paid_at: new Date() } : i])),
+    clients: state.resellerSide.clients,
+    resellers: state.resellerSide.resellers,
+    commissions: state.resellerSide.commissions,
+    ledger: state.resellerSide.ledger,
+    seq: state.resellerSide.seq,
+  };
 }
 
 function makeConn() {
@@ -615,6 +642,27 @@ describe('refund reversal of a reconciled gateway payment', () => {
     const net = state.ledger.reduce((s, l) => s + (l.entry_type === 'credit' ? l.amount : -l.amount), 0);
     expect(net).toBe(0);
     expect(state.ledger.filter((l) => l.entry_type === 'debit')).toHaveLength(1);
+  });
+
+  test("a capture that pays a reseller's client earns its commission, and the refund reverses it, in their transactions (phase 4)", async () => {
+    state.resellerSide = {
+      commissions: [], ledger: [], seq: {},
+      clients: { [CLIENT]: { id: CLIENT, organization_id: ORG, reseller_id: 9 } },
+      resellers: { 9: { id: 9, organization_id: ORG, parent_id: null, commission_rate: '10.00' } },
+    };
+    addInvoice({ id: 78, subtotal: '431.03', total: '500.00' });
+    addTx({ id: 1, invoice_id: 78 });
+    await paymentGatewayService.reconcilePayment(1);
+    expect(state.invoices[0].status).toBe('paid');
+    expect(state.resellerSide.commissions).toEqual([expect.objectContaining({ reseller_id: 9, invoice_id: 78, base_amount: '431.03', commission_amount: '43.10' })]);
+    expect(state.resellerSide.ledger.map((e) => [e.reseller_id, e.entry_type, e.amount])).toEqual([[9, 'commission', '-43.10']]);
+
+    state.transactions[0].gateway_status = 'refunded';
+    await paymentGatewayService.reverseRefund(1);
+    await paymentGatewayService.reverseRefund(1); // a double fire reverses once
+    expect(state.invoices[0].status).toBe('issued');
+    expect(state.resellerSide.ledger.map((e) => [e.entry_type, e.amount])).toEqual([['commission', '-43.10'], ['commission_reversal', '43.10']]);
+    expect(state.resellerSide.commissions[0].status).toBe('reversed');
   });
 
   // WHK-05: one provider account registered on both the env route (no org) and

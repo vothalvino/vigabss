@@ -12,8 +12,7 @@
 //  GET    /resellers/:id/plan-prices       list custom plan prices
 //  POST   /resellers/:id/plan-prices       set custom plan price
 //  DELETE /resellers/:id/plan-prices/:ppId remove custom plan price
-//  GET    /resellers/:id/commissions       list commission records
-//  POST   /resellers/:id/commissions/:cId/approve  approve commission
+//  GET    /resellers/:id/commissions       its commissions (earned / reversed), migration 007
 //
 //  §19.2 Resource Allocations
 //  GET    /resellers/:id/ip-pools          list IP pool allocations
@@ -39,7 +38,8 @@
 //
 //  Reseller cash ledger (migration 004)
 //  GET    /resellers/:id/ledger            entries and summary (balance, in bags, limit, available)
-//  POST   /resellers/:id/ledger            record a deposit (cash handed in) or an adjustment
+//  POST   /resellers/:id/ledger            record a deposit (cash handed in), a payout (the ISP pays
+//                                          what it owes the reseller) or an adjustment
 //
 //  Cash bags (migration 005)
 //  GET    /resellers/:id/bags              the reseller's cash bags, their history and differences
@@ -47,8 +47,8 @@
 //  Every route is confined to the caller's reseller scope: a bound user only
 //  sees its own subtree (404 outside it, GET / filtered), an unbound
 //  reseller_admin is refused, and org-level staff see every reseller in their
-//  organization. Binding management, allowed plans, suspend, commission
-//  approval, plan prices and the resource and billing-entity writes are
+//  organization. Binding management, allowed plans, suspend, plan prices and
+//  the resource and billing-entity writes are
 //  org-level only (requireOrgLevelResellerAccess, requireIspDecision), and so
 //  are the cash ledger and a reseller's credit_limit. See
 //  middleware/resellerScope.js.
@@ -74,6 +74,7 @@ const { runInPrimaryContext } = require('../utils/primaryContext');
 const { ownedReferences } = require('../utils/ownedReferences');
 const money = require('../utils/money');
 const resellerLedgerService = require('../services/resellerLedgerService');
+const resellerCommissionService = require('../services/resellerCommissionService');
 const cashBagService = require('../services/cashBagService');
 const { isCarrierUser } = require('../services/carrierAccount');
 
@@ -516,56 +517,31 @@ router.delete('/:id/plan-prices/:ppId', requirePermission('reseller_plan_prices.
 });
 
 // =============================================================================
-// §19.1 Commission Records
+// Commissions (reseller program phase 4, migration 007)
 // =============================================================================
+// services/resellerCommissionService.js writes them: a commission is earned
+// when an invoice of a client of the reseller's subtree becomes paid and
+// reversed when it stops being paid, each with its line in the cash ledger.
+// They are booked on the top-level reseller, so a sub-reseller has none.
+// Nothing approves or pays a commission by hand any more: the reseller keeps
+// it from the cash, and a negative balance is paid with a ledger payout.
+
+const COMMISSION_STATUSES = ['earned', 'reversed'];
 
 // GET /resellers/:id/commissions
 router.get('/:id/commissions', requirePermission('reseller_commissions.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req);
-    const { status, page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
-    const offset = (pageNum - 1) * limitNum;
-
-    const conditions = ['rc.reseller_id = ?'];
-    const params = [req.params.id];
-    if (status) { conditions.push('rc.status = ?'); params.push(status); }
-
-    const where = conditions.join(' AND ');
-    const [rows] = await db.query(
-      `SELECT rc.*, c.name AS client_name, i.invoice_number
-       FROM reseller_commissions rc
-       LEFT JOIN clients c ON rc.client_id = c.id
-       LEFT JOIN invoices i ON rc.invoice_id = i.id
-       WHERE ${where} ORDER BY rc.created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,
-      params,
+    const reseller = await getResellerOrThrow(req);
+    const status = req.query.status === undefined || req.query.status === '' ? null : String(req.query.status);
+    if (status !== null && !COMMISSION_STATUSES.includes(status)) {
+      throw new ValidationError(`status must be one of ${COMMISSION_STATUSES.join(', ')}`);
+    }
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 100);
+    const { rows, total, summary } = await resellerCommissionService.listCommissions(
+      req.orgId, Number(reseller.id), { status, limit, offset: (page - 1) * limit },
     );
-    const [[{ total }]] = await db.query(
-      `SELECT COUNT(*) AS total FROM reseller_commissions rc WHERE ${where}`, params,
-    );
-    res.json({ data: rows, meta: { total, page: pageNum, limit: limitNum } });
-  } catch (err) { next(err); }
-});
-
-// POST /resellers/:id/commissions/:cId/approve
-router.post('/:id/commissions/:cId/approve', requirePermission('reseller_commissions.approve'), requireIspDecision, async (req, res, next) => {
-  try {
-    await getResellerOrThrow(req);
-    const [[comm]] = await db.query(
-      'SELECT * FROM reseller_commissions WHERE id = ? AND reseller_id = ?',
-      [req.params.cId, req.params.id],
-    );
-    if (!comm) throw new NotFoundError('Commission record not found');
-
-    const newStatus = req.body.status === 'paid' ? 'paid' : 'approved';
-    const paidAt = newStatus === 'paid' ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null;
-    await db.query(
-      'UPDATE reseller_commissions SET status = ?, paid_at = ? WHERE id = ?',
-      [newStatus, paidAt, req.params.cId],
-    );
-    const [[updated]] = await db.query('SELECT * FROM reseller_commissions WHERE id = ?', [req.params.cId]);
-    res.json({ data: updated });
+    res.json({ data: rows, summary, meta: { total, page, limit } });
   } catch (err) { next(err); }
 });
 
@@ -1091,9 +1067,11 @@ router.put(
 // Collections are booked on the top-level reseller of the user who took the
 // money, so a sub-reseller has no ledger of its own. A deposit records cash
 // the reseller handed in and frees its credit limit; it is never a payments
-// row. Staff post only deposits and adjustments: a collection, its void and a
-// sealed bag (bag_sealed) are written by the flows they record. Org-level
-// staff only: what a reseller owes is the ISP's record.
+// row. A payout records what the ISP paid the reseller when its commissions
+// passed what it holds (a negative balance, "Te debemos"). Staff post only
+// deposits, payouts and adjustments: a collection, its void, a sealed bag
+// (bag_sealed) and the commission lines are written by the flows they record.
+// Org-level staff only: what a reseller owes is the ISP's record.
 
 const ledgerEntrySchema = {
   entry_type: { type: 'string', required: true, enum: resellerLedgerService.MANUAL_ENTRY_TYPES },
@@ -1142,6 +1120,7 @@ router.post(
       const note = typeof req.body.note === 'string' && req.body.note.trim() ? req.body.note.trim() : null;
       if (money.round(amount) !== amount) throw new ValidationError('amount must have at most 2 decimals');
       if (entryType === 'deposit' && !(amount > 0)) throw new ValidationError('A deposit amount must be more than 0');
+      if (entryType === 'payout' && !(amount > 0)) throw new ValidationError('A payout amount must be more than 0');
       if (entryType === 'adjustment' && amount === 0) throw new ValidationError('An adjustment amount must not be 0');
       if (entryType === 'adjustment' && !note) throw new ValidationError('An adjustment needs a note explaining it');
 
@@ -1167,6 +1146,17 @@ router.post(
           err.code = 'DEPOSIT_EXCEEDS_BALANCE';
           throw err;
         }
+        // A payout is what the ISP owes the reseller: its commissions passed
+        // the cash it holds, so the balance is negative. More would make the
+        // reseller owe the ISP the difference.
+        if (entryType === 'payout' && money.toCents(amount) > -money.toCents(position.balance)) {
+          const owed = Math.max(0, -position.balance);
+          const err = new ValidationError(
+            `The ISP owes the reseller ${owed.toFixed(2)}; a payout cannot be more than that`,
+          );
+          err.code = 'PAYOUT_EXCEEDS_OWED';
+          throw err;
+        }
         signed = entryType === 'deposit' ? -amount : amount;
         entryId = await resellerLedgerService.appendEntry(exec, {
           orgId: req.orgId, resellerId: reseller.id, entryType, amount: signed, currency,
@@ -1183,22 +1173,22 @@ router.post(
       await auditLog.log({
         userId: req.user.id,
         organizationId: req.orgId,
-        action: entryType === 'deposit' ? 'reseller_deposit' : 'reseller_adjustment',
+        action: { deposit: 'reseller_deposit', payout: 'reseller_payout' }[entryType] || 'reseller_adjustment',
         tableName: 'reseller_ledger_entries',
         recordId: entryId,
         newValues: { reseller_id: Number(found.id), entry_type: entryType, amount: signed, currency, note },
       });
       const [[row]] = await db.query(
-        `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by
+        `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by,
+                cash_bag_id, invoice_id, commission_id
            FROM reseller_ledger_entries WHERE id = ? AND organization_id = ?`,
         [entryId, req.orgId],
       );
       const summary = await resellerLedgerService.summaryFor(req.orgId, found.id);
       res.status(201).json({
-        data: row ? resellerLedgerService.entryRow(row) : {
-          id: entryId, entry_type: entryType, amount: signed, currency, note,
-          created_at: null, payment_id: null, cash_session_id: null, created_by: req.user.id,
-        },
+        data: resellerLedgerService.entryRow(row || {
+          id: entryId, entry_type: entryType, amount: signed, currency, note, created_at: null, created_by: req.user.id,
+        }),
         summary: ledgerSummary(summary),
       });
     } catch (err) { next(err); }

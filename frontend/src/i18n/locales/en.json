@@ -4949,7 +4949,7 @@
     "subscribers": "Active Subscribers",
     "revenue": "Revenue (This Month)",
     "openTickets": "Open Tickets",
-    "pendingCommission": "Pending Commission",
+    "pendingCommission": "Commission this month",
     "bandwidthQuota": "Bandwidth Quota",
     "ipPools": "IP Pool Allocations",
     "download": "Download",
@@ -10061,7 +10061,13 @@
       "atLimit": "You reached your limit: hand in the cash to keep collecting.",
       "collectedToday": "Collected today",
       "collect": "Collect a payment",
-      "viewCash": "See my cash box"
+      "viewCash": "See my cash box",
+      "owedToYou": "We owe you"
+    },
+    "commission": {
+      "title": "Your commission",
+      "month": "Earned this month",
+      "help": "You earn {{rate}}% of each paid invoice of your clients, before taxes. You keep it from the cash you collect, so it is already taken off what you hand in."
     },
     "collect": {
       "title": "Collect",
@@ -10160,6 +10166,7 @@
       "voidNotYours": "Only the person who took this cash can void it.",
       "voidHasRep": "This payment is already reported to SAT with a payment complement. Ask the company to cancel it.",
       "voidSealedInBag": "The cash of this payment is already sealed in a cash bag. Ask the company to correct it.",
+      "voidChanged": "This payment changed while it was being voided. Try again.",
       "noOpenToClose": "There is no open cash box to close.",
       "closeTitle": "Close cash box",
       "closeHelp": "Count the cash you have and type the total. Closing does not change what you owe: that goes down when the company receives your cash.",
@@ -10183,16 +10190,20 @@
     },
     "ledger": {
       "title": "Movements",
-      "intro": "Each payment you collect adds to what you hand in to the company; each cash hand-in and each bag you seal lowers it.",
+      "intro": "Each payment you collect adds to what you hand in to the company; each cash hand-in, each bag you seal and each commission you earn lowers it. If your commissions pass the cash you hold, the company owes you the difference.",
       "loadError": "Your movements could not be loaded.",
       "empty": "No movements yet.",
       "limit": "Your cash limit",
+      "invoice": "Invoice {{number}}",
       "types": {
         "collection": "Payment collected",
         "collection_void": "Payment voided",
         "deposit": "Cash handed in",
         "adjustment": "Adjustment",
-        "bag_sealed": "Bag sealed"
+        "bag_sealed": "Bag sealed",
+        "commission": "Commission earned",
+        "commission_reversal": "Commission reversed",
+        "payout": "Payment from the company"
       }
     }
   },
@@ -10279,7 +10290,7 @@
   "resellerLedger": {
     "tab": "Movements",
     "title": "Cash movements",
-    "help": "The cash a reseller collected for the company, the cash it handed in and the cash it sealed in bags (taken off what it owes when sealed). Sub-resellers collect on their top-level reseller.",
+    "help": "The cash a reseller collected for the company, the cash it handed in, the cash it sealed in bags (taken off what it owes when sealed) and the commission it keeps from the cash on its clients' paid invoices. A negative balance is what the company owes it. Sub-resellers collect and earn on their top-level reseller.",
     "reseller": "Reseller",
     "selectReseller": "— Choose a reseller —",
     "loadError": "The reseller's movements could not be loaded.",
@@ -10288,6 +10299,18 @@
     "creditLimit": "Cash limit",
     "available": "Can still collect",
     "viewPayments": "See this reseller's payments",
+    "owedToReseller": "Company owes the reseller",
+    "invoice": "Invoice {{number}}",
+    "payoutTitle": "Record a payout",
+    "payoutHelp": "What the company paid the reseller when its commissions passed the cash it held. It brings the balance back towards zero.",
+    "payoutOwed": "The company owes this reseller {{amount}}.",
+    "payoutNothingOwed": "The company owes this reseller nothing right now.",
+    "payoutAmount": "Amount paid",
+    "payoutSubmit": "Record payout",
+    "payoutSaved": "Payout of {{amount}} recorded.",
+    "payoutInvalid": "Type an amount greater than zero, with up to two decimals.",
+    "payoutTooMuch": "A payout cannot be more than what the company owes the reseller.",
+    "depositTooMuch": "A hand-in cannot be more than the cash the reseller holds.",
     "depositTitle": "Record cash handed in",
     "depositHelp": "The cash the reseller handed over to the company. It lowers what it owes and frees its limit.",
     "depositAmount": "Amount received",
@@ -10316,8 +10339,38 @@
       "collection_void": "Voided collection",
       "deposit": "Cash handed in",
       "adjustment": "Adjustment",
-      "bag_sealed": "Bag sealed"
+      "bag_sealed": "Bag sealed",
+      "commission": "Commission kept",
+      "commission_reversal": "Commission reversed",
+      "payout": "Payout"
     }
+  },
+  "resellerCommissions": {
+    "title": "Commissions",
+    "help": "A reseller earns its commission rate on the subtotal (before taxes) of every paid invoice of a client it brought in, whoever collected the money. Sub-resellers' clients earn at their top-level reseller's rate, on its account. A commission is reversed when its invoice stops being paid, and earned again if it is paid again. The reseller keeps it from the cash it collects: see Movements.",
+    "reseller": "Reseller",
+    "selectReseller": "— Choose a reseller —",
+    "status": "Status",
+    "statusAll": "All",
+    "statuses": {
+      "earned": "Earned",
+      "reversed": "Reversed"
+    },
+    "resellersError": "The resellers could not be loaded.",
+    "loadError": "The commissions could not be loaded.",
+    "summary": "Summary",
+    "earnedThisMonth": "Earned this month",
+    "earnedTotal": "Earned (standing)",
+    "reversedTotal": "Reversed",
+    "colEarned": "Earned on",
+    "colInvoice": "Invoice",
+    "colClient": "Client",
+    "colBase": "Base (before taxes)",
+    "colRate": "Rate",
+    "colAmount": "Commission",
+    "colStatus": "Status",
+    "empty": "No commissions yet.",
+    "reversedOn": "Reversed {{date}}"
   },
   "serialScan": {
     "scan": "Scan with the camera",

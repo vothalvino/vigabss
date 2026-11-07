@@ -9,7 +9,9 @@
 //                       limit, and recording a hand-in (reseller_ledger.*)
 //   4. Bags           — a reseller's cash bags, their history and the count
 //                       differences (cash_bags.view)
-//   5. Commissions    — commission earnings per reseller (read only)
+//   5. Commissions    — what a top-level reseller earned on its clients' paid
+//                       invoices: base, rate, amount, earned or reversed
+//                       (read only, reseller_commissions.view; phase 4)
 //   6. Portal         — reseller dashboard numbers
 //   7. Staff access   — reseller logins and bindings
 // Plan price overrides, network resources (IP pools, bandwidth quota, OLT
@@ -23,11 +25,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
+import { formatMoney } from '@/lib/money';
 import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 import { ResellerFormModal } from './resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
 import { ResellerBagsTab } from './resellers/ResellerBagsTab';
+import { ResellerCommissionsTab } from './resellers/ResellerCommissionsTab';
 import { ResellerListNotice, resellerOptionKeys, useResellerOptions } from './resellers/resellerOptions';
 
 // ---------------------------------------------------------------------------
@@ -55,21 +59,6 @@ interface Reseller {
   city?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
-}
-
-interface Commission {
-  id: number;
-  reseller_id: number;
-  invoice_id: number;
-  invoice_number: string | null;
-  client_id: number | null;
-  client_name: string | null;
-  commission_rate: number;
-  invoice_total: number;
-  commission_amount: number;
-  currency: string;
-  status: string;
-  created_at: string;
 }
 
 interface ResellerDashboard {
@@ -246,82 +235,13 @@ function ResellersTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Commissions
-// ---------------------------------------------------------------------------
-
-function CommissionsTab() {
-  const { t } = useTranslation();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const resellersQ = useResellerOptions();
-  const resellers = resellersQ.data?.rows ?? [];
-  const listError = resellersQ.isError ? t('reseller.errorLoading') : null;
-
-  const load = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await apiFetch<ApiList<Commission>>(`/resellers/${selectedId}/commissions?limit=50`);
-      setCommissions(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
-    } finally { setLoading(false); }
-  }, [selectedId, t]);
-
-  useEffect(() => { load(); }, [load]);
-
-
-  return (
-    <div>
-      <h3>{t('reseller.commissions')}</h3>
-      <label htmlFor="commissions-reseller">{t('reseller.selectReseller')}: </label>
-      <select id="commissions-reseller" value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
-        <option value="">— {t('reseller.select')} —</option>
-        {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
-      <ResellerListNotice list={resellersQ.data} />
-      {(error ?? listError) && <p style={{ color: '#e74c3c' }}>{error ?? listError}</p>}
-      {loading && <p>{t('reseller.loading')}</p>}
-      {selectedId && !loading && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.invoice')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.client')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.rate')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.amount')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.status')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {commissions.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noCommissions')}</td></tr>
-            )}
-            {commissions.map((c) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.invoice_number ?? c.invoice_id}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.client_name ?? c.client_id}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.commission_rate}%</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.commission_amount} {c.currency}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={c.status} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Tab: Reseller Portal (dashboard + client list)
 // ---------------------------------------------------------------------------
 
 function PortalTab() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const currency = user?.organization_currency || 'MXN';
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [dashboard, setDashboard] = useState<ResellerDashboard | null>(null);
   const [loading, setLoading] = useState(false);
@@ -359,9 +279,9 @@ function PortalTab() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 8 }}>
           {[
             { label: t('reseller.subscribers'), value: dashboard.subscriber_count },
-            { label: t('reseller.revenue'), value: `$${dashboard.total_revenue.toFixed(2)}` },
+            { label: t('reseller.revenue'), value: formatMoney(dashboard.total_revenue, currency) },
             { label: t('reseller.openTickets'), value: dashboard.open_tickets },
-            { label: t('reseller.pendingCommission'), value: `$${dashboard.pending_commission.toFixed(2)}` },
+            { label: t('reseller.pendingCommission'), value: formatMoney(dashboard.pending_commission, currency) },
           ].map((card) => (
             <div key={card.label} style={{
               background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 8,
@@ -386,7 +306,7 @@ const TABS: { key: Tab; labelKey: string; permission?: string }[] = [
   { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans' },
   { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view' },
   { key: 'bags', labelKey: 'cashBags.resellerTab.tab', permission: 'cash_bags.view' },
-  { key: 'commissions', labelKey: 'reseller.tabCommissions' },
+  { key: 'commissions', labelKey: 'reseller.tabCommissions', permission: 'reseller_commissions.view' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
   { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
 ];
@@ -425,7 +345,7 @@ export default function ResellerPage() {
       {activeTab === 'allowedPlans' && <ResellerAllowedPlansTab />}
       {activeTab === 'ledger' && <ResellerLedgerTab />}
       {activeTab === 'bags' && <ResellerBagsTab />}
-      {activeTab === 'commissions' && <CommissionsTab />}
+      {activeTab === 'commissions' && <ResellerCommissionsTab />}
       {activeTab === 'portal' && <PortalTab />}
       {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}
     </div>

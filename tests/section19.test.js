@@ -539,24 +539,36 @@ describe('GET /api/v1/resellers/:id/commissions', () => {
     expect(Array.isArray(res.body.data)).toBe(true);
   });
 
-  it('filters by status query param', async () => {
+  it('filters by status query param (earned / reversed)', async () => {
+    const res = await request(app)
+      .get('/api/v1/resellers/1/commissions?status=earned')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('X-Org-Id', '10');
+    expect(res.status).toBe(200);
+    const list = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM reseller_commissions rc'));
+    expect(list[0]).toMatch(/rc\.organization_id = \? AND rc\.reseller_id = \? AND rc\.reversed_at IS NULL/);
+  });
+
+  it('refuses a status of the old approval workflow (422)', async () => {
     const res = await request(app)
       .get('/api/v1/resellers/1/commissions?status=pending')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10');
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(422);
   });
 });
 
+// Phase 4: the reseller keeps its commission from the cash, so nothing
+// approves or pays a commission by hand any more.
 describe('POST /api/v1/resellers/:id/commissions/:cId/approve', () => {
-  it('returns 200 and approves commission', async () => {
+  it('is gone (404)', async () => {
     const res = await request(app)
       .post('/api/v1/resellers/1/commissions/1/approve')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
       .send({ status: 'approved' });
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('status', 'approved');
+    expect(res.status).toBe(404);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE reseller_commissions'))).toBe(false);
   });
 });
 
@@ -846,36 +858,12 @@ describe('resellerService', () => {
     });
   });
 
-  describe('recordCommission', () => {
-    it('does nothing when invoice not found', async () => {
-      db.query.mockReset();
-      db.query.mockResolvedValueOnce([[]]); // invoice not found
-      await expect(resellerService.recordCommission(999, 10)).resolves.toBeUndefined();
-    });
-
-    it('does nothing when client has no reseller', async () => {
-      db.query.mockReset();
-      db.query.mockResolvedValueOnce([[{ id: 5, client_id: 3, total: 100, currency: 'USD' }]]);
-      db.query.mockResolvedValueOnce([[{ reseller_id: null }]]);
-      await expect(resellerService.recordCommission(5, 10)).resolves.toBeUndefined();
-    });
-
-    it('inserts commission record when all lookups succeed', async () => {
-      db.query.mockReset();
-      db.query.mockResolvedValueOnce([[{ id: 5, client_id: 3, total: 100.00, currency: 'USD' }]]);
-      db.query.mockResolvedValueOnce([[{ reseller_id: 1 }]]);
-      db.query.mockResolvedValueOnce([[{ id: 1, commission_rate: 10.00 }]]);
-      db.query.mockResolvedValueOnce([{ insertId: 1 }]);
-      await expect(resellerService.recordCommission(5, 10)).resolves.toBeUndefined();
-      expect(db.query).toHaveBeenCalledTimes(4);
-    });
-
-    it('does nothing when reseller not found', async () => {
-      db.query.mockReset();
-      db.query.mockResolvedValueOnce([[{ id: 5, client_id: 3, total: 100, currency: 'USD' }]]);
-      db.query.mockResolvedValueOnce([[{ reseller_id: 7 }]]);
-      db.query.mockResolvedValueOnce([[]]); // reseller not found
-      await expect(resellerService.recordCommission(5, 10)).resolves.toBeUndefined();
+  describe('the commission engine replaced recordCommission', () => {
+    it('exports syncResellerCommission, which runs in the caller\'s transaction', async () => {
+      expect(resellerService.recordCommission).toBeUndefined();
+      const exec = jest.fn().mockResolvedValue([[]]); // the invoice is not found
+      await expect(resellerService.syncResellerCommission(exec, 999, 10)).resolves.toEqual({ action: 'none' });
+      expect(exec.mock.calls[0][0]).toMatch(/FROM invoices WHERE id = \? AND organization_id = \?\s+FOR UPDATE/);
     });
   });
 });
@@ -983,40 +971,6 @@ describe('POST /api/v1/resellers with parent_id', () => {
       .set('X-Org-Id', '10')
       .send({ name: 'Orphan', parent_id: 999, commission_rate: 5 });
     expect(res.status).toBe(422);
-  });
-});
-
-describe('POST /api/v1/resellers/:id/commissions/:cId/approve with paid status', () => {
-  it('marks commission as paid when status=paid', async () => {
-    db.query.mockImplementation((sql) => {
-      const s = typeof sql === 'string' ? sql : '';
-      if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
-        return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 }]]);
-      }
-      if (s.includes('FROM organizations')) {
-        return Promise.resolve([[{ id: 10, name: 'Test Org' }]]);
-      }
-      if (s.includes('FROM resellers') && s.includes('organization_id')) {
-        return Promise.resolve([[sampleReseller]]);
-      }
-      if (s.includes('FROM reseller_commissions') && s.includes('reseller_id = ?')) {
-        return Promise.resolve([[sampleCommission]]);
-      }
-      if (s.includes('UPDATE reseller_commissions')) {
-        return Promise.resolve([{ affectedRows: 1 }]);
-      }
-      if (s.includes('SELECT * FROM reseller_commissions')) {
-        return Promise.resolve([[{ ...sampleCommission, status: 'paid' }]]);
-      }
-      return Promise.resolve([[]]);
-    });
-    const res = await request(app)
-      .post('/api/v1/resellers/1/commissions/1/approve')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10')
-      .send({ status: 'paid' });
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('status', 'paid');
   });
 });
 
@@ -1210,16 +1164,25 @@ describe('reseller IN-bind regression (execute() does not expand array binds)', 
 
     const [subSql, subParams] = db.query.mock.calls.find(([sql]) =>
       sql.includes('COUNT(*) AS cnt') && sql.includes('FROM clients'));
-    expect(subSql).toMatch(/id IN \(\?, \?\)/);
-    expect(subParams).toEqual([3, 4, 'active']);
+    expect(subSql).toMatch(/organization_id = \? AND id IN \(\?, \?\)/);
+    expect(subParams).toEqual([10, 3, 4, 'active']);
 
+    // Revenue counts invoices PAID this business month (paid_at), not issued.
     const [revSql, revParams] = db.query.mock.calls.find(([sql]) => sql.includes('COALESCE(SUM(total)'));
-    expect(revSql).toMatch(/client_id IN \(\?, \?\)/);
-    expect(revParams).toEqual([3, 4]);
+    expect(revSql).toMatch(/organization_id = \? AND client_id IN \(\?, \?\)/);
+    expect(revSql).toMatch(/paid_at >= \?/);
+    expect(revSql).not.toMatch(/issue_date/);
+    expect(revParams.slice(0, 3)).toEqual([10, 3, 4]);
+    expect(revParams[3]).toBeInstanceOf(Date);
 
     const [tickSql, tickParams] = db.query.mock.calls.find(([sql]) => sql.includes('FROM tickets'));
     expect(tickSql).toMatch(/client_id IN \(\?, \?\)/);
-    expect(tickParams).toEqual([3, 4]);
+    expect(tickParams).toEqual([10, 3, 4]);
+
+    // The commission of the subtree's clients, booked on the top-level reseller.
+    const [commSql, commParams] = db.query.mock.calls.find(([sql]) => sql.includes('FROM reseller_commissions'));
+    expect(commSql).toMatch(/organization_id = \? AND client_id IN \(\?, \?\)\s+AND status = 'earned' AND reversed_at IS NULL AND earned_at >= \?/);
+    expect(commParams.slice(0, 3)).toEqual([10, 3, 4]);
 
     expectFlatBinds();
   });

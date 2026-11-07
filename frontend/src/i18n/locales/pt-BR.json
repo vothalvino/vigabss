@@ -4949,7 +4949,7 @@
     "subscribers": "Assinantes Ativos",
     "revenue": "Receita (Este Mes)",
     "openTickets": "Chamados Abertos",
-    "pendingCommission": "Comissao Pendente",
+    "pendingCommission": "Comissão deste mês",
     "bandwidthQuota": "Cota de Largura de Banda",
     "ipPools": "Alocacoes de Pool IP",
     "download": "Download",
@@ -10055,7 +10055,13 @@
       "atLimit": "Você chegou ao seu limite: entregue o dinheiro para continuar recebendo.",
       "collectedToday": "Recebido hoje",
       "collect": "Receber pagamento",
-      "viewCash": "Ver meu caixa"
+      "viewCash": "Ver meu caixa",
+      "owedToYou": "Devemos a você"
+    },
+    "commission": {
+      "title": "Sua comissão",
+      "month": "Ganha este mês",
+      "help": "Você ganha {{rate}}% de cada fatura paga dos seus clientes, sem impostos. Você a retira do dinheiro que recebe, então ela já está descontada do que você deve entregar."
     },
     "collect": {
       "title": "Receber",
@@ -10154,6 +10160,7 @@
       "voidNotYours": "Só quem recebeu este dinheiro pode cancelar o recebimento.",
       "voidHasRep": "Este recebimento já foi informado ao SAT com um complemento de pagamento. Peça à empresa que o cancele.",
       "voidSealedInBag": "O dinheiro deste recebimento já está lacrado em uma bolsa. Peça à empresa que o corrija.",
+      "voidChanged": "Este recebimento mudou enquanto era anulado. Tente novamente.",
       "noOpenToClose": "Não há caixa aberto para fechar.",
       "closeTitle": "Fechar caixa",
       "closeHelp": "Conte o dinheiro que você tem e digite o total. Fechar o caixa não muda o que você deve: isso diminui quando a empresa recebe o seu dinheiro.",
@@ -10177,16 +10184,20 @@
     },
     "ledger": {
       "title": "Movimentações",
-      "intro": "Cada recebimento soma ao que você deve entregar à empresa; cada entrega de dinheiro e cada malote que você lacra diminuem.",
+      "intro": "Cada recebimento soma ao que você deve entregar à empresa; cada entrega de dinheiro, cada malote que você lacra e cada comissão que você ganha diminuem. Se as suas comissões passarem do dinheiro que você tem, a empresa deve a diferença a você.",
       "loadError": "Não foi possível carregar suas movimentações.",
       "empty": "Ainda não há movimentações.",
       "limit": "Seu limite de dinheiro",
+      "invoice": "Fatura {{number}}",
       "types": {
         "collection": "Recebimento",
         "collection_void": "Recebimento anulado",
         "deposit": "Entrega de dinheiro",
         "adjustment": "Ajuste",
-        "bag_sealed": "Malote lacrado"
+        "bag_sealed": "Malote lacrado",
+        "commission": "Comissão ganha",
+        "commission_reversal": "Comissão estornada",
+        "payout": "Pagamento da empresa"
       }
     }
   },
@@ -10273,7 +10284,7 @@
   "resellerLedger": {
     "tab": "Movimentações",
     "title": "Movimentações de dinheiro",
-    "help": "O dinheiro que um revendedor recebeu em nome da empresa, o que já entregou e o que lacrou em malotes (descontado do que deve ao lacrar). Os sub-revendedores recebem na conta do revendedor principal.",
+    "help": "O dinheiro que um revendedor recebeu em nome da empresa, o que já entregou, o que lacrou em malotes (descontado do que deve ao lacrar) e a comissão que retira do dinheiro pelas faturas pagas dos seus clientes. Um saldo negativo é o que a empresa deve a ele. Os sub-revendedores recebem e ganham na conta do revendedor principal.",
     "reseller": "Revendedor",
     "selectReseller": "— Escolha um revendedor —",
     "loadError": "Não foi possível carregar as movimentações do revendedor.",
@@ -10282,6 +10293,18 @@
     "creditLimit": "Limite de dinheiro",
     "available": "Ainda pode receber",
     "viewPayments": "Ver os recebimentos deste revendedor",
+    "owedToReseller": "A empresa deve ao revendedor",
+    "invoice": "Fatura {{number}}",
+    "payoutTitle": "Registrar pagamento ao revendedor",
+    "payoutHelp": "O que a empresa pagou ao revendedor quando as comissões dele passaram do dinheiro que tinha. Leva o saldo de volta para zero.",
+    "payoutOwed": "A empresa deve {{amount}} a este revendedor.",
+    "payoutNothingOwed": "No momento a empresa não deve nada a este revendedor.",
+    "payoutAmount": "Valor pago",
+    "payoutSubmit": "Registrar pagamento",
+    "payoutSaved": "Pagamento ao revendedor de {{amount}} registrado.",
+    "payoutInvalid": "Digite um valor maior que zero, com até duas casas decimais.",
+    "payoutTooMuch": "Um pagamento não pode ser maior do que a empresa deve ao revendedor.",
+    "depositTooMuch": "Uma entrega não pode ser maior do que o dinheiro que o revendedor tem.",
     "depositTitle": "Registrar entrega de dinheiro",
     "depositHelp": "O dinheiro que o revendedor entregou à empresa. Diminui o que ele deve e libera o seu limite.",
     "depositAmount": "Valor recebido",
@@ -10310,8 +10333,38 @@
       "collection_void": "Recebimento anulado",
       "deposit": "Entrega de dinheiro",
       "adjustment": "Ajuste",
-      "bag_sealed": "Malote lacrado"
+      "bag_sealed": "Malote lacrado",
+      "commission": "Comissão",
+      "commission_reversal": "Comissão estornada",
+      "payout": "Pagamento ao revendedor"
     }
+  },
+  "resellerCommissions": {
+    "title": "Comissões",
+    "help": "Um revendedor ganha sua porcentagem de comissão sobre o subtotal (sem impostos) de cada fatura paga de um cliente que trouxe, não importa quem recebeu. Os clientes dos sub-revendedores ganham com a porcentagem do revendedor principal, na conta dele. Uma comissão é estornada quando a fatura deixa de estar paga e volta a ser ganha se for paga de novo. O revendedor a retira do dinheiro que recebe: veja Movimentações.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Escolha um revendedor —",
+    "status": "Status",
+    "statusAll": "Todas",
+    "statuses": {
+      "earned": "Ganha",
+      "reversed": "Estornada"
+    },
+    "resellersError": "Não foi possível carregar os revendedores.",
+    "loadError": "Não foi possível carregar as comissões.",
+    "summary": "Resumo",
+    "earnedThisMonth": "Ganho este mês",
+    "earnedTotal": "Ganho (vigente)",
+    "reversedTotal": "Estornado",
+    "colEarned": "Ganha em",
+    "colInvoice": "Fatura",
+    "colClient": "Cliente",
+    "colBase": "Base (sem impostos)",
+    "colRate": "Porcentagem",
+    "colAmount": "Comissão",
+    "colStatus": "Status",
+    "empty": "Ainda não há comissões.",
+    "reversedOn": "Estornada em {{date}}"
   },
   "serialScan": {
     "scan": "Escanear com a câmera",
