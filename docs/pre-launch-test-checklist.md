@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.7 — Pre-Launch Test Checklist
+# VigaBSS 0.1.0-alpha.8 — Pre-Launch Test Checklist
 
 Manual / integration tests that only surface against a **real environment or external service** — the mocked-DB jest suite (CI) does not cover these. Mapped from the codebase by a multi-agent audit (2026-07-25).
 

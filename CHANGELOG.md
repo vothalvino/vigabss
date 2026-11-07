@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.8 — 2026-11-06
+
 - **Signed copies are named after the contract and the signing date.** A
   downloaded activation contract is now `contrato-<contract>-<YYYY-MM-DD>.pdf`
   (`contract-…` outside Mexico) instead of `document-<id>.pdf`. The date is
