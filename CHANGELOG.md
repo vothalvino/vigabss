@@ -5,7 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller accounts can manage their own passkeys again.** The reseller
+  fence (0.1.0-alpha.9) blocked `/security-admin/webauthn`, although the
+  reseller role keeps `webauthn.*`. It now allows exactly that path, which
+  lists and revokes only the caller's own credentials. The rest of security
+  admin stays blocked.
 
 ## 0.1.0-alpha.9 — 2026-11-07
 
