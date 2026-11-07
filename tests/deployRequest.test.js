@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// VigaBSS 0.1.0-alpha.10 — deploy from the GUI, without giving the app any privilege
+// VigaBSS 0.1.0-alpha.11 — deploy from the GUI, without giving the app any privilege
 // =============================================================================
 // The security property is not "the button works". It is:
 //
