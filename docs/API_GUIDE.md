@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.11 — API Guide
+# VigaBSS 0.1.0-alpha.12 — API Guide
 
 This guide covers everything a developer needs to integrate with the VigaBSS REST API.
 
@@ -34,7 +34,7 @@ https://your-domain.com/api/v1/
 The REST API is served only under `/api/v1/`; unversioned `/api/<resource>`
 paths return 404. Health endpoints and the Swagger UI at `/api/docs`
 are intentionally outside the versioned REST prefix. The current application
-release is `0.1.0-alpha.11`.
+release is `0.1.0-alpha.12`.
 
 ---
 

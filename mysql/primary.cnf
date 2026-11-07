@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 0.1.0-alpha.11 — MySQL Primary (Source) Configuration
+# VigaBSS 0.1.0-alpha.12 — MySQL Primary (Source) Configuration
 # Used by the db-primary service in docker-compose.prod.yml
 # =============================================================================
 

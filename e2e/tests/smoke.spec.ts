@@ -1,5 +1,5 @@
 /**
- * VigaBSS 0.1.0-alpha.11 — End-to-End Smoke Test
+ * VigaBSS 0.1.0-alpha.12 — End-to-End Smoke Test
  *
  * Scenario: log in → create client (API) → assign plan (UI) →
  *           generate invoice (UI) → record payment (UI) → credit note (UI) →
