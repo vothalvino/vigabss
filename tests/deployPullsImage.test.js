@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// VigaBSS 0.1.0-alpha.9 — production pulls its image, it does not build one
+// VigaBSS 0.1.0-alpha.10 — production pulls its image, it does not build one
 // =============================================================================
 // The production host used to compile the app on every deploy. The in-image
 // frontend build (gen:api + a whole-program `tsc --noEmit` over 376 files +
@@ -231,8 +231,8 @@ describe('the installer does not compile on the target box', () => {
     }
   });
 
-  it('identifies the pre-launch build as 0.1.0-alpha.9', () => {
-    expect(install).toContain('VIGABSS_VERSION="0.1.0-alpha.9"');
+  it('identifies the pre-launch build as 0.1.0-alpha.10', () => {
+    expect(install).toContain('VIGABSS_VERSION="0.1.0-alpha.10"');
   });
 
   it('pulls the published image on the platform it is published for', () => {
