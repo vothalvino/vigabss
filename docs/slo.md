@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.12 — Service Level Objectives (SLOs) & Alerting (P1.8)
+# VigaBSS 0.1.0-alpha.13 — Service Level Objectives (SLOs) & Alerting (P1.8)
 
 > **Audience:** Operations, on-call engineers, SRE.
 > This document defines the SLOs for VigaBSS, the Prometheus alerting rules

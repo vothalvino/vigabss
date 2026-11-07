@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.13 — 2026-11-07
+
 - **Sealing a cash bag now takes the money off the reseller's account at
   once.** When a *Punto de Venta* seals a bag, the declared amount is
   removed from what it owes the ISP right away, with a "Bolsa sellada" line
