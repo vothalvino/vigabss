@@ -10183,7 +10183,7 @@
     },
     "ledger": {
       "title": "Movements",
-      "intro": "Each payment you collect adds to what you hand in to the company; each cash hand-in lowers it.",
+      "intro": "Each payment you collect adds to what you hand in to the company; each cash hand-in and each bag you seal lowers it.",
       "loadError": "Your movements could not be loaded.",
       "empty": "No movements yet.",
       "limit": "Your cash limit",
@@ -10191,7 +10191,8 @@
         "collection": "Payment collected",
         "collection_void": "Payment voided",
         "deposit": "Cash handed in",
-        "adjustment": "Adjustment"
+        "adjustment": "Adjustment",
+        "bag_sealed": "Bag sealed"
       }
     }
   },
@@ -10278,7 +10279,7 @@
   "resellerLedger": {
     "tab": "Movements",
     "title": "Cash movements",
-    "help": "The cash a reseller collected for the company and the cash it handed in. Sub-resellers collect on their top-level reseller.",
+    "help": "The cash a reseller collected for the company, the cash it handed in and the cash it sealed in bags (taken off what it owes when sealed). Sub-resellers collect on their top-level reseller.",
     "reseller": "Reseller",
     "selectReseller": "— Choose a reseller —",
     "loadError": "The reseller's movements could not be loaded.",
@@ -10314,7 +10315,8 @@
       "collection": "Collection",
       "collection_void": "Voided collection",
       "deposit": "Cash handed in",
-      "adjustment": "Adjustment"
+      "adjustment": "Adjustment",
+      "bag_sealed": "Bag sealed"
     }
   },
   "serialScan": {
@@ -10433,9 +10435,12 @@
       "in_transit": "On its way"
     }
   },
+  "resellerOptions": {
+    "truncated": "Showing the first {{shown}} of {{total}} resellers."
+  },
   "puntoBags": {
     "title": "My cash bags",
-    "intro": "Put the cash you collected into an empty bag and seal it: what you put in no longer counts against your cash limit, so you can keep collecting. The carrier picks the bag up and the company counts it when it arrives.",
+    "intro": "Put the cash you collected into an empty bag and seal it: the amount you seal is taken off what you hand in right away and no longer counts against your cash limit, so you can keep collecting. The carrier picks the bag up and the company counts it when it arrives; if it comes up short, you owe the difference.",
     "noAccess": "Your account can't use cash bags. Ask the company.",
     "loadError": "We couldn't load your bags.",
     "fillToCollect": "Fill a bag to keep collecting",
@@ -10445,8 +10450,9 @@
     "ledgerBag": "Bag {{serial}}",
     "money": {
       "title": "Your cash and bags",
-      "cashOnHand": "Cash outside bags",
-      "inBags": "In sealed bags"
+      "cashOnHand": "Cash on hand",
+      "inBags": "In bags awaiting pickup or on their way",
+      "inBagsHelp": "You no longer owe this cash: it was taken off what you hand in when you sealed the bag."
     },
     "card": {
       "title": "My bags",
@@ -10458,7 +10464,8 @@
       "onTheirWay_other": "{{count}} on their way",
       "fill": "Fill a bag",
       "noEmpty": "You have no empty bags: wait for the carrier to bring some, or hand the cash in at the company.",
-      "view": "See my bags"
+      "view": "See my bags",
+      "inBagsNote": "Sealed cash is no longer yours to hand in: it is waiting for the carrier or on its way to the company."
     },
     "seal": {
       "title": "Fill a bag",
@@ -10478,7 +10485,7 @@
       "yes": "Yes, seal the bag",
       "back": "Not yet",
       "saving": "Sealing…",
-      "done": "Bag {{serial}} sealed with {{amount}}. It's ready for the carrier.",
+      "done": "Bag {{serial}} sealed with {{amount}}: it was taken off what you hand in. It's ready for the carrier.",
       "exceedsCash": "That amount is more than the cash you hold outside bags. Check it and try again.",
       "notFound": "That bag is not one of your empty bags. Check the number.",
       "conflict": "That bag was already sealed. Choose another one.",
@@ -10542,7 +10549,7 @@
       "changed": "This bag changed while you were saving. Reload it and try again."
     },
     "board": {
-      "help": "Resellers seal bags with the cash they declare; a carrier picks them up and you count them when they arrive. Receiving a bag records the declared amount as cash handed in and any difference as an adjustment on the reseller's account.",
+      "help": "Resellers seal bags with the cash they declare, and the declared amount is taken off their account at that moment; a carrier picks the bags up and you count them when they arrive. Receiving a bag only records a difference, if any, as an adjustment on the reseller's account.",
       "counts": "Bags by status",
       "allResellers": "All resellers",
       "allCarriers": "All carriers",
@@ -10556,6 +10563,7 @@
       "empty": "None.",
       "loadError": "We couldn't load the bags.",
       "allTitle": "All bags",
+      "inBags": "Cash in bags awaiting pickup or on their way: {{amount}} (already taken off the resellers' accounts).",
       "allStatuses": "All statuses",
       "none": "No bags match."
     },
@@ -10585,19 +10593,20 @@
       "note": "Note (optional)",
       "review": "Review",
       "confirm": "Confirm receipt",
-      "confirmEqual": "This records {{declared}} handed in by {{reseller}}.",
-      "confirmDiff": "This records {{declared}} handed in by {{reseller}} and an adjustment of {{adjustment}} for the difference.",
+      "confirmEqual": "The count matches: nothing more is posted. The declared {{declared}} was taken off {{reseller}}'s account when the bag was sealed.",
+      "confirmDiff": "This records an adjustment of {{adjustment}} on {{reseller}}'s account for the difference. The declared {{declared}} was taken off when the bag was sealed.",
       "countedInvalid": "Write the counted cash: 0 or more, with up to two decimals.",
       "saving": "Saving…",
       "done": "Bag {{serial}} received.",
       "error": "We couldn't receive the bag.",
-      "ledgerLines": "Movements recorded"
+      "ledgerLines": "Movements recorded",
+      "noLines": "Nothing more was posted to the reseller's account: the count matches what was declared."
     },
     "reason": {
       "voidTitle": "Void bag",
       "lostTitle": "Lost bag",
       "voidHelp": "Only a bag without declared cash (in stock, with a carrier or empty at a reseller). It can't be used again.",
-      "lostHelp": "A sealed bag that never arrived. Nothing is posted: its declared cash counts again as cash the reseller holds and still owes, until you record an adjustment.",
+      "lostHelp": "A sealed bag that never arrived. Nothing is posted: its declared amount was taken off the reseller's account when the bag was sealed, so the reseller will not owe it and the loss is the company's. To charge the reseller anyway, record an adjustment.",
       "label": "Reason",
       "invalid": "Write a reason of 3 to 500 characters.",
       "voidSubmit": "Void bag",
@@ -10685,8 +10694,7 @@
       "loadError": "We couldn't load the reseller's bags."
     },
     "ledger": {
-      "inBags": "In sealed bags",
-      "cashOnHand": "Cash outside bags",
+      "inBags": "In bags awaiting pickup or on their way",
       "bag": "Bag {{serial}}"
     }
   }

@@ -10177,7 +10177,7 @@
     },
     "ledger": {
       "title": "Movimientos",
-      "intro": "Cada cobro suma a lo que debes entregar a la empresa; cada entrega de efectivo lo baja.",
+      "intro": "Cada cobro suma a lo que debes entregar a la empresa; cada entrega de efectivo y cada bolsa que sellas lo bajan.",
       "loadError": "No pudimos cargar tus movimientos.",
       "empty": "Todavía no hay movimientos.",
       "limit": "Tu límite de efectivo",
@@ -10185,7 +10185,8 @@
         "collection": "Cobro",
         "collection_void": "Cobro anulado",
         "deposit": "Entrega de efectivo",
-        "adjustment": "Ajuste"
+        "adjustment": "Ajuste",
+        "bag_sealed": "Bolsa sellada"
       }
     }
   },
@@ -10272,7 +10273,7 @@
   "resellerLedger": {
     "tab": "Movimientos",
     "title": "Movimientos de efectivo",
-    "help": "El efectivo que un revendedor cobró a nombre de la empresa y el que ya entregó. Los sub-revendedores cobran en la cuenta de su revendedor principal.",
+    "help": "El efectivo que un revendedor cobró a nombre de la empresa, el que ya entregó y el que selló en bolsas (se descuenta de lo que debe al sellarlas). Los sub-revendedores cobran en la cuenta de su revendedor principal.",
     "reseller": "Revendedor",
     "selectReseller": "— Elige un revendedor —",
     "loadError": "No se pudieron cargar los movimientos del revendedor.",
@@ -10308,7 +10309,8 @@
       "collection": "Cobro",
       "collection_void": "Cobro anulado",
       "deposit": "Entrega de efectivo",
-      "adjustment": "Ajuste"
+      "adjustment": "Ajuste",
+      "bag_sealed": "Bolsa sellada"
     }
   },
   "serialScan": {
@@ -10427,9 +10429,12 @@
       "in_transit": "En camino"
     }
   },
+  "resellerOptions": {
+    "truncated": "Se muestran los primeros {{shown}} de {{total}} revendedores."
+  },
   "puntoBags": {
     "title": "Mis bolsas",
-    "intro": "Mete el efectivo que cobraste en una bolsa vacía y séllala: lo que metes ya no cuenta para tu límite de efectivo, así que puedes seguir cobrando. El transportista recoge la bolsa y la empresa la cuenta cuando llega.",
+    "intro": "Mete el efectivo que cobraste en una bolsa vacía y séllala: el monto que sellas se descuenta en ese momento de lo que debes entregar y deja de contar para tu límite de efectivo, así que puedes seguir cobrando. El transportista recoge la bolsa y la empresa la cuenta cuando llega; si falta algo, debes la diferencia.",
     "noAccess": "Tu cuenta no puede usar las bolsas de efectivo. Pregunta a la empresa.",
     "loadError": "No pudimos cargar tus bolsas.",
     "fillToCollect": "Llena una bolsa para seguir cobrando",
@@ -10440,7 +10445,8 @@
     "money": {
       "title": "Tu efectivo y tus bolsas",
       "cashOnHand": "Efectivo en mano",
-      "inBags": "En bolsas selladas"
+      "inBags": "En bolsas por recoger o en camino",
+      "inBagsHelp": "Este efectivo ya no lo debes: se descontó de lo que debes entregar cuando sellaste la bolsa."
     },
     "card": {
       "title": "Mis bolsas",
@@ -10452,7 +10458,8 @@
       "onTheirWay_other": "{{count}} en camino",
       "fill": "Llenar una bolsa",
       "noEmpty": "No tienes bolsas vacías: espera a que el transportista te traiga, o entrega el efectivo a la empresa.",
-      "view": "Ver mis bolsas"
+      "view": "Ver mis bolsas",
+      "inBagsNote": "El efectivo sellado ya no lo debes entregar: espera al transportista o va en camino a la empresa."
     },
     "seal": {
       "title": "Llenar bolsa",
@@ -10472,7 +10479,7 @@
       "yes": "Sí, sellar la bolsa",
       "back": "Todavía no",
       "saving": "Sellando…",
-      "done": "Bolsa {{serial}} sellada con {{amount}}. Ya está lista para el transportista.",
+      "done": "Bolsa {{serial}} sellada con {{amount}}: ya se descontó de lo que debes entregar. Está lista para el transportista.",
       "exceedsCash": "Ese monto es mayor que el efectivo que tienes en mano. Revísalo e inténtalo de nuevo.",
       "notFound": "Esa bolsa no está entre tus bolsas vacías. Revisa el número.",
       "conflict": "Esa bolsa ya estaba sellada. Elige otra.",
@@ -10536,7 +10543,7 @@
       "changed": "Esta bolsa cambió mientras guardabas. Recárgala e inténtalo de nuevo."
     },
     "board": {
-      "help": "Los revendedores sellan bolsas con el efectivo que declaran; un transportista las recoge y tú las cuentas cuando llegan. Al recibir una bolsa se registra el monto declarado como entrega de efectivo y la diferencia, si la hay, como ajuste en la cuenta del revendedor.",
+      "help": "Los revendedores sellan bolsas con el efectivo que declaran, y en ese momento el monto declarado se descuenta de su cuenta; un transportista las recoge y tú las cuentas cuando llegan. Al recibir una bolsa solo se registra la diferencia, si la hay, como ajuste en la cuenta del revendedor.",
       "counts": "Bolsas por estado",
       "allResellers": "Todos los revendedores",
       "allCarriers": "Todos los transportistas",
@@ -10550,6 +10557,7 @@
       "empty": "Ninguna.",
       "loadError": "No se pudieron cargar las bolsas.",
       "allTitle": "Todas las bolsas",
+      "inBags": "Efectivo en bolsas por recoger o en camino: {{amount}} (ya descontado de la cuenta de los revendedores).",
       "allStatuses": "Todos los estados",
       "none": "Ninguna bolsa coincide."
     },
@@ -10579,19 +10587,20 @@
       "note": "Nota (opcional)",
       "review": "Revisar",
       "confirm": "Confirmar recepción",
-      "confirmEqual": "Se registra una entrega de {{declared}} de {{reseller}}.",
-      "confirmDiff": "Se registra una entrega de {{declared}} de {{reseller}} y un ajuste de {{adjustment}} por la diferencia.",
+      "confirmEqual": "El conteo cuadra: no se registra nada más. Los {{declared}} declarados se descontaron de la cuenta de {{reseller}} al sellar la bolsa.",
+      "confirmDiff": "Se registra un ajuste de {{adjustment}} en la cuenta de {{reseller}} por la diferencia. Los {{declared}} declarados se descontaron al sellar la bolsa.",
       "countedInvalid": "Escribe el efectivo contado: 0 o más, con hasta dos decimales.",
       "saving": "Guardando…",
       "done": "Bolsa {{serial}} recibida.",
       "error": "No se pudo recibir la bolsa.",
-      "ledgerLines": "Movimientos registrados"
+      "ledgerLines": "Movimientos registrados",
+      "noLines": "No se registró nada más en la cuenta del revendedor: el conteo cuadra con lo declarado."
     },
     "reason": {
       "voidTitle": "Anular bolsa",
       "lostTitle": "Bolsa perdida",
       "voidHelp": "Solo una bolsa sin efectivo declarado (en almacén, con un transportista o vacía en un punto). Ya no se podrá usar.",
-      "lostHelp": "Una bolsa sellada que nunca llegó. No se registra ningún movimiento: su efectivo declarado vuelve a contar como efectivo que el revendedor tiene y aún debe, hasta que registres un ajuste.",
+      "lostHelp": "Una bolsa sellada que nunca llegó. No se registra ningún movimiento: el monto declarado se descontó de la cuenta del revendedor al sellar la bolsa, así que el revendedor no lo deberá y la pérdida es de la empresa. Si aun así quieres cobrárselo, registra un ajuste.",
       "label": "Motivo",
       "invalid": "Escribe un motivo de 3 a 500 caracteres.",
       "voidSubmit": "Anular bolsa",
@@ -10679,8 +10688,7 @@
       "loadError": "No se pudieron cargar las bolsas del revendedor."
     },
     "ledger": {
-      "inBags": "En bolsas selladas",
-      "cashOnHand": "Efectivo en mano",
+      "inBags": "En bolsas por recoger o en camino",
       "bag": "Bolsa {{serial}}"
     }
   }

@@ -10177,7 +10177,7 @@
     },
     "ledger": {
       "title": "Movimentações",
-      "intro": "Cada recebimento soma ao que você deve entregar à empresa; cada entrega de dinheiro diminui.",
+      "intro": "Cada recebimento soma ao que você deve entregar à empresa; cada entrega de dinheiro e cada malote que você lacra diminuem.",
       "loadError": "Não foi possível carregar suas movimentações.",
       "empty": "Ainda não há movimentações.",
       "limit": "Seu limite de dinheiro",
@@ -10185,7 +10185,8 @@
         "collection": "Recebimento",
         "collection_void": "Recebimento anulado",
         "deposit": "Entrega de dinheiro",
-        "adjustment": "Ajuste"
+        "adjustment": "Ajuste",
+        "bag_sealed": "Malote lacrado"
       }
     }
   },
@@ -10272,7 +10273,7 @@
   "resellerLedger": {
     "tab": "Movimentações",
     "title": "Movimentações de dinheiro",
-    "help": "O dinheiro que um revendedor recebeu em nome da empresa e o que já entregou. Os sub-revendedores recebem na conta do revendedor principal.",
+    "help": "O dinheiro que um revendedor recebeu em nome da empresa, o que já entregou e o que lacrou em malotes (descontado do que deve ao lacrar). Os sub-revendedores recebem na conta do revendedor principal.",
     "reseller": "Revendedor",
     "selectReseller": "— Escolha um revendedor —",
     "loadError": "Não foi possível carregar as movimentações do revendedor.",
@@ -10308,7 +10309,8 @@
       "collection": "Recebimento",
       "collection_void": "Recebimento anulado",
       "deposit": "Entrega de dinheiro",
-      "adjustment": "Ajuste"
+      "adjustment": "Ajuste",
+      "bag_sealed": "Malote lacrado"
     }
   },
   "serialScan": {
@@ -10427,9 +10429,12 @@
       "in_transit": "A caminho"
     }
   },
+  "resellerOptions": {
+    "truncated": "Mostrando os primeiros {{shown}} de {{total}} revendedores."
+  },
   "puntoBags": {
     "title": "Meus malotes",
-    "intro": "Coloque o dinheiro recebido em um malote vazio e lacre-o: o que você coloca deixa de contar no seu limite de dinheiro, então você pode continuar recebendo. O transportador coleta o malote e a empresa o conta quando chega.",
+    "intro": "Coloque o dinheiro recebido em um malote vazio e lacre-o: o valor lacrado é descontado na hora do que você deve entregar e deixa de contar no seu limite de dinheiro, então você pode continuar recebendo. O transportador coleta o malote e a empresa o conta quando chega; se faltar algo, você deve a diferença.",
     "noAccess": "Sua conta não pode usar os malotes de dinheiro. Pergunte à empresa.",
     "loadError": "Não foi possível carregar seus malotes.",
     "fillToCollect": "Encha um malote para continuar recebendo",
@@ -10440,7 +10445,8 @@
     "money": {
       "title": "Seu dinheiro e seus malotes",
       "cashOnHand": "Dinheiro em mãos",
-      "inBags": "Em malotes lacrados"
+      "inBags": "Em malotes aguardando coleta ou a caminho",
+      "inBagsHelp": "Você já não deve este dinheiro: ele foi descontado do que você deve entregar quando você lacrou o malote."
     },
     "card": {
       "title": "Meus malotes",
@@ -10452,7 +10458,8 @@
       "onTheirWay_other": "{{count}} a caminho",
       "fill": "Encher um malote",
       "noEmpty": "Você não tem malotes vazios: espere o transportador trazer mais, ou entregue o dinheiro à empresa.",
-      "view": "Ver meus malotes"
+      "view": "Ver meus malotes",
+      "inBagsNote": "O dinheiro lacrado você já não deve entregar: aguarda o transportador ou está a caminho da empresa."
     },
     "seal": {
       "title": "Encher malote",
@@ -10472,7 +10479,7 @@
       "yes": "Sim, lacrar o malote",
       "back": "Ainda não",
       "saving": "Lacrando…",
-      "done": "Malote {{serial}} lacrado com {{amount}}. Já está pronto para o transportador.",
+      "done": "Malote {{serial}} lacrado com {{amount}}: já foi descontado do que você deve entregar. Está pronto para o transportador.",
       "exceedsCash": "Esse valor é maior que o dinheiro que você tem em mãos. Confira e tente de novo.",
       "notFound": "Esse malote não está entre seus malotes vazios. Confira o número.",
       "conflict": "Esse malote já estava lacrado. Escolha outro.",
@@ -10536,7 +10543,7 @@
       "changed": "Esta bolsa mudou enquanto você salvava. Recarregue-a e tente novamente."
     },
     "board": {
-      "help": "Os revendedores lacram malotes com o dinheiro que declaram; um transportador os coleta e você os conta quando chegam. Ao receber um malote, o valor declarado é registrado como entrega de dinheiro e a diferença, se houver, como ajuste na conta do revendedor.",
+      "help": "Os revendedores lacram malotes com o dinheiro que declaram, e nesse momento o valor declarado é descontado da conta deles; um transportador os coleta e você os conta quando chegam. Ao receber um malote, só a diferença, se houver, é registrada como ajuste na conta do revendedor.",
       "counts": "Malotes por status",
       "allResellers": "Todos os revendedores",
       "allCarriers": "Todos os transportadores",
@@ -10550,6 +10557,7 @@
       "empty": "Nenhum.",
       "loadError": "Não foi possível carregar os malotes.",
       "allTitle": "Todos os malotes",
+      "inBags": "Dinheiro em malotes aguardando coleta ou a caminho: {{amount}} (já descontado da conta dos revendedores).",
       "allStatuses": "Todos os status",
       "none": "Nenhum malote corresponde."
     },
@@ -10579,19 +10587,20 @@
       "note": "Nota (opcional)",
       "review": "Revisar",
       "confirm": "Confirmar recebimento",
-      "confirmEqual": "Será registrada uma entrega de {{declared}} de {{reseller}}.",
-      "confirmDiff": "Será registrada uma entrega de {{declared}} de {{reseller}} e um ajuste de {{adjustment}} pela diferença.",
+      "confirmEqual": "A contagem confere: nada mais é registrado. Os {{declared}} declarados foram descontados da conta de {{reseller}} ao lacrar o malote.",
+      "confirmDiff": "Será registrado um ajuste de {{adjustment}} na conta de {{reseller}} pela diferença. Os {{declared}} declarados foram descontados ao lacrar o malote.",
       "countedInvalid": "Escreva o dinheiro contado: 0 ou mais, com até duas casas decimais.",
       "saving": "Salvando…",
       "done": "Malote {{serial}} recebido.",
       "error": "Não foi possível receber o malote.",
-      "ledgerLines": "Movimentações registradas"
+      "ledgerLines": "Movimentações registradas",
+      "noLines": "Nada mais foi registrado na conta do revendedor: a contagem confere com o declarado."
     },
     "reason": {
       "voidTitle": "Anular malote",
       "lostTitle": "Malote perdido",
       "voidHelp": "Só um malote sem dinheiro declarado (em estoque, com um transportador ou vazio em um ponto). Não poderá mais ser usado.",
-      "lostHelp": "Um malote lacrado que nunca chegou. Nenhuma movimentação é registrada: o dinheiro declarado volta a contar como dinheiro que o revendedor tem e ainda deve, até você registrar um ajuste.",
+      "lostHelp": "Um malote lacrado que nunca chegou. Nenhuma movimentação é registrada: o valor declarado foi descontado da conta do revendedor ao lacrar o malote, então o revendedor não o deverá e a perda é da empresa. Se mesmo assim quiser cobrá-lo, registre um ajuste.",
       "label": "Motivo",
       "invalid": "Escreva um motivo de 3 a 500 caracteres.",
       "voidSubmit": "Anular malote",
@@ -10679,8 +10688,7 @@
       "loadError": "Não foi possível carregar os malotes do revendedor."
     },
     "ledger": {
-      "inBags": "Em malotes lacrados",
-      "cashOnHand": "Dinheiro em mãos",
+      "inBags": "Em malotes aguardando coleta ou a caminho",
       "bag": "Malote {{serial}}"
     }
   }

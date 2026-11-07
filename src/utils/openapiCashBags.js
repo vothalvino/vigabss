@@ -121,9 +121,9 @@ function varianceTotalsProperties() {
 
 function moneySummarySchema(staff) {
   const properties = {
-    balance: { type: 'number', description: 'What the reseller owes the ISP (sum of its ledger), bags not yet received included' },
-    in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit)' },
-    cash_on_hand: { type: 'number', description: 'balance - in_bags: the cash it still holds loose' },
+    balance: { type: 'number', description: 'What the reseller owes the ISP (sum of its ledger); a sealed bag left it at sealing' },
+    in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit), already off the balance; for information' },
+    cash_on_hand: { type: 'number', description: 'The cash it still holds: equal to balance' },
     credit_limit: { type: 'number', description: 'Effective limit' },
     available_to_collect: { type: 'number', description: 'max(0, credit_limit - cash_on_hand)' },
   };
@@ -159,7 +159,7 @@ function resellerAppBagMoneySchema() {
 function ledgerEntrySchema() {
   return obj({
     id: { type: 'integer' },
-    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment'] },
+    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'] },
     amount: { type: 'number', description: 'Signed: + increases what the reseller owes' },
     currency: { type: 'string' },
     note: nullableString(),
@@ -218,7 +218,7 @@ function cashBagPaths() {
       get: { tags: ['Reseller App'], summary: "The collecting reseller's live cash bags (empty at_reseller, ready_for_pickup, in_transit; received, void and lost ones do not appear) and its money position. Needs reseller_app.bags", operationId: 'listResellerAppBags', security, responses: { 200: ok('Bags', obj({ data: { type: 'array', items: resellerAppBagSchema() }, summary: resellerAppBagMoneySchema() })), 403: err('Not a reseller account, or no reseller_app.bags') } },
     },
     '/reseller-app/bags/seal': {
-      post: { tags: ['Reseller App'], summary: 'Fill an empty bag of the reseller (at_reseller) with the cash it holds: declared_amount must be more than 0 and at most cash_on_hand, with 2 decimals. The bag becomes ready_for_pickup and its amount moves from cash_on_hand to in_bags, which frees the limit at once; no ledger entry. Locks the reseller row, then the bag. Needs reseller_app.bags', operationId: 'sealResellerAppBag', security, requestBody: body(obj({ serial: serial(), declared_amount: { type: 'number', minimum: 0.01 } }), 'The bag and the cash in it'), responses: { 200: ok('Sealed', data(obj({ bag: resellerAppBagSchema(), summary: resellerAppBagMoneySchema() }))), 403: err('Not a reseller account, or no reseller_app.bags'), 404: err('No empty bag of this reseller with that serial'), 409: err('BAG_AMOUNT_EXCEEDS_CASH: more than the cash on hand (details.cash_on_hand)'), 422: err('Validation failed') } },
+      post: { tags: ['Reseller App'], summary: 'Fill an empty bag of the reseller (at_reseller) with the cash it holds: declared_amount must be more than 0 and at most cash_on_hand, with 2 decimals. The bag becomes ready_for_pickup and, in the same transaction, a bag_sealed ledger entry of -declared_amount takes the cash off the balance (and cash_on_hand), which frees the limit at once; in_bags shows it until the bag is received. Locks the reseller row, then the bag. Needs reseller_app.bags', operationId: 'sealResellerAppBag', security, requestBody: body(obj({ serial: serial(), declared_amount: { type: 'number', minimum: 0.01 } }), 'The bag and the cash in it'), responses: { 200: ok('Sealed', data(obj({ bag: resellerAppBagSchema(), summary: resellerAppBagMoneySchema() }))), 403: err('Not a reseller account, or no reseller_app.bags'), 404: err('No empty bag of this reseller with that serial'), 409: err('BAG_AMOUNT_EXCEEDS_CASH: more than the cash on hand (details.cash_on_hand)'), 422: err('Validation failed') } },
     },
 
     // ---- Carrier app (/ruta) ----
@@ -253,13 +253,13 @@ function cashBagPaths() {
       get: { tags: ['Cash Bags'], summary: 'One bag with its history (every transition, who and when). Needs cash_bags.view', operationId: 'getCashBag', security, parameters: [idParam()], responses: { 200: ok('Bag', data(staffBagWithEventsSchema())), 403: err(ORG_ONLY), 404: err('Bag not found') } },
     },
     '/cash-bags/{id}/receive': {
-      post: { tags: ['Cash Bags'], summary: 'Count a bag and receive it (from in_transit, or from ready_for_pickup when the reseller brought it in person). Posts a deposit of -declared to the reseller ledger and, when the count differs, an adjustment of declared - counted (a short bag raises the debt, an over bag lowers it). Locks the reseller row, then the bag. Needs cash_bags.receive', operationId: 'receiveCashBag', security, parameters: [idParam()], requestBody: body(obj({ counted_amount: { type: 'number', minimum: 0 }, note: { type: 'string', maxLength: 400 } }, ['counted_amount']), 'The count'), responses: { 200: ok('Received', data(obj({ bag: staffBagSchema(), ledger_entries: { type: 'array', items: ledgerEntrySchema() }, summary: moneySummarySchema(true) }))), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION: the bag is not ready_for_pickup or in_transit; BAG_CHANGED: retry'), 422: err('Validation failed') } },
+      post: { tags: ['Cash Bags'], summary: 'Count a bag and receive it (from in_transit, or from ready_for_pickup when the reseller brought it in person). The declared amount left the reseller ledger when the bag was sealed (bag_sealed), so only a difference is posted: an adjustment of declared - counted (a short bag raises the debt, an over bag lowers it); ledger_entries is empty when the count matches. A bag sealed before migration 006 without a bag_sealed entry also gets the deposit of -declared. Locks the reseller row, then the bag. Needs cash_bags.receive', operationId: 'receiveCashBag', security, parameters: [idParam()], requestBody: body(obj({ counted_amount: { type: 'number', minimum: 0 }, note: { type: 'string', maxLength: 400 } }, ['counted_amount']), 'The count'), responses: { 200: ok('Received', data(obj({ bag: staffBagSchema(), ledger_entries: { type: 'array', items: ledgerEntrySchema() }, summary: moneySummarySchema(true) }))), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION: the bag is not ready_for_pickup or in_transit; BAG_CHANGED: retry'), 422: err('Validation failed') } },
     },
     '/cash-bags/{id}/void': {
       post: { tags: ['Cash Bags'], summary: 'Take a bag with no declared money out of use (from in_stock, with_carrier or at_reseller). Needs cash_bags.manage', operationId: 'voidCashBag', security, parameters: [idParam()], requestBody: body(obj({ reason: { type: 'string', minLength: 3, maxLength: 500 } }), 'Why'), responses: { 200: ok('Voided', data(staffBagSchema())), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION'), 422: err('Validation failed') } },
     },
     '/cash-bags/{id}/lost': {
-      post: { tags: ['Cash Bags'], summary: "Mark a bag with money in it lost (from ready_for_pickup or in_transit). Nothing is posted: the bag leaves in_bags, so its declared amount is owed again as the reseller's cash on hand until an adjustment says otherwise. Needs cash_bags.manage", operationId: 'markCashBagLost', security, parameters: [idParam()], requestBody: body(obj({ reason: { type: 'string', minLength: 3, maxLength: 500 } }), 'Why'), responses: { 200: ok('Lost', data(staffBagSchema())), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION'), 422: err('Validation failed') } },
+      post: { tags: ['Cash Bags'], summary: 'Mark a bag with money in it lost (from ready_for_pickup or in_transit). Nothing is posted: its declared amount left the reseller ledger when it was sealed, so the reseller does not owe it and the ISP absorbs the loss (an administrator who holds the reseller liable records an adjustment). The bag leaves in_bags. Needs cash_bags.manage', operationId: 'markCashBagLost', security, parameters: [idParam()], requestBody: body(obj({ reason: { type: 'string', minLength: 3, maxLength: 500 } }), 'Why'), responses: { 200: ok('Lost', data(staffBagSchema())), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION'), 422: err('Validation failed') } },
     },
     '/cash-bags/{id}/return': {
       post: { tags: ['Cash Bags'], summary: 'A carrier hands stock back (with_carrier -> in_stock), or takes an empty bag back from a reseller (at_reseller -> with_carrier, to carrier_user_id or the carrier that dropped it off). Needs cash_bags.manage', operationId: 'returnCashBag', security, parameters: [idParam()], requestBody: body({ type: 'object', properties: { reason: { type: 'string', maxLength: 500 }, carrier_user_id: { type: 'integer', minimum: 1 } } }, 'Optional reason and carrier'), responses: { 200: ok('Returned', data(staffBagSchema())), 403: err(ORG_ONLY), 404: err('Bag not found'), 409: err('BAG_INVALID_TRANSITION'), 422: err('Validation failed') } },

@@ -15,9 +15,10 @@ import { useAuth } from '@/auth/AuthContext';
 import { LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
-import { cashBagKeys, fetchResellerBags, fetchTopLevelResellers, toAmount } from '../cashBags/cashBagsApi';
+import { cashBagKeys, fetchResellerBags, toAmount } from '../cashBags/cashBagsApi';
 import { CashBagDetailDialog } from '../cashBags/CashBagDetailDialog';
 import { BagStatusBadge, VarianceText, formatMoment, mono } from '../cashBags/cashBagUi';
+import { ResellerListNotice, useResellerOptions } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 
@@ -28,7 +29,7 @@ export function ResellerBagsTab() {
   const [resellerId, setResellerId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
-  const resellers = useQuery({ queryKey: ['resellers-top-level'], queryFn: fetchTopLevelResellers });
+  const resellers = useResellerOptions({ topLevel: true });
   const bags = useQuery({
     queryKey: cashBagKeys.resellerBags(resellerId ?? 0, page),
     enabled: resellerId !== null,
@@ -51,9 +52,10 @@ export function ResellerBagsTab() {
         {t('resellerLedger.reseller')}
         <select style={styles.filterSelect} value={resellerId ?? ''} onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); }}>
           <option value="">{t('resellerLedger.selectReseller')}</option>
-          {(resellers.data ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {(resellers.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
+      <ResellerListNotice list={resellers.data} />
 
       {resellerId !== null && (bags.isLoading ? <LoadingState /> : bags.isError ? (
         <p style={styles.msgError}>{t('cashBags.resellerTab.loadError')}</p>

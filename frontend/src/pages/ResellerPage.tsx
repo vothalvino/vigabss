@@ -28,6 +28,7 @@ import { ResellerFormModal } from './resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
 import { ResellerBagsTab } from './resellers/ResellerBagsTab';
+import { ResellerListNotice, resellerOptionKeys, useResellerOptions } from './resellers/resellerOptions';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,8 +142,8 @@ function ResellersTab() {
   const qc = useQueryClient();
   // The reseller pickers of the other tabs are cached; refresh them with the list.
   const refreshPickers = () => {
-    void qc.invalidateQueries({ queryKey: ['resellers-options'] });
-    void qc.invalidateQueries({ queryKey: ['resellers-top-level'] });
+    void qc.invalidateQueries({ queryKey: resellerOptionKeys.all });
+    void qc.invalidateQueries({ queryKey: resellerOptionKeys.topLevel });
   };
 
   const load = useCallback(async () => {
@@ -250,17 +251,14 @@ function ResellersTab() {
 
 function CommissionsTab() {
   const { t } = useTranslation();
-  const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    apiFetch<ApiList<Reseller>>('/resellers?limit=100')
-      .then(res => setResellers(res.data))
-      .catch(() => setError(t('reseller.errorLoading')));
-  }, [t]);
+  const resellersQ = useResellerOptions();
+  const resellers = resellersQ.data?.rows ?? [];
+  const listError = resellersQ.isError ? t('reseller.errorLoading') : null;
 
   const load = useCallback(async () => {
     if (!selectedId) return;
@@ -284,7 +282,8 @@ function CommissionsTab() {
         <option value="">— {t('reseller.select')} —</option>
         {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
       </select>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
+      <ResellerListNotice list={resellersQ.data} />
+      {(error ?? listError) && <p style={{ color: '#e74c3c' }}>{error ?? listError}</p>}
       {loading && <p>{t('reseller.loading')}</p>}
       {selectedId && !loading && (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -323,17 +322,14 @@ function CommissionsTab() {
 
 function PortalTab() {
   const { t } = useTranslation();
-  const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [dashboard, setDashboard] = useState<ResellerDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    apiFetch<ApiList<Reseller>>('/resellers?limit=100')
-      .then(res => setResellers(res.data))
-      .catch(() => setError(t('reseller.errorLoading')));
-  }, [t]);
+  const resellersQ = useResellerOptions();
+  const resellers = resellersQ.data?.rows ?? [];
+  const listError = resellersQ.isError ? t('reseller.errorLoading') : null;
 
   const load = useCallback(async () => {
     if (!selectedId) return;
@@ -356,7 +352,8 @@ function PortalTab() {
         <option value="">— {t('reseller.select')} —</option>
         {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
       </select>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
+      <ResellerListNotice list={resellersQ.data} />
+      {(error ?? listError) && <p style={{ color: '#e74c3c' }}>{error ?? listError}</p>}
       {loading && <p>{t('reseller.loading')}</p>}
       {selectedId && !loading && dashboard && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 8 }}>

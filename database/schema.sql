@@ -15264,16 +15264,17 @@ CREATE TABLE IF NOT EXISTS carrier_reseller_assignments (
 -- ---------------------------------------------------------------------------
 -- Table: reseller_ledger_entries (migration 004)
 -- Purpose: Append-only cash ledger of a collecting (top-level) reseller. The
---          sum of amount is what it owes the ISP: a collection adds, its void
---          and a deposit subtract, an adjustment does either. Never updated
---          or deleted; a correction is a new entry.
+--          sum of amount is what it owes the ISP: a collection adds, its void,
+--          a deposit and a sealed cash bag (bag_sealed, migration 006)
+--          subtract, an adjustment does either. Never updated or deleted; a
+--          correction is a new entry.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller',
     reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Collecting (top-level) reseller',
-    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment') NOT NULL
-                      COMMENT 'collection +, collection_void -, deposit -, adjustment +/-',
+    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed') NOT NULL
+                      COMMENT 'collection +, collection_void -, deposit -, adjustment +/-, bag_sealed - (migration 006)',
     amount          DECIMAL(12, 2)  NOT NULL COMMENT 'Signed: positive increases what the reseller owes the ISP',
     currency        CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
     payment_id      BIGINT UNSIGNED NULL     COMMENT 'The collected payment (collection, collection_void)',

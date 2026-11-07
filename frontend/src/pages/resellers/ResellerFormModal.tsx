@@ -19,6 +19,7 @@ import { formatMoney } from '@/lib/money';
 import {
   cancelBtn, errorBox, extractApiError, inputStyle, labelStyle, modalBox, overlay, submitBtn, twoCol,
 } from '@/components/ClientFormModal';
+import { ResellerListNotice, useResellerOptions } from './resellerOptions';
 
 export interface ResellerFormInitial {
   id: number;
@@ -90,7 +91,9 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
     latitude: coordText(initial?.latitude),
     longitude: coordText(initial?.longitude),
   });
-  const [parents, setParents] = useState<{ id: number; name: string }[]>([]);
+  // A new reseller's parent: any top-level reseller, every one of them.
+  const parentsQ = useResellerOptions({ topLevel: true, enabled: mode === 'create' });
+  const parents = parentsQ.data?.rows ?? [];
   // The organization default, for the placeholder of a blank cash limit. A
   // reseller already on the default shows it as its effective limit; else it
   // comes from GET /settings when the caller may read settings.
@@ -108,13 +111,6 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       .catch(() => {});
   }, [knownDefault, canReadSettings]);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (mode !== 'create') return;
-    apiFetch<{ data: { id: number; name: string }[] }>('/resellers?parent_id=null&limit=100')
-      .then(res => setParents(res.data ?? []))
-      .catch(() => setParents([]));
-  }, [mode]);
 
   const save = useMutation({
     mutationFn: async (body: ResellerBody) => {
@@ -203,6 +199,7 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
               <option value="">{t('resellerForm.noParent')}</option>
               {parents.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
+            <ResellerListNotice list={parentsQ.data} />
           </>
         ) : initial?.parent_name ? (
           <p style={{ ...labelStyle, fontWeight: 400 }}>{t('resellerForm.parentFixed', { name: initial.parent_name })}</p>

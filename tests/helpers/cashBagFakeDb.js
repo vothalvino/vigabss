@@ -11,6 +11,7 @@
 //   assignments: [{ organization_id, carrier_user_id, reseller_id }]
 //   resellers:   { id: { id, organization_id, parent_id, name, ... } }
 //   ledger:      [{ id, reseller_id, entry_type, amount, cash_bag_id, ... }]
+//                (a sealed bag has its bag_sealed line, migration 006)
 //   seq:         { bag, event, ledger }
 // Amounts are stored as mysql2 does: DECIMAL strings.
 // =============================================================================
@@ -245,6 +246,10 @@ function handleCashBagSql(state, sql, params = []) {
   }
 
   // --- the received bag's ledger lines
+  if (/COUNT\(\*\) AS sealed FROM reseller_ledger_entries WHERE organization_id = \? AND cash_bag_id = \? AND entry_type = 'bag_sealed'/.test(s)) {
+    const bagId = Number(params[1]);
+    return [[{ sealed: (state.ledger || []).filter((e) => e.organization_id === org && Number(e.cash_bag_id) === bagId && e.entry_type === 'bag_sealed').length }]];
+  }
   if (/FROM reseller_ledger_entries WHERE organization_id = \? AND id IN/.test(s)) {
     const ids = params.slice(1).map(Number);
     return [state.ledger.filter((e) => ids.includes(e.id))];

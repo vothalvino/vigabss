@@ -2,7 +2,9 @@
 // Cash bags (staff) — the board
 // =============================================================================
 // Columns: bags ready for pickup at a reseller, on their way with a carrier,
-// recently received, and the count differences per reseller (summary). The
+// recently received, and the count differences per reseller (summary), with
+// the cash those sealed bags hold, which already left the resellers' ledgers
+// when they were sealed (migration 006). The
 // filters (reseller, carrier, serial) apply to every column and to the list
 // of all bags below, which also reaches bags in stock, with a carrier, empty
 // at a reseller, void and lost. A card or a row opens the bag with its
@@ -18,13 +20,14 @@ import { ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
 import {
-  BAG_STATUSES, cashBagKeys, fetchCarriers, fetchCashBagSummary, fetchCashBags, fetchTopLevelResellers, toAmount,
+  BAG_STATUSES, cashBagKeys, fetchCarriers, fetchCashBagSummary, fetchCashBags, toAmount,
   type BagFilters, type CashBag,
 } from './cashBagsApi';
 import { RECEIVABLE } from './CashBagActions';
 import { CashBagDetailDialog, type BagAction } from './CashBagDetailDialog';
 import { HandoverForm, RegisterBagsForm } from './CashBagForms';
 import { BagStatusBadge, VarianceText, formatMoment, mono } from './cashBagUi';
+import { ResellerListNotice, useResellerOptions } from '../resellers/resellerOptions';
 
 const PAGE_SIZE = 25;
 const COLUMN_SIZE = 20;
@@ -195,7 +198,7 @@ export function CashBagBoard() {
   const [filters, setFilters] = useState<Filters>({ reseller_id: null, carrier_user_id: null, serial: '' });
   const [panel, setPanel] = useState<'register' | 'handover' | null>(null);
   const [open, setOpen] = useState<{ id: number; action: BagAction } | null>(null);
-  const resellers = useQuery({ queryKey: ['resellers-top-level'], queryFn: fetchTopLevelResellers, enabled: can(user, 'resellers.view') });
+  const resellers = useResellerOptions({ topLevel: true, enabled: can(user, 'resellers.view') });
   const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers, enabled: canCarriers });
   const summary = useQuery({ queryKey: cashBagKeys.summary, queryFn: fetchCashBagSummary });
   const refresh = () => { void qc.invalidateQueries({ queryKey: cashBagKeys.all }); };
@@ -213,15 +216,19 @@ export function CashBagBoard() {
           ))}
         </ul>
       )}
+      {summary.data && summary.data.in_bags !== null && (
+        <p style={{ margin: '0 0 12px' }}>{t('cashBags.board.inBags', { amount: formatMoney(summary.data.in_bags, currency) })}</p>
+      )}
 
       <div style={{ ...styles.filterRow, flexWrap: 'wrap' }}>
         <label style={styles.filterLabel}>
           {t('cashBags.col.reseller')}{' '}
           <select style={styles.filterSelect} value={filters.reseller_id ?? ''} onChange={e => setFilters(f => ({ ...f, reseller_id: Number(e.target.value) || null }))}>
             <option value="">{t('cashBags.board.allResellers')}</option>
-            {(resellers.data ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {(resellers.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </label>
+        <ResellerListNotice list={resellers.data} />
         {canCarriers && (
           <label style={styles.filterLabel}>
             {t('cashBags.col.carrier')}{' '}

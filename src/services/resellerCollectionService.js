@@ -9,7 +9,7 @@
 //   one transaction, reseller row locked first (resellerLedgerService), then
 //   the client's invoices (DAL-04: before any plain read fixes the snapshot):
 //     credit check  cash_on_hand + amount <= effective credit limit, else 409
-//                   (cash_on_hand = balance - the cash sealed in bags)
+//                   (cash_on_hand = the balance; a sealed bag's cash left it)
 //     cash session  the collecting user's open session, opened if none
 //     payments row  cash, SAT forma 01, completed, recorded_by = the user,
 //                   reseller_id = the collecting reseller: the top-level
@@ -374,7 +374,7 @@ async function collect(req, body, idempotencyKey = null) {
     }
 
     // 5. The credit limit: exactly at the limit is allowed. Cash sealed in a
-    // bag (in_bags) is not on hand: sealing frees the limit (phase 3).
+    // bag left the balance at sealing (bag_sealed), which frees the limit.
     const summary = await ledger.summaryFor(orgId, collectorId, { exec, reseller });
     if (money.toCents(money.add(summary.cash_on_hand, amount)) > money.toCents(summary.credit_limit)) {
       const counts = await ledger.bagCounts(orgId, collectorId, exec);

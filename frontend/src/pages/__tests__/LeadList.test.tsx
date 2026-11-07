@@ -16,12 +16,17 @@ vi.mock('react-router-dom', async () => {
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
 const mockApiPut = vi.fn();
-// The reseller filter's options (GET /resellers), kept apart from the lead
+// The reseller filter's options (every page of GET /resellers, through
+// apiFetch: resellers/resellerOptions.tsx), kept apart from the lead
 // responses so a catch-all lead list never doubles as a reseller list.
-const mockResellers = vi.fn(() => Promise.resolve({ data: { data: [] as { id: number; name: string }[] }, error: undefined }));
+const mockResellers = vi.fn((_path: string) => Promise.resolve({ data: [] as { id: number; name: string }[], meta: { total: 0 } }));
+vi.mock('@/api/apiFetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/apiFetch')>()),
+  apiFetch: (path: string) => (path.startsWith('/resellers?') ? mockResellers(path) : Promise.reject(new Error(`unexpected ${path}`))),
+}));
 vi.mock('@/api/client', () => ({
   api: {
-    GET: (...args: unknown[]) => (args[0] === '/resellers' ? mockResellers() : mockApiGet(...args)),
+    GET: (...args: unknown[]) => mockApiGet(...args),
     POST: (...args: unknown[]) => mockApiPost(...args),
     PUT: (...args: unknown[]) => mockApiPut(...args),
     DELETE: vi.fn(),
@@ -351,7 +356,7 @@ describe('LeadList — reseller leads', () => {
   beforeEach(() => {
     mockResponses();
     mockResellers.mockClear();
-    mockResellers.mockImplementation(() => Promise.resolve({ data: { data: [{ id: 4, name: 'Punto Norte' }] }, error: undefined }));
+    mockResellers.mockImplementation(() => Promise.resolve({ data: [{ id: 4, name: 'Punto Norte' }], meta: { total: 1 } }));
   });
 
   it('marks a lead captured by a reseller and filters the list by reseller', async () => {

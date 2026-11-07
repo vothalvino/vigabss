@@ -15,14 +15,19 @@
 //
 // received, void and lost are terminal.
 //
-// Money (services/resellerLedgerService.js). in_bags = the declared amounts of
-// a reseller's ready_for_pickup and in_transit bags; cash_on_hand = balance -
-// in_bags. Sealing books nothing: it moves D from cash_on_hand to in_bags and
-// frees the limit at once. Receiving with a count C posts a deposit of -D and,
-// when C differs, an adjustment of D - C (a short bag raises the debt, an over
-// bag lowers it): the ledger moves by -C. A lost bag posts nothing: it leaves
-// in_bags, so D is owed as cash on hand again until an administrator records
-// an adjustment.
+// Money (services/resellerLedgerService.js; migration 006). Sealing a bag with
+// a declared amount D (0 < D <= cash on hand) posts a bag_sealed entry of -D
+// in the same transaction: the reseller no longer owes D, its limit frees at
+// once, and in_bags (the declared amounts of its ready_for_pickup and
+// in_transit bags) shows where that cash is, subtracted nowhere. Receiving
+// with a count C posts only the difference, an adjustment of D - C when C
+// differs (a short bag raises the debt, an over bag lowers it): over the
+// bag's life the ledger moves by -C. A bag sealed before migration 006 with no
+// bag_sealed line (the migration backfills them) is received the old way, a
+// deposit of -D plus the difference, so no bag is counted twice or never. A
+// lost bag posts nothing: its cash left the reseller's ledger when it was
+// sealed, and the ISP absorbs the loss. No transition takes a sealed bag back
+// to an unsealed state (void and return start only from the empty states).
 //
 // Lock order is the reseller row, then the bag: the same order as a
 // collection (reseller, then invoices), so a seal and a concurrent collection
@@ -641,7 +646,8 @@ async function pickUp({ orgId, carrierUserId, resellerId, serial: rawSerial, bod
 /**
  * POST /reseller-app/bags/seal: an empty bag of the collecting reseller ->
  * ready_for_pickup with the declared amount D (0 < D <= cash_on_hand).
- * Locks the reseller row, then the bag; books nothing in the ledger.
+ * Locks the reseller row, then the bag, and posts the bag_sealed entry of -D
+ * in the same transaction.
  */
 async function seal({ orgId, userId, resellerId, serial: rawSerial, declaredAmount }) {
   requireOrgId(orgId, 'cashBagService.seal');
@@ -681,13 +687,19 @@ async function seal({ orgId, userId, resellerId, serial: rawSerial, declaredAmou
       orgId, bagId: Number(bag.id), from: 'at_reseller', to: 'ready_for_pickup', actorId: userId,
       amount: declared, resellerId, carrierUserId: idOrNull(bag.carrier_user_id),
     }]);
+    // The cash leaves the reseller's ledger now, not when the ISP receives it.
+    const entryId = await ledger.appendEntry(exec, {
+      orgId, resellerId, entryType: 'bag_sealed', amount: -declared, currency: bag.currency,
+      note: `Bolsa ${bag.serial} sellada`, createdBy: userId, cashBagId: Number(bag.id),
+    });
     const after = await ledger.summaryFor(orgId, resellerId, { exec, reseller });
     const counts = await ledger.bagCounts(orgId, resellerId, exec);
-    return { bag: await reloadBag(exec, orgId, bag.id), summary: after, counts };
+    return { bag: await reloadBag(exec, orgId, bag.id), summary: after, counts, entryId };
   });
   await audit({
     userId, organizationId: orgId, action: 'cash_bag_seal', recordId: Number(out.bag.id),
-    oldValues: { status: 'at_reseller' }, newValues: { status: 'ready_for_pickup', declared_amount: declared, reseller_id: Number(resellerId) },
+    oldValues: { status: 'at_reseller' },
+    newValues: { status: 'ready_for_pickup', declared_amount: declared, reseller_id: Number(resellerId), ledger_entry_ids: [out.entryId] },
   });
   return out;
 }
@@ -723,9 +735,22 @@ async function lockResellerThenBag(exec, orgId, id, resellerId) {
   return { reseller, bag };
 }
 
+/** True when the bag's seal is on the ledger (every bag sealed since migration 006, and the ones it backfilled). */
+async function hasSealEntry(exec, orgId, bagId) {
+  const [rows] = await exec(
+    `SELECT COUNT(*) AS sealed FROM reseller_ledger_entries
+      WHERE organization_id = ? AND cash_bag_id = ? AND entry_type = 'bag_sealed'`,
+    [orgId, bagId],
+  );
+  return Number(rows && rows[0] ? rows[0].sealed : 0) > 0;
+}
+
 /**
- * POST /cash-bags/:id/receive: count C, post the ledger and close the bag.
+ * POST /cash-bags/:id/receive: count C, post the difference and close the bag.
  * From in_transit, or from ready_for_pickup when the reseller brought it in.
+ * The declared amount left the ledger at sealing (bag_sealed), so a bag that
+ * counts what was declared posts nothing; a bag without a bag_sealed line
+ * (sealed before migration 006 and not backfilled) also posts the deposit.
  */
 async function receive({ orgId, userId, bagId, countedAmount, note: rawNote }) {
   requireOrgId(orgId, 'cashBagService.receive');
@@ -742,10 +767,12 @@ async function receive({ orgId, userId, bagId, countedAmount, note: rawNote }) {
     const declared = toMoney(bag.declared_amount);
     const rid = Number(reseller.id);
     const entryIds = [];
-    entryIds.push(await ledger.appendEntry(exec, {
-      orgId, resellerId: rid, entryType: 'deposit', amount: -declared, currency: bag.currency,
-      note: `Bolsa ${bag.serial}`, createdBy: userId, cashBagId: Number(bag.id),
-    }));
+    if (!(await hasSealEntry(exec, orgId, Number(bag.id)))) {
+      entryIds.push(await ledger.appendEntry(exec, {
+        orgId, resellerId: rid, entryType: 'deposit', amount: -declared, currency: bag.currency,
+        note: `Bolsa ${bag.serial}`, createdBy: userId, cashBagId: Number(bag.id),
+      }));
+    }
     const difference = money.sub(declared, counted);
     if (money.toCents(difference) !== 0) {
       entryIds.push(await ledger.appendEntry(exec, {
@@ -766,13 +793,13 @@ async function receive({ orgId, userId, bagId, countedAmount, note: rawNote }) {
       resellerId: rid, carrierUserId: idOrNull(bag.carrier_user_id),
       note: [inPerson, note].filter(Boolean).join(' — ') || null,
     }]);
-    const [entries] = await exec(
+    const [entries] = entryIds.length ? await exec(
       `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by, cash_bag_id
          FROM reseller_ledger_entries
         WHERE organization_id = ? AND id IN (${inPlaceholders(entryIds)})
         ORDER BY id ASC`,
       [orgId, ...entryIds],
-    );
+    ) : [[]];
     const summary = await ledger.summaryFor(orgId, rid, { exec, reseller });
     return {
       bag: await reloadBag(exec, orgId, bag.id),
@@ -794,8 +821,10 @@ async function receive({ orgId, userId, bagId, countedAmount, note: rawNote }) {
 
 /**
  * POST /cash-bags/:id/lost: a bag with money in it is gone. Nothing is posted:
- * the bag leaves in_bags, so the declared amount is owed as cash on hand
- * again; the administrator records an adjustment if the ISP absorbs it.
+ * its declared amount left the reseller's ledger when it was sealed
+ * (bag_sealed), so the reseller does not owe it and the ISP absorbs the loss.
+ * The bag leaves in_bags. An administrator who holds the reseller liable
+ * records an adjustment.
  */
 async function markLost({ orgId, userId, bagId, reason }) {
   requireOrgId(orgId, 'cashBagService.markLost');

@@ -54,6 +54,7 @@ export function CashBagDetailDialog({ bagId, start = null, onClose }: { bagId: n
       {bag && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {msg && <p role="status" style={{ color: 'var(--success)', margin: 0, fontWeight: 600 }}>{msg}</p>}
+          {result && result.ledger.length === 0 && <p style={{ margin: 0 }}>{t('cashBags.receive.noLines')}</p>}
           {result && result.ledger.length > 0 && (
             <ul aria-label={t('cashBags.receive.ledgerLines')} style={{ margin: 0, paddingLeft: 18 }}>
               {result.ledger.map((l, i) => (

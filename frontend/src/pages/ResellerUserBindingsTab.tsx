@@ -22,8 +22,8 @@ import { formatDate } from '@/lib/dates';
 import { styles } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
 import { ResellerCreateLoginForm } from './resellers/ResellerCreateLoginForm';
+import { ResellerListNotice, useResellerOptions } from './resellers/resellerOptions';
 
-type ResellerOption = { id: number; name: string };
 type Binding = {
   id: number;
   user_id: number;
@@ -49,14 +49,7 @@ export function ResellerUserBindingsTab() {
   const canManage = can(user, 'resellers.update') && can(user, 'users.update');
   const canCreateLogin = can(user, 'resellers.update') && can(user, 'users.create');
 
-  const resellersQ = useQuery({
-    queryKey: ['resellers-options'],
-    queryFn: async () => {
-      const res = await api.GET('/resellers', { params: { query: { limit: 100 } } });
-      if (res.error) throw new Error('load failed');
-      return (res.data as { data: ResellerOption[] }).data;
-    },
-  });
+  const resellersQ = useResellerOptions();
   const bindingsQ = useQuery({
     queryKey: ['reseller-user-bindings', resellerId],
     enabled: resellerId !== null,
@@ -123,9 +116,10 @@ export function ResellerUserBindingsTab() {
           onChange={e => { setResellerId(Number(e.target.value) || null); setError(null); }}
         >
           <option value="">{t('resellerAccess.selectReseller')}</option>
-          {(resellersQ.data ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
+      <ResellerListNotice list={resellersQ.data} />
 
       {error && <p role="alert" style={styles.msgError}>{error}</p>}
 
