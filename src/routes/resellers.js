@@ -29,13 +29,20 @@
 //
 //  User bindings (TNB-13, migration 471)
 //  GET    /resellers/:id/users             list users bound to the reseller
+//  POST   /resellers/:id/users             create a reseller login, bound to it
 //  PUT    /resellers/:id/users/:userId     bind (or re-bind) a user to it
 //  DELETE /resellers/:id/users/:userId     remove the user's binding
+//
+//  Reseller app (migration 003)
+//  GET    /resellers/:id/allowed-plans     plans the reseller may offer
+//  PUT    /resellers/:id/allowed-plans     replace that set
 //
 //  Every route is confined to the caller's reseller scope: a bound user only
 //  sees its own subtree (404 outside it, GET / filtered), an unbound
 //  reseller_admin is refused, and org-level staff see every reseller in their
-//  organization. Binding management is org-level only. See
+//  organization. Binding management, allowed plans, suspend, commission
+//  approval, plan prices and the resource and billing-entity writes are
+//  org-level only (requireOrgLevelResellerAccess, requireIspDecision). See
 //  middleware/resellerScope.js.
 // =============================================================================
 
@@ -45,7 +52,11 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { resellerScope, assertResellerInScope, resellerInScope } = require('../middleware/resellerScope');
-const { ForbiddenError, NotFoundError, ValidationError } = require('../utils/errors');
+const bcrypt = require('bcryptjs');
+const { ForbiddenError, NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
+const { createUser: createUserSchema } = require('../middleware/schemas/users');
+const { SALT_ROUNDS: PASSWORD_SALT_ROUNDS } = require('../middleware/hashPassword');
+const { assertPasswordAllowed } = require('../services/passwordPolicyService');
 const Organization = require('../models/Organization');
 const User = require('../models/User');
 const auditLog = require('../services/auditLog');
@@ -155,13 +166,34 @@ async function getResellerOrThrow(req) {
   return row;
 }
 
-// Binding management decides which subtree another user may reach, so a
-// reseller-bound caller can never use it, whatever permissions it holds.
-function requireOrgLevelResellerAccess(req, _res, next) {
-  if (!req.resellerScope || !req.resellerScope.all) {
-    return next(new ForbiddenError('Reseller-bound users cannot manage reseller bindings'));
+// Some reseller routes are the ISP's decisions about a reseller, never
+// reseller self-service, so a reseller-bound caller can never use them,
+// whatever permissions its group holds (a binding is allowed for a user in
+// any group):
+//   - binding management decides which subtree another user may reach, and
+//     the allowed plans what a reseller may sell;
+//   - suspending or reactivating a reseller, approving or paying its
+//     commissions, and its wholesale prices, IP pools, OLT ports, bandwidth
+//     quota and billing entity.
+function orgLevelOnly(message) {
+  return function requireOrgLevel(req, _res, next) {
+    if (!req.resellerScope || !req.resellerScope.all) return next(new ForbiddenError(message));
+    next();
+  };
+}
+const requireOrgLevelResellerAccess = orgLevelOnly('Reseller-bound users cannot manage reseller bindings');
+const requireIspDecision = orgLevelOnly('Only the ISP can change this for a reseller');
+
+// A reseller-bound caller may name and describe its sub-resellers, but what a
+// reseller earns and whether it may operate are the ISP's decisions.
+const ORG_LEVEL_RESELLER_FIELDS = ['commission_rate', 'status'];
+function rejectResellerEscalation(req) {
+  if (req.resellerScope.all) return;
+  const body = req.body || {};
+  const set = ORG_LEVEL_RESELLER_FIELDS.filter((f) => Object.prototype.hasOwnProperty.call(body, f) && body[f] !== undefined);
+  if (set.length) {
+    throw new ForbiddenError(`Reseller-bound users cannot set ${set.join(' or ')}`);
   }
-  next();
 }
 
 // =============================================================================
@@ -215,6 +247,7 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
       portal_domain, portal_name, notes,
     } = req.body;
 
+    rejectResellerEscalation(req);
     // A reseller-bound caller may only add sub-resellers inside its subtree.
     if (!req.resellerScope.all && !parent_id) {
       throw new ForbiddenError('Reseller-bound users can only create sub-resellers of their own reseller');
@@ -244,7 +277,9 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
         brand_logo_url || null, brand_primary_color || null, brand_accent_color || null,
         portal_domain || null, portal_name || null, notes || null],
     );
-    const [[row]] = await db.query('SELECT * FROM resellers WHERE id = ?', [result.insertId]);
+    const [[row]] = await db.query(
+      'SELECT * FROM resellers WHERE id = ? AND organization_id = ?', [result.insertId, req.orgId],
+    );
     res.status(201).json({ data: row });
   } catch (err) { next(err); }
 });
@@ -261,6 +296,7 @@ router.get('/:id', requirePermission('resellers.view'), async (req, res, next) =
 router.put('/:id', requirePermission('resellers.update'), validate(updateResellerSchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
+    rejectResellerEscalation(req);
     const {
       name, email, phone, contact_name, commission_rate,
       status, brand_logo_url, brand_primary_color, brand_accent_color,
@@ -276,16 +312,18 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
         brand_accent_color = COALESCE(?, brand_accent_color),
         portal_domain = COALESCE(?, portal_domain), portal_name = COALESCE(?, portal_name),
         notes = COALESCE(?, notes)
-       WHERE id = ?`,
+       WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
       // Coalesce each optional field to null: an omitted key is `undefined`,
       // which mysql2's execute() rejects ("Bind parameters must not contain
       // undefined"); null lets COALESCE(?, col) keep the existing value.
       [name ?? null, email ?? null, phone ?? null, contact_name ?? null,
         commission_rate ?? null, status ?? null, brand_logo_url ?? null,
         brand_primary_color ?? null, brand_accent_color ?? null,
-        portal_domain ?? null, portal_name ?? null, notes ?? null, req.params.id],
+        portal_domain ?? null, portal_name ?? null, notes ?? null, req.params.id, req.orgId],
     );
-    const [[row]] = await db.query('SELECT * FROM resellers WHERE id = ?', [req.params.id]);
+    const [[row]] = await db.query(
+      'SELECT * FROM resellers WHERE id = ? AND organization_id = ?', [req.params.id, req.orgId],
+    );
     res.json({ data: row });
   } catch (err) { next(err); }
 });
@@ -294,17 +332,23 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
 router.delete('/:id', requirePermission('resellers.delete'), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
-    await db.query('UPDATE resellers SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    await db.query(
+      'UPDATE resellers SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
     res.json({ data: { id: parseInt(req.params.id, 10), deleted: true } });
   } catch (err) { next(err); }
 });
 
 // POST /resellers/:id/suspend
-router.post('/:id/suspend', requirePermission('resellers.suspend'), async (req, res, next) => {
+router.post('/:id/suspend', requirePermission('resellers.suspend'), requireIspDecision, async (req, res, next) => {
   try {
     const row = await getResellerOrThrow(req);
     const newStatus = row.status === 'suspended' ? 'active' : 'suspended';
-    await db.query('UPDATE resellers SET status = ? WHERE id = ?', [newStatus, req.params.id]);
+    await db.query(
+      'UPDATE resellers SET status = ? WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [newStatus, req.params.id, req.orgId],
+    );
     res.json({ data: { id: parseInt(req.params.id, 10), status: newStatus } });
   } catch (err) { next(err); }
 });
@@ -330,7 +374,7 @@ router.get('/:id/plan-prices', requirePermission('reseller_plan_prices.view'), a
 });
 
 // POST /resellers/:id/plan-prices
-router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema, { strip: false }), ownedReferences({ plan_id: 'plans' }), async (req, res, next) => {
+router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), requireIspDecision, validate(planPriceSchema, { strip: false }), ownedReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { plan_id, custom_price, is_active = true, notes } = req.body;
@@ -354,7 +398,7 @@ router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage')
 });
 
 // DELETE /resellers/:id/plan-prices/:ppId
-router.delete('/:id/plan-prices/:ppId', requirePermission('reseller_plan_prices.manage'), async (req, res, next) => {
+router.delete('/:id/plan-prices/:ppId', requirePermission('reseller_plan_prices.manage'), requireIspDecision, async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const [[pp]] = await db.query(
@@ -401,7 +445,7 @@ router.get('/:id/commissions', requirePermission('reseller_commissions.view'), a
 });
 
 // POST /resellers/:id/commissions/:cId/approve
-router.post('/:id/commissions/:cId/approve', requirePermission('reseller_commissions.approve'), async (req, res, next) => {
+router.post('/:id/commissions/:cId/approve', requirePermission('reseller_commissions.approve'), requireIspDecision, async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const [[comm]] = await db.query(
@@ -442,7 +486,7 @@ router.get('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.view
 });
 
 // POST /resellers/:id/ip-pools
-router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), validate(ipPoolAllocationSchema, { strip: false }), ownedReferences({ ip_pool_id: 'ip_pools' }), async (req, res, next) => {
+router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), requireIspDecision, validate(ipPoolAllocationSchema, { strip: false }), ownedReferences({ ip_pool_id: 'ip_pools' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { ip_pool_id, notes } = req.body;
@@ -462,7 +506,7 @@ router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.man
 });
 
 // DELETE /resellers/:id/ip-pools/:allocId
-router.delete('/:id/ip-pools/:allocId', requirePermission('reseller_ip_pool_allocations.manage'), async (req, res, next) => {
+router.delete('/:id/ip-pools/:allocId', requirePermission('reseller_ip_pool_allocations.manage'), requireIspDecision, async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const [[alloc]] = await db.query(
@@ -492,7 +536,7 @@ router.get('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.
 });
 
 // PUT /resellers/:id/bandwidth-quota
-router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.manage'), validate(bandwidthQuotaSchema, { strip: false }), async (req, res, next) => {
+router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.manage'), requireIspDecision, validate(bandwidthQuotaSchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const {
@@ -541,7 +585,7 @@ router.get('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.vi
 });
 
 // POST /resellers/:id/olt-ports
-router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), validate(oltPortAssignmentSchema, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports' }), async (req, res, next) => {
+router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), requireIspDecision, validate(oltPortAssignmentSchema, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { olt_port_id, notes } = req.body;
@@ -561,7 +605,7 @@ router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.m
 });
 
 // DELETE /resellers/:id/olt-ports/:aId
-router.delete('/:id/olt-ports/:aId', requirePermission('reseller_olt_port_assignments.manage'), async (req, res, next) => {
+router.delete('/:id/olt-ports/:aId', requirePermission('reseller_olt_port_assignments.manage'), requireIspDecision, async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const [[asgn]] = await db.query(
@@ -590,7 +634,7 @@ router.get('/:id/billing-entity', requirePermission('reseller_billing_entities.v
 });
 
 // PUT /resellers/:id/billing-entity
-router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.manage'), validate(billingEntitySchema, { strip: false }), async (req, res, next) => {
+router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.manage'), requireIspDecision, validate(billingEntitySchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const {
@@ -750,6 +794,183 @@ router.delete(
         oldValues: { user_id: userId, reseller_id: Number(req.params.id) },
       });
       res.json({ data: { user_id: userId, reseller_id: Number(req.params.id), deleted: true } });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /resellers/:id/users — create a reseller login and bind it here
+// A staff user in the reseller_admin group, homed in this organization, with
+// the same validation, password policy and email uniqueness as POST /users.
+// The user lives in the primary database and the binding beside `resellers`,
+// so the two writes cannot share a transaction; a failed binding archives
+// the new user again.
+const createResellerLoginSchema = Object.fromEntries(
+  ['first_name', 'last_name', 'email', 'password'].map((field) => [field, { ...createUserSchema[field] }]),
+);
+
+router.post(
+  '/:id/users',
+  requirePermission('resellers.update'),
+  requirePermission('users.create'),
+  requireOrgLevelResellerAccess,
+  validate(createResellerLoginSchema, { strip: true }),
+  async (req, res, next) => {
+    try {
+      const reseller = await getResellerOrThrow(req);
+      const email = String(req.body.email).trim();
+      const existing = await runInPrimaryContext(() => User.findByEmail(email));
+      if (existing) throw new ConflictError('A user with this email already exists');
+      // Same policy as an administrator-set password on POST /users.
+      await assertPasswordAllowed(req.body.password, req.orgId);
+      const passwordHash = await bcrypt.hash(req.body.password, PASSWORD_SALT_ROUNDS);
+
+      const [[group]] = await runInPrimaryContext(() => db.query(
+        "SELECT id FROM roles WHERE name = 'reseller_admin' AND is_system = 1 AND deleted_at IS NULL LIMIT 1",
+      ));
+      if (!group) throw new ValidationError('The reseller_admin user group is missing');
+
+      const user = await User.create({
+        organization_id: req.orgId,
+        first_name: req.body.first_name,
+        last_name: req.body.last_name,
+        email,
+        password_hash: passwordHash,
+        group_id: group.id,
+        status: 'active',
+      });
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: 'create',
+        tableName: 'users',
+        recordId: user.id,
+        newValues: { email, group_id: group.id, reseller_id: reseller.id },
+      });
+
+      let binding;
+      try {
+        await db.query(
+          `INSERT INTO reseller_user_bindings (organization_id, user_id, reseller_id, created_by)
+           VALUES (?, ?, ?, ?)`,
+          [req.orgId, user.id, reseller.id, req.user.id],
+        );
+        [[binding]] = await db.query(
+          'SELECT id FROM reseller_user_bindings WHERE organization_id = ? AND user_id = ?',
+          [req.orgId, user.id],
+        );
+      } catch (err) {
+        await User.delete(user.id, req.orgId).catch(() => {});
+        throw err;
+      }
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: 'create',
+        tableName: 'reseller_user_bindings',
+        recordId: binding ? binding.id : null,
+        newValues: { user_id: Number(user.id), reseller_id: Number(reseller.id) },
+      });
+
+      res.status(201).json({ data: { user_id: Number(user.id), email, reseller_id: Number(reseller.id) } });
+    } catch (err) { next(err); }
+  },
+);
+
+// =============================================================================
+// Allowed plans (reseller app, migration 003)
+// =============================================================================
+// The plans a top-level reseller may offer in the reseller app; its
+// sub-resellers offer the same set. No rows means every active plan of the
+// organization (routes/resellerApp.js allowedPlans).
+
+async function listAllowedPlans(orgId, resellerId) {
+  const [rows] = await db.query(
+    `SELECT rap.plan_id, p.name, p.price
+       FROM reseller_allowed_plans rap
+       JOIN plans p ON p.id = rap.plan_id AND p.organization_id = rap.organization_id AND p.deleted_at IS NULL
+      WHERE rap.organization_id = ? AND rap.reseller_id = ?
+      ORDER BY p.name ASC`,
+    [orgId, resellerId],
+  );
+  return rows.map((r) => ({ plan_id: Number(r.plan_id), name: r.name, price: Number(r.price) }));
+}
+
+const allowedPlansSchema = {
+  plan_ids: { type: 'array', required: true },
+};
+
+// GET /resellers/:id/allowed-plans
+router.get('/:id/allowed-plans', requirePermission('resellers.view'), requireOrgLevelResellerAccess, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    res.json({ data: await listAllowedPlans(req.orgId, reseller.id) });
+  } catch (err) { next(err); }
+});
+
+// PUT /resellers/:id/allowed-plans — replace the set
+router.put(
+  '/:id/allowed-plans',
+  requirePermission('resellers.update'),
+  requireOrgLevelResellerAccess,
+  validate(allowedPlansSchema, { strip: true }),
+  async (req, res, next) => {
+    try {
+      const reseller = await getResellerOrThrow(req);
+      // Sub-resellers offer the plans of their top-level reseller
+      // (routes/resellerApp.js allowedPlans), so a set stored on one would
+      // never be used.
+      if (reseller.parent_id !== null && reseller.parent_id !== undefined) {
+        throw new ValidationError('Allowed plans are set on the top-level reseller; its sub-resellers offer the same plans');
+      }
+      const raw = req.body.plan_ids;
+      if (!raw.every((id) => Number.isInteger(id) && id > 0)) {
+        throw new ValidationError('plan_ids must be an array of plan ids');
+      }
+      if (raw.length > 500) throw new ValidationError('plan_ids: at most 500 plans');
+      const planIds = [...new Set(raw)];
+      if (planIds.length) {
+        const [found] = await db.query(
+          `SELECT id FROM plans WHERE organization_id = ? AND deleted_at IS NULL AND id IN (${inPlaceholders(planIds)})`,
+          [req.orgId, ...planIds],
+        );
+        const known = new Set(found.map((p) => Number(p.id)));
+        const missing = planIds.filter((id) => !known.has(id));
+        if (missing.length) throw new ValidationError(`plan_ids: plan not found: ${missing.join(', ')}`);
+      }
+
+      const before = await listAllowedPlans(req.orgId, reseller.id);
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.query(
+          'DELETE FROM reseller_allowed_plans WHERE organization_id = ? AND reseller_id = ?',
+          [req.orgId, reseller.id],
+        );
+        if (planIds.length) {
+          await conn.query(
+            `INSERT INTO reseller_allowed_plans (organization_id, reseller_id, plan_id)
+             VALUES ${planIds.map(() => '(?, ?, ?)').join(', ')}`,
+            planIds.flatMap((planId) => [req.orgId, reseller.id, planId]),
+          );
+        }
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: 'update',
+        tableName: 'reseller_allowed_plans',
+        recordId: Number(reseller.id),
+        oldValues: { plan_ids: before.map((p) => p.plan_id) },
+        newValues: { plan_ids: planIds },
+      });
+      res.json({ data: await listAllowedPlans(req.orgId, reseller.id) });
     } catch (err) { next(err); }
   },
 );

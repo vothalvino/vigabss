@@ -136,6 +136,46 @@ All roles are flagged `is_system = TRUE` and cannot be deleted through the UI.
 | `organizations.view` | ✓ | | | | ✓ |
 | `organizations.update` | ✓ | | | | |
 
+## Reseller accounts
+
+The `reseller_admin` group is for staff users bound to a reseller
+(`reseller_user_bindings`). It holds only:
+
+| Permission Slug | Description |
+|----------------|-------------|
+| `reseller_app.use` | Use the reseller app (`/reseller-app`): own clients, leads and plans |
+| `reseller_app.signup` | Sign up new customers as leads in the reseller app |
+| `reseller_portal.*` | Reseller portal reads (dashboard, clients, invoices, inventory), confined to the reseller's subtree |
+| `webauthn.*` | The user's own passkeys |
+
+Migration 002 removed its organization-wide security views and migration 003
+removed the reseller administration views (`resellers.view`,
+`reseller_plan_prices.view`, `reseller_commissions.view`,
+`reseller_ip_pool_allocations.view`, `reseller_bandwidth_quotas.view`,
+`reseller_olt_port_assignments.view`, `reseller_billing_entities.view`).
+
+A bound user, in any group, can reach only these API path prefixes:
+`/auth`, `/2fa`, `/notifications`, `/reseller-app`, `/resellers` and
+`/reseller-portal` (`src/middleware/resellerFence.js`). Everything else is
+403 whatever permissions the group holds. The staff WebSocket hub refuses a
+bound user at sign-in, and an open real-time stream (SSE, GraphQL, WebSocket)
+ends when its user is bound (`src/services/realtimeAccess.js`). The reseller
+app itself answers 403 to users without a binding.
+
+Creating a reseller login (`POST /resellers/:id/users`) needs
+`resellers.update` and `users.create`; binding an existing user needs
+`resellers.update` and `users.update`. Both, and the allowed plans
+(`/resellers/:id/allowed-plans`), are refused to bound users. So are the
+ISP's decisions about a reseller, whatever permissions the bound user's group
+holds: suspend or reactivate (`POST /resellers/:id/suspend`), commission
+approval, plan prices, IP pools, OLT ports, bandwidth quota and the billing
+entity. A bound user may still create sub-resellers of its own reseller,
+without a commission rate or status.
+
+Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
+usable app: `/punto` shows a no-access notice. Logins created with
+`POST /resellers/:id/users` are always in `reseller_admin`.
+
 ## Route Authorization
 
 Routes without RBAC middleware (by design):

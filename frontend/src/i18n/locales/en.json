@@ -9829,7 +9829,8 @@
       "status": "Status",
       "since": "Bound since",
       "actions": "Actions"
-    }
+    },
+    "groupHint": "To use the point of sale app, the user must be in a group with the reseller app permissions (the reseller_admin group has them). Logins created below are put in that group."
   },
   "signedDocument": {
     "view": "View",
@@ -9871,5 +9872,236 @@
     "hide": "Hide",
     "downloadPdf": "Download PDF",
     "downloadError": "Could not download the PDF. Please try again."
+  },
+  "punto": {
+    "nav": {
+      "home": "Home",
+      "clients": "Clients",
+      "newClient": "New client",
+      "leads": "Prospects"
+    },
+    "layout": {
+      "title": "My point of sale",
+      "subtitle": "Point of sale",
+      "signOut": "Sign out",
+      "navLabel": "Main menu"
+    },
+    "common": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{pages}}",
+      "loading": "Loading…"
+    },
+    "home": {
+      "title": "Home",
+      "greeting": "Hello, {{name}}",
+      "newClient": "New client",
+      "loadError": "Your summary could not be loaded.",
+      "summary": "Summary",
+      "activeClients": "Active clients",
+      "suspendedClients": "Suspended clients",
+      "overdueClients": "Clients with overdue invoices",
+      "openLeads": "Open prospects"
+    },
+    "clients": {
+      "title": "Clients",
+      "search": "Search",
+      "searchPlaceholder": "Name, phone or email",
+      "status": "Status",
+      "allStatuses": "All",
+      "loadError": "Your clients could not be loaded.",
+      "noMatches": "No client matches the search.",
+      "empty": "You have no clients yet. They appear here once the company activates your sign-ups.",
+      "overdue": "Overdue",
+      "balanceDue": "Balance due",
+      "overdueOnly": "Overdue only",
+      "showAll": "Show all"
+    },
+    "clientDetail": {
+      "back": "← Back to clients",
+      "notFound": "This client is not one of yours or no longer exists.",
+      "loadError": "The client could not be loaded.",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "balanceDue": "Balance due",
+      "contracts": "Services",
+      "noContracts": "No services yet.",
+      "noPlan": "No plan",
+      "monthly": "{{amount}} per month",
+      "invoices": "Recent invoices",
+      "noInvoices": "No invoices yet.",
+      "dueDate": "Due {{date}}",
+      "invoiceBalance": "Owes {{balance}} of {{total}}"
+    },
+    "newClient": {
+      "title": "New client",
+      "intro": "Register the person who wants the service. The company will contact them to confirm coverage, sign the contract and schedule the installation.",
+      "required": "Name and phone are required.",
+      "invalidRfc": "The RFC does not look valid. It has 12 or 13 characters, for example XAXX010101000.",
+      "invalidCp": "The tax postal code has 5 digits.",
+      "saveError": "The sign-up could not be saved. Try again.",
+      "name": "Full name",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "city": "City or town",
+      "plan": "Plan of interest",
+      "planNone": "— Not decided yet —",
+      "planOption": "{{name}} · {{price}} {{speed}}",
+      "planSpeed": "· {{down}}/{{up}} Mbps",
+      "plansError": "The plans could not be loaded; you can save without one.",
+      "notes": "Notes",
+      "submit": "Save sign-up",
+      "saving": "Saving…",
+      "location": {
+        "use": "Use my location",
+        "locating": "Getting location…",
+        "found": "Location saved: {{latitude}}, {{longitude}}.",
+        "clear": "Remove",
+        "hint": "If you are at the client's home, save the location to check coverage right away.",
+        "unsupported": "This device cannot share its location. You can save without it.",
+        "denied": "Location permission was denied. You can save without it, or allow it in your browser settings.",
+        "failed": "The location could not be obtained. Try again outdoors, or save without it."
+      },
+      "fiscal": {
+        "title": "Tax details (optional)",
+        "hint": "Only if the client needs a CFDI invoice.",
+        "rfc": "RFC",
+        "razonSocial": "Legal name (razón social)",
+        "regimen": "Tax regime (régimen fiscal)",
+        "regimenNone": "— Choose —",
+        "cp": "Tax postal code"
+      },
+      "done": {
+        "title": "Sign-up saved",
+        "body": "We registered {{name}}. The company will contact them to continue.",
+        "viewLeads": "View my prospects",
+        "another": "Register another client"
+      },
+      "feasibility": {
+        "title": "Coverage",
+        "checking": "Checking coverage…",
+        "error": "Coverage could not be checked right now. The company will review it.",
+        "noLocation": "No location was saved, so the company will check coverage using the address.",
+        "none": "No coverage was found near this location on the map. The company will review the case before confirming.",
+        "covered": "Good news: the location is inside a coverage zone.",
+        "nearby": "There is network near this location (less than 3 km).",
+        "zones": "Coverage zone: {{names}}",
+        "wireless": "Antenna {{distance}}",
+        "fiber": "Fiber box {{distance}}",
+        "disclaimer": "This is a first estimate. The company confirms coverage before installing.",
+        "fiberFree": "with free ports.",
+        "fiberFull": "with no free ports right now.",
+        "bandUnder1": "less than 1 km away",
+        "bandUnder3": "less than 3 km away",
+        "zonesUnavailable": "The coverage zones could not be checked; the company will review them."
+      }
+    },
+    "leads": {
+      "title": "Prospects",
+      "add": "New",
+      "intro": "The people you signed up and where each one stands.",
+      "loadError": "Your prospects could not be loaded.",
+      "empty": "You have not signed anyone up yet.",
+      "plan": "Plan: {{plan}}",
+      "noPlan": "not chosen",
+      "createdAt": "Signed up {{date}}",
+      "viewClient": "View client"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspended",
+      "pending": "Pending",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "terminated": "Terminated",
+      "draft": "Draft",
+      "issued": "Issued",
+      "sent": "Sent",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "void": "Void",
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal": "Proposal",
+      "won": "Won",
+      "lost": "Lost"
+    },
+    "access": {
+      "title": "No access to the point of sale app",
+      "body": "Your account cannot use the point of sale app yet. Contact the company so they can give you access."
+    }
+  },
+  "resellerForm": {
+    "createTitle": "New reseller",
+    "editTitle": "Edit {{name}}",
+    "name": "Name",
+    "contactName": "Contact name",
+    "email": "Email",
+    "phone": "Phone",
+    "parent": "Parent reseller (optional)",
+    "noParent": "— None: top-level reseller —",
+    "parentFixed": "Sub-reseller of {{name}}",
+    "commissionRate": "Commission (%)",
+    "status": "Status",
+    "statuses": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "inactive": "Inactive"
+    },
+    "notes": "Notes",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "saveError": "The reseller could not be saved.",
+    "nameRequired": "Name is required.",
+    "rateInvalid": "Commission must be a percentage from 0 to 100."
+  },
+  "resellerPlans": {
+    "title": "Allowed plans",
+    "help": "The plans a top-level reseller can offer in the reseller app; its sub-resellers offer the same plans. If none are selected, the reseller can offer every active plan.",
+    "reseller": "Reseller",
+    "selectReseller": "— Choose a top-level reseller —",
+    "legend": "Plans this reseller can offer",
+    "noPlans": "The organization has no active plans.",
+    "noneSelected": "None selected: the reseller can offer every active plan.",
+    "countSelected": "Plans selected: {{count}}",
+    "save": "Save allowed plans",
+    "saving": "Saving…",
+    "saved": "Allowed plans saved.",
+    "saveError": "The allowed plans could not be saved.",
+    "loadError": "The plans could not be loaded."
+  },
+  "resellerLogin": {
+    "title": "Create login",
+    "help": "Creates a staff account in the reseller group, already bound to this reseller. It signs in to the reseller app only.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Create login",
+    "creating": "Creating…",
+    "created": "Login created for {{email}}.",
+    "error": "The login could not be created.",
+    "required": "Fill in first name, last name, email and password."
+  },
+  "resellerAdmin": {
+    "newReseller": "New reseller",
+    "edit": "Edit",
+    "id": "ID",
+    "levelMaster": "Master",
+    "levelSub": "Sub",
+    "statusChanged": "{{name}} is now {{status}}",
+    "saved": "Reseller saved.",
+    "tabAllowedPlans": "Allowed plans"
+  },
+  "leadReseller": {
+    "resellerFilter": "Reseller",
+    "resellerFilterAll": "All leads",
+    "resellerBadge": "Reseller: {{name}}",
+    "resellerBadgeTitle": "Captured by a reseller in the reseller app"
   }
 }

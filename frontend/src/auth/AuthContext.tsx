@@ -59,6 +59,10 @@ export interface AuthUser {
   /** Resolved permission slugs for the ACTIVE org — drives can() so custom
    *  groups reflect accurately in action buttons. */
   permissions?: string[];
+  /** The reseller this account is bound to in the active org
+   *  (reseller_user_bindings), or null. A bound account uses the reseller
+   *  app at /punto and never the staff console. */
+  reseller_binding?: { reseller_id: number; reseller_name: string | null } | null;
   is_active: boolean;
   /** Null until the user clicks the link in their verification email.
    *  Informational only today — nothing gates login or feature access on it. */

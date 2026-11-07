@@ -148,6 +148,27 @@ describe('WsHub', () => {
       ws.close();
     });
 
+    it('refuses a reseller-bound account (the HTTP fence covers the hub too)', async () => {
+      // The real database module has the tenant-context primitive; with it
+      // the hub looks up reseller_user_bindings.
+      db.withTenantContext = jest.fn((_orgId, fn) => fn());
+      db.query.mockImplementation(async (sql) => (/FROM reseller_user_bindings b/.test(String(sql))
+        ? [[{ reseller_id: 3, live_reseller_id: 3, reseller_name: 'R3' }]]
+        : [[]]));
+      try {
+        const ws = connectWs(port);
+        await waitForOpen(ws);
+        ws.send(JSON.stringify({ type: 'auth', token: makeToken(5) }));
+        const msg = await waitForMessage(ws, m => m.type === 'auth_fail' || m.type === 'auth_ok');
+        expect(msg).toEqual({ type: 'auth_fail', reason: 'Reseller accounts can only use the reseller app' });
+        const [, params] = db.query.mock.calls.find(([sql]) => /FROM reseller_user_bindings b/.test(String(sql)));
+        expect(params).toEqual([5, 42]);
+      } finally {
+        delete db.withTenantContext;
+        db.query.mockReset();
+      }
+    });
+
     it('authenticates a cookie-first browser session with an allowed Origin', async () => {
       const token = makeToken(8);
       const ws = connectWs(port, {

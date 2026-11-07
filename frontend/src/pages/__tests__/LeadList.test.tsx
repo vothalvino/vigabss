@@ -16,9 +16,12 @@ vi.mock('react-router-dom', async () => {
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
 const mockApiPut = vi.fn();
+// The reseller filter's options (GET /resellers), kept apart from the lead
+// responses so a catch-all lead list never doubles as a reseller list.
+const mockResellers = vi.fn(() => Promise.resolve({ data: { data: [] as { id: number; name: string }[] }, error: undefined }));
 vi.mock('@/api/client', () => ({
   api: {
-    GET: (...args: unknown[]) => mockApiGet(...args),
+    GET: (...args: unknown[]) => (args[0] === '/resellers' ? mockResellers() : mockApiGet(...args)),
     POST: (...args: unknown[]) => mockApiPost(...args),
     PUT: (...args: unknown[]) => mockApiPut(...args),
     DELETE: vi.fn(),
@@ -338,5 +341,43 @@ describe('LeadList — feasibility and desired plan', () => {
     await waitFor(() => expect(screen.getByText('Jane Prospect')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Feasibility'));
     expect(await screen.findByText(/no coordinates yet/i)).toBeInTheDocument();
+  });
+});
+
+// =============================================================================
+// Leads captured in the reseller app
+// =============================================================================
+describe('LeadList — reseller leads', () => {
+  beforeEach(() => {
+    mockResponses();
+    mockResellers.mockClear();
+    mockResellers.mockImplementation(() => Promise.resolve({ data: { data: [{ id: 4, name: 'Punto Norte' }] }, error: undefined }));
+  });
+
+  it('marks a lead captured by a reseller and filters the list by reseller', async () => {
+    mockApiGet.mockImplementation((path: string) => {
+      if (path === '/leads/pipeline') return Promise.resolve({ data: { data: { new: 1 } }, error: undefined });
+      return Promise.resolve({
+        data: { data: [{ ...lead1, reseller_id: 4, reseller_name: 'Punto Norte' }], meta: { total: 1, page: 1, limit: 25, totalPages: 1 } },
+        error: undefined,
+      });
+    });
+    renderPage();
+    expect(await screen.findByText('Reseller: Punto Norte')).toBeInTheDocument();
+
+    fireEvent.change(await screen.findByLabelText('Reseller'), { target: { value: '4' } });
+    await waitFor(() => {
+      const leadCalls = mockApiGet.mock.calls.filter(([path]) => path === '/leads');
+      const last = leadCalls[leadCalls.length - 1][1] as { params: { query: Record<string, unknown> } };
+      expect(last.params.query).toMatchObject({ reseller_id: 4, page: 1 });
+    });
+  });
+
+  it('hides the reseller filter without resellers.view', async () => {
+    mockUser = { id: 1, role: 'support', permissions: ['leads.view'] };
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Jane Prospect')).toBeInTheDocument());
+    expect(screen.queryByLabelText('Reseller')).not.toBeInTheDocument();
+    expect(mockResellers).not.toHaveBeenCalled();
   });
 });

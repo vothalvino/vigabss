@@ -646,7 +646,11 @@
     },
     {
       "name": "Reseller Portal",
-      "description": "§19.3 Reseller portal endpoints — dashboard, customer management, invoices, inventory"
+      "description": "§19.3 Reseller portal endpoints — dashboard, customer list, invoices, inventory"
+    },
+    {
+      "name": "Reseller App",
+      "description": "Reseller app (Punto de Venta) for users bound to a reseller — own clients, plans, and lead sign-ups"
     },
     {
       "name": "Integration Providers",
@@ -813,7 +817,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Get current user profile",
+        "summary": "Get current user profile (reseller_binding: {reseller_id, reseller_name} when the user is bound to a reseller in the active organization, else null)",
         "operationId": "me",
         "security": [
           {
@@ -4413,7 +4417,7 @@
         "tags": [
           "Leads"
         ],
-        "summary": "List leads (optional free-text search)",
+        "summary": "List leads (optional free-text search); each row carries reseller_id and reseller_name",
         "operationId": "listLeads",
         "security": [
           {
@@ -4429,6 +4433,31 @@
               "type": "string"
             },
             "description": "Search filter"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reseller_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only leads captured by this reseller in the reseller app"
           }
         ],
         "responses": {
@@ -61125,6 +61154,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61205,6 +61261,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61242,6 +61325,33 @@
         "responses": {
           "204": {
             "description": "No content"
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61332,6 +61442,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61412,6 +61549,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61449,6 +61613,33 @@
         "responses": {
           "204": {
             "description": "No content"
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61526,6 +61717,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -61609,6 +61827,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61646,6 +61891,33 @@
         "responses": {
           "204": {
             "description": "No content"
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61726,6 +61998,33 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -61759,6 +62058,494 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Create a reseller login: a staff user in the reseller_admin group, bound to this reseller (org-level admins only; requires resellers.update and users.create)",
+        "operationId": "createResellerLogin",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The new login",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "first_name",
+                  "last_name",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "first_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user_id",
+                        "email",
+                        "reseller_id"
+                      ],
+                      "properties": {
+                        "user_id": {
+                          "type": "integer"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot create logins",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A user with this email already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or the password breaks the password policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/allowed-plans": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Plans the reseller may offer in the reseller app (none means every active plan; org-level admins only)",
+        "operationId": "listResellerAllowedPlans",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allowed plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "plan_id",
+                          "name",
+                          "price"
+                        ],
+                        "properties": {
+                          "plan_id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "price": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot manage allowed plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Replace the plans a top-level reseller and its sub-resellers may offer (org-level admins only; an empty list allows every active plan)",
+        "operationId": "setResellerAllowedPlans",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Plan ids of the organization",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "plan_ids"
+                ],
+                "properties": {
+                  "plan_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Allowed plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "plan_id",
+                          "name",
+                          "price"
+                        ],
+                        "properties": {
+                          "plan_id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "price": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot manage allowed plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A plan does not belong to the organization, or the reseller is a sub-reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -62057,138 +62844,6 @@
             }
           }
         }
-      },
-      "post": {
-        "tags": [
-          "Reseller Portal"
-        ],
-        "summary": "Create client under reseller",
-        "operationId": "createResellerPortalClient",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "description": "Client",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Client",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reseller-portal/{id}/clients/{cId}/suspend": {
-      "post": {
-        "tags": [
-          "Reseller Portal"
-        ],
-        "summary": "Suspend or reactivate client",
-        "operationId": "suspendResellerPortalClient",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "cId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reseller-portal/{id}/clients/{cId}/cancel": {
-      "post": {
-        "tags": [
-          "Reseller Portal"
-        ],
-        "summary": "Cancel (set inactive) client",
-        "operationId": "cancelResellerPortalClient",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "cId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/reseller-portal/{id}/invoices": {
@@ -62256,6 +62911,1268 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/me": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "The bound reseller, the organization currency and the subtree counts",
+        "operationId": "getResellerAppMe",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reseller summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "reseller",
+                        "currency",
+                        "counts"
+                      ],
+                      "properties": {
+                        "reseller": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "name",
+                            "level",
+                            "status",
+                            "commission_rate",
+                            "parent_id"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "level": {
+                              "type": "integer"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "active",
+                                "suspended",
+                                "inactive"
+                              ]
+                            },
+                            "commission_rate": {
+                              "type": "number"
+                            },
+                            "parent_id": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          }
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "counts": {
+                          "type": "object",
+                          "required": [
+                            "active_clients",
+                            "suspended_clients",
+                            "open_leads",
+                            "overdue_clients"
+                          ],
+                          "properties": {
+                            "active_clients": {
+                              "type": "integer"
+                            },
+                            "suspended_clients": {
+                              "type": "integer"
+                            },
+                            "open_leads": {
+                              "type": "integer"
+                            },
+                            "overdue_clients": {
+                              "type": "integer",
+                              "description": "Clients with an unpaid invoice past its due date"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/clients": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Clients of the bound reseller and its sub-resellers",
+        "operationId": "listResellerAppClients",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partial name, phone or email"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "suspended"
+              ]
+            }
+          },
+          {
+            "name": "overdue",
+            "in": "query",
+            "required": false,
+            "description": "Only clients with an unpaid invoice past its due date (1 or true)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1",
+                "true",
+                "0",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Clients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "name",
+                          "phone",
+                          "email",
+                          "status",
+                          "reseller_id",
+                          "balance_due",
+                          "overdue"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "email": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "inactive",
+                              "suspended"
+                            ]
+                          },
+                          "reseller_id": {
+                            "type": "integer"
+                          },
+                          "balance_due": {
+                            "type": "number",
+                            "description": "Still owed on issued, sent and overdue invoices"
+                          },
+                          "overdue": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown status or overdue value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/clients/{id}": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "One client of the reseller subtree, with its contracts and latest 20 invoices",
+        "operationId": "getResellerAppClient",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "name",
+                        "phone",
+                        "email",
+                        "address",
+                        "status",
+                        "reseller_id",
+                        "balance_due",
+                        "contracts",
+                        "invoices"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "email": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "city": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "inactive",
+                            "suspended"
+                          ]
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "balance_due": {
+                          "type": "number"
+                        },
+                        "contracts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "status",
+                              "plan_name",
+                              "monthly_price"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "plan_name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "monthly_price": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "invoices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "invoice_number",
+                              "status",
+                              "total",
+                              "balance",
+                              "due_date",
+                              "issue_date"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "invoice_number": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "total": {
+                                "type": "number"
+                              },
+                              "balance": {
+                                "type": "number"
+                              },
+                              "due_date": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "issue_date": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Client not found in the reseller subtree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/plans": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Plans the bound reseller may offer (the allowed plans of its top-level reseller, or every active plan when there are none)",
+        "operationId": "listResellerAppPlans",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "name",
+                          "price",
+                          "download_speed",
+                          "upload_speed"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "price": {
+                            "type": "number"
+                          },
+                          "download_speed": {
+                            "type": "integer",
+                            "description": "Mbps"
+                          },
+                          "upload_speed": {
+                            "type": "integer",
+                            "description": "Mbps"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/leads": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Leads the reseller subtree captured",
+        "operationId": "listResellerAppLeads",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leads",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "name",
+                          "phone",
+                          "status",
+                          "desired_plan_id",
+                          "desired_plan_name",
+                          "created_at",
+                          "converted_client_id"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "new",
+                              "contacted",
+                              "qualified",
+                              "proposal",
+                              "won",
+                              "lost"
+                            ]
+                          },
+                          "desired_plan_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "desired_plan_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "converted_client_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Sign up a customer as a lead of the bound reseller (needs reseller_app.signup)",
+        "operationId": "createResellerAppLead",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The prospect",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "phone"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "desired_plan_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "One of GET /reseller-app/plans"
+                  },
+                  "rfc": {
+                    "type": "string",
+                    "maxLength": 13
+                  },
+                  "razon_social": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "regimen_fiscal": {
+                    "type": "string",
+                    "maxLength": 3
+                  },
+                  "codigo_postal_fiscal": {
+                    "type": "string",
+                    "maxLength": 5
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "name",
+                        "phone",
+                        "status",
+                        "desired_plan_id",
+                        "desired_plan_name",
+                        "created_at",
+                        "converted_client_id"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "new",
+                            "contacted",
+                            "qualified",
+                            "proposal",
+                            "won",
+                            "lost"
+                          ]
+                        },
+                        "desired_plan_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "desired_plan_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "converted_client_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or the reseller is not active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed, or the plan is not offered by the reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/leads/{id}/feasibility": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Coverage summary for a lead of the reseller subtree: zones in service and coarse wireless/FTTH flags, without network ids, names, coordinates or RF data",
+        "operationId": "getResellerAppLeadFeasibility",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coverage summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "has_coordinates",
+                        "covered",
+                        "coverage_zones",
+                        "zone_lookup_failed",
+                        "wireless",
+                        "ftth"
+                      ],
+                      "properties": {
+                        "has_coordinates": {
+                          "type": "boolean"
+                        },
+                        "covered": {
+                          "type": "boolean",
+                          "description": "Inside a coverage zone that is active or degraded"
+                        },
+                        "coverage_zones": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "name",
+                              "zone_type",
+                              "status",
+                              "max_download_mbps",
+                              "max_upload_mbps"
+                            ],
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "zone_type": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "active",
+                                  "degraded"
+                                ]
+                              },
+                              "max_download_mbps": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "max_upload_mbps": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "zone_lookup_failed": {
+                          "type": "boolean"
+                        },
+                        "wireless": {
+                          "type": "object",
+                          "required": [
+                            "nearby",
+                            "distance_band"
+                          ],
+                          "properties": {
+                            "nearby": {
+                              "type": "boolean",
+                              "description": "An AP sector within 3 km"
+                            },
+                            "distance_band": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "enum": [
+                                "under_1km",
+                                "under_3km",
+                                "farther",
+                                null
+                              ],
+                              "description": "Distance to the nearest one; null when there is none"
+                            }
+                          }
+                        },
+                        "ftth": {
+                          "type": "object",
+                          "required": [
+                            "nearby",
+                            "distance_band",
+                            "has_free_ports"
+                          ],
+                          "properties": {
+                            "nearby": {
+                              "type": "boolean",
+                              "description": "An active ODF frame within 3 km"
+                            },
+                            "distance_band": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "enum": [
+                                "under_1km",
+                                "under_3km",
+                                "farther",
+                                null
+                              ],
+                              "description": "Distance to the nearest one; null when there is none"
+                            },
+                            "has_free_ports": {
+                              "type": [
+                                "boolean",
+                                "null"
+                              ],
+                              "description": "Free ports on a nearby frame; null when unknown or none is nearby"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Lead not found in the reseller subtree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

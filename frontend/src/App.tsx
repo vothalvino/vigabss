@@ -6,6 +6,7 @@
 //   • Protected routes (any authenticated user): /, /clients, /contracts, etc.
 //   • Admin-only routes: /users, /settings
 //   • Billing+ routes: /reports
+//   • Reseller app (/punto): staff accounts bound to a reseller
 // =============================================================================
 
 import { lazy, Suspense } from 'react';
@@ -18,6 +19,7 @@ import { Login } from '@/pages/Login';
 import { PortalAuthProvider } from '@/auth/PortalAuthContext';
 import { PortalRoute } from '@/auth/PortalRoute';
 import { PortalLayout } from '@/components/PortalLayout';
+import { PuntoRoute } from '@/auth/PuntoRoute';
 import { NotFound } from '@/pages/NotFound';
 import { LoadingState } from '@/components/FetchStates';
 import { DarkModeProvider } from '@/auth/DarkModeContext';
@@ -47,6 +49,12 @@ const PortalPayments = lazy(() => import('@/pages/portal/PortalPayments').then((
 const PortalDataPacks = lazy(() => import('@/pages/portal/PortalDataPacks').then((m) => ({ default: m.PortalDataPacks })));
 const PortalSecurity = lazy(() => import('@/pages/portal/PortalSecurity').then((m) => ({ default: m.PortalSecurity })));
 const PortalPrivacy = lazy(() => import('@/pages/portal/PortalPrivacy').then((m) => ({ default: m.PortalPrivacy })));
+const PuntoLayout = lazy(() => import('@/pages/punto/PuntoLayout').then((m) => ({ default: m.PuntoLayout })));
+const PuntoHome = lazy(() => import('@/pages/punto/PuntoHome').then((m) => ({ default: m.PuntoHome })));
+const PuntoClients = lazy(() => import('@/pages/punto/PuntoClients').then((m) => ({ default: m.PuntoClients })));
+const PuntoClientDetail = lazy(() => import('@/pages/punto/PuntoClientDetail').then((m) => ({ default: m.PuntoClientDetail })));
+const PuntoNewClient = lazy(() => import('@/pages/punto/PuntoNewClient').then((m) => ({ default: m.PuntoNewClient })));
+const PuntoLeads = lazy(() => import('@/pages/punto/PuntoLeads').then((m) => ({ default: m.PuntoLeads })));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ClientList = lazy(() => import('@/pages/ClientList').then((m) => ({ default: m.ClientList })));
 const ClientDetail = lazy(() => import('@/pages/ClientDetail').then((m) => ({ default: m.ClientDetail })));
@@ -223,6 +231,19 @@ export function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+
+              {/* ---- Reseller app: staff accounts bound to a reseller ----
+                  PuntoRoute sends anyone else to the staff console, and
+                  PrivateRoute sends a bound account here. */}
+              <Route element={<PuntoRoute />}>
+                <Route element={<PuntoLayout />}>
+                  <Route path="/punto" element={<PuntoHome />} />
+                  <Route path="/punto/clientes" element={<PuntoClients />} />
+                  <Route path="/punto/clientes/:id" element={<PuntoClientDetail />} />
+                  <Route path="/punto/nuevo" element={<PuntoNewClient />} />
+                  <Route path="/punto/prospectos" element={<PuntoLeads />} />
+                </Route>
+              </Route>
 
               {/* ---- Client Self-Service Portal ---- */}
               <Route path="/portal/login" element={<PortalLogin />} />

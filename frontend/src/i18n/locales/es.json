@@ -9823,7 +9823,8 @@
       "status": "Estado",
       "since": "Vinculado desde",
       "actions": "Acciones"
-    }
+    },
+    "groupHint": "Para usar la app de punto de venta, el usuario debe estar en un grupo con los permisos de la app de revendedores (el grupo reseller_admin los tiene). Los accesos que crees abajo quedan en ese grupo."
   },
   "signedDocument": {
     "view": "Ver",
@@ -9865,5 +9866,236 @@
     "hide": "Ocultar",
     "downloadPdf": "Descargar PDF",
     "downloadError": "No se pudo descargar el PDF. Inténtalo de nuevo."
+  },
+  "punto": {
+    "nav": {
+      "home": "Inicio",
+      "clients": "Clientes",
+      "newClient": "Nuevo cliente",
+      "leads": "Prospectos"
+    },
+    "layout": {
+      "title": "Mi punto de venta",
+      "subtitle": "Punto de venta",
+      "signOut": "Cerrar sesión",
+      "navLabel": "Menú principal"
+    },
+    "common": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "pageOf": "Página {{page}} de {{pages}}",
+      "loading": "Cargando…"
+    },
+    "home": {
+      "title": "Inicio",
+      "greeting": "Hola, {{name}}",
+      "newClient": "Nuevo cliente",
+      "loadError": "No pudimos cargar tu resumen.",
+      "summary": "Resumen",
+      "activeClients": "Clientes activos",
+      "suspendedClients": "Clientes suspendidos",
+      "overdueClients": "Clientes con pagos vencidos",
+      "openLeads": "Prospectos en proceso"
+    },
+    "clients": {
+      "title": "Clientes",
+      "search": "Buscar",
+      "searchPlaceholder": "Nombre, teléfono o correo",
+      "status": "Estado",
+      "allStatuses": "Todos",
+      "loadError": "No pudimos cargar tus clientes.",
+      "noMatches": "Ningún cliente coincide con la búsqueda.",
+      "empty": "Todavía no tienes clientes. Aparecen aquí cuando la empresa da de alta a las personas que registraste.",
+      "overdue": "Vencido",
+      "balanceDue": "Saldo pendiente",
+      "overdueOnly": "Solo con pagos vencidos",
+      "showAll": "Ver todos"
+    },
+    "clientDetail": {
+      "back": "← Volver a clientes",
+      "notFound": "Este cliente no es tuyo o ya no existe.",
+      "loadError": "No pudimos cargar el cliente.",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "address": "Domicilio",
+      "balanceDue": "Saldo pendiente",
+      "contracts": "Servicios",
+      "noContracts": "Todavía no tiene servicios.",
+      "noPlan": "Sin plan",
+      "monthly": "{{amount}} al mes",
+      "invoices": "Últimas facturas",
+      "noInvoices": "Todavía no tiene facturas.",
+      "dueDate": "Vence el {{date}}",
+      "invoiceBalance": "Debe {{balance}} de {{total}}"
+    },
+    "newClient": {
+      "title": "Nuevo cliente",
+      "intro": "Registra a la persona que quiere el servicio. La empresa la contactará para confirmar la cobertura, firmar el contrato y agendar la instalación.",
+      "required": "El nombre y el teléfono son obligatorios.",
+      "invalidRfc": "El RFC no parece válido. Tiene 12 o 13 caracteres, por ejemplo XAXX010101000.",
+      "invalidCp": "El código postal fiscal tiene 5 dígitos.",
+      "saveError": "No pudimos guardar el registro. Inténtalo de nuevo.",
+      "name": "Nombre completo",
+      "phone": "Teléfono",
+      "email": "Correo electrónico",
+      "address": "Domicilio",
+      "city": "Ciudad o localidad",
+      "plan": "Plan de interés",
+      "planNone": "— Todavía no decide —",
+      "planOption": "{{name}} · {{price}} {{speed}}",
+      "planSpeed": "· {{down}}/{{up}} Mbps",
+      "plansError": "No pudimos cargar los planes; puedes guardar sin elegir uno.",
+      "notes": "Notas",
+      "submit": "Guardar registro",
+      "saving": "Guardando…",
+      "location": {
+        "use": "Usar mi ubicación",
+        "locating": "Obteniendo ubicación…",
+        "found": "Ubicación guardada: {{latitude}}, {{longitude}}.",
+        "clear": "Quitar",
+        "hint": "Si estás en el domicilio del cliente, guarda la ubicación para revisar la cobertura al momento.",
+        "unsupported": "Este dispositivo no puede compartir su ubicación. Puedes guardar sin ella.",
+        "denied": "No diste permiso para usar la ubicación. Puedes guardar sin ella o activarla en la configuración del navegador.",
+        "failed": "No pudimos obtener la ubicación. Inténtalo al aire libre o guarda sin ella."
+      },
+      "fiscal": {
+        "title": "Datos fiscales (opcional)",
+        "hint": "Solo si el cliente necesita factura (CFDI).",
+        "rfc": "RFC",
+        "razonSocial": "Razón social",
+        "regimen": "Régimen fiscal",
+        "regimenNone": "— Elige uno —",
+        "cp": "Código postal fiscal"
+      },
+      "done": {
+        "title": "Registro guardado",
+        "body": "Registramos a {{name}}. La empresa le llamará para continuar.",
+        "viewLeads": "Ver mis prospectos",
+        "another": "Registrar otro cliente"
+      },
+      "feasibility": {
+        "title": "Cobertura",
+        "checking": "Revisando cobertura…",
+        "error": "No pudimos revisar la cobertura en este momento. La empresa la revisará.",
+        "noLocation": "No guardaste la ubicación, así que la empresa revisará la cobertura con el domicilio.",
+        "none": "No encontramos cobertura cerca de esta ubicación en el mapa. La empresa revisará el caso antes de confirmar.",
+        "covered": "¡Buenas noticias! La ubicación está dentro de una zona con cobertura.",
+        "nearby": "Hay red cerca de esta ubicación (a menos de 3 km).",
+        "zones": "Zona de cobertura: {{names}}",
+        "wireless": "Antena {{distance}}",
+        "fiber": "Caja de fibra {{distance}}",
+        "disclaimer": "Es una primera estimación. La empresa confirma la cobertura antes de instalar.",
+        "fiberFree": "con puertos libres.",
+        "fiberFull": "sin puertos libres por ahora.",
+        "bandUnder1": "a menos de 1 km",
+        "bandUnder3": "a menos de 3 km",
+        "zonesUnavailable": "No pudimos revisar las zonas de cobertura; la empresa las revisará."
+      }
+    },
+    "leads": {
+      "title": "Prospectos",
+      "add": "Nuevo",
+      "intro": "Las personas que registraste y en qué va cada una.",
+      "loadError": "No pudimos cargar tus prospectos.",
+      "empty": "Todavía no has registrado a nadie.",
+      "plan": "Plan: {{plan}}",
+      "noPlan": "sin elegir",
+      "createdAt": "Registrado el {{date}}",
+      "viewClient": "Ver cliente"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "suspended": "Suspendido",
+      "pending": "Pendiente",
+      "expired": "Vencido",
+      "cancelled": "Cancelado",
+      "terminated": "Terminado",
+      "draft": "Borrador",
+      "issued": "Emitida",
+      "sent": "Enviada",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "void": "Anulada",
+      "new": "Nuevo",
+      "contacted": "Contactado",
+      "qualified": "Calificado",
+      "proposal": "Con propuesta",
+      "won": "Ganado",
+      "lost": "Perdido"
+    },
+    "access": {
+      "title": "Sin acceso a la app de punto de venta",
+      "body": "Tu cuenta todavía no puede usar la app de punto de venta. Comunícate con la empresa para que te den acceso."
+    }
+  },
+  "resellerForm": {
+    "createTitle": "Nuevo revendedor",
+    "editTitle": "Editar {{name}}",
+    "name": "Nombre",
+    "contactName": "Nombre de contacto",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "parent": "Revendedor padre (opcional)",
+    "noParent": "— Ninguno: revendedor principal —",
+    "parentFixed": "Sub-revendedor de {{name}}",
+    "commissionRate": "Comisión (%)",
+    "status": "Estado",
+    "statuses": {
+      "active": "Activo",
+      "suspended": "Suspendido",
+      "inactive": "Inactivo"
+    },
+    "notes": "Notas",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saveError": "No se pudo guardar el revendedor.",
+    "nameRequired": "El nombre es obligatorio.",
+    "rateInvalid": "La comisión debe ser un porcentaje de 0 a 100."
+  },
+  "resellerPlans": {
+    "title": "Planes permitidos",
+    "help": "Los planes que un revendedor principal puede ofrecer en la app de revendedores; sus sub-revendedores ofrecen los mismos. Si no seleccionas ninguno, el revendedor puede ofrecer todos los planes activos.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Elige un revendedor principal —",
+    "legend": "Planes que puede ofrecer este revendedor",
+    "noPlans": "La organización no tiene planes activos.",
+    "noneSelected": "Ninguno seleccionado: el revendedor puede ofrecer todos los planes activos.",
+    "countSelected": "Planes seleccionados: {{count}}",
+    "save": "Guardar planes permitidos",
+    "saving": "Guardando…",
+    "saved": "Planes permitidos guardados.",
+    "saveError": "No se pudieron guardar los planes permitidos.",
+    "loadError": "No se pudieron cargar los planes."
+  },
+  "resellerLogin": {
+    "title": "Crear acceso",
+    "help": "Crea una cuenta de personal en el grupo de revendedores, ya vinculada a este revendedor. Solo entra a la app de revendedores.",
+    "firstName": "Nombre",
+    "lastName": "Apellidos",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Crear acceso",
+    "creating": "Creando…",
+    "created": "Acceso creado para {{email}}.",
+    "error": "No se pudo crear el acceso.",
+    "required": "Completa nombre, apellidos, correo y contraseña."
+  },
+  "resellerAdmin": {
+    "newReseller": "Nuevo revendedor",
+    "edit": "Editar",
+    "id": "ID",
+    "levelMaster": "Principal",
+    "levelSub": "Sub",
+    "statusChanged": "{{name}} ahora está {{status}}",
+    "saved": "Revendedor guardado.",
+    "tabAllowedPlans": "Planes permitidos"
+  },
+  "leadReseller": {
+    "resellerFilter": "Revendedor",
+    "resellerFilterAll": "Todos los prospectos",
+    "resellerBadge": "Revendedor: {{name}}",
+    "resellerBadgeTitle": "Registrado por un revendedor en la app de revendedores"
   }
 }

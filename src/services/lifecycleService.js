@@ -186,8 +186,20 @@ async function convertLeadOnConnection(conn, leadId, orgId, overrides = {}, {
     orgLocale = orgRows[0].locale || 'global';
   }
 
+  // A lead captured in the reseller app makes the client that reseller's,
+  // if the reseller is still live in this organization (migration 003).
+  let resellerId = null;
+  if (lead.reseller_id) {
+    const [resellerRows] = await conn.query(
+      'SELECT id FROM resellers WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1',
+      [lead.reseller_id, lead.organization_id ?? null],
+    );
+    resellerId = resellerRows[0] ? resellerRows[0].id : null;
+  }
+
   const clientData = {
     organization_id: effectiveOrgId,
+    reseller_id: resellerId,
     name: lead.name,
     email: lead.email || null,
     phone: lead.phone || null,

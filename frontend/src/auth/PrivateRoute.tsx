@@ -4,6 +4,7 @@
 // Wraps protected routes:
 //   • Redirects unauthenticated users to /login
 //   • Renders the not-allowed page when the user may not open the page
+//   • Sends an account bound to a reseller to the reseller app (/punto)
 //   • Shows a full-page spinner while auth state is initialising
 //
 // A page in the nav registry opens when the session's resolved permissions
@@ -82,6 +83,12 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
   // before anything else; the server refuses every other request until then.
   if (user.must_change_password) {
     return <ForcePasswordChange />;
+  }
+
+  // An account bound to a reseller uses the reseller app only; the server
+  // refuses the staff endpoints to it, so the console would show only errors.
+  if (user.reseller_binding) {
+    return <Navigate to="/punto" replace />;
   }
 
   const route = routeForPath(location.pathname);

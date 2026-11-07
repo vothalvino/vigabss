@@ -1,52 +1,46 @@
 ﻿// =============================================================================
 // VigaBSS 5.0 — Reseller Management Page (Section 19)
 // =============================================================================
-// Multi-tab page covering §19 Reseller Support:
-//   1. Resellers      — hierarchy list (master + sub-resellers)
-//   2. Plan Prices    — per-reseller custom plan price overrides
-//   3. Commissions    — commission earnings per reseller
-//   4. Resources      — IP pool, bandwidth quota, OLT port allocations
-//   5. Billing        — per-reseller billing entity configuration
-//   6. Portal         — reseller portal dashboard & customer management
-//   7. Staff access   — staff users confined to a reseller's subtree
+// A reseller is a commission agent ("Punto de Venta") who signs up clients as
+// leads in the reseller app (/punto). Tabs:
+//   1. Resellers      — hierarchy list, create and edit
+//   2. Allowed plans  — the plans a top-level reseller may offer
+//   3. Commissions    — commission earnings per reseller (read only)
+//   4. Portal         — reseller dashboard numbers
+//   5. Staff access   — reseller logins and bindings
+// Plan price overrides, network resources (IP pools, bandwidth quota, OLT
+// ports), billing entities and branding are not part of the commission-agent
+// model and are not shown; their API routes are unchanged.
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
+import { ResellerFormModal } from './resellers/ResellerFormModal';
+import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'resellers' | 'planPrices' | 'commissions' | 'resources' | 'billing' | 'portal' | 'staffAccess';
+type Tab = 'resellers' | 'allowedPlans' | 'commissions' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
   name: string;
   email: string | null;
+  phone: string | null;
   contact_name: string | null;
   parent_id: number | null;
   parent_name: string | null;
   level: number;
   status: string;
-  commission_rate: number;
-  portal_name: string | null;
-  portal_domain: string | null;
-}
-
-interface PlanPrice {
-  id: number;
-  reseller_id: number;
-  plan_id: number;
-  plan_name: string;
-  base_price: number;
-  custom_price: number;
-  currency: string;
-  is_active: number;
+  commission_rate: number | string;
+  notes: string | null;
 }
 
 interface Commission {
@@ -64,35 +58,6 @@ interface Commission {
   created_at: string;
 }
 
-interface IpPoolAllocation {
-  id: number;
-  reseller_id: number;
-  ip_pool_id: number;
-  pool_name: string | null;
-  network: string;
-  subnet_mask: string;
-  ip_version: string;
-}
-
-interface BandwidthQuota {
-  id: number;
-  reseller_id: number;
-  download_mbps: number | null;
-  upload_mbps: number | null;
-  is_enforced: number;
-}
-
-interface BillingEntity {
-  id: number;
-  reseller_id: number;
-  legal_name: string;
-  tax_id: string | null;
-  email: string | null;
-  invoice_prefix: string | null;
-  currency: string;
-  is_active: number;
-}
-
 interface ResellerDashboard {
   reseller_id: number;
   subscriber_count: number;
@@ -103,11 +68,6 @@ interface ResellerDashboard {
 
 interface ListMeta { total: number; page: number; limit: number }
 interface ApiList<T> { data: T[]; meta: ListMeta }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -155,12 +115,22 @@ function ResellersTab() {
   const { user } = useAuth();
   const canSuspend = can(user, 'resellers.suspend');
   const canDelete = can(user, 'resellers.delete');
+  const canCreate = can(user, 'resellers.create');
+  const canEdit = can(user, 'resellers.update');
+  const hasActions = canSuspend || canDelete || canEdit;
+  const [form, setForm] = useState<{ mode: 'create' } | { mode: 'edit'; reseller: Reseller } | null>(null);
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [meta, setMeta] = useState<ListMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
+  const qc = useQueryClient();
+  // The reseller pickers of the other tabs are cached; refresh them with the list.
+  const refreshPickers = () => {
+    void qc.invalidateQueries({ queryKey: ['resellers-options'] });
+    void qc.invalidateQueries({ queryKey: ['resellers-top-level'] });
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -177,8 +147,9 @@ function ResellersTab() {
   async function handleSuspend(r: Reseller) {
     try {
       const result = await apiFetch<{ data: { status: string } }>(`/resellers/${r.id}/suspend`, { method: 'POST' });
-      setMsg(`${r.name} is now ${result.data.status}`);
+      setMsg(t('resellerAdmin.statusChanged', { name: r.name, status: result.data.status }));
       load();
+      refreshPickers();
     } catch {
       setError(t('reseller.errorSuspend'));
     }
@@ -190,6 +161,7 @@ function ResellersTab() {
       await apiFetch(`/resellers/${r.id}`, { method: 'DELETE' });
       setMsg(t('reseller.deleted'));
       load();
+      refreshPickers();
     } catch {
       setError(t('reseller.errorDelete'));
     }
@@ -197,38 +169,40 @@ function ResellersTab() {
 
   return (
     <div>
-      <h3>{t('reseller.resellerList')}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <h3>{t('reseller.resellerList')}</h3>
+        {canCreate && <ActionButton label={t('resellerAdmin.newReseller')} onClick={() => setForm({ mode: 'create' })} />}
+      </div>
       {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
       {msg && <p style={{ color: '#2ecc71' }}>{msg}</p>}
       {loading ? <p>{t('reseller.loading')}</p> : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>ID</th>
+              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('resellerAdmin.id')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.name')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.level')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.parent')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.commissionRate')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.portalName')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.status')}</th>
-              {(canSuspend || canDelete) && <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>}
+              {hasActions && <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>}
             </tr>
           </thead>
           <tbody>
             {resellers.length === 0 && (
-              <tr><td colSpan={canSuspend || canDelete ? 8 : 7} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noResellers')}</td></tr>
+              <tr><td colSpan={hasActions ? 7 : 6} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noResellers')}</td></tr>
             )}
             {resellers.map((r) => (
               <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.id}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.name}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.level === 1 ? 'Master' : 'Sub'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.level === 1 ? t('resellerAdmin.levelMaster') : t('resellerAdmin.levelSub')}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.parent_name ?? '—'}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.commission_rate}%</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.portal_name ?? '—'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{Number(r.commission_rate)}%</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={r.status} /></td>
-                {(canSuspend || canDelete) && (
+                {hasActions && (
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd', display: 'flex', gap: 4 }}>
+                    {canEdit && <ActionButton label={t('resellerAdmin.edit')} onClick={() => setForm({ mode: 'edit', reseller: r })} />}
                     {canSuspend && <ActionButton label={r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')} onClick={() => handleSuspend(r)} variant={r.status === 'suspended' ? 'success' : 'danger'} />}
                     {canDelete && <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(r)} variant="danger" />}
                   </td>
@@ -245,92 +219,13 @@ function ResellersTab() {
           <ActionButton label=">" onClick={() => setPage(p => p + 1)} disabled={page * meta.limit >= meta.total} />
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab: Plan Prices (requires a reseller selection)
-// ---------------------------------------------------------------------------
-
-function PlanPricesTab() {
-  const { t } = useTranslation();
-  const canManage = can(useAuth().user, 'reseller_plan_prices.manage');
-  const [resellers, setResellers] = useState<Reseller[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [prices, setPrices] = useState<PlanPrice[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiFetch<ApiList<Reseller>>('/resellers?limit=100')
-      .then(res => setResellers(res.data))
-      .catch(() => setError(t('reseller.errorLoading')));
-  }, [t]);
-
-  const load = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await apiFetch<{ data: PlanPrice[] }>(`/resellers/${selectedId}/plan-prices`);
-      setPrices(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
-    } finally { setLoading(false); }
-  }, [selectedId, t]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function handleDelete(ppId: number) {
-    if (!selectedId) return;
-    try {
-      await apiFetch(`/resellers/${selectedId}/plan-prices/${ppId}`, { method: 'DELETE' });
-      load();
-    } catch {
-      setError(t('reseller.errorDelete'));
-    }
-  }
-
-  return (
-    <div>
-      <h3>{t('reseller.customPlanPrices')}</h3>
-      <label>{t('reseller.selectReseller')}: </label>
-      <select value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
-        <option value="">— {t('reseller.select')} —</option>
-        {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
-      {loading && <p>{t('reseller.loading')}</p>}
-      {selectedId && !loading && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.plan')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.basePrice')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.customPrice')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.currency')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.active')}</th>
-              <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {prices.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noPlanPrices')}</td></tr>
-            )}
-            {prices.map((pp) => (
-              <tr key={pp.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.plan_name}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.base_price}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><strong>{pp.custom_price}</strong></td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.currency}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{pp.is_active ? 'Yes' : 'No'}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                  {canManage && <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(pp.id)} variant="danger" />}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {form && (
+        <ResellerFormModal
+          mode={form.mode}
+          initial={form.mode === 'edit' ? form.reseller : undefined}
+          onClose={() => setForm(null)}
+          onSaved={() => { setMsg(t('resellerAdmin.saved')); load(); refreshPickers(); }}
+        />
       )}
     </div>
   );
@@ -342,13 +237,11 @@ function PlanPricesTab() {
 
 function CommissionsTab() {
   const { t } = useTranslation();
-  const canApprove = can(useAuth().user, 'reseller_commissions.approve');
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<ApiList<Reseller>>('/resellers?limit=100')
@@ -369,29 +262,16 @@ function CommissionsTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleApprove(c: Commission) {
-    if (!selectedId) return;
-    try {
-      await apiFetch(`/resellers/${selectedId}/commissions/${c.id}/approve`, {
-        method: 'POST', body: JSON.stringify({ status: 'approved' }),
-      });
-      setMsg(t('reseller.commissionApproved'));
-      load();
-    } catch {
-      setError(t('reseller.errorApprove'));
-    }
-  }
 
   return (
     <div>
       <h3>{t('reseller.commissions')}</h3>
-      <label>{t('reseller.selectReseller')}: </label>
-      <select value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
+      <label htmlFor="commissions-reseller">{t('reseller.selectReseller')}: </label>
+      <select id="commissions-reseller" value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
         <option value="">— {t('reseller.select')} —</option>
         {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
       </select>
       {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
-      {msg && <p style={{ color: '#2ecc71' }}>{msg}</p>}
       {loading && <p>{t('reseller.loading')}</p>}
       {selectedId && !loading && (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -402,12 +282,11 @@ function CommissionsTab() {
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.rate')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.amount')}</th>
               <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.status')}</th>
-              <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {commissions.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noCommissions')}</td></tr>
+              <tr><td colSpan={5} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noCommissions')}</td></tr>
             )}
             {commissions.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -416,182 +295,10 @@ function CommissionsTab() {
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.commission_rate}%</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.commission_amount} {c.currency}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={c.status} /></td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                  {c.status === 'pending' && canApprove && (
-                    <ActionButton label={t('reseller.approve')} onClick={() => handleApprove(c)} variant="success" />
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab: Resources (IP pools + bandwidth quota + OLT ports)
-// ---------------------------------------------------------------------------
-
-function ResourcesTab() {
-  const { t } = useTranslation();
-  const canManagePools = can(useAuth().user, 'reseller_ip_pool_allocations.manage');
-  const [resellers, setResellers] = useState<Reseller[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [ipPools, setIpPools] = useState<IpPoolAllocation[]>([]);
-  const [bwQuota, setBwQuota] = useState<BandwidthQuota | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiFetch<ApiList<Reseller>>('/resellers?limit=100')
-      .then(res => setResellers(res.data))
-      .catch(() => setError(t('reseller.errorLoading')));
-  }, [t]);
-
-  const load = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true); setError(null);
-    try {
-      const [poolsRes, bwRes] = await Promise.all([
-        apiFetch<{ data: IpPoolAllocation[] }>(`/resellers/${selectedId}/ip-pools`),
-        apiFetch<{ data: BandwidthQuota | null }>(`/resellers/${selectedId}/bandwidth-quota`),
-      ]);
-      setIpPools(poolsRes.data);
-      setBwQuota(bwRes.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
-    } finally { setLoading(false); }
-  }, [selectedId, t]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function handleRemovePool(allocId: number) {
-    if (!selectedId) return;
-    try {
-      await apiFetch(`/resellers/${selectedId}/ip-pools/${allocId}`, { method: 'DELETE' });
-      load();
-    } catch {
-      setError(t('reseller.errorDelete'));
-    }
-  }
-
-  return (
-    <div>
-      <h3>{t('reseller.resourceAllocation')}</h3>
-      <label>{t('reseller.selectReseller')}: </label>
-      <select value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
-        <option value="">— {t('reseller.select')} —</option>
-        {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
-      {loading && <p>{t('reseller.loading')}</p>}
-
-      {selectedId && !loading && (
-        <>
-          <h4>{t('reseller.bandwidthQuota')}</h4>
-          {bwQuota ? (
-            <p>
-              {t('reseller.download')}: {bwQuota.download_mbps ?? '—'} Mbps |{' '}
-              {t('reseller.upload')}: {bwQuota.upload_mbps ?? '—'} Mbps |{' '}
-              {t('reseller.enforced')}: {bwQuota.is_enforced ? t('reseller.yes') : t('reseller.no')}
-            </p>
-          ) : <p style={{ color: '#999' }}>{t('reseller.noQuota')}</p>}
-
-          <h4>{t('reseller.ipPools')}</h4>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.pool')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.network')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.version')}</th>
-                <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ipPools.length === 0 && (
-                <tr><td colSpan={4} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noIpPools')}</td></tr>
-              )}
-              {ipPools.map((p) => (
-                <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{p.pool_name ?? p.ip_pool_id}</td>
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{p.network}/{p.subnet_mask}</td>
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('ui.resellerPage.ipv')}{p.ip_version}</td>
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
-                    {canManagePools && <ActionButton label={t('reseller.remove')} onClick={() => handleRemovePool(p.id)} variant="danger" />}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab: Billing Entities
-// ---------------------------------------------------------------------------
-
-function BillingEntitiesTab() {
-  const { t } = useTranslation();
-  const [resellers, setResellers] = useState<Reseller[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [entity, setEntity] = useState<BillingEntity | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiFetch<ApiList<Reseller>>('/resellers?limit=100')
-      .then(res => setResellers(res.data))
-      .catch(() => setError(t('reseller.errorLoading')));
-  }, [t]);
-
-  const load = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await apiFetch<{ data: BillingEntity | null }>(`/resellers/${selectedId}/billing-entity`);
-      setEntity(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
-    } finally { setLoading(false); }
-  }, [selectedId, t]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div>
-      <h3>{t('reseller.billingEntities')}</h3>
-      <label>{t('reseller.selectReseller')}: </label>
-      <select value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
-        <option value="">— {t('reseller.select')} —</option>
-        {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
-      {loading && <p>{t('reseller.loading')}</p>}
-      {selectedId && !loading && (
-        entity ? (
-          <table style={{ width: '100%', maxWidth: 600, borderCollapse: 'collapse', fontSize: 13 }}>
-            <tbody>
-              {([
-                [t('reseller.legalName'), entity.legal_name],
-                [t('reseller.taxId'), entity.tax_id ?? '—'],
-                [t('reseller.email'), entity.email ?? '—'],
-                [t('reseller.invoicePrefix'), entity.invoice_prefix ?? '—'],
-                [t('reseller.currency'), entity.currency],
-                [t('reseller.active'), entity.is_active ? t('reseller.yes') : t('reseller.no')],
-              ] as [string, string][]).map(([label, value]) => (
-                <tr key={label} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '6px 8px', fontWeight: 600, width: 160 }}>{label}</td>
-                  <td style={{ padding: '6px 8px' }}>{value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p style={{ color: '#999' }}>{t('reseller.noBillingEntity')}</p>
       )}
     </div>
   );
@@ -631,8 +338,8 @@ function PortalTab() {
   return (
     <div>
       <h3>{t('reseller.portal')}</h3>
-      <label>{t('reseller.selectReseller')}: </label>
-      <select value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
+      <label htmlFor="portal-reseller">{t('reseller.selectReseller')}: </label>
+      <select id="portal-reseller" value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
         <option value="">— {t('reseller.select')} —</option>
         {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
       </select>
@@ -666,10 +373,8 @@ function PortalTab() {
 
 const TABS: { key: Tab; labelKey: string }[] = [
   { key: 'resellers', labelKey: 'reseller.tabResellers' },
-  { key: 'planPrices', labelKey: 'reseller.tabPlanPrices' },
+  { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans' },
   { key: 'commissions', labelKey: 'reseller.tabCommissions' },
-  { key: 'resources', labelKey: 'reseller.tabResources' },
-  { key: 'billing', labelKey: 'reseller.tabBilling' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
   { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
 ];
@@ -703,10 +408,8 @@ export default function ResellerPage() {
 
       {/* Tab content */}
       {activeTab === 'resellers' && <ResellersTab />}
-      {activeTab === 'planPrices' && <PlanPricesTab />}
+      {activeTab === 'allowedPlans' && <ResellerAllowedPlansTab />}
       {activeTab === 'commissions' && <CommissionsTab />}
-      {activeTab === 'resources' && <ResourcesTab />}
-      {activeTab === 'billing' && <BillingEntitiesTab />}
       {activeTab === 'portal' && <PortalTab />}
       {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}
     </div>

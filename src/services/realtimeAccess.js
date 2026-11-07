@@ -79,11 +79,29 @@ async function mayJoinChannel(req, kind) {
 }
 
 /**
+ * True when the principal is bound to a reseller in `orgId`
+ * (reseller_user_bindings). A bound account works only in the reseller app:
+ * the HTTP fence (middleware/resellerFence.js) refuses it the rest of the v1
+ * API, and the real-time feeds carry organization-wide events, so it gets
+ * none. A validated global-access principal (never an API token) is not
+ * confined. Skipped, like the fence, when the database module has no
+ * tenant-context primitive (query-only test doubles).
+ */
+async function resellerBound({ userId, orgId, apiTokenId, hasGlobalOrganizationAccess }) {
+  // Required lazily, so loading this module does not load the reseller services.
+  const resellerScope = require('../middleware/resellerScope');
+  if (!userId || !orgId || !resellerScope.requestBindingChecksAvailable()) return false;
+  if (hasGlobalOrganizationAccess && !apiTokenId) return false;
+  return Boolean(await resellerScope.lookupBinding(userId, orgId));
+}
+
+/**
  * Is the principal behind a long-lived subscription still allowed in?
  * Users must still be active with the same token version; API tokens must
- * still be unrevoked and unexpired.
+ * still be unrevoked and unexpired. With `orgId`, a principal that has since
+ * been bound to a reseller in that organization is out too.
  */
-async function stillAuthorized({ userId, tokenVersion, apiTokenId }) {
+async function stillAuthorized({ userId, tokenVersion, apiTokenId, orgId, hasGlobalOrganizationAccess }) {
   if (apiTokenId) {
     const [rows] = await db.query(
       'SELECT id FROM api_tokens WHERE id = ? AND revoked_at IS NULL AND deleted_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())',
@@ -98,10 +116,11 @@ async function stillAuthorized({ userId, tokenVersion, apiTokenId }) {
   const user = rows[0];
   if (!user || user.status !== 'active') return false;
   if (!apiTokenId && tokenVersionStale(tokenVersion, user.token_version)) return false;
+  if (orgId && await resellerBound({ userId, orgId, apiTokenId, hasGlobalOrganizationAccess })) return false;
   return true;
 }
 
 module.exports = {
   EVENT_PERMISSIONS, CHANNEL_PERMISSIONS, REVALIDATE_MS,
-  eventPermission, resolveGrants, mayReceive, mayJoinChannel, stillAuthorized,
+  eventPermission, resolveGrants, mayReceive, mayJoinChannel, stillAuthorized, resellerBound,
 };

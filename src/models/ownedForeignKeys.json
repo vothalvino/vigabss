@@ -446,6 +446,9 @@
   "regulatory_filings": {
     "concession_title_id": "concession_titles"
   },
+  "reseller_allowed_plans": {
+    "plan_id": "plans"
+  },
   "reseller_commissions": {
     "client_id": "clients",
     "invoice_id": "invoices"

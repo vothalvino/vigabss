@@ -31,5 +31,7 @@
   "frontend/src/pages/portal/PortalPrivacy.tsx": 1,
   "frontend/src/pages/portal/PortalResetPassword.tsx": 1,
   "frontend/src/pages/portal/PortalSpeedTest.tsx": 1,
-  "frontend/src/pages/portal/PortalTicketDetail.tsx": 1
+  "frontend/src/pages/portal/PortalTicketDetail.tsx": 1,
+  "frontend/src/pages/punto/puntoApi.ts": 1,
+  "frontend/src/pages/resellers/ResellerFormModal.tsx": 1
 }

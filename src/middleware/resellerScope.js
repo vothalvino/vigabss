@@ -30,18 +30,72 @@ const { runInPrimaryContext } = require('../utils/primaryContext');
 
 const RESELLER_GROUP_NAMES = new Set(['reseller_admin']);
 
-async function resolveResellerScope(user, orgId) {
-  if (user.hasGlobalOrganizationAccess && !user.apiTokenId) return { all: true };
+// One binding lookup per request: the fence (middleware/resellerFence.js),
+// resellerScope and the reseller app all ask the same question.
+const BINDING = Symbol('resellerBinding');
 
-  const [[binding]] = await db.query(
-    `SELECT b.reseller_id, r.id AS live_reseller_id
+/**
+ * The caller's reseller_user_bindings row in `orgId`, or null:
+ * { reseller_id, live_reseller_id, reseller_name } where live_reseller_id and
+ * reseller_name are null when the bound reseller was deleted or left the
+ * organization. The binding lives beside `resellers`, in the organization's
+ * own database when it is isolated.
+ */
+async function lookupBinding(userId, orgId) {
+  const run = () => db.query(
+    `SELECT b.reseller_id, r.id AS live_reseller_id, r.name AS reseller_name
        FROM reseller_user_bindings b
        LEFT JOIN resellers r
          ON r.id = b.reseller_id AND r.organization_id = b.organization_id AND r.deleted_at IS NULL
       WHERE b.organization_id = ? AND b.user_id = ?
       LIMIT 1`,
-    [orgId, user.id],
+    [orgId, userId],
   );
+  const [rows] = typeof db.withTenantContext === 'function'
+    ? await db.withTenantContext(orgId, run)
+    : await run();
+  const row = rows && rows[0];
+  // reseller_id is NOT NULL: a row without it is not a binding.
+  return row && row.reseller_id !== null && row.reseller_id !== undefined ? row : null;
+}
+
+/**
+ * Whether the request-wide binding checks (the fence, /auth/me) can run: the
+ * database module has the tenant-context primitive, which src/config/database
+ * always exports. Many older unit tests replace that module with a
+ * query-only double that knows nothing of bindings; like orgScope and
+ * services/orgPrincipalService.js, those keep their original route behavior.
+ * resellerScope itself always looks the binding up.
+ */
+function requestBindingChecksAvailable() {
+  return typeof db.withTenantContext === 'function';
+}
+
+/** lookupBinding for the request's principal, memoized on the request. */
+async function bindingForRequest(req, orgId = req.orgId ?? req.user?.organizationId) {
+  if (!req.user || !orgId) return null;
+  const key = `${orgId}:${req.user.id}`;
+  if (req[BINDING] && req[BINDING].key === key) return req[BINDING].row;
+  const row = await lookupBinding(req.user.id, orgId);
+  req[BINDING] = { key, row };
+  return row;
+}
+
+/**
+ * True when the principal is confined to a reseller: it has a binding in the
+ * organization and is not a validated global-access principal (an API token
+ * never is).
+ */
+async function isResellerBound(req, orgId) {
+  if (!req.user) return false;
+  if (req.user.hasGlobalOrganizationAccess && !req.user.apiTokenId) return false;
+  return Boolean(await bindingForRequest(req, orgId));
+}
+
+async function resolveResellerScope(user, orgId, binding) {
+  if (user.hasGlobalOrganizationAccess && !user.apiTokenId) return { all: true };
+
+  if (binding === undefined) binding = await lookupBinding(user.id, orgId);
   if (binding) {
     if (!binding.live_reseller_id) {
       throw new ForbiddenError('Your reseller binding is no longer valid; contact an administrator');
@@ -71,7 +125,10 @@ async function resolveResellerScope(user, orgId) {
 async function resellerScope(req, _res, next) {
   try {
     if (!req.user || !req.orgId) throw new ForbiddenError('No organization context');
-    req.resellerScope = await resolveResellerScope(req.user, req.orgId);
+    const binding = req.user.hasGlobalOrganizationAccess && !req.user.apiTokenId
+      ? null
+      : await bindingForRequest(req);
+    req.resellerScope = await resolveResellerScope(req.user, req.orgId, binding);
     next();
   } catch (err) { next(err); }
 }
@@ -94,6 +151,10 @@ function assertResellerInScope(req, resellerId) {
 
 module.exports = {
   resolveResellerScope,
+  lookupBinding,
+  bindingForRequest,
+  requestBindingChecksAvailable,
+  isResellerBound,
   resellerScope,
   resellerInScope,
   assertResellerInScope,
