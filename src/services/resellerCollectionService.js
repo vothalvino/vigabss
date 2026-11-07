@@ -9,6 +9,7 @@
 //   one transaction, reseller row locked first (resellerLedgerService), then
 //   the client's invoices (DAL-04: before any plain read fixes the snapshot):
 //     credit check  cash_on_hand + amount <= effective credit limit, else 409
+//                   (cash_on_hand = balance - the cash sealed in bags)
 //     cash session  the collecting user's open session, opened if none
 //     payments row  cash, SAT forma 01, completed, recorded_by = the user,
 //                   reseller_id = the collecting reseller: the top-level
@@ -223,15 +224,20 @@ function idempotencyKeyFor(userId, key) {
   return `reseller-collect:${userId}:${key}`;
 }
 
-function creditLimitRefusal(summary, amount) {
+function creditLimitRefusal(summary, amount, emptyBags = 0) {
+  const hint = emptyBags > 0
+    ? 'fill a cash bag with the cash you hold to keep collecting'
+    : 'hand in the cash you hold, or wait for empty cash bags, to keep collecting';
   const err = new AppError(
-    `This collection would exceed your cash limit. You can still collect ${summary.available_to_collect.toFixed(2)}; hand in the cash you hold to keep collecting.`,
+    `This collection would exceed your cash limit. You can still collect ${summary.available_to_collect.toFixed(2)}; ${hint}.`,
     409, 'CREDIT_LIMIT',
   );
   err.extra = {
     available_to_collect: summary.available_to_collect,
     credit_limit: summary.credit_limit,
     cash_on_hand: summary.cash_on_hand,
+    in_bags: summary.in_bags ?? 0,
+    empty_bags: emptyBags,
     amount: toMoney(amount),
   };
   return err;
@@ -367,10 +373,12 @@ async function collect(req, body, idempotencyKey = null) {
       }
     }
 
-    // 5. The credit limit: exactly at the limit is allowed.
+    // 5. The credit limit: exactly at the limit is allowed. Cash sealed in a
+    // bag (in_bags) is not on hand: sealing frees the limit (phase 3).
     const summary = await ledger.summaryFor(orgId, collectorId, { exec, reseller });
     if (money.toCents(money.add(summary.cash_on_hand, amount)) > money.toCents(summary.credit_limit)) {
-      throw creditLimitRefusal(summary, amount);
+      const counts = await ledger.bagCounts(orgId, collectorId, exec);
+      throw creditLimitRefusal(summary, amount, counts.at_reseller);
     }
 
     // 6. The client, still live in the organization, and the waterfall
@@ -579,6 +587,14 @@ async function voidCollection(req, paymentId, reason) {
         throw conflict('This collection is already reported to SAT with a payment complement; ask the ISP to cancel it.', 'PAYMENT_HAS_REP');
       }
       throw err;
+    }
+
+    // The cash goes back to the customer from the drawer: it must still be on
+    // hand, not sealed in a cash bag (phase 3), or the reseller's cash on hand
+    // would go below zero and free more than its limit.
+    const position = await ledger.summaryFor(orgId, collectorId, { exec, reseller });
+    if (money.toCents(entry.amount) > money.toCents(position.cash_on_hand)) {
+      throw conflict('The cash of this collection is already sealed in a cash bag; ask the ISP to correct it.', 'CASH_SEALED_IN_BAG');
     }
 
     // The staff deletion's reversal (routes/payments.js beforeDelete), with

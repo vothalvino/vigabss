@@ -30,6 +30,7 @@ jest.mock('../src/services/businessEvents', () => ({
 
 const request = require('supertest');
 const jwt = require('./helpers/staffJwt');
+const { handleCashBagSql } = require('./helpers/cashBagFakeDb');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const User = require('../src/models/User');
@@ -79,7 +80,11 @@ function freshState() {
     ledger: [],
     sessions: [],
     idempotency: [],
-    seq: { payment: 500, alloc: 900, ledger: 100, session: 40 },
+    // Cash bags (phase 3, tests/helpers/cashBagFakeDb.js): empty bags of R1.
+    bags: [],
+    events: [],
+    assignments: [],
+    seq: { payment: 500, alloc: 900, ledger: 100, session: 40, bag: 700, event: 0 },
   };
 }
 
@@ -100,6 +105,8 @@ const PAYABLE = ['issued', 'sent', 'overdue'];
 
 function handle(sql, params = []) {
   const s = String(sql);
+  const bagAnswer = handleCashBagSql(state, s, params);
+  if (bagAnswer !== undefined) return bagAnswer;
   // --- identity, scope, organization
   if (/FROM reseller_user_bindings b/.test(s)) return [binding ? [binding] : []];
   if (/JOIN roles g ON g\.id = u\.group_id/.test(s)) return [groupName ? [{ group_name: groupName }] : []];
@@ -674,6 +681,74 @@ describe('a collection', () => {
   });
 });
 
+describe('cash bags free the limit (phase 3)', () => {
+  const emptyBag = (id, serial) => ({
+    id, organization_id: ORG, serial, status: 'at_reseller', reseller_id: 1, carrier_user_id: null,
+    declared_amount: null, counted_amount: null, currency: 'MXN', notes: null, created_by: 1, deleted_at: null,
+  });
+
+  test('a reseller at its limit is told to fill a bag, seals one and collects again', async () => {
+    state.resellers[1].credit_limit = '300.00';
+    state.invoices[801].total = '1000.00';
+    state.bags.push(emptyBag(701, 'BAG-1'));
+    const token = asBoundReseller([...COLLECTOR, 'reseller_app.bags']);
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 300 })).status).toBe(201);
+    const refused = await collect(token, { collect_token: tokenForClient(21), amount: 50 });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toMatchObject({ code: 'CREDIT_LIMIT', available_to_collect: 0, empty_bags: 1 });
+    expect(refused.body.error.details).toMatchObject({ cash_on_hand: 300, in_bags: 0, empty_bags: 1 });
+    expect(refused.body.error.message).toMatch(/fill a cash bag/);
+
+    // Sealing books nothing and frees the limit at once.
+    const sealed = await post('/reseller-app/bags/seal', token, { serial: 'bag-1', declared_amount: 300 });
+    expect(sealed.status).toBe(200);
+    expect(sealed.body.data.summary).toMatchObject({ balance: 300, in_bags: 300, cash_on_hand: 0, available_to_collect: 300, empty_bags: 0 });
+    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection']);
+
+    const again = await collect(token, { collect_token: tokenForClient(21), amount: 300 });
+    expect(again.status).toBe(201);
+    // What it owes still counts the bag until the ISP receives it.
+    const me = await get('/reseller-app/me', token);
+    expect(me.body.data.money).toMatchObject({ balance: 600, in_bags: 300, cash_on_hand: 300, available_to_collect: 0 });
+  });
+
+  test('a collection whose cash is sealed in a bag can no longer be voided', async () => {
+    state.bags.push(emptyBag(701, 'BAG-1'));
+    const token = asBoundReseller([...COLLECTOR, 'reseller_app.bags']);
+    const res = await collect(token, { collect_token: tokenForClient(21), amount: 300 });
+    expect((await post('/reseller-app/bags/seal', token, { serial: 'BAG-1', declared_amount: 250 })).status).toBe(200);
+    const voided = await post(`/reseller-app/payments/${res.body.data.payment_id}/void`, token, { reason: 'cliente se arrepintió' });
+    expect(voided.status).toBe(409);
+    expect(voided.body.error.code).toBe('CASH_SEALED_IN_BAG');
+    expect(state.payments[0].status).toBe('completed');
+    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection']);
+  });
+
+  test('without empty bags the refusal says so', async () => {
+    state.resellers[1].credit_limit = '100.00';
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 100.01 });
+    expect(res.status).toBe(409);
+    expect(res.body.error.empty_bags).toBe(0);
+    expect(res.body.error.message).toMatch(/wait for empty cash bags/);
+  });
+
+  test('a seal waits for the reseller lock a collection holds: both lock the reseller row first', async () => {
+    state.resellers[1].credit_limit = '300.00';
+    state.bags.push(emptyBag(701, 'BAG-1'));
+    const token = asBoundReseller([...COLLECTOR, 'reseller_app.bags']);
+    await collect(token, { collect_token: tokenForClient(21), amount: 100 });
+    await post('/reseller-app/bags/seal', token, { serial: 'BAG-1', declared_amount: 100 });
+    const locks = conn.execute.mock.calls.map(([q]) => String(q)).filter((q) => /FOR UPDATE/.test(q));
+    const firstOf = (re) => locks.findIndex((q) => re.test(q));
+    // The collection's lock comes first in its transaction, and so does the seal's.
+    expect(locks[0]).toMatch(/FROM resellers/);
+    const sealLocks = locks.slice(locks.findIndex((q, i) => i > 0 && /FROM resellers/.test(q)));
+    expect(sealLocks[0]).toMatch(/FROM resellers/);
+    expect(sealLocks[1]).toMatch(/FROM cash_bags/);
+    expect(firstOf(/FROM cash_bags/)).toBeGreaterThan(firstOf(/FROM resellers/));
+  });
+});
+
 describe('credit limit', () => {
   test('the organization default (2000.00) applies when the reseller has none; exactly at the limit is allowed', async () => {
     state.invoices[801].total = '3000.00';
@@ -716,7 +791,10 @@ describe('credit limit', () => {
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'reseller_deposit', tableName: 'reseller_ledger_entries' }));
 
     const me = await get('/reseller-app/me', asBoundReseller());
-    expect(me.body.data.money).toEqual({ currency: 'MXN', balance: 100, cash_on_hand: 100, credit_limit: 300, available_to_collect: 200, collected_today: 300 });
+    expect(me.body.data.money).toEqual({
+      currency: 'MXN', balance: 100, in_bags: 0, cash_on_hand: 100, credit_limit: 300, available_to_collect: 200, collected_today: 300,
+      empty_bags: 0, bags_ready_for_pickup: 0, bags_in_transit: 0,
+    });
     expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 200 })).status).toBe(201);
   });
 });
@@ -893,7 +971,7 @@ describe('collections list, receipt and cash box', () => {
     const res = await get('/reseller-app/ledger', asBoundReseller());
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([expect.objectContaining({ entry_type: 'collection', amount: 300, payment_id: 501 })]);
-    expect(res.body.summary).toEqual({ balance: 300, cash_on_hand: 300, credit_limit: 2000, available_to_collect: 1700 });
+    expect(res.body.summary).toEqual({ balance: 300, in_bags: 0, cash_on_hand: 300, credit_limit: 2000, available_to_collect: 1700 });
   });
 });
 

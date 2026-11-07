@@ -7,6 +7,7 @@
 //   • Admin-only routes: /users, /settings
 //   • Billing+ routes: /reports
 //   • Reseller app (/punto): staff accounts bound to a reseller
+//   • Carrier app (/ruta): cash-bag carriers (the system "carrier" group)
 // =============================================================================
 
 import { lazy, Suspense } from 'react';
@@ -20,6 +21,7 @@ import { PortalAuthProvider } from '@/auth/PortalAuthContext';
 import { PortalRoute } from '@/auth/PortalRoute';
 import { PortalLayout } from '@/components/PortalLayout';
 import { PuntoRoute } from '@/auth/PuntoRoute';
+import { RutaRoute } from '@/auth/RutaRoute';
 import { NotFound } from '@/pages/NotFound';
 import { LoadingState } from '@/components/FetchStates';
 import { DarkModeProvider } from '@/auth/DarkModeContext';
@@ -58,6 +60,12 @@ const PuntoLeads = lazy(() => import('@/pages/punto/PuntoLeads').then((m) => ({ 
 const PuntoCollect = lazy(() => import('@/pages/punto/PuntoCollect').then((m) => ({ default: m.PuntoCollect })));
 const PuntoReceipt = lazy(() => import('@/pages/punto/PuntoReceipt').then((m) => ({ default: m.PuntoReceipt })));
 const PuntoCash = lazy(() => import('@/pages/punto/PuntoCash').then((m) => ({ default: m.PuntoCash })));
+const PuntoBags = lazy(() => import('@/pages/punto/PuntoBags').then((m) => ({ default: m.PuntoBags })));
+const RutaLayout = lazy(() => import('@/pages/ruta/RutaLayout').then((m) => ({ default: m.RutaLayout })));
+const RutaHome = lazy(() => import('@/pages/ruta/RutaHome').then((m) => ({ default: m.RutaHome })));
+const RutaPickup = lazy(() => import('@/pages/ruta/RutaPickup').then((m) => ({ default: m.RutaPickup })));
+const RutaDropoff = lazy(() => import('@/pages/ruta/RutaDropoff').then((m) => ({ default: m.RutaDropoff })));
+const RutaBags = lazy(() => import('@/pages/ruta/RutaBags').then((m) => ({ default: m.RutaBags })));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ClientList = lazy(() => import('@/pages/ClientList').then((m) => ({ default: m.ClientList })));
 const ClientDetail = lazy(() => import('@/pages/ClientDetail').then((m) => ({ default: m.ClientDetail })));
@@ -204,6 +212,7 @@ const HubPage = lazy(() => import('@/pages/HubPage').then((m) => ({ default: m.H
 const SecurityAccessControlPage = lazy(() => import('@/pages/SecurityAccessControlPage').then((m) => ({ default: m.SecurityAccessControlPage })));
 const AutomationPage = lazy(() => import('@/pages/AutomationPage'));
 const ResellerPage = lazy(() => import('@/pages/ResellerPage'));
+const CashBagsPage = lazy(() => import('@/pages/cashBags/CashBagsPage'));
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })));
 const AiSupportPage = lazy(() => import('@/pages/AiSupportPage').then((m) => ({ default: m.AiSupportPage })));
 const UserWgTunnels = lazy(() => import('@/pages/UserWgTunnels').then((m) => ({ default: m.UserWgTunnels })));
@@ -248,6 +257,19 @@ export function App() {
                   <Route path="/punto/cobrar" element={<PuntoCollect />} />
                   <Route path="/punto/recibo/:id" element={<PuntoReceipt />} />
                   <Route path="/punto/caja" element={<PuntoCash />} />
+                  <Route path="/punto/bolsas" element={<PuntoBags />} />
+                </Route>
+              </Route>
+
+              {/* ---- Carrier app: cash-bag carriers ----
+                  RutaRoute sends anyone else away, and PrivateRoute and
+                  PuntoRoute send a carrier here. */}
+              <Route element={<RutaRoute />}>
+                <Route element={<RutaLayout />}>
+                  <Route path="/ruta" element={<RutaHome />} />
+                  <Route path="/ruta/recoger" element={<RutaPickup />} />
+                  <Route path="/ruta/entregar" element={<RutaDropoff />} />
+                  <Route path="/ruta/mis-bolsas" element={<RutaBags />} />
                 </Route>
               </Route>
 
@@ -455,6 +477,7 @@ export function App() {
                 <Route path="security-access-control" element={<SecurityAccessControlPage />} />
                 <Route path="automation" element={<AutomationPage />} />
                 <Route path="resellers" element={<ResellerPage />} />
+                <Route path="cash-bags" element={<CashBagsPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="ai-support" element={<AiSupportPage />} />
                 <Route path="admin/user-tunnels" element={<AdminWgTunnels />} />

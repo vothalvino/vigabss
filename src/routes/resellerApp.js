@@ -15,7 +15,8 @@
 //  POST /reseller-app/leads                 sign up a customer as a lead
 //  GET  /reseller-app/leads/:id/feasibility coverage summary for such a lead
 //  ...and the phase-2 collection, receipt, cash-box and ledger routes of
-//  routes/resellerAppCollect.js, mounted below with the same guards.
+//  routes/resellerAppCollect.js and the phase-3 cash-bag routes of
+//  routes/resellerAppBags.js, mounted below with the same guards.
 //
 // Every route needs a binding: org-level staff get 403 (they use the staff
 // pages). The subtree is the bound reseller and its sub-resellers
@@ -294,9 +295,10 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
     // The cash position of the collecting (top-level) reseller.
     const currency = await Organization.getCurrency(req.orgId);
     const collectorId = await resellerLedgerService.collectingResellerId(req);
-    const [summary, collectedToday] = await Promise.all([
+    const [summary, collectedToday, bags] = await Promise.all([
       resellerLedgerService.summaryFor(req.orgId, collectorId),
       resellerCollectionService.collectedToday(req.orgId, collectorId),
+      resellerLedgerService.bagCounts(req.orgId, collectorId),
     ]);
 
     res.json({
@@ -319,10 +321,16 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
         money: {
           currency,
           balance: summary.balance,
+          in_bags: summary.in_bags,
           cash_on_hand: summary.cash_on_hand,
           credit_limit: summary.credit_limit,
           available_to_collect: summary.available_to_collect,
           collected_today: collectedToday,
+          // Cash bags (phase 3): empty ones it may fill, sealed ones waiting
+          // for the carrier, and those on their way to the ISP.
+          empty_bags: bags.at_reseller,
+          bags_ready_for_pickup: bags.ready_for_pickup,
+          bags_in_transit: bags.in_transit,
         },
       },
     });
@@ -593,6 +601,8 @@ router.get('/leads/:id/feasibility', requirePermission('reseller_app.use'), asyn
 
 // Phase 2: cash collection, receipts, the cash box and the ledger.
 router.use(require('./resellerAppCollect'));
+// Phase 3: the reseller's cash bags.
+router.use(require('./resellerAppBags'));
 
 module.exports = router;
 module.exports.assertClientInResellerScope = assertClientInResellerScope;

@@ -367,6 +367,73 @@ describe('ResellerFormModal cash limit', () => {
   });
 });
 
+describe('ResellerFormModal location (for the carrier)', () => {
+  beforeEach(() => {
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/resellers?parent_id=null&limit=100') return { data: [] };
+      return { data: { id: 10 } };
+    });
+  });
+
+  it('sends the address, city and both coordinates on create', async () => {
+    wrap(<ResellerFormModal mode="create" onClose={vi.fn()} onSaved={vi.fn()} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/^Name/), 'Punto Sur');
+    await user.type(screen.getByLabelText('Address'), 'Av. Juárez 10');
+    await user.type(screen.getByLabelText('City'), 'Puebla');
+    await user.type(screen.getByLabelText('Latitude'), '19.0414398');
+    await user.type(screen.getByLabelText('Longitude'), '-98.2062727');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
+    expect(bodyOf('POST', '/resellers')).toEqual({
+      name: 'Punto Sur', commission_rate: 0, status: 'active',
+      address: 'Av. Juárez 10', city: 'Puebla', latitude: 19.0414398, longitude: -98.2062727,
+    });
+  });
+
+  it('refuses one coordinate without the other, or one out of range', async () => {
+    wrap(
+      <ResellerFormModal
+        mode="edit"
+        initial={{ id: 9, name: 'Punto Sur', email: null, phone: null, contact_name: null, parent_id: null, commission_rate: '5.00', status: 'active', notes: null, address: 'Av. Juárez 10', city: null, latitude: '19.0414398', longitude: '-98.2062727' }}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup();
+    expect(screen.getByLabelText('Address')).toHaveValue('Av. Juárez 10');
+    expect(screen.getByLabelText('Latitude')).toHaveValue('19.0414398');
+    await user.clear(screen.getByLabelText('Longitude'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter both latitude');
+    await user.type(screen.getByLabelText('Longitude'), '-200');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter both latitude');
+    expect(mocks.apiFetch).not.toHaveBeenCalled();
+  });
+
+  it('clears the address and the pin with null on edit, so the carrier is no longer sent there', async () => {
+    wrap(
+      <ResellerFormModal
+        mode="edit"
+        initial={{ id: 9, name: 'Punto Sur', email: null, phone: null, contact_name: null, parent_id: null, commission_rate: '5.00', status: 'active', notes: null, address: 'Av. Juárez 10', city: null, latitude: '19.0414398', longitude: '-98.2062727' }}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('Address'));
+    await user.clear(screen.getByLabelText('Latitude'));
+    await user.clear(screen.getByLabelText('Longitude'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(callsTo('PUT', '/resellers/9')).toHaveLength(1));
+    // city was never set, so it is not sent.
+    expect(bodyOf('PUT', '/resellers/9')).toEqual({
+      name: 'Punto Sur', commission_rate: 5, status: 'active', address: null, latitude: null, longitude: null,
+    });
+  });
+});
+
 describe('ResellerLedgerTab', () => {
   const LEDGER = {
     data: [

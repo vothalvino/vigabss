@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const product = require('../product');
 const { tableRowSchema } = require('./tableRowSchema');
+const { cashBagPaths } = require('./openapiCashBags');
 
 /**
  * Build OpenAPI spec from routes and schema files.
@@ -201,6 +202,9 @@ function generateSpec() {
       { name: 'Resellers', description: '§19 Multi-Tenancy / Reseller Support — hierarchy, pricing, commissions, resource allocation, and reseller portal' },
       { name: 'Reseller Portal', description: '§19.3 Reseller portal endpoints — dashboard, customer list, invoices, inventory' },
       { name: 'Reseller App', description: 'Reseller app (Punto de Venta) for users bound to a reseller — own clients, plans, and lead sign-ups' },
+      { name: 'Carrier App', description: 'Carrier app (/ruta) for users in the carrier group — assigned resellers, cash bag pickup and drop-off; never an amount' },
+      { name: 'Cash Bags', description: 'Numbered money bags resellers fill and carriers bring to the ISP — register, hand over, receive, void, lost' },
+      { name: 'Carriers', description: 'Carrier accounts and the resellers each may visit' },
       { name: 'Integration Providers', description: '§20.2 Third-party integration provider catalog — read-only list of supported providers seeded at migration 348' },
       { name: 'Integration Connections', description: '§20.2 Per-org configured integration connections — credentials encrypted at rest, never returned in responses' },
       { name: 'AI Support', description: '§21 AI customer support — conversations, knowledge base, channel configs, diagnostics, and KPI metrics' },
@@ -212,7 +216,7 @@ function generateSpec() {
       '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: r200('Token + User, or a two-factor challenge') } },
       '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 24 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
       '/auth/logout': { post: { tags: ['Auth'], summary: 'Logout — revokes the presented refresh token (cookie or body) and clears auth cookies; no bearer required, so it still works after the access token expires', operationId: 'logout', requestBody: jsonBody('auth_refreshToken'), responses: r200('Message') } },
-      '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile (reseller_binding: {reseller_id, reseller_name} when the user is bound to a reseller in the active organization, else null)', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
+      '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile (reseller_binding: {reseller_id, reseller_name} when the user is bound to a reseller in the active organization, else null; carrier: true when the user is in the carrier group and may use only the carrier app)', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
       '/auth/password-reset/request': { post: { tags: ['Auth'], summary: 'Request password reset email', operationId: 'requestPasswordReset', requestBody: jsonBody('email'), responses: r200('Message') } },
       '/auth/password-reset': { post: { tags: ['Auth'], summary: 'Reset password with token', operationId: 'resetPassword', requestBody: jsonBody('token + password'), responses: r200('Message') } },
       '/auth/change-password': { post: { tags: ['Auth'], summary: 'Change password (authenticated)', operationId: 'changePassword', security: [{ bearerAuth: [] }], requestBody: jsonBody('currentPassword + newPassword'), responses: r200('Message') } },
@@ -3299,7 +3303,7 @@ function generateSpec() {
       },
       '/resellers/{id}': {
         get: { tags: ['Resellers'], summary: 'Get reseller', operationId: 'getReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Reseller') },
-        put: { tags: ['Resellers'], summary: 'Update reseller', operationId: 'updateReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('Reseller'), responses: r200('Reseller') },
+        put: { tags: ['Resellers'], summary: 'Update reseller (absent fields are kept; address or city sent null or empty, both latitude and longitude sent null, or credit_limit sent null (back to the organization default) are cleared)', operationId: 'updateReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('Reseller'), responses: r200('Reseller') },
         delete: { tags: ['Resellers'], summary: 'Delete reseller', operationId: 'deleteReseller', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/resellers/{id}/suspend': {
@@ -3350,7 +3354,7 @@ function generateSpec() {
       },
       '/resellers/{id}/ledger': {
         get: { tags: ['Resellers'], summary: "A reseller's cash ledger, newest first, with the summary (balance it owes, effective credit limit, available to collect). Org-level staff with reseller_ledger.view", operationId: 'getResellerLedger', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(true) } } }, 403: errorResponse('Reseller-bound callers cannot read reseller ledgers'), 404: errorResponse('Reseller not found') } },
-        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most what it holds) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE') } },
+        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand: what it holds outside sealed bags, which post their own deposit when received) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE') } },
       },
       '/resellers/{id}/users/{userId}': {
         put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('ResellerUserBinding'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Reseller or user not found'), 422: errorResponse('Cannot bind your own account') } },
@@ -3402,13 +3406,13 @@ function generateSpec() {
       },
       '/reseller-app/payments': {
         get: { tags: ['Reseller App'], summary: "The collecting reseller's collections of one business day (default today), voided ones included", operationId: 'listResellerAppCollections', security: [{ bearerAuth: [] }], parameters: [{ name: 'date', in: 'query', required: false, description: 'Business day, YYYY-MM-DD (organization time zone)', schema: { type: 'string', format: 'date' } }, pageParam(), limitParam()], responses: { 200: { description: 'Collections', content: { 'application/json': { schema: { type: 'object', required: ['data', 'meta'], properties: { data: { type: 'array', items: resellerAppCollectionSchema() }, meta: { type: 'object', required: ['total', 'page', 'limit', 'date'], properties: { total: { type: 'integer' }, page: { type: 'integer' }, limit: { type: 'integer' }, date: { type: 'string', format: 'date' } } } } } } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 422: errorResponse('date is not YYYY-MM-DD') } },
-        post: { tags: ['Reseller App'], summary: 'Collect cash from a subscriber: in one transaction, checks the credit limit, posts a completed cash payment (reseller_id = the collecting reseller), allocates it oldest invoice first (or to invoice_ids), opens the cash session if none and books the collection in the reseller ledger; reconnection and the REP run after commit. Needs reseller_app.collect. An Idempotency-Key header (or client_request_id) replays the original answer for 24 hours', operationId: 'createResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [{ name: 'Idempotency-Key', in: 'header', required: false, description: 'One key per collection attempt (8 to 128 of A-Z a-z 0-9 . : _ -)', schema: { type: 'string', minLength: 8, maxLength: 128 } }], requestBody: typedJsonBody(resellerAppCollectRequestSchema(), 'The collection'), responses: { 201: { description: 'Collected (also a replay, with Idempotent-Replayed: true)', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppCollectResultSchema()) } } }, 403: errorResponse('Not a reseller account, no reseller_app.collect, or the reseller is not active'), 404: errorResponse('The client is gone'), 409: { description: 'CREDIT_LIMIT: the collection would take the cash on hand past the credit limit', content: { 'application/json': { schema: { type: 'object', required: ['error'], properties: { error: { type: 'object', required: ['code', 'message', 'available_to_collect'], properties: { code: { type: 'string', enum: ['CREDIT_LIMIT'] }, message: { type: 'string' }, available_to_collect: { type: 'number' }, details: { type: 'object', properties: { available_to_collect: { type: 'number' }, credit_limit: { type: 'number' }, cash_on_hand: { type: 'number' }, amount: { type: 'number' } } }, requestId: { type: 'string' } } } } } } } }, 422: errorResponse('Validation failed, COLLECT_TOKEN_INVALID / COLLECT_TOKEN_EXPIRED (look the client up again), or INVOICE_NOT_PAYABLE') } },
+        post: { tags: ['Reseller App'], summary: 'Collect cash from a subscriber: in one transaction, checks the credit limit, posts a completed cash payment (reseller_id = the collecting reseller), allocates it oldest invoice first (or to invoice_ids), opens the cash session if none and books the collection in the reseller ledger; reconnection and the REP run after commit. Needs reseller_app.collect. An Idempotency-Key header (or client_request_id) replays the original answer for 24 hours', operationId: 'createResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [{ name: 'Idempotency-Key', in: 'header', required: false, description: 'One key per collection attempt (8 to 128 of A-Z a-z 0-9 . : _ -)', schema: { type: 'string', minLength: 8, maxLength: 128 } }], requestBody: typedJsonBody(resellerAppCollectRequestSchema(), 'The collection'), responses: { 201: { description: 'Collected (also a replay, with Idempotent-Replayed: true)', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppCollectResultSchema()) } } }, 403: errorResponse('Not a reseller account, no reseller_app.collect, or the reseller is not active'), 404: errorResponse('The client is gone'), 409: { description: 'CREDIT_LIMIT: the collection would take the cash on hand past the credit limit; empty_bags > 0 means the reseller can seal a bag to free it', content: { 'application/json': { schema: { type: 'object', required: ['error'], properties: { error: { type: 'object', required: ['code', 'message', 'available_to_collect', 'empty_bags'], properties: { code: { type: 'string', enum: ['CREDIT_LIMIT'] }, message: { type: 'string' }, available_to_collect: { type: 'number' }, empty_bags: { type: 'integer', description: 'Empty cash bags the reseller may fill' }, details: { type: 'object', properties: { available_to_collect: { type: 'number' }, credit_limit: { type: 'number' }, cash_on_hand: { type: 'number' }, in_bags: { type: 'number' }, empty_bags: { type: 'integer' }, amount: { type: 'number' } } }, requestId: { type: 'string' } } } } } } } }, 422: errorResponse('Validation failed, COLLECT_TOKEN_INVALID / COLLECT_TOKEN_EXPIRED (look the client up again), or INVOICE_NOT_PAYABLE') } },
       },
       '/reseller-app/payments/{id}/receipt': {
         get: { tags: ['Reseller App'], summary: 'Receipt of a collection of this reseller (masked client name when not its own), with a plain-text thermal layout', operationId: 'getResellerAppReceipt', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'width', in: 'query', required: false, description: 'plain_text printer width in mm (default 58: 32 columns; 80: 48 columns)', schema: { type: 'string', enum: ['58', '80'] } }], responses: { 200: { description: 'Receipt', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppReceiptSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 404: errorResponse('Not a collection of this reseller') } },
       },
       '/reseller-app/payments/{id}/void': {
-        post: { tags: ['Reseller App'], summary: 'Void a collection of this reseller taken today (organization time zone) by the caller, whose cash session is still open and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect', operationId: 'voidResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['reason'], properties: { reason: { type: 'string', minLength: 3, maxLength: 200 } } }, 'Why it is voided'), responses: { 200: { description: 'Voided', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'object', required: ['payment_id', 'status', 'amount', 'ledger_entry_id'], properties: { payment_id: { type: 'integer' }, status: { type: 'string', enum: ['voided'] }, amount: { type: 'number' }, ledger_entry_id: { type: 'integer' } } }) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 404: errorResponse('Not a collection of this reseller'), 409: errorResponse('ALREADY_VOIDED, NOT_YOUR_COLLECTION (taken by another user of the reseller), VOID_WINDOW_CLOSED (not today), CASH_SESSION_CLOSED or PAYMENT_HAS_REP'), 422: errorResponse('reason is missing or too short') } },
+        post: { tags: ['Reseller App'], summary: 'Void a collection of this reseller taken today (organization time zone) by the caller, whose cash session is still open and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect', operationId: 'voidResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['reason'], properties: { reason: { type: 'string', minLength: 3, maxLength: 200 } } }, 'Why it is voided'), responses: { 200: { description: 'Voided', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'object', required: ['payment_id', 'status', 'amount', 'ledger_entry_id'], properties: { payment_id: { type: 'integer' }, status: { type: 'string', enum: ['voided'] }, amount: { type: 'number' }, ledger_entry_id: { type: 'integer' } } }) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 404: errorResponse('Not a collection of this reseller'), 409: errorResponse('ALREADY_VOIDED, NOT_YOUR_COLLECTION (taken by another user of the reseller), VOID_WINDOW_CLOSED (not today), CASH_SESSION_CLOSED, PAYMENT_HAS_REP or CASH_SEALED_IN_BAG (its cash is no longer on hand: sealed in a cash bag)'), 422: errorResponse('reason is missing or too short') } },
       },
       '/reseller-app/cash-session': {
         get: { tags: ['Reseller App'], summary: "The caller's open cash session (expected total net of voids) and its last 10 closed sessions", operationId: 'getResellerAppCashSession', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Cash box', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppCashSessionSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
@@ -3419,6 +3423,9 @@ function generateSpec() {
       '/reseller-app/ledger': {
         get: { tags: ['Reseller App'], summary: "The collecting reseller's cash ledger, newest first, with the summary", operationId: 'getResellerAppLedger', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(false) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
       },
+
+      // ---- Reseller app, phase 3: cash bags, carriers, the carrier app ----
+      ...cashBagPaths(),
 
       // ---- §20.2 Integration Providers ----
       '/integrations/providers': {
@@ -3797,14 +3804,19 @@ function resellerLoginResultSchema() {
 function resellerAppMoneySchema() {
   return {
     type: 'object',
-    required: ['currency', 'balance', 'cash_on_hand', 'credit_limit', 'available_to_collect', 'collected_today'],
+    required: ['currency', 'balance', 'in_bags', 'cash_on_hand', 'credit_limit', 'available_to_collect', 'collected_today',
+      'empty_bags', 'bags_ready_for_pickup', 'bags_in_transit'],
     properties: {
       currency: { type: 'string' },
-      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger)' },
-      cash_on_hand: { type: 'number', description: 'Collected cash it holds (equal to balance until cash bags exist)' },
+      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger), sealed bags not yet received included' },
+      in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit)' },
+      cash_on_hand: { type: 'number', description: 'balance - in_bags: the collected cash it still holds loose' },
       credit_limit: { type: 'number', description: 'Effective limit: its own, or the organization default' },
       available_to_collect: { type: 'number', description: 'max(0, credit_limit - cash_on_hand)' },
       collected_today: { type: 'number', description: 'Live collections of today (organization time zone)' },
+      empty_bags: { type: 'integer', description: 'Empty cash bags at the reseller it may fill (at_reseller)' },
+      bags_ready_for_pickup: { type: 'integer', description: 'Sealed bags waiting for the carrier' },
+      bags_in_transit: { type: 'integer', description: 'Bags on their way to the ISP' },
     },
   };
 }
@@ -3941,22 +3953,24 @@ function resellerLedgerEntrySchema(staff) {
     note: nullableString(),
     created_at: { type: 'string', format: 'date-time' },
     payment_id: nullableInteger(),
+    cash_bag_serial: { type: ['string', 'null'], description: 'The received cash bag behind a deposit or an adjustment' },
   };
-  const required = ['id', 'entry_type', 'amount', 'note', 'created_at', 'payment_id'];
+  const required = ['id', 'entry_type', 'amount', 'note', 'created_at', 'payment_id', 'cash_bag_serial'];
   if (staff) {
-    Object.assign(properties, { currency: { type: 'string' }, cash_session_id: nullableInteger(), created_by: nullableInteger() });
-    required.push('currency', 'cash_session_id', 'created_by');
+    Object.assign(properties, { currency: { type: 'string' }, cash_session_id: nullableInteger(), created_by: nullableInteger(), cash_bag_id: nullableInteger() });
+    required.push('currency', 'cash_session_id', 'created_by', 'cash_bag_id');
   }
   return { type: 'object', required, properties };
 }
 function resellerLedgerSummarySchema(staff) {
   const properties = {
-    balance: { type: 'number' },
-    cash_on_hand: { type: 'number' },
+    balance: { type: 'number', description: 'What the reseller owes, sealed bags not yet received included' },
+    in_bags: { type: 'number', description: 'Declared cash in sealed bags not yet received' },
+    cash_on_hand: { type: 'number', description: 'balance - in_bags' },
     credit_limit: { type: 'number', description: 'Effective limit' },
     available_to_collect: { type: 'number' },
   };
-  const required = ['balance', 'cash_on_hand', 'credit_limit', 'available_to_collect'];
+  const required = ['balance', 'in_bags', 'cash_on_hand', 'credit_limit', 'available_to_collect'];
   if (staff) {
     properties.credit_limit_override = { type: ['number', 'null'], description: "The reseller's own limit; null = the organization default" };
     required.push('credit_limit_override');

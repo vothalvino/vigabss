@@ -63,6 +63,11 @@ export interface AuthUser {
    *  (reseller_user_bindings), or null. A bound account uses the reseller
    *  app at /punto and never the staff console. */
   reseller_binding?: { reseller_id: number; reseller_name: string | null } | null;
+  /** Set when the account is a cash-bag carrier (the seeded system "carrier"
+   *  group). A carrier uses the route app at /ruta and never the staff
+   *  console; the server fences it to /auth and /carrier-app. Read it with
+   *  isCarrier() (auth/carrier.ts), which also accepts the object form. */
+  carrier?: boolean | { user_id?: number; name?: string | null } | null;
   is_active: boolean;
   /** Null until the user clicks the link in their verification email.
    *  Informational only today — nothing gates login or feature access on it. */

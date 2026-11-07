@@ -96,6 +96,8 @@ router.post('/payments', requirePermission('reseller_app.collect'), validate(col
           code: 'CREDIT_LIMIT',
           message: err.message,
           available_to_collect: err.extra.available_to_collect,
+          // Empty bags the reseller may fill to free its limit (phase 3).
+          empty_bags: err.extra.empty_bags,
           details: err.extra,
           ...(req.id ? { requestId: req.id } : {}),
         },
@@ -170,11 +172,16 @@ router.get('/ledger', requirePermission('reseller_app.use'), async (req, res, ne
       ledger.summaryFor(req.orgId, collectorId),
     ]);
     res.json({
-      data: rows.map(({ id, entry_type: entryType, amount, note, created_at: createdAt, payment_id: paymentId }) => ({
+      data: rows.map(({
         id, entry_type: entryType, amount, note, created_at: createdAt, payment_id: paymentId,
+        cash_bag_serial: cashBagSerial,
+      }) => ({
+        id, entry_type: entryType, amount, note, created_at: createdAt, payment_id: paymentId,
+        cash_bag_serial: cashBagSerial,
       })),
       summary: {
         balance: summary.balance,
+        in_bags: summary.in_bags,
         cash_on_hand: summary.cash_on_hand,
         credit_limit: summary.credit_limit,
         available_to_collect: summary.available_to_collect,

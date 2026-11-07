@@ -7,9 +7,11 @@
 //   2. Allowed plans  — the plans a top-level reseller may offer
 //   3. Movements      — the cash a reseller collected and handed in, its cash
 //                       limit, and recording a hand-in (reseller_ledger.*)
-//   4. Commissions    — commission earnings per reseller (read only)
-//   5. Portal         — reseller dashboard numbers
-//   6. Staff access   — reseller logins and bindings
+//   4. Bags           — a reseller's cash bags, their history and the count
+//                       differences (cash_bags.view)
+//   5. Commissions    — commission earnings per reseller (read only)
+//   6. Portal         — reseller dashboard numbers
+//   7. Staff access   — reseller logins and bindings
 // Plan price overrides, network resources (IP pools, bandwidth quota, OLT
 // ports), billing entities and branding are not part of the commission-agent
 // model and are not shown; their API routes are unchanged.
@@ -25,12 +27,13 @@ import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 import { ResellerFormModal } from './resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
+import { ResellerBagsTab } from './resellers/ResellerBagsTab';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'commissions' | 'portal' | 'staffAccess';
+type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'bags' | 'commissions' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
@@ -47,6 +50,10 @@ interface Reseller {
   credit_limit?: number | string | null;
   effective_credit_limit?: number | string | null;
   balance?: number | string | null;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 
 interface Commission {
@@ -381,6 +388,7 @@ const TABS: { key: Tab; labelKey: string; permission?: string }[] = [
   { key: 'resellers', labelKey: 'reseller.tabResellers' },
   { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans' },
   { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view' },
+  { key: 'bags', labelKey: 'cashBags.resellerTab.tab', permission: 'cash_bags.view' },
   { key: 'commissions', labelKey: 'reseller.tabCommissions' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
   { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
@@ -419,6 +427,7 @@ export default function ResellerPage() {
       {activeTab === 'resellers' && <ResellersTab />}
       {activeTab === 'allowedPlans' && <ResellerAllowedPlansTab />}
       {activeTab === 'ledger' && <ResellerLedgerTab />}
+      {activeTab === 'bags' && <ResellerBagsTab />}
       {activeTab === 'commissions' && <CommissionsTab />}
       {activeTab === 'portal' && <PortalTab />}
       {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}

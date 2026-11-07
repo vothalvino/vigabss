@@ -46,9 +46,11 @@ jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(
 const request = require('supertest');
 const db = require('../src/config/database');
 const User = require('../src/models/User');
+const { clearCarrierGroupCache } = require('../src/services/carrierAccount');
 const app = require('../src/app');
 
-beforeEach(() => jest.clearAllMocks());
+// The carrier-group answer is cached per process; each test lists its own lookups.
+beforeEach(() => { jest.clearAllMocks(); clearCarrierGroupCache(); });
 
 describe('User.delete (archive)', () => {
   test('soft-deletes AND forces status inactive in a single statement', async () => {
@@ -133,6 +135,7 @@ describe('PATCH /users/:id/group — reassign an archived user without restoring
     db.query
       .mockResolvedValueOnce([[ARCHIVED]])                               // route findByIdIncludingDeleted
       .mockResolvedValueOnce([[{ id: 4, name: 'technician', kind: 'technician' }]]) // resolveGroupMirror
+      .mockResolvedValueOnce([[{ name: 'technician', is_system: 1 }]])   // not the carrier group (no binding lookup)
       .mockResolvedValueOnce([{ affectedRows: 1 }])                      // UPDATE users (archived-only, affectedRows checked)
       .mockResolvedValueOnce([{ affectedRows: 1 }])                      // refreshMembershipRoles
       .mockResolvedValueOnce([[{ ...ARCHIVED, group_id: 4, role: 'technician' }]]); // final fetch
@@ -142,10 +145,10 @@ describe('PATCH /users/:id/group — reassign an archived user without restoring
     expect(res.status).toBe(200);
     expect(res.body.data.group_id).toBe(4);
     expect(res.body.data.role).toBe('technician');
-    const updateCall = db.query.mock.calls[4];
+    const updateCall = db.query.mock.calls[5];
     expect(updateCall[0]).toMatch(/UPDATE users SET group_id = \?, role = \? WHERE id = \? AND deleted_at IS NOT NULL/);
     expect(updateCall[1]).toEqual([4, 'technician', 9]);
-    const membershipCall = db.query.mock.calls[5];
+    const membershipCall = db.query.mock.calls[6];
     expect(membershipCall[0]).toMatch(/UPDATE organization_users SET role/);
   });
 
@@ -154,6 +157,7 @@ describe('PATCH /users/:id/group — reassign an archived user without restoring
     db.query
       .mockResolvedValueOnce([[ARCHIVED]])                               // findByIdIncludingDeleted (still archived)
       .mockResolvedValueOnce([[{ id: 4, name: 'technician', kind: 'technician' }]]) // resolveGroupMirror
+      .mockResolvedValueOnce([[{ name: 'technician', is_system: 1 }]])   // not the carrier group
       .mockResolvedValueOnce([{ affectedRows: 0 }]);                     // UPDATE ... AND deleted_at IS NOT NULL → restored mid-flight
     const res = await request(app).patch('/api/v1/users/9/group').send({ group_id: 4 });
     expect(res.status).toBe(404);
@@ -182,6 +186,20 @@ describe('PATCH /users/:id/group — reassign an archived user without restoring
       .mockResolvedValueOnce([[]]); // resolveGroupMirror: no such group
     const res = await request(app).patch('/api/v1/users/9/group').send({ group_id: 999 });
     expect(res.status).toBe(422);
+  });
+
+  test('422s when the archived user is bound to a reseller and the group is the carrier group', async () => {
+    guardLookups({ id: 50, name: 'carrier', kind: 'readonly', is_system: 1 });
+    db.query
+      .mockResolvedValueOnce([[ARCHIVED]])                                      // route findByIdIncludingDeleted
+      .mockResolvedValueOnce([[{ id: 50, name: 'carrier', kind: 'readonly' }]]) // resolveGroupMirror
+      .mockResolvedValueOnce([[{ name: 'carrier', is_system: 1 }]])             // the carrier group
+      .mockResolvedValueOnce([[{ id: 1, membership_role: 'billing' }]])         // User.getOrganizations
+      .mockResolvedValueOnce([[{ reseller_id: 3, live_reseller_id: 3, reseller_name: 'Tienda' }]]); // bound in org 1
+    const res = await request(app).patch('/api/v1/users/9/group').send({ group_id: 50 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/cannot also be a carrier/);
+    expect(db.query.mock.calls.some(([sql]) => /UPDATE users SET group_id/.test(sql))).toBe(false);
   });
 
   test('403s for a non-admin caller (restrictRoleAssignment covers group_id)', async () => {

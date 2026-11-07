@@ -5,7 +5,37 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller program, phase 3: cash bags and carriers.** Collected cash now
+  travels from a *Punto de Venta* to the ISP in numbered bags.
+  - **Bags:** staff register bags by serial, one at a time or as a range,
+    and hand a batch to a carrier. Each bag moves through in stock, with a
+    carrier, at a reseller, ready for pickup, on its way and received. Void
+    and lost are also possible, and every step is recorded with who did it
+    and when.
+  - **Reseller (`/punto/bolsas`):** the reseller fills a bag, declares the
+    amount and seals it. That cash leaves cash on hand, so the credit limit
+    frees right away; the debt still counts it until the ISP receives the
+    bag. When the limit is reached, Cobrar says to fill a bag. Received bags
+    disappear from the reseller app.
+  - **Carrier app (`/ruta`):** a new `carrier` login, made for phones, that
+    sees only the resellers assigned to it. It drops off empty bags and
+    picks up sealed ones, scanning the serial with the camera or typing it;
+    the serial must match. A carrier never sees amounts, customers or other
+    resellers, and its login can't open any other part of the system.
+  - **Staff (`Bolsas de efectivo`):** a board of bags ready for pickup, on
+    their way, received and with differences, plus a Carriers tab to create
+    carrier logins and choose their resellers. On receipt staff enter the
+    counted amount: the declared amount is booked as handed in, and any
+    shortfall or overage is posted to the reseller as an adjustment. Each
+    reseller also gets a Bolsas tab.
+  - **Resellers** gain an address, city and map location, which their
+    carriers see.
+  - **Permissions:** `carrier_app.use`, `carrier_app.pickup`,
+    `cash_bags.view`, `cash_bags.manage`, `cash_bags.receive`,
+    `carriers.manage` and `reseller_app.bags`. Creating a carrier login also
+    needs `users.create`.
+  - **Mi caja** now shows whether the box is open or closed.
+  - Migration 005 adds the bag, bag event and carrier assignment tables.
 
 ## 0.1.0-alpha.11 — 2026-11-07
 

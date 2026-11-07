@@ -146,6 +146,7 @@ The `reseller_admin` group is for staff users bound to a reseller
 | `reseller_app.use` | Use the reseller app (`/reseller-app`): own clients, leads and plans |
 | `reseller_app.signup` | Sign up new customers as leads in the reseller app |
 | `reseller_app.collect` | Collect cash from subscribers in the reseller app, void a same-day collection and close the cash box (migration 004) |
+| `reseller_app.bags` | See the reseller's cash bags and seal one with the cash it holds (migration 005) |
 | `reseller_portal.*` | Reseller portal reads (dashboard, clients, invoices, inventory), confined to the reseller's subtree |
 | `webauthn.*` | The user's own passkeys |
 
@@ -192,6 +193,35 @@ cash-reconciliation routes are behind the fence.
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with
 `POST /resellers/:id/users` are always in `reseller_admin`.
+
+### Cash bags and carriers (migration 005)
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `reseller_app.bags` | `reseller_admin`, `admin` | The reseller's bags and sealing one (`GET /reseller-app/bags`, `POST /reseller-app/bags/seal`); the routes still refuse an unbound user |
+| `carrier_app.use` | `carrier`, `admin` | The carrier app reads (`GET /carrier-app/me`, `/resellers`, `/bags`); the routes still refuse anyone outside the carrier group |
+| `carrier_app.pickup` | `carrier`, `admin` | Pick up a sealed bag and drop off empty ones (`POST /carrier-app/pickup`, `/dropoff`) |
+| `cash_bags.view` | `admin` | Bags, their history and the per-reseller differences (`GET /cash-bags`, `/cash-bags/summary`, `/cash-bags/:id`, `/resellers/:id/bags`) |
+| `cash_bags.manage` | `admin` | Register bags, hand them to a carrier, return, void or mark them lost |
+| `cash_bags.receive` | `admin` | Count and receive a bag, posting its deposit and any difference to the reseller ledger (`POST /cash-bags/:id/receive`) |
+| `carriers.manage` | `admin` | Carrier logins and the resellers each may visit (`/carriers`); creating a carrier login (`POST /carriers`) also needs `users.create`, as a reseller login does |
+
+The seeded system group `carrier` holds only `carrier_app.use`,
+`carrier_app.pickup` and `webauthn.*` (its own passkeys). A user in it is a
+carrier: it can reach only `/auth`, `/2fa`, `/security-admin/webauthn`,
+`/notifications` and `/carrier-app` (`src/middleware/resellerFence.js`),
+whatever permissions the group is later given; the staff WebSocket hub and the
+real-time streams refuse it too. A carrier sees only the top-level resellers
+assigned to it, and never an amount. A carrier cannot be bound to a reseller
+(`PUT /resellers/:id/users/:userId` answers 422), and a user bound to a
+reseller cannot be given the `carrier` group (`PUT`/`PATCH /users/:id` and
+`PATCH /users/:id/group` answer 422). Carrier logins created with
+`POST /carriers` (`carriers.manage` and `users.create`) are always in
+`carrier`; `carriers.manage` alone lists carriers and assigns them resellers
+(`GET /carriers/assignable-resellers` lists the choices).
+
+The cash bag and carrier routes are org-level only: refused to reseller-bound
+users and to carriers whatever their group holds.
 
 ## Route Authorization
 

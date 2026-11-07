@@ -15,6 +15,7 @@
 
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
+import { isCarrier } from '@/auth/carrier';
 import { ROUTES, canSee, type NavUser } from '@/nav/routes';
 import { TechnicianDashboard } from '@/pages/TechnicianDashboard';
 import { OperationsConsole } from '@/pages/OperationsConsole';
@@ -35,6 +36,7 @@ export function Dashboard() {
   const { user } = useAuth();
   // A reseller-bound account has its own app (PrivateRoute redirects too).
   if (user?.reseller_binding) return <Navigate to="/punto" replace />;
+  if (isCarrier(user)) return <Navigate to="/ruta" replace />;
   if (user?.role === 'technician') return <TechnicianDashboard />;
   const landing = user ? landingWithoutOperations(user) : null;
   if (landing) return <Navigate to={landing} replace />;
