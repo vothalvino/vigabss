@@ -335,6 +335,15 @@ describe('plans and lead sign-up', () => {
 });
 
 describe('the fence', () => {
+  test('allows the user\'s own passkeys but not the rest of security admin', () => {
+    const { isResellerAllowedPath } = require('../src/middleware/resellerFence');
+    expect(isResellerAllowedPath('/security-admin/webauthn')).toBe(true);
+    expect(isResellerAllowedPath('/security-admin/webauthn/12')).toBe(true);
+    expect(isResellerAllowedPath('/security-admin/admin-ip-allowlist')).toBe(false);
+    expect(isResellerAllowedPath('/security-admin')).toBe(false);
+    expect(isResellerAllowedPath('/security-admin/webauthnx')).toBe(false);
+  });
+
   test('a bound user is refused the staff API whatever its permissions', async () => {
     const token = asBoundReseller(['clients.view', 'reseller_app.use']);
     const res = await get('/clients', token);

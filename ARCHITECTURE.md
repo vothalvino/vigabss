@@ -309,7 +309,8 @@ none), and lead sign-ups that the ISP converts; every route there answers
 403 to an unbound caller. `src/middleware/resellerFence.js`, mounted on the
 v1 router before the routes, confines any bound principal (session or API
 token, not a validated global-access principal) to `/auth`, `/2fa`,
-`/notifications`, `/reseller-app`, `/resellers` and `/reseller-portal`; any
+`/security-admin/webauthn` (its own passkeys), `/notifications`,
+`/reseller-app`, `/resellers` and `/reseller-portal`; any
 other path is 403 whatever its group grants. The fence authenticates the
 request itself (route guards are idempotent), skips public routes and
 requests without credentials, and shares one binding lookup per request with

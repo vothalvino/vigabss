@@ -29,6 +29,7 @@ const { ForbiddenError } = require('../utils/errors');
 const RESELLER_ALLOWED_PREFIXES = [
   ['/auth', 'sign-in, /auth/me, sessions, password change, organization switch'],
   ['/2fa', 'the user\'s own two-factor setup'],
+  ['/security-admin/webauthn', 'the user\'s own passkeys: listed and revoked per user (webauthn.*)'],
   ['/notifications', 'the user\'s own notifications'],
   ['/reseller-app', 'the reseller app'],
   ['/resellers', 'reseller-scoped by resellerScope'],
