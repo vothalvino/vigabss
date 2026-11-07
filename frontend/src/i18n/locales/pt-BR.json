@@ -124,7 +124,10 @@
     "readOnly": "Somente leitura",
     "enabled": "Ativado",
     "disabled": "Desativado",
-    "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}"
+    "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}",
+    "keyLabels": {
+      "resellerDefaultCreditLimit": "Limite de dinheiro padrão para revendedores"
+    }
   },
   "common": {
     "email": "E-mail",
@@ -1157,7 +1160,11 @@
     },
     "noPayments": "Nenhum pagamento encontrado.",
     "loading": "Carregando…",
-    "error": "Falha ao carregar pagamentos."
+    "error": "Falha ao carregar pagamentos.",
+    "resellerBadge": "Revendedor: {{name}}",
+    "collectedByReseller": "Recebido em dinheiro pelo revendedor {{name}}",
+    "resellerFilter": "Recebido por: {{name}}",
+    "clearResellerFilter": "Ver todos os pagamentos"
   },
   "recordPayment": {
     "title": "Registrar Pagamento",
@@ -9871,8 +9878,10 @@
     "nav": {
       "home": "Início",
       "clients": "Clientes",
-      "newClient": "Novo cliente",
-      "leads": "Prospectos"
+      "newClient": "Novo",
+      "leads": "Prospectos",
+      "collect": "Receber",
+      "cash": "Meu caixa"
     },
     "layout": {
       "title": "Meu ponto de venda",
@@ -9909,7 +9918,8 @@
       "overdue": "Vencido",
       "balanceDue": "Saldo devedor",
       "overdueOnly": "Somente vencidos",
-      "showAll": "Ver todos"
+      "showAll": "Ver todos",
+      "leads": "Prospectos"
     },
     "clientDetail": {
       "back": "← Voltar para clientes",
@@ -9926,7 +9936,8 @@
       "invoices": "Faturas recentes",
       "noInvoices": "Ainda sem faturas.",
       "dueDate": "Vence em {{date}}",
-      "invoiceBalance": "Deve {{balance}} de {{total}}"
+      "invoiceBalance": "Deve {{balance}} de {{total}}",
+      "collect": "Receber pagamento"
     },
     "newClient": {
       "title": "Novo cliente",
@@ -10022,11 +10033,158 @@
       "qualified": "Qualificado",
       "proposal": "Com proposta",
       "won": "Ganho",
-      "lost": "Perdido"
+      "lost": "Perdido",
+      "completed": "Recebido",
+      "voided": "Anulado",
+      "open": "Aberto",
+      "closed": "Fechado",
+      "partial": "Parcial"
     },
     "access": {
       "title": "Sem acesso ao app de ponto de venda",
       "body": "Sua conta ainda não pode usar o app de ponto de venda. Entre em contato com a empresa para liberar o acesso."
+    },
+    "money": {
+      "title": "Seu dinheiro",
+      "owe": "Você deve entregar",
+      "canCollect": "Você ainda pode receber",
+      "meterLabel": "Uso do seu limite de dinheiro",
+      "meterText": "{{held}} de {{limit}}",
+      "limit": "Seu limite de dinheiro: {{limit}}",
+      "atLimit": "Você chegou ao seu limite: entregue o dinheiro para continuar recebendo.",
+      "collectedToday": "Recebido hoje",
+      "collect": "Receber pagamento",
+      "viewCash": "Ver meu caixa"
+    },
+    "collect": {
+      "title": "Receber",
+      "queryLabel": "Número do cliente ou telefone",
+      "queryPlaceholder": "Ex.: 1234 ou 5512345678",
+      "queryHelp": "Digite o número do cliente completo ou o telefone completo.",
+      "queryRequired": "Digite um número de cliente ou um telefone.",
+      "search": "Buscar",
+      "searching": "Buscando…",
+      "lookupError": "Não foi possível fazer a busca. Tente novamente.",
+      "noResults": "Ninguém tem esse número. Confira o número do cliente ou o telefone completo.",
+      "results": "Resultados",
+      "own": "Seu cliente",
+      "notOwn": "Cliente da empresa",
+      "clientNumber": "Cliente nº {{number}}",
+      "amountDue": "Saldo devedor",
+      "invoices": "Faturas a pagar",
+      "selectedTotal": "Total selecionado",
+      "amount": "Valor recebido",
+      "amountHelp": "Começa com tudo o que foi selecionado. Você pode receber menos se o cliente pagar só uma parte.",
+      "available": "Você ainda pode receber {{available}}.",
+      "note": "Observação (opcional)",
+      "collectCash": "Receber {{amount}} em dinheiro",
+      "searchAgain": "Buscar outro cliente",
+      "nothingDue": "Este cliente não tem nada a pagar agora.",
+      "pickInvoice": "Escolha pelo menos uma fatura.",
+      "amountInvalid": "Digite um valor maior que zero, com até duas casas decimais.",
+      "amountTooHigh": "O valor não pode ser maior que as faturas selecionadas ({{max}}).",
+      "limitReached": "Com este recebimento você passa do seu limite de dinheiro. Você pode receber até {{available}} a mais; entregue o dinheiro para continuar recebendo.",
+      "limitReachedNoAmount": "Você chegou ao seu limite de dinheiro: entregue o dinheiro para continuar recebendo.",
+      "saveError": "Não foi possível registrar o recebimento. Tente novamente: ele não será cobrado duas vezes.",
+      "confirmTitle": "Você já recebeu o dinheiro?",
+      "confirmBody": "De {{name}} (cliente nº {{number}}).",
+      "confirmYes": "Sim, recebi {{amount}}",
+      "confirmBack": "Voltar e corrigir",
+      "tokenExpired": "A busca expirou. Procure o cliente de novo para receber.",
+      "invoicesChanged": "As faturas do cliente mudaram. Procure-o de novo.",
+      "resellerInactive": "Seu ponto de venda não pode receber agora. Fale com a empresa.",
+      "tooManyLookups": "Muitas buscas em pouco tempo. Espere um momento e tente de novo.",
+      "queryInvalid": "Digite o número de cliente completo (por exemplo 1234 ou #1234) ou o telefone completo.",
+      "saving": "Registrando…"
+    },
+    "receipt": {
+      "title": "Comprovante de pagamento",
+      "notFound": "Este comprovante não existe ou não é do seu ponto de venda.",
+      "loadError": "Não foi possível carregar o comprovante.",
+      "done": "Recebimento de {{amount}} registrado.",
+      "reconnected": "O serviço do cliente foi reativado.",
+      "rfc": "RFC: {{rfc}}",
+      "phone": "Tel. {{phone}}",
+      "number": "Nº do comprovante",
+      "date": "Data",
+      "collectedBy": "Recebido por",
+      "cashier": "Atendente",
+      "client": "Cliente",
+      "invoice": "Fatura",
+      "total": "Total pago",
+      "method": "Forma de pagamento",
+      "methods": {
+        "cash": "Dinheiro"
+      },
+      "remaining": "Saldo restante",
+      "print": "Imprimir",
+      "whatsapp": "Enviar pelo WhatsApp",
+      "newCollection": "Novo recebimento",
+      "toCash": "Ir para Meu caixa",
+      "waNumber": "Comprovante {{number}} · {{date}}",
+      "waClient": "Cliente nº {{number}} {{name}}",
+      "waPaid": "Pago em dinheiro: {{amount}}",
+      "voided": "Este recebimento foi anulado.",
+      "waRemaining": "Saldo restante: {{amount}}"
+    },
+    "cash": {
+      "title": "Meu caixa",
+      "loadError": "Não foi possível carregar seu caixa.",
+      "listError": "Não foi possível carregar os recebimentos de hoje.",
+      "openTitle": "Caixa aberto",
+      "expected": "Você deve ter",
+      "openSummary_one": "{{count}} recebimento desde {{date}}",
+      "openSummary_other": "{{count}} recebimentos desde {{date}}",
+      "noOpen": "Nenhum caixa aberto. Ele abre sozinho com o seu primeiro recebimento.",
+      "todayTitle": "Recebimentos de hoje",
+      "noCollections": "Você ainda não recebeu nada hoje.",
+      "receipt": "Comprovante",
+      "void": "Anular",
+      "voidReason": "Por que você vai anular?",
+      "voidHelp": "Só dá para anular recebimentos de hoje com o caixa aberto. Devolva o dinheiro ao cliente.",
+      "reasonInvalid": "Escreva um motivo de 3 a 200 caracteres.",
+      "voidConfirm": "Anular recebimento",
+      "voiding": "Anulando…",
+      "voidCancel": "Não anular",
+      "voidError": "Não foi possível anular o recebimento.",
+      "voidAlready": "Este recebimento já foi anulado.",
+      "voidWindowClosed": "Só é possível anular recebimentos de hoje. Peça à empresa que corrija.",
+      "voidSessionClosed": "O caixa deste recebimento já está fechado. Peça à empresa que corrija.",
+      "voidNotYours": "Só quem recebeu este dinheiro pode cancelar o recebimento.",
+      "voidHasRep": "Este recebimento já foi informado ao SAT com um complemento de pagamento. Peça à empresa que o cancele.",
+      "noOpenToClose": "Não há caixa aberto para fechar.",
+      "closeTitle": "Fechar caixa",
+      "closeHelp": "Conte o dinheiro que você tem e digite o total. Fechar o caixa não muda o que você deve: isso diminui quando a empresa recebe o seu dinheiro.",
+      "counted": "Dinheiro contado",
+      "difference": "Diferença",
+      "varianceZero": "Confere",
+      "varianceOver": "Sobram {{amount}}",
+      "varianceShort": "Faltam {{amount}}",
+      "notes": "Observações (opcional)",
+      "countedInvalid": "Digite o dinheiro contado: 0 ou mais, com até duas casas decimais.",
+      "close": "Fechar caixa",
+      "closeConfirm": "Fechar o caixa com {{amount}} contados? Os recebimentos dele não poderão mais ser anulados.",
+      "closeYes": "Sim, fechar caixa",
+      "closeBack": "Ainda não",
+      "closing": "Fechando…",
+      "closeError": "Não foi possível fechar o caixa.",
+      "closed": "Caixa fechado.",
+      "closedSummary": "Esperado {{expected}}, contado {{counted}}.",
+      "recentTitle": "Caixas anteriores",
+      "recentLine": "Esperado {{expected}} · contado {{counted}}"
+    },
+    "ledger": {
+      "title": "Movimentações",
+      "intro": "Cada recebimento soma ao que você deve entregar à empresa; cada entrega de dinheiro diminui.",
+      "loadError": "Não foi possível carregar suas movimentações.",
+      "empty": "Ainda não há movimentações.",
+      "limit": "Seu limite de dinheiro",
+      "types": {
+        "collection": "Recebimento",
+        "collection_void": "Recebimento anulado",
+        "deposit": "Entrega de dinheiro",
+        "adjustment": "Ajuste"
+      }
     }
   },
   "resellerForm": {
@@ -10052,7 +10210,12 @@
     "saving": "Salvando…",
     "saveError": "Não foi possível salvar o revendedor.",
     "nameRequired": "O nome é obrigatório.",
-    "rateInvalid": "A comissão deve ser uma porcentagem de 0 a 100."
+    "rateInvalid": "A comissão deve ser uma porcentagem de 0 a 100.",
+    "creditLimit": "Limite de dinheiro",
+    "creditLimitDefault": "Padrão da organização: {{amount}}",
+    "creditLimitDefaultUnknown": "Padrão da organização",
+    "creditLimitHelp": "Quanto dinheiro recebido este revendedor pode ter antes de entregá-lo. Deixe em branco para usar o padrão da organização.",
+    "creditLimitInvalid": "O limite de dinheiro é um valor de 0 ou mais com até duas casas decimais, ou em branco para usar o padrão."
   },
   "resellerPlans": {
     "title": "Planos permitidos",
@@ -10097,5 +10260,47 @@
     "resellerFilterAll": "Todos os prospectos",
     "resellerBadge": "Revendedor: {{name}}",
     "resellerBadgeTitle": "Cadastrado por um revendedor no app de revendedores"
+  },
+  "resellerLedger": {
+    "tab": "Movimentações",
+    "title": "Movimentações de dinheiro",
+    "help": "O dinheiro que um revendedor recebeu em nome da empresa e o que já entregou. Os sub-revendedores recebem na conta do revendedor principal.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Escolha um revendedor —",
+    "loadError": "Não foi possível carregar as movimentações do revendedor.",
+    "summary": "Resumo",
+    "balance": "Dinheiro a entregar",
+    "creditLimit": "Limite de dinheiro",
+    "available": "Ainda pode receber",
+    "viewPayments": "Ver os recebimentos deste revendedor",
+    "depositTitle": "Registrar entrega de dinheiro",
+    "depositHelp": "O dinheiro que o revendedor entregou à empresa. Diminui o que ele deve e libera o seu limite.",
+    "depositAmount": "Valor recebido",
+    "depositSubmit": "Registrar entrega",
+    "depositSaved": "Entrega de dinheiro de {{amount}} registrada.",
+    "depositInvalid": "Digite um valor maior que zero, com até duas casas decimais.",
+    "adjustmentTitle": "Ajuste",
+    "adjustmentHelp": "Uma correção ao que o revendedor deve: um valor positivo aumenta e um negativo diminui. Explique o motivo na observação.",
+    "adjustmentAmount": "Valor (+ ou −)",
+    "adjustmentSubmit": "Registrar ajuste",
+    "adjustmentSaved": "Ajuste de {{amount}} registrado.",
+    "adjustmentInvalid": "Digite um valor diferente de zero com até duas casas decimais; com sinal de menos diminui o saldo.",
+    "noteOptional": "Observação (opcional)",
+    "noteRequiredLabel": "Observação (obrigatória)",
+    "noteRequired": "Um ajuste precisa de uma observação.",
+    "saving": "Salvando…",
+    "saveError": "Não foi possível registrar a movimentação.",
+    "colDate": "Data",
+    "colType": "Tipo",
+    "colAmount": "Valor",
+    "colNote": "Observação",
+    "colPayment": "Pagamento",
+    "empty": "Ainda não há movimentações.",
+    "types": {
+      "collection": "Recebimento",
+      "collection_void": "Recebimento anulado",
+      "deposit": "Entrega de dinheiro",
+      "adjustment": "Ajuste"
+    }
   }
 }

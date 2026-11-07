@@ -296,6 +296,38 @@ const resellerSignupLimiter = rateLimit({
   store: new CacheStore('rl_reseller_signup:'),
 });
 
+// GET /reseller-app/collect/lookup only, per collecting (top-level) reseller
+// (all of its and its sub-resellers' logins share one budget). A lookup finds
+// any subscriber of the ISP by an exact customer number or phone, and customer
+// numbers are sequential, so a script must not be able to walk them: a tight
+// per-window budget plus a 24-hour cap. Mounted after auth, orgScope,
+// resellerScope and the route's collector resolution.
+const resellerLookupKey = req => `reseller-lookup:${req.orgId}:${req.collectingResellerId ?? req.resellerScope?.rootId ?? `user-${req.user?.id || 'unknown'}`}`;
+const resellerLookupWindowLimiter = rateLimit({
+  windowMs: rl.windowMs,
+  max: rl.resellerLookup,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: RATE_LIMITED_BODY('Too many customer lookups in a short time; wait before trying again'),
+  keyGenerator: resellerLookupKey,
+  store: new CacheStore('rl_reseller_lookup:'),
+});
+const resellerLookupDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: rl.resellerLookupDaily,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: RATE_LIMITED_BODY('Too many customer lookups today; try again tomorrow or ask the ISP'),
+  keyGenerator: resellerLookupKey,
+  store: new CacheStore('rl_reseller_lookup_day:'),
+});
+function resellerLookupLimiter(req, res, next) {
+  resellerLookupWindowLimiter(req, res, (err) => {
+    if (err) return next(err);
+    return resellerLookupDailyLimiter(req, res, next);
+  });
+}
+
 // api_key_rate_limits predates the collector endpoints. NULL columns mean the
 // table defaults, not "unlimited"; the route-specific collectors still retain
 // their independent hard ceilings outside this policy layer.
@@ -511,6 +543,7 @@ module.exports = {
   trapForwardingTestLimiter,
   emailSettingsTestLimiter,
   resellerSignupLimiter,
+  resellerLookupLimiter,
   tenantApiLimiter,
   checkBulkEmailDailyBudget,
   CacheStore,

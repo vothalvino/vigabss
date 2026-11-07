@@ -336,6 +336,72 @@ boolean) without device or frame ids, names, coordinates, RF figures or error
 text, and `POST /reseller-app/leads` has a per-reseller limiter
 (`RATE_LIMIT_RESELLER_SIGNUP`).
 
+A bound user with `reseller_app.collect` also collects cash for the ISP
+(phase 2, migration 004, `src/routes/resellerAppCollect.js`,
+`src/services/resellerCollectionService.js`). The reseller is the ISP's
+commission agent: the ISP stays the provider and the CFDI issuer, and a
+collection is an ordinary completed cash payment of the client (forma 01,
+`recorded_by` the user) carrying `payments.reseller_id`, which only this path
+sets (not fillable; staff create and update drop it; the staff list shows
+`reseller_name` and filters on it). Money is booked per collecting reseller,
+the top-level reseller of the user's binding
+(`resellerLedgerService.collectingResellerId`; `req.resellerScope.rootId` is
+the bound reseller, which may be a sub-reseller), whoever owns the client, in
+the append-only `reseller_ledger_entries`
+(`src/services/resellerLedgerService.js`, never updated or deleted): a
+collection adds its amount, its void and a deposit subtract, an adjustment is
+signed. The balance (what the reseller owes) is the sum, `cash_on_hand` equals
+it until cash bags exist, the effective limit is `resellers.credit_limit` or
+the per-organization setting `reseller_default_credit_limit`, and
+`available_to_collect` is the limit minus the cash on hand, never below 0.
+A sub-reseller's users collect, read `/me` money, `/ledger`, the day's list
+and receipts, and void against that top-level reseller, which is the only one
+staff deposit on; the bound sub-reseller must also be active to collect.
+`POST /reseller-app/payments` runs in one transaction that locks the reseller
+row first (every ledger writer does), then the client's invoices before its
+first plain read (DAL-04: under REPEATABLE READ that read fixes the snapshot
+the balance_due subquery and the over-allocation trigger sum allocations
+from, and other allocators do not take the reseller lock), refuses with 409
+`CREDIT_LIMIT` when the
+cash on hand plus the amount would pass the limit (exactly at it is allowed),
+opens the user's cash session if none is open, inserts the payment, writes
+the client-ledger credit (`billingService.recordPaymentCredit`), allocates
+oldest invoice first or to the chosen invoices with the allocate-auto
+waterfall (`getInvoicesWithBalance`, `allocateAcrossInvoices`) and appends the `collection` entry with the payment
+and session ids; `payment.received`, `reconnectIfSuspended` per invoice it
+paid off and `repService.maybeGenerateRep` per allocation run after commit and
+only log a failure. An `Idempotency-Key` (per user, `idempotency_keys`, 24 h)
+replays the first answer. A reseller may collect from any subscriber of the
+organization: its own subtree's clients are fully visible, any other is found
+only by an exact customer number or phone (`GET /reseller-app/collect/lookup`,
+limited per collecting reseller by `RATE_LIMIT_RESELLER_LOOKUP` per window and
+`RATE_LIMIT_RESELLER_LOOKUP_DAILY` per 24 h, since customer numbers are
+sequential) with a masked name and no
+contact data, and the lookup hands out a 15-minute HMAC token
+(`src/utils/collectToken.js`, key derived from `JWT_SECRET` by HKDF) binding the
+organization, client and bound reseller, which the payment takes instead
+of a client id. A void (`POST /reseller-app/payments/:id/void`) is allowed only
+to the collecting reseller and, within it, to the user whose cash session holds
+the collection (409 `NOT_YOUR_COLLECTION` for a colleague; the list marks only
+the caller's collections `voidable`), on the business day of the collection,
+while that session is open and no REP binds the payment (409 otherwise); it
+locks the client's invoices first, reverses the client credit and the
+allocations like a staff deletion, cancels and soft-deletes the payment and
+appends `collection_void` with the negated amount of the `collection` entry
+(not the payment's current amount, which staff may have edited), so the pair
+nets to zero. Staff `POST /payments/:id/restore` refuses (409) a payment that
+is not completed, and a voided reseller collection in particular
+(`PAYMENT_VOIDED_BY_RESELLER`): restoring re-credits the client and revives
+the allocations. Closing the cash box
+(`cashReconciliationService.closeSession`) records the count and the
+variance and leaves the ledger alone; only org-level staff with
+`reseller_ledger.manage` record cash handed in (`POST /resellers/:id/ledger`
+deposit, never a payment, at most the balance; or a noted adjustment), which
+frees the limit. The ledger routes and a reseller's `credit_limit` are refused
+to bound callers. A staff deletion or edit of a reseller-collected payment
+does not touch the reseller ledger: the cash the reseller took is still owed
+until a deposit or an adjustment says otherwise.
+
 ### RBAC resolution
 
 Backend authorization is authoritative. `requirePermission` first enforces API
@@ -930,7 +996,19 @@ trees for staff and subscriber users:
   staff route to `/punto`. `PuntoLayout` is separate from the staff `Layout`
   and calls only `/auth/*` and `/reseller-app/*`, which the reseller fence
   allows. It shows a no-access notice without `reseller_app.use` and hides
-  the sign-up without `reseller_app.signup`.
+  the sign-up without `reseller_app.signup`. Its tabs are Inicio (with the
+  cash position from `/reseller-app/me`'s `money`), Cobrar, Clientes, Nuevo
+  and Mi caja; Prospectos is reached from Inicio and Clientes. Cobrar
+  (`/punto/cobrar`, also `?cliente=<id>` from a client's page) needs
+  `reseller_app.collect` and sends one `Idempotency-Key` per attempt; the
+  receipt (`/punto/recibo/:id`) prints at 58 mm and shares a wa.me text; Mi
+  caja (`/punto/caja`) lists the day's collections (voidable as the server's
+  `voidable` says), closes the cash box and shows the ledger. The server's
+  refusal codes (`CREDIT_LIMIT`, `COLLECT_TOKEN_*`, the void codes) are shown
+  as translated text. Staff see a reseller's cash ledger in the reseller
+  page's Movimientos tab (`reseller_ledger.view`; deposits and adjustments
+  need `reseller_ledger.manage`) and a reseller badge and `?reseller_id=`
+  filter on the payments list.
 - `App.tsx` is the route source of truth.
 - TanStack Query owns server-state fetching/caching where adopted.
 - `frontend/src/api/client.ts` owns authenticated transport behavior.

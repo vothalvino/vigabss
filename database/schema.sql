@@ -1040,12 +1040,14 @@ CREATE TABLE IF NOT EXISTS payments (
                                      COMMENT 'Payment lifecycle status',
     version          INT UNSIGNED    NOT NULL DEFAULT 1 COMMENT 'Optimistic locking version',
     recorded_by      BIGINT UNSIGNED NULL,
+    reseller_id      BIGINT UNSIGNED NULL     DEFAULT NULL COMMENT 'Top-level reseller that collected this payment in the reseller app; server-set only (migration 004)',
     created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME        DEFAULT NULL,
 
     PRIMARY KEY (id),
     KEY idx_payments_organization_id (organization_id),
+    KEY idx_payments_reseller_id (reseller_id, created_at),
     KEY idx_payments_client_id (client_id),
     KEY idx_payments_invoice_id (invoice_id),
     KEY idx_payments_payment_date (payment_date),
@@ -1061,7 +1063,9 @@ CREATE TABLE IF NOT EXISTS payments (
     CONSTRAINT fk_payments_recorded_by FOREIGN KEY (recorded_by)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_payments_organization FOREIGN KEY (organization_id)
-        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_payments_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -14919,6 +14923,7 @@ CREATE TABLE IF NOT EXISTS resellers (
     contact_name        VARCHAR(255)    NULL,
     status              ENUM('active', 'suspended', 'inactive') NOT NULL DEFAULT 'active',
     commission_rate     DECIMAL(5, 2)  NOT NULL DEFAULT 0.00,
+    credit_limit        DECIMAL(12, 2)  NULL     DEFAULT NULL COMMENT 'Collected cash the reseller may hold before handing it in; NULL = organization default (migration 004)',
     brand_logo_url      VARCHAR(500)    NULL,
     brand_primary_color VARCHAR(7)      NULL,
     brand_accent_color  VARCHAR(7)      NULL,
@@ -15152,6 +15157,45 @@ CREATE TABLE IF NOT EXISTS reseller_allowed_plans (
         REFERENCES plans (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Plans a reseller may offer in the reseller app; none means every active plan (migration 003)';
+
+-- ---------------------------------------------------------------------------
+-- Table: reseller_ledger_entries (migration 004)
+-- Purpose: Append-only cash ledger of a collecting (top-level) reseller. The
+--          sum of amount is what it owes the ISP: a collection adds, its void
+--          and a deposit subtract, an adjustment does either. Never updated
+--          or deleted; a correction is a new entry.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller',
+    reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Collecting (top-level) reseller',
+    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment') NOT NULL
+                      COMMENT 'collection +, collection_void -, deposit -, adjustment +/-',
+    amount          DECIMAL(12, 2)  NOT NULL COMMENT 'Signed: positive increases what the reseller owes the ISP',
+    currency        CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
+    payment_id      BIGINT UNSIGNED NULL     COMMENT 'The collected payment (collection, collection_void)',
+    cash_session_id BIGINT UNSIGNED NULL     COMMENT 'The collecting user''s cash session (collection, collection_void)',
+    note            VARCHAR(500)    NULL,
+    created_by      BIGINT UNSIGNED NOT NULL COMMENT 'User who recorded the entry',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_reseller_ledger_reseller_created (reseller_id, created_at),
+    KEY idx_reseller_ledger_org (organization_id),
+    KEY idx_reseller_ledger_payment (payment_id),
+    KEY idx_reseller_ledger_cash_session (cash_session_id),
+    KEY idx_reseller_ledger_created_by (created_by),
+    CONSTRAINT fk_reseller_ledger_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_payment FOREIGN KEY (payment_id)
+        REFERENCES payments (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_cash_session FOREIGN KEY (cash_session_id)
+        REFERENCES cash_reconciliation_sessions (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_ledger_created_by FOREIGN KEY (created_by)
+        REFERENCES users (id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Append-only cash ledger of a collecting reseller; the sum is what it owes the ISP (migration 004)';
 
 -- ---------------------------------------------------------------------------
 -- Column added to clients by migration 345 (§19.1 reseller scoping):

@@ -74,6 +74,16 @@ const ORG_SETTING_DEFS = {
       return Number.isInteger(n) && n >= 0 && n <= 90 ? null : 'must be an integer between 0 and 90';
     },
   },
+  reseller_default_credit_limit: {
+    default: '2000.00',
+    description: 'Collected cash a reseller (Punto de Venta) may hold before handing it in to the ISP, when the reseller has no limit of its own. At the limit the reseller app refuses new collections until a deposit is recorded.',
+    validate(value) {
+      // Within resellers.credit_limit's DECIMAL(12,2) range.
+      return typeof value === 'string' && /^\d{1,10}(\.\d{1,2})?$/.test(value)
+        ? null
+        : 'must be an amount of 0 or more with at most 2 decimals';
+    },
+  },
 };
 
 module.exports = { INSTALL_SETTING_DEFS, INSTALL_SETTING_KEYS, ORG_SETTING_DEFS };

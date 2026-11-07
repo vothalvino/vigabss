@@ -145,6 +145,7 @@ The `reseller_admin` group is for staff users bound to a reseller
 |----------------|-------------|
 | `reseller_app.use` | Use the reseller app (`/reseller-app`): own clients, leads and plans |
 | `reseller_app.signup` | Sign up new customers as leads in the reseller app |
+| `reseller_app.collect` | Collect cash from subscribers in the reseller app, void a same-day collection and close the cash box (migration 004) |
 | `reseller_portal.*` | Reseller portal reads (dashboard, clients, invoices, inventory), confined to the reseller's subtree |
 | `webauthn.*` | The user's own passkeys |
 
@@ -172,6 +173,21 @@ holds: suspend or reactivate (`POST /resellers/:id/suspend`), commission
 approval, plan prices, IP pools, OLT ports, bandwidth quota and the billing
 entity. A bound user may still create sub-resellers of its own reseller,
 without a commission rate or status.
+
+### Reseller cash (migration 004)
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `reseller_app.collect` | `reseller_admin`, `admin` | Cash collection in the reseller app (`/reseller-app/collect/*`, `POST /reseller-app/payments`, its void, `POST /reseller-app/cash-session/close`); the routes still refuse an unbound user |
+| `reseller_ledger.view` | `admin` | A reseller's cash ledger and summary (`GET /resellers/:id/ledger`) |
+| `reseller_ledger.manage` | `admin` | Record cash a reseller handed in, or an adjustment (`POST /resellers/:id/ledger`) |
+
+Both ledger routes are org-level only, whatever the bound user's group holds,
+and so is a reseller's `credit_limit` on `POST`/`PUT /resellers`. A bound
+user reads its own position in the app (`GET /reseller-app/me`, `/ledger`).
+`reseller_admin` holds no `cash_reconciliation.*` permission: a reseller's
+cash box is the reseller app's `/cash-session`, and the staff
+cash-reconciliation routes are behind the fence.
 
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with

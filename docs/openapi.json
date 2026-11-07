@@ -8176,6 +8176,15 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "reseller_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only payments collected by this reseller in the reseller app"
           }
         ],
         "responses": {
@@ -60928,7 +60937,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "List resellers",
+        "summary": "List resellers; each row adds effective_credit_limit (credit_limit, or the organization default when null) and balance (what it owes in collected cash)",
         "operationId": "listResellers",
         "security": [
           {
@@ -62553,6 +62562,485 @@
         }
       }
     },
+    "/resellers/{id}/ledger": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "A reseller's cash ledger, newest first, with the summary (balance it owes, effective credit limit, available to collect). Org-level staff with reseller_ledger.view",
+        "operationId": "getResellerLedger",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "summary",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "entry_type",
+                          "amount",
+                          "note",
+                          "created_at",
+                          "payment_id",
+                          "currency",
+                          "cash_session_id",
+                          "created_by"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "entry_type": {
+                            "type": "string",
+                            "enum": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment"
+                            ]
+                          },
+                          "amount": {
+                            "type": "number",
+                            "description": "Signed: + increases what the reseller owes"
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "payment_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "cash_session_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "created_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "balance",
+                        "cash_on_hand",
+                        "credit_limit",
+                        "available_to_collect",
+                        "credit_limit_override"
+                      ],
+                      "properties": {
+                        "balance": {
+                          "type": "number"
+                        },
+                        "cash_on_hand": {
+                          "type": "number"
+                        },
+                        "credit_limit": {
+                          "type": "number",
+                          "description": "Effective limit"
+                        },
+                        "available_to_collect": {
+                          "type": "number"
+                        },
+                        "credit_limit_override": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "The reseller's own limit; null = the organization default"
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot read reseller ledgers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Record cash the reseller handed in (deposit: amount > 0, at most what it holds) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage",
+        "operationId": "createResellerLedgerEntry",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The entry",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "entry_type",
+                  "amount"
+                ],
+                "properties": {
+                  "entry_type": {
+                    "type": "string",
+                    "enum": [
+                      "deposit",
+                      "adjustment"
+                    ]
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Required for an adjustment"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "summary"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "entry_type",
+                        "amount",
+                        "note",
+                        "created_at",
+                        "payment_id",
+                        "currency",
+                        "cash_session_id",
+                        "created_by"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "entry_type": {
+                          "type": "string",
+                          "enum": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment"
+                          ]
+                        },
+                        "amount": {
+                          "type": "number",
+                          "description": "Signed: + increases what the reseller owes"
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "payment_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "cash_session_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "created_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "balance",
+                        "cash_on_hand",
+                        "credit_limit",
+                        "available_to_collect",
+                        "credit_limit_override"
+                      ],
+                      "properties": {
+                        "balance": {
+                          "type": "number"
+                        },
+                        "cash_on_hand": {
+                          "type": "number"
+                        },
+                        "credit_limit": {
+                          "type": "number",
+                          "description": "Effective limit"
+                        },
+                        "available_to_collect": {
+                          "type": "number"
+                        },
+                        "credit_limit_override": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "The reseller's own limit; null = the organization default"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot record ledger entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/resellers/{id}/users/{userId}": {
       "put": {
         "tags": [
@@ -62923,7 +63411,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "The bound reseller, the organization currency and the subtree counts",
+        "summary": "The bound reseller, the organization currency, the subtree counts and the cash position of the collecting (top-level) reseller",
         "operationId": "getResellerAppMe",
         "security": [
           {
@@ -62946,9 +63434,46 @@
                       "required": [
                         "reseller",
                         "currency",
-                        "counts"
+                        "counts",
+                        "money"
                       ],
                       "properties": {
+                        "money": {
+                          "type": "object",
+                          "required": [
+                            "currency",
+                            "balance",
+                            "cash_on_hand",
+                            "credit_limit",
+                            "available_to_collect",
+                            "collected_today"
+                          ],
+                          "properties": {
+                            "currency": {
+                              "type": "string"
+                            },
+                            "balance": {
+                              "type": "number",
+                              "description": "What the collecting reseller owes the ISP (sum of its ledger)"
+                            },
+                            "cash_on_hand": {
+                              "type": "number",
+                              "description": "Collected cash it holds (equal to balance until cash bags exist)"
+                            },
+                            "credit_limit": {
+                              "type": "number",
+                              "description": "Effective limit: its own, or the organization default"
+                            },
+                            "available_to_collect": {
+                              "type": "number",
+                              "description": "max(0, credit_limit - cash_on_hand)"
+                            },
+                            "collected_today": {
+                              "type": "number",
+                              "description": "Live collections of today (organization time zone)"
+                            }
+                          }
+                        },
                         "reseller": {
                           "type": "object",
                           "required": [
@@ -64152,6 +64677,1832 @@
           },
           "404": {
             "description": "Lead not found in the reseller subtree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/collect/lookup": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Find a subscriber of the organization to collect from, by exact customer number (123 or #123) or exact phone; at most 5. A client outside the reseller subtree has a masked name and no contact data. Needs reseller_app.collect; rate-limited per collecting reseller, per window and per day (RATE_LIMIT_RESELLER_LOOKUP, RATE_LIMIT_RESELLER_LOOKUP_DAILY)",
+        "operationId": "lookupResellerAppCollectTarget",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Customer number (digits, optional leading #) or phone number",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching subscribers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "collect_token",
+                          "own",
+                          "client_number",
+                          "name",
+                          "status",
+                          "amount_due",
+                          "open_invoices"
+                        ],
+                        "properties": {
+                          "collect_token": {
+                            "type": "string",
+                            "description": "Signed, 15-minute token for POST /reseller-app/payments"
+                          },
+                          "own": {
+                            "type": "boolean",
+                            "description": "The client belongs to the reseller subtree"
+                          },
+                          "client_number": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Full name when own, masked (e.g. \"Ma*** Ló***\") otherwise"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "inactive",
+                              "suspended"
+                            ]
+                          },
+                          "amount_due": {
+                            "type": "number"
+                          },
+                          "open_invoices": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "invoice_number",
+                                "balance",
+                                "due_date"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "invoice_number": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "balance": {
+                                  "type": "number"
+                                },
+                                "due_date": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "format": "date-time"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.collect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "q is not a customer number or phone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many lookups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/collect/client/{id}": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "A client of the reseller subtree, ready to collect from (the Cobrar button of the client page). Needs reseller_app.collect",
+        "operationId": "getResellerAppCollectClient",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collect target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "collect_token",
+                        "own",
+                        "client_number",
+                        "name",
+                        "status",
+                        "amount_due",
+                        "open_invoices"
+                      ],
+                      "properties": {
+                        "collect_token": {
+                          "type": "string",
+                          "description": "Signed, 15-minute token for POST /reseller-app/payments"
+                        },
+                        "own": {
+                          "type": "boolean",
+                          "description": "The client belongs to the reseller subtree"
+                        },
+                        "client_number": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Full name when own, masked (e.g. \"Ma*** Ló***\") otherwise"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "inactive",
+                            "suspended"
+                          ]
+                        },
+                        "amount_due": {
+                          "type": "number"
+                        },
+                        "open_invoices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "invoice_number",
+                              "balance",
+                              "due_date"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "invoice_number": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "balance": {
+                                "type": "number"
+                              },
+                              "due_date": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.collect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Client not found in the reseller subtree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/payments": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "The collecting reseller's collections of one business day (default today), voided ones included",
+        "operationId": "listResellerAppCollections",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "Business day, YYYY-MM-DD (organization time zone)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "client_number",
+                          "client_name",
+                          "own",
+                          "amount",
+                          "currency",
+                          "collected_at",
+                          "status",
+                          "invoice_numbers",
+                          "cash_session_id",
+                          "voidable"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "The payment id"
+                          },
+                          "client_number": {
+                            "type": "integer"
+                          },
+                          "client_name": {
+                            "type": "string"
+                          },
+                          "own": {
+                            "type": "boolean"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "collected_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "completed",
+                              "voided"
+                            ]
+                          },
+                          "invoice_numbers": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cash_session_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "voidable": {
+                            "type": "boolean",
+                            "description": "Taken today by the caller and its cash session is still open (a REP may still refuse the void)"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "date"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "date is not YYYY-MM-DD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Collect cash from a subscriber: in one transaction, checks the credit limit, posts a completed cash payment (reseller_id = the collecting reseller), allocates it oldest invoice first (or to invoice_ids), opens the cash session if none and books the collection in the reseller ledger; reconnection and the REP run after commit. Needs reseller_app.collect. An Idempotency-Key header (or client_request_id) replays the original answer for 24 hours",
+        "operationId": "createResellerAppCollection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One key per collection attempt (8 to 128 of A-Z a-z 0-9 . : _ -)",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The collection",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "collect_token",
+                  "amount"
+                ],
+                "properties": {
+                  "collect_token": {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "description": "At most 2 decimals; more than the amount due stays as client credit"
+                  },
+                  "invoice_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "description": "Open invoices of the client to pay, oldest first; omitted = all, oldest first"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "client_request_id": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "description": "Idempotency key when the header cannot be sent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Collected (also a replay, with Idempotent-Replayed: true)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "payment_id",
+                        "amount",
+                        "allocated",
+                        "client_number",
+                        "client_name",
+                        "reconnected",
+                        "receipt_url"
+                      ],
+                      "properties": {
+                        "payment_id": {
+                          "type": "integer"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "allocated": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "invoice_id",
+                              "amount"
+                            ],
+                            "properties": {
+                              "invoice_id": {
+                                "type": "integer"
+                              },
+                              "amount": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        },
+                        "client_number": {
+                          "type": "integer"
+                        },
+                        "client_name": {
+                          "type": "string"
+                        },
+                        "reconnected": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ],
+                          "description": "true: a suspended contract was reconnected; false: none needed; null: a reconnect attempt failed (the ISP sees it)"
+                        },
+                        "receipt_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, no reseller_app.collect, or the reseller is not active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The client is gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CREDIT_LIMIT: the collection would take the cash on hand past the credit limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "available_to_collect"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "CREDIT_LIMIT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "available_to_collect": {
+                          "type": "number"
+                        },
+                        "details": {
+                          "type": "object",
+                          "properties": {
+                            "available_to_collect": {
+                              "type": "number"
+                            },
+                            "credit_limit": {
+                              "type": "number"
+                            },
+                            "cash_on_hand": {
+                              "type": "number"
+                            },
+                            "amount": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed, COLLECT_TOKEN_INVALID / COLLECT_TOKEN_EXPIRED (look the client up again), or INVOICE_NOT_PAYABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/payments/{id}/receipt": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Receipt of a collection of this reseller (masked client name when not its own), with a plain-text thermal layout",
+        "operationId": "getResellerAppReceipt",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "description": "plain_text printer width in mm (default 58: 32 columns; 80: 48 columns)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "58",
+                "80"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "receipt_number",
+                        "issued_at",
+                        "status",
+                        "isp",
+                        "collected_by",
+                        "client",
+                        "amount",
+                        "currency",
+                        "payment_method",
+                        "allocations",
+                        "remaining_balance",
+                        "legend",
+                        "language",
+                        "plain_text"
+                      ],
+                      "properties": {
+                        "receipt_number": {
+                          "type": "string"
+                        },
+                        "issued_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "completed",
+                            "voided"
+                          ]
+                        },
+                        "isp": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "rfc",
+                            "address",
+                            "phone"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "rfc": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "phone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        },
+                        "collected_by": {
+                          "type": "object",
+                          "required": [
+                            "reseller_name",
+                            "user_name"
+                          ],
+                          "properties": {
+                            "reseller_name": {
+                              "type": "string"
+                            },
+                            "user_name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        },
+                        "client": {
+                          "type": "object",
+                          "required": [
+                            "number",
+                            "name",
+                            "own"
+                          ],
+                          "properties": {
+                            "number": {
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "own": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "payment_method": {
+                          "type": "string",
+                          "enum": [
+                            "cash"
+                          ]
+                        },
+                        "allocations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "invoice_number",
+                              "amount"
+                            ],
+                            "properties": {
+                              "invoice_number": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "amount": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        },
+                        "remaining_balance": {
+                          "type": "number",
+                          "description": "What the client still owes on open invoices now"
+                        },
+                        "legend": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string",
+                          "enum": [
+                            "es",
+                            "en"
+                          ],
+                          "description": "es for an MX organization"
+                        },
+                        "plain_text": {
+                          "type": "string",
+                          "description": "Thermal-printer text (32 or 48 columns)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a collection of this reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/payments/{id}/void": {
+      "post": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Void a collection of this reseller taken today (organization time zone) by the caller, whose cash session is still open and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect",
+        "operationId": "voidResellerAppCollection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Why it is voided",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Voided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "payment_id",
+                        "status",
+                        "amount",
+                        "ledger_entry_id"
+                      ],
+                      "properties": {
+                        "payment_id": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "voided"
+                          ]
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "ledger_entry_id": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.collect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a collection of this reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_VOIDED, NOT_YOUR_COLLECTION (taken by another user of the reseller), VOID_WINDOW_CLOSED (not today), CASH_SESSION_CLOSED or PAYMENT_HAS_REP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "reason is missing or too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/cash-session": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "The caller's open cash session (expected total net of voids) and its last 10 closed sessions",
+        "operationId": "getResellerAppCashSession",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cash box",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "current",
+                        "recent"
+                      ],
+                      "properties": {
+                        "current": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "required": [
+                            "id",
+                            "opened_at",
+                            "expected_total",
+                            "collections_count"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "opened_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "expected_total": {
+                              "type": "number",
+                              "description": "Collections of the session, net of voids"
+                            },
+                            "collections_count": {
+                              "type": "integer"
+                            }
+                          }
+                        },
+                        "recent": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "opened_at",
+                              "closed_at",
+                              "expected_total",
+                              "counted_total",
+                              "variance",
+                              "status"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "opened_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "closed_at": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              },
+                              "expected_total": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "counted_total": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "variance": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ],
+                                "description": "counted - expected; negative = short"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "open",
+                                  "closed",
+                                  "approved",
+                                  "disputed"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/cash-session/close": {
+      "post": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "Close the caller's open cash session with the cash counted; computes the expected total and the variance. The ledger does not change. Needs reseller_app.collect",
+        "operationId": "closeResellerAppCashSession",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The count",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "counted_total"
+                ],
+                "properties": {
+                  "counted_total": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Closed session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "opened_at",
+                        "closed_at",
+                        "expected_total",
+                        "counted_total",
+                        "variance",
+                        "status"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "opened_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "closed_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "expected_total": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "counted_total": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "variance": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "counted - expected; negative = short"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "closed",
+                            "approved",
+                            "disputed"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.collect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "NO_OPEN_CASH_SESSION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/ledger": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "The collecting reseller's cash ledger, newest first, with the summary",
+        "operationId": "getResellerAppLedger",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "summary",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "entry_type",
+                          "amount",
+                          "note",
+                          "created_at",
+                          "payment_id"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "entry_type": {
+                            "type": "string",
+                            "enum": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment"
+                            ]
+                          },
+                          "amount": {
+                            "type": "number",
+                            "description": "Signed: + increases what the reseller owes"
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "payment_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "balance",
+                        "cash_on_hand",
+                        "credit_limit",
+                        "available_to_collect"
+                      ],
+                      "properties": {
+                        "balance": {
+                          "type": "number"
+                        },
+                        "cash_on_hand": {
+                          "type": "number"
+                        },
+                        "credit_limit": {
+                          "type": "number",
+                          "description": "Effective limit"
+                        },
+                        "available_to_collect": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only reseller accounts can use the reseller app",
             "content": {
               "application/json": {
                 "schema": {
@@ -87519,6 +89870,12 @@
               "null"
             ]
           },
+          "reseller_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -87533,6 +89890,13 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "reseller_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "List and get: the reseller that collected the payment in the reseller app (reseller_id)"
           }
         },
         "required": [
@@ -87552,6 +89916,7 @@
           "status",
           "version",
           "recorded_by",
+          "reseller_id",
           "created_at",
           "updated_at",
           "deleted_at"

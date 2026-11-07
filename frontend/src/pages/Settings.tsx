@@ -25,6 +25,7 @@ import { gatewayPayload, type GatewayForm } from './paymentGatewayPayload';
 import { useAuth } from '@/auth/AuthContext';
 import { apiFetch } from '@/api/apiFetch';
 import { QuotaBar } from './settings/QuotaBar';
+import { SETTING_ENUM_OPTIONS, SETTING_LABEL_KEYS, SETTING_NUMBER_INPUTS } from './settings/orgSettingInputs';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,12 +47,6 @@ interface Setting {
   details?: { enabled: boolean; endpoint: string | null; nasPort: number; clientPort: number };
 }
 
-/** Per-key input shapes for the known org settings; anything else is text. */
-const SETTING_ENUM_OPTIONS: Record<string, string[]> = {
-  mab_password_mode: ['auth_type_accept', 'cleartext'],
-  wireguard_server_enabled: ['false', 'true'],
-};
-const SETTING_NUMBER_KEYS = ['pppoe_auth_failure_threshold'];
 
 interface AlertRule {
   id: number;
@@ -191,8 +186,9 @@ function OrgConfigTab() {
     return (
       <input
         style={sty.input}
-        type={SETTING_NUMBER_KEYS.includes(setting.key) ? 'number' : 'text'}
-        min={SETTING_NUMBER_KEYS.includes(setting.key) ? 1 : undefined}
+        type={SETTING_NUMBER_INPUTS[setting.key] ? 'number' : 'text'}
+        min={SETTING_NUMBER_INPUTS[setting.key]?.min}
+        step={SETTING_NUMBER_INPUTS[setting.key]?.step}
         value={editValue}
         onChange={e => setEditValue(e.target.value)}
       />
@@ -212,7 +208,10 @@ function OrgConfigTab() {
         <tbody>
           {rows.map(setting => (
             <tr key={setting.key}>
-              <td style={sty.td}><code style={sty.code}>{setting.key}</code></td>
+              <td style={sty.td}>
+                {SETTING_LABEL_KEYS[setting.key] && <div style={{ fontWeight: 600 }}>{t(SETTING_LABEL_KEYS[setting.key])}</div>}
+                <code style={sty.code}>{setting.key}</code>
+              </td>
               <td style={{ ...sty.td, maxWidth: 260 }}>
                 {editKey === setting.key ? valueEditor(setting) : (
                   <>

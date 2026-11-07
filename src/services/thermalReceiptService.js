@@ -236,4 +236,7 @@ async function generatePaymentThermalReceipt(paymentId, { width = 48, orgId } = 
 module.exports = {
   generateInvoiceThermalReceipt,
   generatePaymentThermalReceipt,
+  // The line layout, for receipts built from other data (the reseller app's
+  // collection receipt, which must not print a non-own client's contacts).
+  layout: { center, labelValue, wrap, divider },
 };

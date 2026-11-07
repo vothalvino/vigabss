@@ -59,7 +59,10 @@ export function PuntoClients() {
 
   return (
     <div>
-      <h1 style={pageTitle}>{t('punto.clients.title')}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <h1 style={{ ...pageTitle, margin: 0 }}>{t('punto.clients.title')}</h1>
+        <Link to="/punto/prospectos" className="punto-btn-secondary">{t('punto.clients.leads')}</Link>
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <div className="punto-field" style={{ flex: 1, marginBottom: 0 }}>
           <label htmlFor="punto-client-search">{t('punto.clients.search')}</label>

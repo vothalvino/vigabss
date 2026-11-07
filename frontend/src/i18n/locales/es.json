@@ -124,7 +124,10 @@
     "readOnly": "Solo lectura",
     "enabled": "Activado",
     "disabled": "Desactivado",
-    "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}"
+    "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}",
+    "keyLabels": {
+      "resellerDefaultCreditLimit": "Límite de efectivo predeterminado para revendedores"
+    }
   },
   "common": {
     "email": "Correo electrónico",
@@ -1157,7 +1160,11 @@
     },
     "noPayments": "No se encontraron pagos.",
     "loading": "Cargando…",
-    "error": "Error al cargar pagos."
+    "error": "Error al cargar pagos.",
+    "resellerBadge": "Revendedor: {{name}}",
+    "collectedByReseller": "Cobrado en efectivo por el revendedor {{name}}",
+    "resellerFilter": "Cobrado por: {{name}}",
+    "clearResellerFilter": "Ver todos los pagos"
   },
   "recordPayment": {
     "title": "Registrar Pago",
@@ -9871,8 +9878,10 @@
     "nav": {
       "home": "Inicio",
       "clients": "Clientes",
-      "newClient": "Nuevo cliente",
-      "leads": "Prospectos"
+      "newClient": "Nuevo",
+      "leads": "Prospectos",
+      "collect": "Cobrar",
+      "cash": "Mi caja"
     },
     "layout": {
       "title": "Mi punto de venta",
@@ -9909,7 +9918,8 @@
       "overdue": "Vencido",
       "balanceDue": "Saldo pendiente",
       "overdueOnly": "Solo con pagos vencidos",
-      "showAll": "Ver todos"
+      "showAll": "Ver todos",
+      "leads": "Prospectos"
     },
     "clientDetail": {
       "back": "← Volver a clientes",
@@ -9926,7 +9936,8 @@
       "invoices": "Últimas facturas",
       "noInvoices": "Todavía no tiene facturas.",
       "dueDate": "Vence el {{date}}",
-      "invoiceBalance": "Debe {{balance}} de {{total}}"
+      "invoiceBalance": "Debe {{balance}} de {{total}}",
+      "collect": "Cobrar"
     },
     "newClient": {
       "title": "Nuevo cliente",
@@ -10022,11 +10033,158 @@
       "qualified": "Calificado",
       "proposal": "Con propuesta",
       "won": "Ganado",
-      "lost": "Perdido"
+      "lost": "Perdido",
+      "completed": "Cobrado",
+      "voided": "Anulado",
+      "open": "Abierta",
+      "closed": "Cerrada",
+      "partial": "Parcial"
     },
     "access": {
       "title": "Sin acceso a la app de punto de venta",
       "body": "Tu cuenta todavía no puede usar la app de punto de venta. Comunícate con la empresa para que te den acceso."
+    },
+    "money": {
+      "title": "Tu efectivo",
+      "owe": "Debes entregar",
+      "canCollect": "Aún puedes cobrar",
+      "meterLabel": "Uso de tu límite de efectivo",
+      "meterText": "{{held}} de {{limit}}",
+      "limit": "Tu límite de efectivo: {{limit}}",
+      "atLimit": "Llegaste a tu límite: entrega el efectivo para seguir cobrando.",
+      "collectedToday": "Cobrado hoy",
+      "collect": "Cobrar",
+      "viewCash": "Ver mi caja"
+    },
+    "collect": {
+      "title": "Cobrar",
+      "queryLabel": "Número de cliente o teléfono",
+      "queryPlaceholder": "Ej. 1234 o 5512345678",
+      "queryHelp": "Escribe el número de cliente completo o el teléfono completo, a 10 dígitos.",
+      "queryRequired": "Escribe un número de cliente o un teléfono.",
+      "search": "Buscar",
+      "searching": "Buscando…",
+      "lookupError": "No pudimos hacer la búsqueda. Inténtalo de nuevo.",
+      "noResults": "No encontramos a nadie con ese número. Revisa el número de cliente o el teléfono completo.",
+      "results": "Resultados",
+      "own": "Tu cliente",
+      "notOwn": "Cliente de la empresa",
+      "clientNumber": "Cliente #{{number}}",
+      "amountDue": "Saldo pendiente",
+      "invoices": "Facturas a pagar",
+      "selectedTotal": "Total seleccionado",
+      "amount": "Monto que recibes",
+      "amountHelp": "De entrada es todo lo seleccionado. Puedes cobrar menos si el cliente solo abona una parte.",
+      "available": "Aún puedes cobrar {{available}}.",
+      "note": "Nota (opcional)",
+      "collectCash": "Cobrar {{amount}} en efectivo",
+      "searchAgain": "Buscar otro cliente",
+      "nothingDue": "Este cliente no tiene nada pendiente por pagar.",
+      "pickInvoice": "Elige al menos una factura.",
+      "amountInvalid": "Escribe un monto mayor a cero, con hasta dos decimales.",
+      "amountTooHigh": "El monto no puede ser mayor que las facturas seleccionadas ({{max}}).",
+      "limitReached": "Con este cobro te pasas de tu límite de efectivo. Puedes cobrar hasta {{available}} más; entrega el efectivo para seguir cobrando.",
+      "limitReachedNoAmount": "Llegaste a tu límite de efectivo: entrega el efectivo para seguir cobrando.",
+      "saveError": "No pudimos registrar el cobro. Inténtalo de nuevo: no se cobrará dos veces.",
+      "confirmTitle": "¿Ya recibiste el efectivo?",
+      "confirmBody": "De {{name}} (cliente #{{number}}).",
+      "confirmYes": "Sí, recibí {{amount}}",
+      "confirmBack": "Regresar y corregir",
+      "tokenExpired": "La búsqueda ya caducó. Vuelve a buscar al cliente para cobrar.",
+      "invoicesChanged": "Las facturas del cliente cambiaron. Vuelve a buscarlo.",
+      "resellerInactive": "Tu punto de venta no puede cobrar por ahora. Comunícate con la empresa.",
+      "tooManyLookups": "Hiciste demasiadas búsquedas seguidas. Espera un momento y vuelve a intentar.",
+      "queryInvalid": "Escribe el número de cliente completo (por ejemplo 1234 o #1234) o el teléfono completo.",
+      "saving": "Registrando…"
+    },
+    "receipt": {
+      "title": "Comprobante de pago",
+      "notFound": "Este comprobante no existe o no es de tu punto de venta.",
+      "loadError": "No pudimos cargar el comprobante.",
+      "done": "Cobro de {{amount}} registrado.",
+      "reconnected": "El servicio del cliente ya se reactivó.",
+      "rfc": "RFC: {{rfc}}",
+      "phone": "Tel. {{phone}}",
+      "number": "Folio",
+      "date": "Fecha",
+      "collectedBy": "Cobró",
+      "cashier": "Atendió",
+      "client": "Cliente",
+      "invoice": "Factura",
+      "total": "Total pagado",
+      "method": "Forma de pago",
+      "methods": {
+        "cash": "Efectivo"
+      },
+      "remaining": "Saldo pendiente",
+      "print": "Imprimir",
+      "whatsapp": "Enviar por WhatsApp",
+      "newCollection": "Nuevo cobro",
+      "toCash": "Ir a Mi caja",
+      "waNumber": "Comprobante {{number}} · {{date}}",
+      "waClient": "Cliente #{{number}} {{name}}",
+      "waPaid": "Pagó en efectivo: {{amount}}",
+      "voided": "Este cobro fue anulado.",
+      "waRemaining": "Saldo pendiente: {{amount}}"
+    },
+    "cash": {
+      "title": "Mi caja",
+      "loadError": "No pudimos cargar tu caja.",
+      "listError": "No pudimos cargar los cobros de hoy.",
+      "openTitle": "Caja abierta",
+      "expected": "Debes tener",
+      "openSummary_one": "{{count}} cobro desde el {{date}}",
+      "openSummary_other": "{{count}} cobros desde el {{date}}",
+      "noOpen": "No tienes caja abierta. Se abre sola con tu primer cobro.",
+      "todayTitle": "Cobros de hoy",
+      "noCollections": "Todavía no has cobrado nada hoy.",
+      "receipt": "Comprobante",
+      "void": "Anular",
+      "voidReason": "¿Por qué lo anulas?",
+      "voidHelp": "Solo puedes anular cobros de hoy con la caja abierta. Devuélvele el efectivo al cliente.",
+      "reasonInvalid": "Escribe un motivo de 3 a 200 caracteres.",
+      "voidConfirm": "Anular cobro",
+      "voiding": "Anulando…",
+      "voidCancel": "No anular",
+      "voidError": "No pudimos anular el cobro.",
+      "voidAlready": "Este cobro ya estaba anulado.",
+      "voidWindowClosed": "Solo puedes anular cobros de hoy. Pide a la empresa que lo corrija.",
+      "voidSessionClosed": "La caja de este cobro ya está cerrada. Pide a la empresa que lo corrija.",
+      "voidNotYours": "Solo quien recibió este efectivo puede anular el cobro.",
+      "voidHasRep": "Este cobro ya se reportó al SAT con un complemento de pago. Pide a la empresa que lo cancele.",
+      "noOpenToClose": "No tienes una caja abierta para cerrar.",
+      "closeTitle": "Cerrar caja",
+      "closeHelp": "Cuenta el efectivo que tienes y escribe el total. Cerrar la caja no cambia lo que debes: eso baja cuando la empresa recibe tu efectivo.",
+      "counted": "Efectivo contado",
+      "difference": "Diferencia",
+      "varianceZero": "Cuadra exacto",
+      "varianceOver": "Sobran {{amount}}",
+      "varianceShort": "Faltan {{amount}}",
+      "notes": "Notas (opcional)",
+      "countedInvalid": "Escribe el efectivo contado: 0 o más, con hasta dos decimales.",
+      "close": "Cerrar caja",
+      "closeConfirm": "¿Cerrar la caja con {{amount}} contados? Ya no podrás anular sus cobros.",
+      "closeYes": "Sí, cerrar caja",
+      "closeBack": "Todavía no",
+      "closing": "Cerrando…",
+      "closeError": "No pudimos cerrar la caja.",
+      "closed": "Caja cerrada.",
+      "closedSummary": "Esperado {{expected}}, contado {{counted}}.",
+      "recentTitle": "Cajas anteriores",
+      "recentLine": "Esperado {{expected}} · contado {{counted}}"
+    },
+    "ledger": {
+      "title": "Movimientos",
+      "intro": "Cada cobro suma a lo que debes entregar a la empresa; cada entrega de efectivo lo baja.",
+      "loadError": "No pudimos cargar tus movimientos.",
+      "empty": "Todavía no hay movimientos.",
+      "limit": "Tu límite de efectivo",
+      "types": {
+        "collection": "Cobro",
+        "collection_void": "Cobro anulado",
+        "deposit": "Entrega de efectivo",
+        "adjustment": "Ajuste"
+      }
     }
   },
   "resellerForm": {
@@ -10052,7 +10210,12 @@
     "saving": "Guardando…",
     "saveError": "No se pudo guardar el revendedor.",
     "nameRequired": "El nombre es obligatorio.",
-    "rateInvalid": "La comisión debe ser un porcentaje de 0 a 100."
+    "rateInvalid": "La comisión debe ser un porcentaje de 0 a 100.",
+    "creditLimit": "Límite de efectivo",
+    "creditLimitDefault": "Predeterminado de la organización: {{amount}}",
+    "creditLimitDefaultUnknown": "Predeterminado de la organización",
+    "creditLimitHelp": "Cuánto efectivo cobrado puede tener este revendedor antes de entregarlo. Déjalo vacío para usar el predeterminado de la organización.",
+    "creditLimitInvalid": "El límite de efectivo es un monto de 0 o más con hasta dos decimales, o vacío para usar el predeterminado."
   },
   "resellerPlans": {
     "title": "Planes permitidos",
@@ -10097,5 +10260,47 @@
     "resellerFilterAll": "Todos los prospectos",
     "resellerBadge": "Revendedor: {{name}}",
     "resellerBadgeTitle": "Registrado por un revendedor en la app de revendedores"
+  },
+  "resellerLedger": {
+    "tab": "Movimientos",
+    "title": "Movimientos de efectivo",
+    "help": "El efectivo que un revendedor cobró a nombre de la empresa y el que ya entregó. Los sub-revendedores cobran en la cuenta de su revendedor principal.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Elige un revendedor —",
+    "loadError": "No se pudieron cargar los movimientos del revendedor.",
+    "summary": "Resumen",
+    "balance": "Efectivo por entregar",
+    "creditLimit": "Límite de efectivo",
+    "available": "Aún puede cobrar",
+    "viewPayments": "Ver los cobros de este revendedor",
+    "depositTitle": "Registrar entrega de efectivo",
+    "depositHelp": "El efectivo que el revendedor entregó a la empresa. Baja lo que debe y libera su límite.",
+    "depositAmount": "Monto recibido",
+    "depositSubmit": "Registrar entrega",
+    "depositSaved": "Entrega de efectivo de {{amount}} registrada.",
+    "depositInvalid": "Escribe un monto mayor a cero, con hasta dos decimales.",
+    "adjustmentTitle": "Ajuste",
+    "adjustmentHelp": "Una corrección a lo que debe el revendedor: un monto positivo lo sube y uno negativo lo baja. Explica el motivo en la nota.",
+    "adjustmentAmount": "Monto (+ o −)",
+    "adjustmentSubmit": "Registrar ajuste",
+    "adjustmentSaved": "Ajuste de {{amount}} registrado.",
+    "adjustmentInvalid": "Escribe un monto distinto de cero con hasta dos decimales; con signo menos baja el saldo.",
+    "noteOptional": "Nota (opcional)",
+    "noteRequiredLabel": "Nota (obligatoria)",
+    "noteRequired": "Un ajuste necesita una nota.",
+    "saving": "Guardando…",
+    "saveError": "No se pudo registrar el movimiento.",
+    "colDate": "Fecha",
+    "colType": "Tipo",
+    "colAmount": "Monto",
+    "colNote": "Nota",
+    "colPayment": "Pago",
+    "empty": "Todavía no hay movimientos.",
+    "types": {
+      "collection": "Cobro",
+      "collection_void": "Cobro anulado",
+      "deposit": "Entrega de efectivo",
+      "adjustment": "Ajuste"
+    }
   }
 }

@@ -124,7 +124,10 @@
     "readOnly": "Read only",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "wireguardPorts": "Endpoint: {{endpoint}} · NAS UDP {{nasPort}} · client UDP {{clientPort}}"
+    "wireguardPorts": "Endpoint: {{endpoint}} · NAS UDP {{nasPort}} · client UDP {{clientPort}}",
+    "keyLabels": {
+      "resellerDefaultCreditLimit": "Default cash limit for resellers"
+    }
   },
   "common": {
     "email": "Email",
@@ -1157,7 +1160,11 @@
     },
     "noPayments": "No payments found.",
     "loading": "Loading…",
-    "error": "Failed to load payments."
+    "error": "Failed to load payments.",
+    "resellerBadge": "Reseller: {{name}}",
+    "collectedByReseller": "Collected in cash by the reseller {{name}}",
+    "resellerFilter": "Collected by: {{name}}",
+    "clearResellerFilter": "Show all payments"
   },
   "recordPayment": {
     "title": "Record Payment",
@@ -9877,8 +9884,10 @@
     "nav": {
       "home": "Home",
       "clients": "Clients",
-      "newClient": "New client",
-      "leads": "Prospects"
+      "newClient": "New",
+      "leads": "Prospects",
+      "collect": "Collect",
+      "cash": "My cash"
     },
     "layout": {
       "title": "My point of sale",
@@ -9915,7 +9924,8 @@
       "overdue": "Overdue",
       "balanceDue": "Balance due",
       "overdueOnly": "Overdue only",
-      "showAll": "Show all"
+      "showAll": "Show all",
+      "leads": "Prospects"
     },
     "clientDetail": {
       "back": "← Back to clients",
@@ -9932,7 +9942,8 @@
       "invoices": "Recent invoices",
       "noInvoices": "No invoices yet.",
       "dueDate": "Due {{date}}",
-      "invoiceBalance": "Owes {{balance}} of {{total}}"
+      "invoiceBalance": "Owes {{balance}} of {{total}}",
+      "collect": "Collect a payment"
     },
     "newClient": {
       "title": "New client",
@@ -10028,11 +10039,158 @@
       "qualified": "Qualified",
       "proposal": "Proposal",
       "won": "Won",
-      "lost": "Lost"
+      "lost": "Lost",
+      "completed": "Collected",
+      "voided": "Voided",
+      "open": "Open",
+      "closed": "Closed",
+      "partial": "Partial"
     },
     "access": {
       "title": "No access to the point of sale app",
       "body": "Your account cannot use the point of sale app yet. Contact the company so they can give you access."
+    },
+    "money": {
+      "title": "Your cash",
+      "owe": "You must hand in",
+      "canCollect": "You can still collect",
+      "meterLabel": "Cash limit in use",
+      "meterText": "{{held}} of {{limit}}",
+      "limit": "Your cash limit: {{limit}}",
+      "atLimit": "You reached your limit: hand in the cash to keep collecting.",
+      "collectedToday": "Collected today",
+      "collect": "Collect a payment",
+      "viewCash": "See my cash box"
+    },
+    "collect": {
+      "title": "Collect",
+      "queryLabel": "Customer number or phone",
+      "queryPlaceholder": "e.g. 1234 or 5512345678",
+      "queryHelp": "Type the whole customer number or the whole phone number.",
+      "queryRequired": "Type a customer number or a phone number.",
+      "search": "Search",
+      "searching": "Searching…",
+      "lookupError": "The search failed. Try again.",
+      "noResults": "Nobody has that number. Check the customer number or the whole phone number.",
+      "results": "Results",
+      "own": "Your client",
+      "notOwn": "Company client",
+      "clientNumber": "Client #{{number}}",
+      "amountDue": "Balance due",
+      "invoices": "Invoices to pay",
+      "selectedTotal": "Selected",
+      "amount": "Amount received",
+      "amountHelp": "It starts as everything selected. You can collect less if the client pays only part.",
+      "available": "You can still collect {{available}}.",
+      "note": "Note (optional)",
+      "collectCash": "Collect {{amount}} in cash",
+      "searchAgain": "Look for another client",
+      "nothingDue": "This client has nothing to pay right now.",
+      "pickInvoice": "Choose at least one invoice.",
+      "amountInvalid": "Type an amount greater than zero, with up to two decimals.",
+      "amountTooHigh": "The amount cannot be more than the selected invoices ({{max}}).",
+      "limitReached": "This payment takes you over your cash limit. You can collect up to {{available}} more; hand in the cash to keep collecting.",
+      "limitReachedNoAmount": "You reached your cash limit: hand in the cash to keep collecting.",
+      "saveError": "The payment could not be recorded. Try again: it will not be charged twice.",
+      "confirmTitle": "Did you receive the cash?",
+      "confirmBody": "From {{name}} (client #{{number}}).",
+      "confirmYes": "Yes, I received {{amount}}",
+      "confirmBack": "Go back and fix it",
+      "tokenExpired": "This search expired. Look the client up again to collect.",
+      "invoicesChanged": "The client's invoices changed. Look the client up again.",
+      "resellerInactive": "Your point of sale cannot collect right now. Contact the company.",
+      "tooManyLookups": "Too many searches in a short time. Wait a moment and try again.",
+      "queryInvalid": "Type a whole customer number (e.g. 1234 or #1234) or a whole phone number.",
+      "saving": "Recording…"
+    },
+    "receipt": {
+      "title": "Payment receipt",
+      "notFound": "This receipt does not exist or is not from your point of sale.",
+      "loadError": "The receipt could not be loaded.",
+      "done": "Payment of {{amount}} recorded.",
+      "reconnected": "The client's service was reconnected.",
+      "rfc": "RFC: {{rfc}}",
+      "phone": "Tel. {{phone}}",
+      "number": "Receipt no.",
+      "date": "Date",
+      "collectedBy": "Collected by",
+      "cashier": "Served by",
+      "client": "Client",
+      "invoice": "Invoice",
+      "total": "Total paid",
+      "method": "Payment method",
+      "methods": {
+        "cash": "Cash"
+      },
+      "remaining": "Balance left",
+      "print": "Print",
+      "whatsapp": "Send by WhatsApp",
+      "newCollection": "New collection",
+      "toCash": "Go to my cash box",
+      "waNumber": "Receipt {{number}} · {{date}}",
+      "waClient": "Client #{{number}} {{name}}",
+      "waPaid": "Paid in cash: {{amount}}",
+      "voided": "This payment was voided.",
+      "waRemaining": "Balance left: {{amount}}"
+    },
+    "cash": {
+      "title": "My cash box",
+      "loadError": "Your cash box could not be loaded.",
+      "listError": "Today's payments could not be loaded.",
+      "openTitle": "Open cash box",
+      "expected": "You should have",
+      "openSummary_one": "{{count}} payment since {{date}}",
+      "openSummary_other": "{{count}} payments since {{date}}",
+      "noOpen": "No cash box is open. It opens by itself with your first payment.",
+      "todayTitle": "Today's payments",
+      "noCollections": "You have not collected anything today.",
+      "receipt": "Receipt",
+      "void": "Void",
+      "voidReason": "Why are you voiding it?",
+      "voidHelp": "Only payments of today in the open cash box can be voided. Give the cash back to the client.",
+      "reasonInvalid": "Write a reason of 3 to 200 characters.",
+      "voidConfirm": "Void payment",
+      "voiding": "Voiding…",
+      "voidCancel": "Keep it",
+      "voidError": "The payment could not be voided.",
+      "voidAlready": "This payment was already voided.",
+      "voidWindowClosed": "Only today's payments can be voided. Ask the company to correct it.",
+      "voidSessionClosed": "The cash box of this payment is already closed. Ask the company to correct it.",
+      "voidNotYours": "Only the person who took this cash can void it.",
+      "voidHasRep": "This payment is already reported to SAT with a payment complement. Ask the company to cancel it.",
+      "noOpenToClose": "There is no open cash box to close.",
+      "closeTitle": "Close cash box",
+      "closeHelp": "Count the cash you have and type the total. Closing does not change what you owe: that goes down when the company receives your cash.",
+      "counted": "Cash counted",
+      "difference": "Difference",
+      "varianceZero": "It matches",
+      "varianceOver": "{{amount}} over",
+      "varianceShort": "{{amount}} short",
+      "notes": "Notes (optional)",
+      "countedInvalid": "Type the cash counted: 0 or more, with up to two decimals.",
+      "close": "Close cash box",
+      "closeConfirm": "Close the cash box with {{amount}} counted? Its payments can no longer be voided.",
+      "closeYes": "Yes, close the cash box",
+      "closeBack": "Not yet",
+      "closing": "Closing…",
+      "closeError": "The cash box could not be closed.",
+      "closed": "Cash box closed.",
+      "closedSummary": "Expected {{expected}}, counted {{counted}}.",
+      "recentTitle": "Previous cash boxes",
+      "recentLine": "Expected {{expected}} · counted {{counted}}"
+    },
+    "ledger": {
+      "title": "Movements",
+      "intro": "Each payment you collect adds to what you hand in to the company; each cash hand-in lowers it.",
+      "loadError": "Your movements could not be loaded.",
+      "empty": "No movements yet.",
+      "limit": "Your cash limit",
+      "types": {
+        "collection": "Payment collected",
+        "collection_void": "Payment voided",
+        "deposit": "Cash handed in",
+        "adjustment": "Adjustment"
+      }
     }
   },
   "resellerForm": {
@@ -10058,7 +10216,12 @@
     "saving": "Saving…",
     "saveError": "The reseller could not be saved.",
     "nameRequired": "Name is required.",
-    "rateInvalid": "Commission must be a percentage from 0 to 100."
+    "rateInvalid": "Commission must be a percentage from 0 to 100.",
+    "creditLimit": "Cash limit",
+    "creditLimitDefault": "Organization default: {{amount}}",
+    "creditLimitDefaultUnknown": "Organization default",
+    "creditLimitHelp": "How much collected cash this reseller may hold before handing it in. Leave it blank to use the organization default.",
+    "creditLimitInvalid": "The cash limit is an amount of 0 or more with up to two decimals, or blank for the organization default."
   },
   "resellerPlans": {
     "title": "Allowed plans",
@@ -10103,5 +10266,47 @@
     "resellerFilterAll": "All leads",
     "resellerBadge": "Reseller: {{name}}",
     "resellerBadgeTitle": "Captured by a reseller in the reseller app"
+  },
+  "resellerLedger": {
+    "tab": "Movements",
+    "title": "Cash movements",
+    "help": "The cash a reseller collected for the company and the cash it handed in. Sub-resellers collect on their top-level reseller.",
+    "reseller": "Reseller",
+    "selectReseller": "— Choose a reseller —",
+    "loadError": "The reseller's movements could not be loaded.",
+    "summary": "Summary",
+    "balance": "Cash to hand in",
+    "creditLimit": "Cash limit",
+    "available": "Can still collect",
+    "viewPayments": "See this reseller's payments",
+    "depositTitle": "Record cash handed in",
+    "depositHelp": "The cash the reseller handed over to the company. It lowers what it owes and frees its limit.",
+    "depositAmount": "Amount received",
+    "depositSubmit": "Record hand-in",
+    "depositSaved": "Cash hand-in of {{amount}} recorded.",
+    "depositInvalid": "Type an amount greater than zero, with up to two decimals.",
+    "adjustmentTitle": "Adjustment",
+    "adjustmentHelp": "A correction to what the reseller owes: a positive amount raises it, a negative one lowers it. Explain why in the note.",
+    "adjustmentAmount": "Amount (+ or −)",
+    "adjustmentSubmit": "Record adjustment",
+    "adjustmentSaved": "Adjustment of {{amount}} recorded.",
+    "adjustmentInvalid": "Type a non-zero amount with up to two decimals; a minus sign lowers the balance.",
+    "noteOptional": "Note (optional)",
+    "noteRequiredLabel": "Note (required)",
+    "noteRequired": "An adjustment needs a note.",
+    "saving": "Saving…",
+    "saveError": "The movement could not be recorded.",
+    "colDate": "Date",
+    "colType": "Type",
+    "colAmount": "Amount",
+    "colNote": "Note",
+    "colPayment": "Payment",
+    "empty": "No movements yet.",
+    "types": {
+      "collection": "Collection",
+      "collection_void": "Voided collection",
+      "deposit": "Cash handed in",
+      "adjustment": "Adjustment"
+    }
   }
 }

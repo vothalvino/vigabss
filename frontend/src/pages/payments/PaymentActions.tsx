@@ -37,6 +37,9 @@ export interface Payment {
   status: string;
   payment_date: string | null;
   created_at: string;
+  /** Set when a reseller (Punto de Venta) collected it in the reseller app. */
+  reseller_id?: number | null;
+  reseller_name?: string | null;
 }
 
 export interface Client {

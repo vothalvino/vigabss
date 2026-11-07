@@ -106,6 +106,12 @@ const config = {
     emailSettingsTest: parseIntEnv('RATE_LIMIT_EMAIL_SETTINGS_TEST', 5),
     // POST /reseller-app/leads per reseller per window (lead sign-ups).
     resellerSignup: parseIntEnv('RATE_LIMIT_RESELLER_SIGNUP', 30),
+    // GET /reseller-app/collect/lookup per collecting reseller, per window
+    // and per 24 hours: an exact customer number or phone finds any
+    // subscriber of the ISP, and customer numbers are sequential, so a script
+    // must not be able to walk them.
+    resellerLookup: parseIntEnv('RATE_LIMIT_RESELLER_LOOKUP', 30),
+    resellerLookupDaily: parseIntEnv('RATE_LIMIT_RESELLER_LOOKUP_DAILY', 300),
     // Per-organization rolling-24h RECIPIENT-count budget for POST
     // /bulk/email (not a request count — one request already fans out to up
     // to 1000 recipients, so request-count alone under-protects against
