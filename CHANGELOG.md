@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.9 — 2026-11-07
+
 - **Reseller app, phase 1: resellers can sign up customers.** A reseller is
   now a *Punto de Venta*: a commission agent who signs up neighbours, while
   the ISP converts, signs the contract and installs. A user bound to a

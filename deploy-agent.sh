@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# VigaBSS 0.1.0-alpha.8 deploy agent — the privileged half of the "Update" button.
+# VigaBSS 0.1.0-alpha.9 deploy agent — the privileged half of the "Update" button.
 #
 # Runs on the HOST as root, outside Docker, on a systemd timer. Claims a pending
 # row from deploy_requests and runs redeploy.sh. That is the whole job.
