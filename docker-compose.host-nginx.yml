@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 0.1.0-alpha.8 — Host-Nginx Overlay
+# VigaBSS 0.1.0-alpha.9 — Host-Nginx Overlay
 # =============================================================================
 #
 # Use this overlay when a system-level (host) Nginx already owns port 80
