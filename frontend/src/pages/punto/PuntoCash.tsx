@@ -13,7 +13,11 @@
 //     change what the reseller owes: only the ISP recording a cash hand-in
 //     does;
 //   • the last closed sessions and the movements of the reseller's account
-//     (GET /reseller-app/ledger) with its balance and cash limit.
+//     (GET /reseller-app/ledger) with its balance, what its sealed cash bags
+//     hold, its cash on hand and cash limit; a bag's receipt (deposit) and
+//     count difference (adjustment) name the bag;
+//   • a link to Mis bolsas (/punto/bolsas) with reseller_app.bags.
+// The cash-box card is titled "Tu caja" and says whether one is open.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';
@@ -49,6 +53,7 @@ const VOID_REFUSALS: Record<string, string> = {
   CASH_SESSION_CLOSED: 'punto.cash.voidSessionClosed',
   NOT_YOUR_COLLECTION: 'punto.cash.voidNotYours',
   PAYMENT_HAS_REP: 'punto.cash.voidHasRep',
+  CASH_SEALED_IN_BAG: 'punto.cash.voidSealedInBag',
 };
 
 function Pager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
@@ -233,6 +238,8 @@ function Ledger({ currency }: { currency: string }) {
       {s && (
         <dl style={{ margin: '0 0 10px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px' }}>
           <dt>{t('punto.money.owe')}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{fmt(s.balance)}</dd>
+          {s.in_bags !== undefined && <><dt>{t('puntoBags.money.inBags')}</dt><dd style={{ margin: 0 }}>{fmt(s.in_bags)}</dd></>}
+          {s.in_bags !== undefined && <><dt>{t('puntoBags.money.cashOnHand')}</dt><dd style={{ margin: 0 }}>{fmt(s.cash_on_hand)}</dd></>}
           <dt>{t('punto.ledger.limit')}</dt><dd style={{ margin: 0 }}>{fmt(s.credit_limit)}</dd>
           <dt>{t('punto.money.canCollect')}</dt><dd style={{ margin: 0 }}>{fmt(Math.max(0, toNumber(s.available_to_collect)))}</dd>
         </dl>
@@ -247,6 +254,7 @@ function Ledger({ currency }: { currency: string }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{t(`punto.ledger.types.${e.entry_type}`, { defaultValue: e.entry_type })}</div>
                   <div style={mutedText}>{formatDateTime(e.created_at)}</div>
+                  {e.cash_bag_id ? <div style={mutedText}>{t('puntoBags.ledgerBag', { serial: e.cash_bag_serial || `#${e.cash_bag_id}` })}</div> : null}
                   {e.note && <div style={{ ...mutedText, overflowWrap: 'anywhere' }}>{e.note}</div>}
                 </div>
                 <strong style={{ color: LEDGER_TONE[e.entry_type] ?? 'var(--text-primary)', whiteSpace: 'nowrap' }}>
@@ -266,6 +274,7 @@ export function PuntoCash() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const canCollect = can(user, 'reseller_app.collect');
+  const canBags = can(user, 'reseller_app.bags');
   const currency = usePuntoCurrency();
   const [page, setPage] = useState(1);
   const [justClosed, setJustClosed] = useState<PuntoClosedSession | null>(null);
@@ -282,6 +291,7 @@ export function PuntoCash() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h1 style={{ ...pageTitle, margin: 0 }}>{t('punto.cash.title')}</h1>
+      {canBags && <Link to="/punto/bolsas" className="punto-btn-secondary">{t('puntoBags.fromCash')}</Link>}
 
       {session.isLoading && <LoadingState />}
       {session.isError && <ErrorState message={t('punto.cash.loadError')} onRetry={() => { void session.refetch(); }} />}
@@ -296,7 +306,10 @@ export function PuntoCash() {
       )}
       {session.data && (
         <section className="punto-card" aria-labelledby="punto-cash-open">
-          <h2 id="punto-cash-open" style={sectionTitle}>{t('punto.cash.openTitle')}</h2>
+          <div style={{ ...row, alignItems: 'center', marginBottom: 8 }}>
+            <h2 id="punto-cash-open" style={{ ...sectionTitle, margin: 0 }}>{t('punto.cash.boxTitle')}</h2>
+            <StatusChip status={current ? 'open' : 'closed'} />
+          </div>
           {current ? (
             <>
               <div className="punto-money-row">

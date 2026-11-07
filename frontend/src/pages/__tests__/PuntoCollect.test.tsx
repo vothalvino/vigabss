@@ -391,7 +391,8 @@ describe('Receipt', () => {
 describe('Mi caja', () => {
   it('shows the open cash box, today, previous boxes and the movements', async () => {
     renderAt('/punto/caja');
-    const open = await screen.findByRole('region', { name: 'Open cash box' });
+    const open = await screen.findByRole('region', { name: 'Your cash box' });
+    expect(open).toHaveTextContent('Open');
     expect(open).toHaveTextContent('$700.00');
     expect(open).toHaveTextContent('2 payments since');
     const today = screen.getByRole('region', { name: "Today's payments" });
@@ -448,6 +449,7 @@ describe('Mi caja', () => {
     ['PAYMENT_HAS_REP', 'This payment is already reported to SAT with a payment complement. Ask the company to cancel it.'],
     ['ALREADY_VOIDED', 'This payment was already voided.'],
     ['NOT_YOUR_COLLECTION', 'Only the person who took this cash can void it.'],
+    ['CASH_SEALED_IN_BAG', 'The cash of this payment is already sealed in a cash bag. Ask the company to correct it.'],
   ])('explains the %s refusal of a void in the reader\'s language', async (code, text) => {
     override = (path, init) => {
       if (path === '/reseller-app/payments/101/void' && init?.method === 'POST') {
@@ -502,6 +504,10 @@ describe('Mi caja', () => {
     override = (path) => (path === '/reseller-app/cash-session' ? { data: { current: null, recent: [] } } : undefined);
     renderAt('/punto/caja');
     expect(await screen.findByText('No cash box is open. It opens by itself with your first payment.')).toBeInTheDocument();
+    // The card is not titled "open" when no cash box is open.
+    const box = screen.getByRole('region', { name: 'Your cash box' });
+    expect(box).toHaveTextContent('Closed');
+    expect(box).not.toHaveTextContent('Open cash box');
     expect(screen.queryByRole('form', { name: 'Close cash box' })).not.toBeInTheDocument();
   });
 });

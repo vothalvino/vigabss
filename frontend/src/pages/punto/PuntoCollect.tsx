@@ -12,7 +12,8 @@
 // A subscriber who is not the reseller's own client arrives with a masked
 // name and no contact data. The server refuses a collection that would take
 // the reseller past its cash limit (409 CREDIT_LIMIT); the page says how much
-// it may still collect. Success opens the receipt.
+// it may still collect and, with an empty cash bag at hand, to fill it (that
+// frees the limit at once). Success opens the receipt.
 // =============================================================================
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -29,6 +30,7 @@ import {
   newIdempotencyKey, puntoKeys, toNumber,
   type PuntoCollectBody, type PuntoCollectResult, type PuntoCollectTarget, type PuntoOpenInvoice,
 } from './puntoApi';
+import { CreditLimitBagHint } from './PuntoBagsCard';
 import { Chip, StatusChip, errorText, mutedText, pageTitle, sectionTitle, useRefreshPuntoMoney, usePuntoCurrency } from './puntoUi';
 
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
@@ -166,10 +168,13 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
   const [amountEdited, setAmountEdited] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  // Set with a cash-limit refusal: the empty bags the reseller could fill.
+  const [limitBags, setLimitBags] = useState<number | null | undefined>(undefined);
   const [draft, setDraft] = useState<Draft | null>(null);
   const fmt = (v: number | string) => formatMoney(v, currency);
   const selectedTotal = sumBalances(invoices, selected);
   const available = me.data?.money ? Math.max(0, toNumber(me.data.money.available_to_collect)) : null;
+  const emptyBagsKnown = me.data?.money?.empty_bags === undefined ? null : toNumber(me.data.money.empty_bags);
 
   function toggle(id: number) {
     const next = new Set(selected);
@@ -193,10 +198,12 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
       const limit = creditLimitError(err);
       if (limit) {
         refreshMoney();
+        setLimitBags(limit.emptyBags ?? emptyBagsKnown);
         setError(limit.available === null
           ? t('punto.collect.limitReachedNoAmount')
           : t('punto.collect.limitReached', { available: fmt(limit.available) }));
       } else {
+        setLimitBags(undefined);
         setError(collectErrorText(err, t('punto.collect.saveError')));
       }
     },
@@ -205,12 +212,14 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
   function review(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setLimitBags(undefined);
     const raw = amount.trim();
     const value = Number(raw);
     if (selected.size === 0) { setError(t('punto.collect.pickInvoice')); return; }
     if (!AMOUNT.test(raw) || !(value > 0)) { setError(t('punto.collect.amountInvalid')); return; }
     if (cents(value) > cents(selectedTotal)) { setError(t('punto.collect.amountTooHigh', { max: fmt(selectedTotal) })); return; }
     if (available !== null && cents(value) > cents(available)) {
+      setLimitBags(emptyBagsKnown);
       setError(available <= 0 ? t('punto.collect.limitReachedNoAmount') : t('punto.collect.limitReached', { available: fmt(available) }));
       return;
     }
@@ -236,10 +245,11 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
         <div className="punto-amount-big">{fmt(draft.amount)}</div>
         <p style={{ margin: 0 }}>{t('punto.collect.confirmBody', { name: target.name, number: target.client_number })}</p>
         {error && <p role="alert" style={{ ...errorText, textAlign: 'left' }}>{error}</p>}
+        {error && limitBags !== undefined && <CreditLimitBagHint emptyBags={limitBags} />}
         <button type="button" className="punto-btn-primary" disabled={pay.isPending} onClick={() => { setError(''); pay.mutate(draft); }}>
           {pay.isPending ? t('punto.collect.saving') : t('punto.collect.confirmYes', { amount: fmt(draft.amount) })}
         </button>
-        <button type="button" className="punto-btn-secondary" disabled={pay.isPending} onClick={() => { setDraft(null); setError(''); }}>
+        <button type="button" className="punto-btn-secondary" disabled={pay.isPending} onClick={() => { setDraft(null); setError(''); setLimitBags(undefined); }}>
           {t('punto.collect.confirmBack')}
         </button>
       </section>
@@ -295,6 +305,7 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
       </div>
 
       {error && <p role="alert" style={errorText}>{error}</p>}
+      {error && limitBags !== undefined && <CreditLimitBagHint emptyBags={limitBags} />}
       <button type="submit" className="punto-btn-primary">
         {t('punto.collect.collectCash', { amount: fmt(Number.isFinite(value) && value > 0 ? value : 0) })}
       </button>

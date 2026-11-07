@@ -147,6 +147,8 @@ const PATH_PARAMS = {
   '/reseller-app/leads/:id': 'leads',
   '/reseller-app/collect/client/:id': 'clients',
   '/reseller-app/payments/:id': 'payments',
+  '/cash-bags/:id': 'cash_bags',
+  '/carriers/:userId': 'users',
   '/support/kb/:id': 'kb_articles',
   '/support/channels/:channel': { table: 'support_channel_configs', column: 'channel' },
   '/wg-peers/:id': 'wg_user_peers',

@@ -319,6 +319,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/security-access-control', labelKey: 'nav.securityAccessControl', section: 'admin', guard: 'admin', card: 'peopleAccess', viewPermissions: ['webauthn.view', 'password_policy.view', 'admin_ip_allowlist.view'] },
   { path: '/api-tokens', labelKey: 'nav.apiTokens', section: 'admin', guard: 'admin', card: 'peopleAccess', viewPermissions: ['api_tokens.view'] },
   { path: '/resellers', labelKey: 'nav.resellers', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['resellers.view'] },
+  { path: '/cash-bags', keywords: ['bolsas', 'efectivo', 'transportista', 'recoleccion'], labelKey: 'nav.cashBags', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['cash_bags.view', 'carriers.manage'] },
   { path: '/sla-definitions', labelKey: 'nav.slaDefinitions', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['sla_definitions.view'] },
   { path: '/scheduled-tasks', labelKey: 'nav.scheduledTasks', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['scheduled_tasks.view'] },
   { path: '/queue-stats', labelKey: 'nav.queueStats', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['settings.view'] },

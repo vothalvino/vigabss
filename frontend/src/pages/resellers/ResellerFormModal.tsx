@@ -34,6 +34,11 @@ export interface ResellerFormInitial {
   /** The reseller's own cash limit; null means the organization default. */
   credit_limit?: number | string | null;
   effective_credit_limit?: number | string | null;
+  /** Where the carrier goes (migration 005). */
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 
 export interface ResellerBody {
@@ -46,10 +51,16 @@ export interface ResellerBody {
   status: string;
   notes?: string;
   credit_limit?: number | null;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const ORG_DEFAULT_KEY = 'reseller_default_credit_limit';
 const MONEY = /^\d+(\.\d{1,2})?$/;
+const COORD = /^-?\d{1,3}(\.\d{1,7})?$/;
+const coordText = (v: number | string | null | undefined) => (v === null || v === undefined || v === '' ? '' : String(Number(v)));
 
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
 
@@ -74,6 +85,10 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
     status: initial?.status ?? 'active',
     notes: initial?.notes ?? '',
     credit_limit: initialLimit,
+    address: initial?.address ?? '',
+    city: initial?.city ?? '',
+    latitude: coordText(initial?.latitude),
+    longitude: coordText(initial?.longitude),
   });
   const [parents, setParents] = useState<{ id: number; name: string }[]>([]);
   // The organization default, for the placeholder of a blank cash limit. A
@@ -127,7 +142,23 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       setError(t('resellerForm.creditLimitInvalid'));
       return;
     }
+    const lat = form.latitude.trim();
+    const lng = form.longitude.trim();
+    if ((lat === '') !== (lng === '')
+      || (lat !== '' && (!COORD.test(lat) || Math.abs(Number(lat)) > 90 || !COORD.test(lng) || Math.abs(Number(lng)) > 180))) {
+      setError(t('resellerForm.coordinatesInvalid'));
+      return;
+    }
     const body: ResellerBody = { name, commission_rate: rate, status: form.status };
+    // An edit sends a cleared location as null so the server clears it (the
+    // carrier is no longer sent there); a create leaves blanks out.
+    if (lat !== '') { body.latitude = Number(lat); body.longitude = Number(lng); }
+    else if (mode === 'edit' && coordText(initial?.latitude) !== '') { body.latitude = null; body.longitude = null; }
+    for (const key of ['address', 'city'] as const) {
+      const value = form[key].trim();
+      if (value) body[key] = value;
+      else if (mode === 'edit' && (initial?.[key] ?? '') !== '') body[key] = null;
+    }
     // Blank means the organization default: left out on a create, null on an
     // edit that clears an own limit.
     if (limit !== '') body.credit_limit = Number(limit);
@@ -201,6 +232,22 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
           placeholder={orgDefault !== null ? t('resellerForm.creditLimitDefault', { amount: formatMoney(orgDefault, user?.organization_currency) }) : t('resellerForm.creditLimitDefaultUnknown')}
         />
         <p id="rf-credit-limit-help" style={{ ...labelStyle, fontWeight: 400, marginTop: 4 }}>{t('resellerForm.creditLimitHelp')}</p>
+
+        <label style={labelStyle} htmlFor="rf-address">{t('resellerForm.address')}</label>
+        <input id="rf-address" style={inputStyle} maxLength={255} value={form.address} onChange={set('address')} aria-describedby="rf-location-help" />
+        <label style={labelStyle} htmlFor="rf-city">{t('resellerForm.city')}</label>
+        <input id="rf-city" style={inputStyle} maxLength={100} value={form.city} onChange={set('city')} />
+        <div style={twoCol}>
+          <div>
+            <label style={labelStyle} htmlFor="rf-latitude">{t('resellerForm.latitude')}</label>
+            <input id="rf-latitude" inputMode="decimal" style={inputStyle} value={form.latitude} onChange={set('latitude')} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="rf-longitude">{t('resellerForm.longitude')}</label>
+            <input id="rf-longitude" inputMode="decimal" style={inputStyle} value={form.longitude} onChange={set('longitude')} />
+          </div>
+        </div>
+        <p id="rf-location-help" style={{ ...labelStyle, fontWeight: 400, marginTop: 4 }}>{t('resellerForm.locationHelp')}</p>
 
         <label style={labelStyle} htmlFor="rf-notes">{t('resellerForm.notes')}</label>
         <textarea id="rf-notes" rows={3} style={inputStyle} value={form.notes} onChange={set('notes')} />

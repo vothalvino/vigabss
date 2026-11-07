@@ -96,6 +96,24 @@ async function resellerBound({ userId, orgId, apiTokenId, hasGlobalOrganizationA
 }
 
 /**
+ * True when the principal is a carrier (the seeded 'carrier' user group,
+ * services/carrierAccount.js). A carrier works only in the carrier app: the
+ * HTTP fence refuses it the rest of the v1 API, and the real-time feeds carry
+ * organization-wide events, so it gets none. `groupId` is the user's
+ * users.group_id when the caller has the row; without it the user is looked
+ * up. Skipped like resellerBound for query-only test doubles.
+ */
+async function carrierAccount({ userId, groupId, apiTokenId, hasGlobalOrganizationAccess }) {
+  const resellerScope = require('../middleware/resellerScope');
+  const carriers = require('./carrierAccount');
+  if (!userId || !resellerScope.requestBindingChecksAvailable()) return false;
+  if (hasGlobalOrganizationAccess && !apiTokenId) return false;
+  if (groupId === null) return false;
+  if (groupId !== undefined) return carriers.isCarrierGroup(groupId);
+  return carriers.isCarrierUser(userId);
+}
+
+/**
  * Is the principal behind a long-lived subscription still allowed in?
  * Users must still be active with the same token version; API tokens must
  * still be unrevoked and unexpired. With `orgId`, a principal that has since
@@ -117,10 +135,12 @@ async function stillAuthorized({ userId, tokenVersion, apiTokenId, orgId, hasGlo
   if (!user || user.status !== 'active') return false;
   if (!apiTokenId && tokenVersionStale(tokenVersion, user.token_version)) return false;
   if (orgId && await resellerBound({ userId, orgId, apiTokenId, hasGlobalOrganizationAccess })) return false;
+  // A user moved into the carrier group since the stream opened is out too.
+  if (await carrierAccount({ userId, apiTokenId, hasGlobalOrganizationAccess })) return false;
   return true;
 }
 
 module.exports = {
   EVENT_PERMISSIONS, CHANNEL_PERMISSIONS, REVALIDATE_MS,
-  eventPermission, resolveGrants, mayReceive, mayJoinChannel, stillAuthorized, resellerBound,
+  eventPermission, resolveGrants, mayReceive, mayJoinChannel, stillAuthorized, resellerBound, carrierAccount,
 };

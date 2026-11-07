@@ -24,6 +24,8 @@ const {
   isSuperAdminUser,
 } = require('../services/globalOrganizationAccess');
 const { isInstallOperator, isInstallOperatorUser } = require('../services/installOperator');
+const { isCarrierGroup } = require('../services/carrierAccount');
+const { lookupBinding } = require('../middleware/resellerScope');
 
 const router = Router();
 
@@ -38,6 +40,30 @@ async function assertCanManageGlobalIdentity(req, target) {
     throw new ForbiddenError(
       'Only the install operator or a super administrator can archive or restore a super administrator account.',
     );
+  }
+}
+
+/**
+ * A user is never both a reseller login and a carrier (migration 005): the
+ * fence would refuse it both apps. PUT /resellers/:id/users/:userId refuses
+ * to bind a carrier; this is the other direction, refusing the carrier group
+ * to a user bound to a reseller in its home organization or any organization
+ * it belongs to (the binding lives beside `resellers`, in each
+ * organization's own database).
+ */
+async function assertCarrierNotResellerBound(target, groupId) {
+  if (!target || groupId === undefined || groupId === null) return;
+  if (!(await isCarrierGroup(groupId))) return;
+  const orgIds = new Set();
+  if (target.organization_id) orgIds.add(Number(target.organization_id));
+  for (const org of (await User.getOrganizations(target.id)) || []) orgIds.add(Number(org.id));
+  for (const orgId of orgIds) {
+    if (!Number.isInteger(orgId) || orgId < 1) continue;
+    if (await lookupBinding(target.id, orgId)) {
+      throw new ValidationError(
+        'This user is a reseller (Punto de Venta) login and cannot also be a carrier; unbind it from its reseller first',
+      );
+    }
   }
 }
 
@@ -100,6 +126,7 @@ const ctrl = crudController(User, {
     // Global identities are intentionally visible in every organization, but
     // visibility must not let an ordinary tenant administrator rewrite one.
     await assertCanManageGlobalIdentity(req, old);
+    await assertCarrierNotResellerBound(old, req.body?.group_id);
     // Resolve the group_id ↔ legacy-role mirror on the incoming body (throws
     // 422 for a missing/deleted group or one without a kind).
     await User.resolveGroupMirror(req.body);
@@ -181,6 +208,7 @@ router.patch('/:id/group',
 
       const data = { group_id: req.body.group_id };
       await User.resolveGroupMirror(data); // validates the group, derives the role mirror
+      await assertCarrierNotResellerBound(target, data.group_id);
 
       const db = require('../config/database');
       // Re-assert deleted_at IS NOT NULL in the WRITE (not just the earlier

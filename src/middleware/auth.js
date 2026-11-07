@@ -13,6 +13,7 @@ const { resolveOrgPrincipal } = require('../services/orgPrincipalService');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const { UnauthorizedError, AppError } = require('../utils/errors');
 const { bearerToken } = require('../utils/bearerToken');
+const { attachGroupId } = require('../services/carrierAccount');
 
 /**
  * Authenticate via API token (X-API-Key header).
@@ -36,7 +37,7 @@ async function authenticateApiToken(req) {
             akrl.requests_per_minute, akrl.requests_per_hour,
             akrl.requests_per_day, akrl.burst_size,
             akrl.is_active AS rate_limit_policy_active,
-            u.email, u.role, u.status,
+            u.email, u.role, u.status, u.group_id AS user_group_id,
             u.organization_id AS user_home_organization_id,
             u.is_install_operator
        FROM api_tokens at
@@ -119,6 +120,8 @@ async function authenticateApiToken(req) {
     scopesSqlNull: Boolean(token.scopes_sql_null),
     apiTokenRateLimitPolicy,
   };
+  // The owner's user group, for the carrier fence (services/carrierAccount.js).
+  attachGroupId(req.user, token.user_group_id ?? null);
 
   return true;
 }
@@ -187,6 +190,8 @@ async function authenticate(req, _res, next) {
       isSuperAdmin: principal.isSuperAdmin,
       hasGlobalOrganizationAccess: principal.hasGlobalOrganizationAccess,
     };
+    // The user group, for the carrier fence (services/carrierAccount.js).
+    attachGroupId(req.user, user.group_id ?? null);
 
     // An account that must replace its password (the installer-created
     // administrator) may only read its profile, change the password, or log

@@ -11,8 +11,10 @@
 // and loses the reseller administration views (resellers.view and the plan
 // price, commission, IP pool, bandwidth quota, OLT port and billing entity
 // views). Migration 004 adds reseller_app.collect (cash collection); the
-// reseller ledger permissions go to admin only. This replays the baseline
-// grants and every later migration's grants and revocations.
+// reseller ledger permissions go to admin only. Migration 005 adds
+// reseller_app.bags (sealing cash bags); the cash bag and carrier
+// administration stays with admin (tests/carrierGrants.test.js). This replays
+// the baseline grants and every later migration's grants and revocations.
 // =============================================================================
 'use strict';
 
@@ -60,9 +62,11 @@ test('after the migrations, reseller_admin holds no organization-wide permission
   expect(held.filter((name) => !ALLOWED.test(name)).sort()).toEqual([]);
   // It still works as a reseller role.
   expect(held).toEqual(expect.arrayContaining([
-    'reseller_app.use', 'reseller_app.signup', 'reseller_app.collect',
+    'reseller_app.use', 'reseller_app.signup', 'reseller_app.collect', 'reseller_app.bags',
     'reseller_portal.dashboard', 'reseller_portal.manage_customers',
   ]));
+  // Cash bags are received, voided and handed out by the ISP only.
+  expect(held.filter((name) => /^(?:cash_bags|carriers|carrier_app)\./.test(name))).toEqual([]);
   expect(held).not.toContain('resellers.view');
   // What a reseller owes is the ISP's record: never the reseller's to edit.
   expect(held).not.toContain('reseller_ledger.view');
