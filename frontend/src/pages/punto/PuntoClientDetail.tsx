@@ -17,6 +17,7 @@ import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { fetchPuntoClient, puntoKeys, toNumber } from './puntoApi';
 import { StatusChip, mutedText, pageTitle, usePuntoCurrency } from './puntoUi';
+import { ReportFault } from './PuntoSupport';
 
 const sectionTitle = { margin: '0 0 8px', fontSize: '1rem', fontWeight: 700 } as const;
 const row = { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' } as const;
@@ -26,6 +27,7 @@ export function PuntoClientDetail() {
   const currency = usePuntoCurrency();
   const { user } = useAuth();
   const canCollect = can(user, 'reseller_app.collect');
+  const canReport = can(user, 'reseller_app.tickets');
   const id = Number(useParams().id);
   const valid = Number.isInteger(id) && id > 0;
   const q = useQuery({ queryKey: puntoKeys.client(id), queryFn: () => fetchPuntoClient(id), enabled: valid });
@@ -106,6 +108,8 @@ export function PuntoClientDetail() {
           </ul>
         )}
       </section>
+
+      {canReport && <ReportFault clientId={c.id} />}
     </div>
   );
 }

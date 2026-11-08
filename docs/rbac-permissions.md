@@ -148,6 +148,7 @@ The `reseller_admin` group is for staff users bound to a reseller
 | `reseller_app.collect` | Collect cash from subscribers in the reseller app, void a same-day collection and close the cash box (migration 004) |
 | `reseller_app.bags` | See the reseller's cash bags and seal one with the cash it holds (migration 005) |
 | `reseller_app.statements` | See the reseller's approved and settled statements and their PDF (migration 008) |
+| `reseller_app.tickets` | Report a fault for a client of its subtree and follow its status (migration 009) |
 | `reseller_portal.*` | Reseller portal reads (dashboard, clients, invoices, inventory), confined to the reseller's subtree |
 | `webauthn.*` | The user's own passkeys |
 
@@ -212,6 +213,20 @@ would need a destructive migration). A payout is recorded with
 
 The staff statement routes are org-level only, whatever the bound user's
 group holds.
+
+### Reportar falla and the remote signing link (migration 009)
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `reseller_app.tickets` | `reseller_admin`, `admin` | Report a fault for a client of the subtree (`POST /reseller-app/tickets`) and list the subtree's reports (`GET /reseller-app/tickets`); the routes still refuse an unbound user |
+
+No other new permission. Staff send or copy a remote signing link with
+`signed_documents.create` (`POST /service-orders/:id/signing-links`, `/revoke`)
+and list them with `signed_documents.view`. A reseller asks the ISP to send its
+lead's customer the link with `reseller_app.signup`
+(`POST /reseller-app/leads/:id/signing-link`) and never receives it. The
+public signing routes (`/public/signing/:token`) have no session: the token is
+the credential (`src/middleware/v1DefaultDeny.js`).
 
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with

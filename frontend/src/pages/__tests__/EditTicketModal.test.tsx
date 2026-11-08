@@ -31,6 +31,7 @@ const ticket: TicketRow = {
   category: 'technical',
   status: 'open',
   source: 'manual',
+  reseller_id: null,
   notes: null,
   resolved_at: null,
   created_at: '2026-07-01T00:00:00Z',

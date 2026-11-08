@@ -11,6 +11,7 @@ const product = require('../product');
 const { tableRowSchema } = require('./tableRowSchema');
 const { cashBagPaths } = require('./openapiCashBags');
 const { settlementPaths } = require('./openapiSettlements');
+const { supportPaths } = require('./openapiSupport');
 
 /**
  * Build OpenAPI spec from routes and schema files.
@@ -3427,6 +3428,9 @@ function generateSpec() {
 
       // ---- Reseller program, phase 5: statements and settlement ----
       ...settlementPaths({ ledgerEntrySchema: resellerLedgerEntrySchema, ledgerSummarySchema: resellerLedgerSummarySchema }),
+
+      // ---- Reseller program, phase 5b: "Reportar falla" and the remote signing link ----
+      ...supportPaths(),
 
       // ---- §20.2 Integration Providers ----
       '/integrations/providers': {

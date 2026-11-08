@@ -25,6 +25,8 @@ const PUBLIC_V1_ROUTES = [
   ['GET', /^\/firerelay\/health$/, 'relay agents: requireRelayToken'],
   ['*', /^\/sso\/[^/]+\/(saml|oidc)\//, 'SSO browser flow before a session exists'],
   ['GET', /^\/changelog$/, 'public release notes'],
+  ['GET', /^\/public\/signing\/[^/]{1,80}$/, 'remote signing: the link token is the credential (documentSigningLinkService)'],
+  ['POST', /^\/public\/signing\/[^/]{1,80}\/documents\/[^/]{1,20}\/sign$/, 'remote signing: the link token is the credential (documentSigningLinkService)'],
 ];
 
 function isPublicV1Route(method, path) {

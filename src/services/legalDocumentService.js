@@ -510,6 +510,9 @@ async function sign(documentId, {
   communicationChoicesConfirmed,
   privacyNoticeVersion,
   privacyNoticeHash,
+  // The remote signing link the customer signed through (migration 009);
+  // recorded beside the evidence, not in its digest.
+  signingLinkId = null,
 }) {
   if (!signerName || !String(signerName).trim()) {
     throw new ValidationError('signer_name is required');
@@ -781,7 +784,7 @@ async function sign(documentId, {
     });
     const updateParams = [
       normalizedSignerName, signatureImage, signedAt, signedIp || null,
-      performedBy || null, communicationChoicesJson, evidenceSha256,
+      performedBy || null, communicationChoicesJson, evidenceSha256, signingLinkId || null,
       documentId, doc.content_sha256,
     ];
     let updateOrg = 'organization_id IS NULL';
@@ -794,7 +797,7 @@ async function sign(documentId, {
           SET status = 'signed', signer_name = ?, signature_image = ?,
               signed_at = ?, signed_ip = ?, captured_by = ?,
               communication_choices = ?, evidence_sha256 = ?,
-              evidence_format_version = 3
+              evidence_format_version = 3, signing_link_id = ?
         WHERE id = ? AND content_sha256 = ? AND ${updateOrg}
           AND status = 'pending' AND deleted_at IS NULL`,
       updateParams,

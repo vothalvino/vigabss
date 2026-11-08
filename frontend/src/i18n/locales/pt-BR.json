@@ -9408,6 +9408,7 @@
       "text": "  ·  "
     },
     "ticketDetail": {
+      "sourceReseller": "Relatado por um ponto de venda",
       "actions": "Ações",
       "status": "Status",
       "assignedTo": "Atribuído a",
@@ -9876,6 +9877,56 @@
     "downloadError": "Não foi possível baixar o PDF. Tente novamente."
   },
   "punto": {
+    "fault": {
+      "title": "Relatar falha",
+      "open": "Relatar falha",
+      "help": "Descreva o que o cliente relata. Vai para a equipe de suporte da empresa.",
+      "subject": "O que acontece",
+      "description": "Detalhes (desde quando, luzes do equipamento…)",
+      "submit": "Enviar relato",
+      "sending": "Enviando…",
+      "cancel": "Cancelar",
+      "sent": "Relato enviado. Você pode acompanhá-lo aqui.",
+      "subjectRequired": "Escreva o que acontece (pelo menos 3 caracteres).",
+      "descriptionRequired": "Adicione alguns detalhes (pelo menos 5 caracteres).",
+      "error": "Não conseguimos enviar o relato.",
+      "tooMany": "Relatos demais hoje. Tente amanhã.",
+      "loadError": "Não conseguimos carregar os relatos.",
+      "reportedOn": "#{{id}} · {{date}}",
+      "status": {
+        "open": "Aberto",
+        "in_progress": "Em andamento",
+        "waiting": "Em espera",
+        "resolved": "Resolvido",
+        "closed": "Fechado"
+      }
+    },
+    "signing": {
+      "open": "Assinatura do contrato",
+      "title": "Assinatura do contrato",
+      "loadError": "Não conseguimos carregar o status da assinatura.",
+      "state": {
+        "no_installation": "A empresa ainda não agendou a instalação.",
+        "not_started": "A instalação ainda não começou; os documentos estarão prontos então.",
+        "pending": "{{pending}} documento(s) para assinar, {{signed}} assinado(s).",
+        "signed": "Todos os documentos estão assinados.",
+        "installed": "A instalação foi concluída."
+      },
+      "lastSent": "Link enviado para {{destination}} em {{date}}.",
+      "lastCompleted": "O cliente assinou pelo link.",
+      "opened": "O cliente já abriu.",
+      "help": "A empresa envia ao cliente um link para assinar pelo próprio telefone. Você nunca vê o link.",
+      "byEmail": "Enviar por e-mail",
+      "bySms": "Enviar por SMS",
+      "noContact": "O cliente não tem e-mail nem telefone cadastrados.",
+      "sent": "A empresa enviou o link para {{destination}}.",
+      "blocked": "Não enviado: as mensagens do cliente estão bloqueadas.",
+      "noEmail": "O cliente não tem e-mail cadastrado.",
+      "noPhone": "O cliente não tem telefone cadastrado.",
+      "notStarted": "A instalação ainda não começou.",
+      "nothingPending": "Não há mais nada para assinar.",
+      "error": "Não conseguimos enviar o link."
+    },
     "statements": {
       "title": "Extratos",
       "intro": "Todo mês a empresa fecha sua conta em um extrato. Aqui estão os aprovados, para baixar.",
@@ -10437,6 +10488,76 @@
       "notDraft": "Só um rascunho pode ser alterado.",
       "notApproved": "Só um extrato aprovado pode ser liquidado.",
       "bothDates": "Escreva as duas datas, ou nenhuma para o mês passado."
+    }
+  },
+  "publicSigning": {
+    "hello": "Olá, {{name}}",
+    "helloNoName": "Olá",
+    "intro": "Leia e assine os documentos da sua instalação de internet. Sem pressa: cada um abre completo antes de assinar.",
+    "status": {
+      "signed": "Assinado",
+      "pending": "Para assinar",
+      "waiting": "Quando o técnico chegar"
+    },
+    "waitingHelp": "Você poderá assinar este quando o técnico tiver iniciado a sua instalação.",
+    "readAndSign": "Ler e assinar",
+    "name": "Seu nome completo",
+    "signHere": "Assine aqui com o dedo",
+    "accept": "Li este documento e aceito assiná-lo.",
+    "sign": "Assinar",
+    "signing": "Assinando…",
+    "signed": "\"{{title}}\" foi assinado.",
+    "nameRequired": "Escreva seu nome completo.",
+    "signatureRequired": "Desenhe sua assinatura.",
+    "choicesRequired": "Revise as mensagens opcionais e confirme suas escolhas.",
+    "acceptRequired": "Confirme que leu o documento e aceita assiná-lo.",
+    "signError": "Não conseguimos salvar sua assinatura. Tente de novo.",
+    "footer": "Este link é pessoal. Se você não pediu um serviço de internet, feche esta página.",
+    "allDone": {
+      "title": "Pronto",
+      "body": "Você assinou todos os documentos. Obrigado!"
+    },
+    "problem": {
+      "expired": {
+        "title": "Este link expirou",
+        "body": "Peça um novo link ao seu provedor."
+      },
+      "revoked": {
+        "title": "Este link foi substituído",
+        "body": "Seu provedor enviou um link mais recente. Use esse."
+      },
+      "completed": {
+        "title": "Já assinado",
+        "body": "Todos os documentos deste link estão assinados. Não há mais nada a fazer."
+      },
+      "notFound": {
+        "title": "Link não encontrado",
+        "body": "Confira se abriu o link completo, ou peça um novo ao seu provedor."
+      },
+      "loadError": {
+        "title": "Não conseguimos abrir os documentos",
+        "body": "Verifique sua conexão e tente de novo."
+      }
+    }
+  },
+  "signingLink": {
+    "label": "Link de assinatura para o cliente:",
+    "email": "E-mail",
+    "sms": "SMS",
+    "copy": "Copiar link",
+    "urlLabel": "Link de assinatura",
+    "copyButton": "Copiar",
+    "copied": "Copiado",
+    "copyHelp": "Entregue apenas ao cliente. Substitui os links anteriores e expira em 72 horas.",
+    "sent": "Link enviado para {{destination}}.",
+    "blocked": "Não enviado: as mensagens do cliente estão bloqueadas ({{code}}).",
+    "errors": {
+      "noEmail": "O cliente não tem e-mail cadastrado.",
+      "noPhone": "O cliente não tem telefone cadastrado.",
+      "notSignable": "Os documentos são assinados enquanto a instalação está em andamento.",
+      "nothingPending": "Não há mais nada para assinar.",
+      "notQueued": "Não foi possível enfileirar a mensagem; nada foi enviado.",
+      "generic": "Não foi possível criar o link."
     }
   },
   "resellerCommissions": {

@@ -616,9 +616,8 @@ describe('migration 008', () => {
   const file = path.join(__dirname, '..', 'database', 'migrations', '008_reseller_settlements.sql');
   const sql = fs.readFileSync(file, 'utf8');
 
-  test('is the latest migration, with a rollback of the same name', () => {
-    const files = fs.readdirSync(path.dirname(file)).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe('008_reseller_settlements.sql');
+  test('exists, with a rollback of the same name', () => {
+    expect(fs.existsSync(file)).toBe(true);
     expect(fs.existsSync(path.join(__dirname, '..', 'database', 'rollbacks', '008_reseller_settlements.sql'))).toBe(true);
   });
 

@@ -27,6 +27,7 @@ jest.mock('../src/middleware/rbac', () => ({
 }));
 jest.mock('../src/middleware/rateLimit', () => ({
   acsLimiter: (_req, _res, next) => next(),
+  publicLimiter: (_req, _res, next) => next(),
   apiLimiter:   (_q, _r, next) => next(),
   sessionLimiter: (_q, _r, next) => next(),
   portalSessionLimiter: (_q, _r, next) => next(),

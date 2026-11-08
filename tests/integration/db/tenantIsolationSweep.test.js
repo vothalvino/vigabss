@@ -149,6 +149,10 @@ const PATH_PARAMS = {
   '/reseller-app/payments/:id': 'payments',
   '/reseller-app/statements/:sid': 'reseller_settlements',
   '/resellers/:id/settlements/:sid': 'reseller_settlements',
+  // No session: a token (organization id prefix) is the credential; one that
+  // names no link of the organization answers 404.
+  '/public/signing/:token': { value: '1-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+  '/public/signing/:token/documents/:docId': 'signed_documents',
   '/cash-bags/:id': 'cash_bags',
   '/carriers/:userId': 'users',
   '/support/kb/:id': 'kb_articles',
