@@ -1,7 +1,7 @@
 {
   "name": "VigaBSS Alpha Customer Portal",
   "short_name": "VigaBSS Alpha",
-  "description": "VigaBSS 0.1.0-alpha.13 — manage your internet service, invoices, support, usage, and more.",
+  "description": "VigaBSS 0.1.0-alpha.14 — manage your internet service, invoices, support, usage, and more.",
   "start_url": "/portal",
   "display": "standalone",
   "background_color": "#f7f8fa",

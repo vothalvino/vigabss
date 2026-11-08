@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# VigaBSS 0.1.0-alpha.13 production redeploy: update to the newest release (or
+# VigaBSS 0.1.0-alpha.14 production redeploy: update to the newest release (or
 # main), pull the matching image, migrate, verify — as one command, from any
 # directory.
 #
@@ -716,7 +716,7 @@ if [[ -n "${1:-$PINNED_ENV_TAG}" ]]; then
 error: refusing to start an application version that predates the release
 baseline (database/migrations/001_baseline.sql).
 
-Development builds before v0.1.0-alpha.13 used a different migration history,
+Development builds before v0.1.0-alpha.14 used a different migration history,
 and their schema checks do not recognise a baseline database. Roll back only
 to a tagged release.
 EOF
