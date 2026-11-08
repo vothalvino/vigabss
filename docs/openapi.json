@@ -72218,6 +72218,3958 @@
         }
       }
     },
+    "/resellers/{id}/settlements": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "A top-level reseller's statements (estados de cuenta), newest period first; meta.default_period is the previous business month. Org-level staff with reseller_settlements.view",
+        "operationId": "listResellerSettlements",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "approved",
+                "settled",
+                "void"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "reseller_id",
+                          "reseller_name",
+                          "period_start",
+                          "period_end",
+                          "currency",
+                          "opening_balance",
+                          "totals",
+                          "closing_balance",
+                          "entry_count",
+                          "sweep_earned",
+                          "sweep_reversed",
+                          "status",
+                          "generated_by",
+                          "generated_at",
+                          "approved_by",
+                          "approved_at",
+                          "settled_by",
+                          "settled_at",
+                          "bank_ref",
+                          "settlement_entry_id",
+                          "voided_at",
+                          "notes"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "reseller_id": {
+                            "type": "integer"
+                          },
+                          "reseller_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "period_start": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "First business day (organization time zone)"
+                          },
+                          "period_end": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "Last business day, inclusive"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "opening_balance": {
+                            "type": "number",
+                            "description": "SUM of the ledger before the period"
+                          },
+                          "totals": {
+                            "type": "object",
+                            "required": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment",
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
+                            ],
+                            "properties": {
+                              "collection": {
+                                "type": "number"
+                              },
+                              "collection_void": {
+                                "type": "number"
+                              },
+                              "deposit": {
+                                "type": "number"
+                              },
+                              "adjustment": {
+                                "type": "number"
+                              },
+                              "bag_sealed": {
+                                "type": "number"
+                              },
+                              "commission": {
+                                "type": "number"
+                              },
+                              "commission_reversal": {
+                                "type": "number"
+                              },
+                              "payout": {
+                                "type": "number"
+                              }
+                            }
+                          },
+                          "closing_balance": {
+                            "type": "number",
+                            "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                          },
+                          "entry_count": {
+                            "type": "integer"
+                          },
+                          "sweep_earned": {
+                            "type": "integer",
+                            "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                          },
+                          "sweep_reversed": {
+                            "type": "integer",
+                            "description": "Stale commissions the gap sweep reversed before it was generated"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "approved",
+                              "settled",
+                              "void"
+                            ]
+                          },
+                          "generated_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "generated_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "approved_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "approved_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "settled_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "settled_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "bank_ref": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "settlement_entry_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "description": "The deposit or payout line settling posted"
+                          },
+                          "voided_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "default_period"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "default_period": {
+                          "type": "object",
+                          "required": [
+                            "period_start",
+                            "period_end"
+                          ],
+                          "properties": {
+                            "period_start": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "period_end": {
+                              "type": "string",
+                              "format": "date"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Generate a draft statement of a closed period (default: the previous business month). The commission gap sweep runs first; the figures are rebuilt from the ledger. Org-level staff with reseller_settlements.manage",
+        "operationId": "generateResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The period (both or neither)",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "period_start": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "period_end": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft statement and the sweep result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "sweep"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "sweep": {
+                      "type": "object",
+                      "required": [
+                        "earned",
+                        "restored",
+                        "reversed",
+                        "unchanged",
+                        "failed",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "earned": {
+                          "type": "integer"
+                        },
+                        "restored": {
+                          "type": "integer"
+                        },
+                        "reversed": {
+                          "type": "integer"
+                        },
+                        "unchanged": {
+                          "type": "integer",
+                          "description": "Candidates that earn nothing by the rules (another currency, a rate of 0)"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean",
+                          "description": "More candidates than one sweep reconciles; run it again"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETTLEMENT_PERIOD_OVERLAP: another statement of the reseller covers part of the period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "NOT_TOP_LEVEL, PERIOD_INVALID, PERIOD_NOT_ENDED, PERIOD_TOO_LONG or a malformed date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "One statement and a page of the ledger lines of its period",
+        "operationId": "getResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "lines",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "entry_type",
+                          "amount",
+                          "note",
+                          "created_at",
+                          "payment_id",
+                          "cash_bag_serial",
+                          "invoice_number",
+                          "currency",
+                          "cash_session_id",
+                          "created_by",
+                          "cash_bag_id",
+                          "invoice_id",
+                          "commission_id"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "entry_type": {
+                            "type": "string",
+                            "enum": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment",
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
+                            ]
+                          },
+                          "amount": {
+                            "type": "number",
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "payment_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "cash_bag_serial": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt"
+                          },
+                          "invoice_number": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The invoice behind a commission or commission_reversal"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "cash_session_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "created_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "description": "null: posted by the system (commission lines)"
+                          },
+                          "cash_bag_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "invoice_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "commission_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        }
+                      },
+                      "description": "The period's ledger lines, oldest first"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}/pdf": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "The statement as PDF",
+        "operationId": "getResellerSettlementPdf",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The statement as PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}/regenerate": {
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Run the gap sweep and recompute a draft. reseller_settlements.manage",
+        "operationId": "regenerateResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft statement and the sweep result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "sweep"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "sweep": {
+                      "type": "object",
+                      "required": [
+                        "earned",
+                        "restored",
+                        "reversed",
+                        "unchanged",
+                        "failed",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "earned": {
+                          "type": "integer"
+                        },
+                        "restored": {
+                          "type": "integer"
+                        },
+                        "reversed": {
+                          "type": "integer"
+                        },
+                        "unchanged": {
+                          "type": "integer",
+                          "description": "Candidates that earn nothing by the rules (another currency, a rate of 0)"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean",
+                          "description": "More candidates than one sweep reconciles; run it again"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETTLEMENT_NOT_DRAFT: only a draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}/discard": {
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Discard a draft (status void, kept for the audit trail); its period is free again. reseller_settlements.manage",
+        "operationId": "discardResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discarded statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETTLEMENT_NOT_DRAFT: only a draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}/approve": {
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Approve a draft: recompute it from the ledger and freeze it (recomputed: the figures differed from the draft). reseller_settlements.approve",
+        "operationId": "approveResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "recomputed"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "recomputed": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETTLEMENT_NOT_DRAFT: only a draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/settlements/{sid}/settle": {
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Settle an approved statement with a bank reference: a deposit line of the closing balance when the reseller owed the ISP, a payout line when the ISP owed it, nothing at 0. The deposit and payout caps hold against the current balance (SETTLEMENT_EXCEEDS_BALANCE when that money already moved); record_only marks it settled without a line. reseller_settlements.manage",
+        "operationId": "settleResellerSettlement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The settlement",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "bank_ref"
+                ],
+                "properties": {
+                  "bank_ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "record_only": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settled statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "entry_id",
+                    "summary"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "entry_id": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "balance",
+                        "in_bags",
+                        "cash_on_hand",
+                        "credit_limit",
+                        "available_to_collect",
+                        "credit_limit_override"
+                      ],
+                      "properties": {
+                        "balance": {
+                          "type": "number",
+                          "description": "What the reseller owes; a sealed bag left it at sealing"
+                        },
+                        "in_bags": {
+                          "type": "number",
+                          "description": "Declared cash in sealed bags not yet received, already off the balance; for information"
+                        },
+                        "cash_on_hand": {
+                          "type": "number",
+                          "description": "Equal to balance"
+                        },
+                        "credit_limit": {
+                          "type": "number",
+                          "description": "Effective limit"
+                        },
+                        "available_to_collect": {
+                          "type": "number"
+                        },
+                        "credit_limit_override": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "The reseller's own limit; null = the organization default"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Statement not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETTLEMENT_NOT_APPROVED or SETTLEMENT_EXCEEDS_BALANCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "bank_ref is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/commissions/sweep": {
+      "post": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "The commission gap sweep of a top-level reseller: books the commission of a paid invoice of its subtree that has none (paid at or after the go-live point) and reverses a standing commission whose invoice is no longer paid, each in its own transaction. reseller_settlements.manage",
+        "operationId": "sweepResellerCommissions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sweep result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "earned",
+                        "restored",
+                        "reversed",
+                        "unchanged",
+                        "failed",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "earned": {
+                          "type": "integer"
+                        },
+                        "restored": {
+                          "type": "integer"
+                        },
+                        "reversed": {
+                          "type": "integer"
+                        },
+                        "unchanged": {
+                          "type": "integer",
+                          "description": "Candidates that earn nothing by the rules (another currency, a rate of 0)"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean",
+                          "description": "More candidates than one sweep reconciles; run it again"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound callers cannot use the statement administration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A sub-reseller: sweep its parent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/statements": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "The collecting (top-level) reseller's approved and settled statements, newest first. Needs reseller_app.statements",
+        "operationId": "listResellerAppStatements",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "reseller_id",
+                          "reseller_name",
+                          "period_start",
+                          "period_end",
+                          "currency",
+                          "opening_balance",
+                          "totals",
+                          "closing_balance",
+                          "entry_count",
+                          "sweep_earned",
+                          "sweep_reversed",
+                          "status",
+                          "generated_by",
+                          "generated_at",
+                          "approved_by",
+                          "approved_at",
+                          "settled_by",
+                          "settled_at",
+                          "bank_ref",
+                          "settlement_entry_id",
+                          "voided_at",
+                          "notes"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "reseller_id": {
+                            "type": "integer"
+                          },
+                          "reseller_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "period_start": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "First business day (organization time zone)"
+                          },
+                          "period_end": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "Last business day, inclusive"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "opening_balance": {
+                            "type": "number",
+                            "description": "SUM of the ledger before the period"
+                          },
+                          "totals": {
+                            "type": "object",
+                            "required": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment",
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
+                            ],
+                            "properties": {
+                              "collection": {
+                                "type": "number"
+                              },
+                              "collection_void": {
+                                "type": "number"
+                              },
+                              "deposit": {
+                                "type": "number"
+                              },
+                              "adjustment": {
+                                "type": "number"
+                              },
+                              "bag_sealed": {
+                                "type": "number"
+                              },
+                              "commission": {
+                                "type": "number"
+                              },
+                              "commission_reversal": {
+                                "type": "number"
+                              },
+                              "payout": {
+                                "type": "number"
+                              }
+                            }
+                          },
+                          "closing_balance": {
+                            "type": "number",
+                            "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                          },
+                          "entry_count": {
+                            "type": "integer"
+                          },
+                          "sweep_earned": {
+                            "type": "integer",
+                            "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                          },
+                          "sweep_reversed": {
+                            "type": "integer",
+                            "description": "Stale commissions the gap sweep reversed before it was generated"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "approved",
+                              "settled",
+                              "void"
+                            ]
+                          },
+                          "generated_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "generated_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "approved_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "approved_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "settled_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "settled_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "bank_ref": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "settlement_entry_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "description": "The deposit or payout line settling posted"
+                          },
+                          "voided_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.statements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/statements/{sid}": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "One approved or settled statement of the reseller and a page of its lines",
+        "operationId": "getResellerAppStatement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "lines",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reseller_id",
+                        "reseller_name",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "opening_balance",
+                        "totals",
+                        "closing_balance",
+                        "entry_count",
+                        "sweep_earned",
+                        "sweep_reversed",
+                        "status",
+                        "generated_by",
+                        "generated_at",
+                        "approved_by",
+                        "approved_at",
+                        "settled_by",
+                        "settled_at",
+                        "bank_ref",
+                        "settlement_entry_id",
+                        "voided_at",
+                        "notes"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "period_start": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "First business day (organization time zone)"
+                        },
+                        "period_end": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Last business day, inclusive"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "opening_balance": {
+                          "type": "number",
+                          "description": "SUM of the ledger before the period"
+                        },
+                        "totals": {
+                          "type": "object",
+                          "required": [
+                            "collection",
+                            "collection_void",
+                            "deposit",
+                            "adjustment",
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
+                          ],
+                          "properties": {
+                            "collection": {
+                              "type": "number"
+                            },
+                            "collection_void": {
+                              "type": "number"
+                            },
+                            "deposit": {
+                              "type": "number"
+                            },
+                            "adjustment": {
+                              "type": "number"
+                            },
+                            "bag_sealed": {
+                              "type": "number"
+                            },
+                            "commission": {
+                              "type": "number"
+                            },
+                            "commission_reversal": {
+                              "type": "number"
+                            },
+                            "payout": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "closing_balance": {
+                          "type": "number",
+                          "description": "opening_balance + every total; positive: the reseller owes the ISP, negative: the ISP owes the reseller"
+                        },
+                        "entry_count": {
+                          "type": "integer"
+                        },
+                        "sweep_earned": {
+                          "type": "integer",
+                          "description": "Missing commissions the gap sweep booked (or restored) before it was generated"
+                        },
+                        "sweep_reversed": {
+                          "type": "integer",
+                          "description": "Stale commissions the gap sweep reversed before it was generated"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "approved",
+                            "settled",
+                            "void"
+                          ]
+                        },
+                        "generated_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "generated_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "approved_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "approved_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "settled_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "settled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "bank_ref": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "settlement_entry_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "The deposit or payout line settling posted"
+                        },
+                        "voided_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "entry_type",
+                          "amount",
+                          "note",
+                          "created_at",
+                          "payment_id",
+                          "cash_bag_serial",
+                          "invoice_number"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "entry_type": {
+                            "type": "string",
+                            "enum": [
+                              "collection",
+                              "collection_void",
+                              "deposit",
+                              "adjustment",
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
+                            ]
+                          },
+                          "amount": {
+                            "type": "number",
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "payment_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "cash_bag_serial": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt"
+                          },
+                          "invoice_number": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The invoice behind a commission or commission_reversal"
+                          }
+                        }
+                      },
+                      "description": "The period's ledger lines, oldest first"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.statements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not an approved statement of this reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reseller-app/statements/{sid}/pdf": {
+      "get": {
+        "tags": [
+          "Reseller App"
+        ],
+        "summary": "One approved or settled statement of the reseller as PDF",
+        "operationId": "getResellerAppStatementPdf",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The statement as PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a reseller account, or no reseller_app.statements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not an approved statement of this reseller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/integrations/providers": {
       "get": {
         "tags": [

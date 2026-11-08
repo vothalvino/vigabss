@@ -13,7 +13,9 @@
 // views). Migration 004 adds reseller_app.collect (cash collection); the
 // reseller ledger permissions go to admin only. Migration 005 adds
 // reseller_app.bags (sealing cash bags); the cash bag and carrier
-// administration stays with admin (tests/carrierGrants.test.js). This replays
+// administration stays with admin (tests/carrierGrants.test.js). Migration
+// 008 adds reseller_app.statements (its own approved statements); generating,
+// approving and settling statements stays with admin. This replays
 // the baseline grants and every later migration's grants and revocations.
 // =============================================================================
 'use strict';
@@ -63,7 +65,7 @@ test('after the migrations, reseller_admin holds no organization-wide permission
   // It still works as a reseller role.
   expect(held).toEqual(expect.arrayContaining([
     'reseller_app.use', 'reseller_app.signup', 'reseller_app.collect', 'reseller_app.bags',
-    'reseller_portal.dashboard', 'reseller_portal.manage_customers',
+    'reseller_app.statements', 'reseller_portal.dashboard', 'reseller_portal.manage_customers',
   ]));
   // Cash bags are received, voided and handed out by the ISP only.
   expect(held.filter((name) => /^(?:cash_bags|carriers|carrier_app)\./.test(name))).toEqual([]);
@@ -71,6 +73,8 @@ test('after the migrations, reseller_admin holds no organization-wide permission
   // What a reseller owes is the ISP's record: never the reseller's to edit.
   expect(held).not.toContain('reseller_ledger.view');
   expect(held).not.toContain('reseller_ledger.manage');
+  // Statements are drawn up, approved and settled by the ISP.
+  expect(held.filter((name) => name.startsWith('reseller_settlements.'))).toEqual([]);
   // Nor the staff cash-reconciliation surface (its own cash box is in the app).
   expect(held.filter((name) => name.startsWith('cash_reconciliation.'))).toEqual([]);
 });
@@ -115,4 +119,24 @@ test('the rollback of migration 003 restores the views it revokes and drops the 
   expect(firstList(path.join(ROLLBACKS, name))).toEqual(revoked);
   expect(names(rollback.match(/DELETE FROM permissions WHERE name IN \(([^)]*)\)/i)[1]).sort())
     .toEqual(['reseller_app.signup', 'reseller_app.use']);
+});
+
+test('migration 008 grants the statements view to reseller_admin and the statement administration to admin', () => {
+  const name = '008_reseller_settlements.sql';
+  const sql = fs.readFileSync(path.join(MIGRATIONS, name), 'utf8').replace(/--.*$/gm, '');
+  const grants = [...sql.matchAll(/INSERT\s+IGNORE\s+INTO\s+role_permissions[^;]*?p\.name\s+IN\s*\(([^)]*)\)[^;]*?r\.name\s*=\s*'(\w+)'/gi)]
+    .map((m) => [m[2], names(m[1]).sort()]);
+  const admin = ['reseller_app.statements', 'reseller_settlements.approve', 'reseller_settlements.manage', 'reseller_settlements.view'];
+  expect(grants).toEqual([
+    ['reseller_admin', ['reseller_app.statements']],
+    ['admin', admin],
+  ]);
+  const seeded = names(sql.match(/INSERT IGNORE INTO permissions \(name, description, module\) VALUES([\s\S]*?);/)[1])
+    .filter((n) => /^[a-z_]+\.[a-z_]+$/.test(n)).sort();
+  expect(seeded).toEqual(admin);
+  const rollback = fs.readFileSync(path.join(ROLLBACKS, name), 'utf8').replace(/--.*$/gm, '');
+  expect(names(rollback.match(/DELETE FROM permissions WHERE name IN \(([^)]*)\)/i)[1]).sort()).toEqual(admin);
+  const refuse = rollback.indexOf("SIGNAL SQLSTATE '45000'");
+  expect(refuse).toBeGreaterThan(-1);
+  expect(refuse).toBeLessThan(rollback.indexOf('DROP TABLE IF EXISTS reseller_settlements'));
 });

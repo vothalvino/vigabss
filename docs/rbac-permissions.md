@@ -147,6 +147,7 @@ The `reseller_admin` group is for staff users bound to a reseller
 | `reseller_app.signup` | Sign up new customers as leads in the reseller app |
 | `reseller_app.collect` | Collect cash from subscribers in the reseller app, void a same-day collection and close the cash box (migration 004) |
 | `reseller_app.bags` | See the reseller's cash bags and seal one with the cash it holds (migration 005) |
+| `reseller_app.statements` | See the reseller's approved and settled statements and their PDF (migration 008) |
 | `reseller_portal.*` | Reseller portal reads (dashboard, clients, invoices, inventory), confined to the reseller's subtree |
 | `webauthn.*` | The user's own passkeys |
 
@@ -199,6 +200,18 @@ ledger lines; nobody approves or pays a commission by hand, so the old
 `reseller_commissions.approve` is still seeded but guards nothing (removing it
 would need a destructive migration). A payout is recorded with
 `reseller_ledger.manage`, like a deposit.
+
+### Reseller statements and settlement (migration 008)
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `reseller_settlements.view` | `admin` | A top-level reseller's statements, their lines and PDF (`GET /resellers/:id/settlements`, `/:sid`, `/:sid/pdf`) |
+| `reseller_settlements.manage` | `admin` | Generate a statement (it runs the commission gap sweep first), regenerate or discard a draft, settle an approved one with a bank reference, and run the gap sweep on its own (`POST /resellers/:id/commissions/sweep`) |
+| `reseller_settlements.approve` | `admin` | Approve a draft, freezing its figures (`POST /resellers/:id/settlements/:sid/approve`); kept apart from `.manage` so one person can draw up a statement and another approve it |
+| `reseller_app.statements` | `reseller_admin`, `admin` | The reseller's approved and settled statements in the reseller app (`GET /reseller-app/statements`, `/:sid`, `/:sid/pdf`); never a draft; the routes still refuse an unbound user |
+
+The staff statement routes are org-level only, whatever the bound user's
+group holds.
 
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with

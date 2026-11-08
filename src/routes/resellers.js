@@ -76,6 +76,8 @@ const money = require('../utils/money');
 const resellerLedgerService = require('../services/resellerLedgerService');
 const resellerCommissionService = require('../services/resellerCommissionService');
 const cashBagService = require('../services/cashBagService');
+const resellerSettlementService = require('../services/resellerSettlementService');
+const resellerStatementPdf = require('../services/resellerStatementPdf');
 const { isCarrierUser } = require('../services/carrierAccount');
 
 const router = Router();
@@ -1194,6 +1196,195 @@ router.post(
     } catch (err) { next(err); }
   },
 );
+
+// =============================================================================
+// Statements (estados de cuenta) and settlement (reseller program phase 5,
+// migration 008; services/resellerSettlementService.js)
+// =============================================================================
+// A statement closes a period of a top-level reseller's ledger; its figures
+// are rebuilt from the ledger. Generating runs the commission gap sweep first.
+// Org-level staff only: what a reseller owes is the ISP's record.
+
+const STATEMENT_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const generateStatementSchema = {
+  period_start: { type: 'string', pattern: STATEMENT_DATE },
+  period_end:   { type: 'string', pattern: STATEMENT_DATE },
+  notes:        { type: 'string', max: 500 },
+};
+const settleStatementSchema = {
+  bank_ref:    { type: 'string', required: true, min: 1, max: 100 },
+  record_only: { type: 'boolean' },
+};
+
+async function settlementAudit(req, action, statement, extra = {}) {
+  await auditLog.log({
+    userId: req.user.id,
+    organizationId: req.orgId,
+    action,
+    tableName: 'reseller_settlements',
+    recordId: statement.id,
+    newValues: {
+      reseller_id: statement.reseller_id,
+      period_start: statement.period_start,
+      period_end: statement.period_end,
+      closing_balance: statement.closing_balance,
+      status: statement.status,
+      ...extra,
+    },
+  });
+}
+
+function pageOf(req, def = 25) {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || def), 100);
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+// GET /resellers/:id/settlements
+router.get('/:id/settlements', requirePermission('reseller_settlements.view'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const status = req.query.status === undefined || req.query.status === '' ? null : String(req.query.status);
+    if (status !== null && !resellerSettlementService.STATUSES.includes(status)) {
+      throw new ValidationError(`status must be one of ${resellerSettlementService.STATUSES.join(', ')}`);
+    }
+    const { page, limit, offset } = pageOf(req);
+    const { rows, total } = await resellerSettlementService.list(
+      req.orgId, Number(reseller.id), { statuses: status ? [status] : null, limit, offset },
+    );
+    res.json({ data: rows, meta: { total, page, limit, default_period: resellerSettlementService.defaultPeriod() } });
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/settlements — generate a draft (gap sweep first)
+router.post(
+  '/:id/settlements',
+  requirePermission('reseller_settlements.manage'),
+  requireIspDecision,
+  validate(generateStatementSchema),
+  async (req, res, next) => {
+    try {
+      const reseller = await getResellerOrThrow(req);
+      const notes = typeof req.body.notes === 'string' && req.body.notes.trim() ? req.body.notes.trim() : null;
+      const { statement, sweep } = await resellerSettlementService.generate({
+        orgId: req.orgId,
+        resellerId: Number(reseller.id),
+        periodStart: req.body.period_start,
+        periodEnd: req.body.period_end,
+        notes,
+        userId: req.user.id,
+      });
+      await settlementAudit(req, 'reseller_statement_generate', statement);
+      res.status(201).json({ data: statement, sweep });
+    } catch (err) { next(err); }
+  },
+);
+
+// GET /resellers/:id/settlements/:sid — the statement and a page of its lines
+router.get('/:id/settlements/:sid', requirePermission('reseller_settlements.view'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const statement = await resellerSettlementService.get(req.orgId, Number(reseller.id), req.params.sid);
+    const { page, limit, offset } = pageOf(req, 50);
+    const { rows, total } = await resellerSettlementService.lines(req.orgId, statement, { limit, offset });
+    res.json({ data: statement, lines: rows, meta: { total, page, limit } });
+  } catch (err) { next(err); }
+});
+
+// GET /resellers/:id/settlements/:sid/pdf
+router.get('/:id/settlements/:sid/pdf', requirePermission('reseller_settlements.view'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const statement = await resellerSettlementService.get(req.orgId, Number(reseller.id), req.params.sid);
+    const { buffer, filename } = await resellerStatementPdf.generate(req.orgId, statement);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buffer);
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/settlements/:sid/regenerate — a draft: sweep and recompute
+router.post('/:id/settlements/:sid/regenerate', requirePermission('reseller_settlements.manage'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const { statement, sweep } = await resellerSettlementService.regenerate({
+      orgId: req.orgId, resellerId: Number(reseller.id), statementId: req.params.sid, userId: req.user.id,
+    });
+    await settlementAudit(req, 'reseller_statement_regenerate', statement);
+    res.json({ data: statement, sweep });
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/settlements/:sid/discard — a draft: void it
+router.post('/:id/settlements/:sid/discard', requirePermission('reseller_settlements.manage'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const statement = await resellerSettlementService.discard({
+      orgId: req.orgId, resellerId: Number(reseller.id), statementId: req.params.sid, userId: req.user.id,
+    });
+    await settlementAudit(req, 'reseller_statement_discard', statement);
+    res.json({ data: statement });
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/settlements/:sid/approve — freeze a draft
+router.post('/:id/settlements/:sid/approve', requirePermission('reseller_settlements.approve'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    const { statement, recomputed } = await resellerSettlementService.approve({
+      orgId: req.orgId, resellerId: Number(reseller.id), statementId: req.params.sid, userId: req.user.id,
+    });
+    await settlementAudit(req, 'reseller_statement_approve', statement, { recomputed });
+    res.json({ data: statement, recomputed });
+  } catch (err) { next(err); }
+});
+
+// POST /resellers/:id/settlements/:sid/settle — record the transfer that squares it
+router.post(
+  '/:id/settlements/:sid/settle',
+  requirePermission('reseller_settlements.manage'),
+  requireIspDecision,
+  validate(settleStatementSchema),
+  async (req, res, next) => {
+    try {
+      const reseller = await getResellerOrThrow(req);
+      const { statement, entry_id: entryId } = await resellerSettlementService.settle({
+        orgId: req.orgId,
+        resellerId: Number(reseller.id),
+        statementId: req.params.sid,
+        bankRef: req.body.bank_ref,
+        recordOnly: req.body.record_only === true,
+        userId: req.user.id,
+      });
+      await settlementAudit(req, 'reseller_statement_settle', statement, {
+        bank_ref: statement.bank_ref, settlement_entry_id: entryId, record_only: req.body.record_only === true,
+      });
+      const summary = await resellerLedgerService.summaryFor(req.orgId, Number(reseller.id));
+      res.json({ data: statement, entry_id: entryId, summary: ledgerSummary(summary) });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /resellers/:id/commissions/sweep — the commission gap sweep on its own
+router.post('/:id/commissions/sweep', requirePermission('reseller_settlements.manage'), requireIspDecision, async (req, res, next) => {
+  try {
+    const reseller = await getResellerOrThrow(req);
+    if (reseller.parent_id !== null && reseller.parent_id !== undefined) {
+      throw new ValidationError('Commissions are booked on the top-level reseller; sweep its parent reseller');
+    }
+    const sweep = await resellerCommissionService.sweepCommissionGaps(req.orgId, Number(reseller.id));
+    await auditLog.log({
+      userId: req.user.id,
+      organizationId: req.orgId,
+      action: 'reseller_commission_sweep',
+      tableName: 'resellers',
+      recordId: Number(reseller.id),
+      newValues: sweep,
+    });
+    res.json({ data: sweep });
+  } catch (err) { next(err); }
+});
 
 // =============================================================================
 // Cash bags of a reseller (reseller app phase 3, migration 005)

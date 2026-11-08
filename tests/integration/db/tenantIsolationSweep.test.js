@@ -147,6 +147,8 @@ const PATH_PARAMS = {
   '/reseller-app/leads/:id': 'leads',
   '/reseller-app/collect/client/:id': 'clients',
   '/reseller-app/payments/:id': 'payments',
+  '/reseller-app/statements/:sid': 'reseller_settlements',
+  '/resellers/:id/settlements/:sid': 'reseller_settlements',
   '/cash-bags/:id': 'cash_bags',
   '/carriers/:userId': 'users',
   '/support/kb/:id': 'kb_articles',

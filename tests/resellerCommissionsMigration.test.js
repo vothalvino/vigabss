@@ -23,9 +23,8 @@ const tableOf = (name) => {
 };
 
 describe('migration 007', () => {
-  test('is the latest migration, with a rollback of the same name', () => {
-    const files = fs.readdirSync(path.join(__dirname, '..', 'database', 'migrations')).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe(FILE);
+  test('exists, with a rollback of the same name', () => {
+    expect(fs.existsSync(path.join(__dirname, '..', 'database', 'migrations', FILE))).toBe(true);
     expect(fs.existsSync(path.join(__dirname, '..', 'database', 'rollbacks', FILE))).toBe(true);
   });
 

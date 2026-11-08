@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { ApiRequestError, apiFetch } from '@/api/apiFetch';
+import { authedFetch } from '@/api/client';
 
 export interface PuntoMe {
   reseller: {
@@ -302,6 +303,7 @@ export const puntoKeys = {
   cashSession: ['punto', 'cash-session'] as const,
   ledger: (page: number) => ['punto', 'ledger', page] as const,
   bags: ['punto', 'bags'] as const,
+  statements: (page: number) => ['punto', 'statements', page] as const,
 };
 
 /** Every query a collection, a void, a cash-box close or a sealed bag changes. */
@@ -511,4 +513,67 @@ export function newIdempotencyKey(): string {
 export function toNumber(value: number | string | null | undefined): number {
   const n = typeof value === 'number' ? value : parseFloat(value ?? '');
   return Number.isFinite(n) ? n : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Statements (estados de cuenta), phase 5
+// ---------------------------------------------------------------------------
+
+export type StatementStatus = 'draft' | 'approved' | 'settled' | 'void';
+
+/**
+ * A statement of a top-level reseller's ledger (staff GET
+ * /resellers/:id/settlements, reseller GET /reseller-app/statements). The
+ * reseller app lists only approved and settled ones. closing_balance > 0: the
+ * reseller owes the ISP; < 0: the ISP owes the reseller.
+ */
+export interface ResellerStatement {
+  id: number;
+  reseller_id: number;
+  reseller_name: string | null;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  opening_balance: number | string;
+  totals: Record<PuntoLedgerType, number | string>;
+  closing_balance: number | string;
+  entry_count: number;
+  sweep_earned: number;
+  sweep_reversed: number;
+  status: StatementStatus | string;
+  approved_at: string | null;
+  settled_at: string | null;
+  bank_ref: string | null;
+  settlement_entry_id: number | null;
+  notes: string | null;
+}
+
+export const STATEMENT_TOTAL_TYPES: PuntoLedgerType[] = [
+  'collection', 'collection_void', 'bag_sealed', 'deposit', 'commission', 'commission_reversal', 'payout', 'adjustment',
+];
+
+export async function fetchPuntoStatements(page: number, limit: number) {
+  return apiFetch<{ data: ResellerStatement[]; meta: PuntoListMeta }>(`/reseller-app/statements?page=${page}&limit=${limit}`);
+}
+
+/**
+ * Download a statement PDF to the device: the staff copy when `resellerId` is
+ * given (GET /resellers/:id/settlements/:sid/pdf), else the reseller's own
+ * (GET /reseller-app/statements/:sid/pdf).
+ */
+export async function downloadStatementPdf(
+  statement: Pick<ResellerStatement, 'id' | 'period_start' | 'period_end'>,
+  resellerId?: number,
+): Promise<void> {
+  const res = resellerId === undefined
+    ? await authedFetch(`/api/v1/reseller-app/statements/${statement.id}/pdf`)
+    : await authedFetch(`/api/v1/resellers/${resellerId}/settlements/${statement.id}/pdf`);
+  if (!res.ok) throw new ApiRequestError(`HTTP ${res.status}`, res.status);
+  const named = /filename="?([^";]+)"?/i.exec(res.headers.get('Content-Disposition') ?? '');
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = named?.[1] ?? `estado-de-cuenta-${statement.id}-${statement.period_start}-${statement.period_end}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
 }

@@ -19,7 +19,10 @@
 //     (or its reversal, when the invoice stopped being paid) names the
 //     invoice. A negative balance is what the ISP owes it ("Te debemos"),
 //     which the ISP pays it with a payout line;
-//   • a link to Mis bolsas (/punto/bolsas) with reseller_app.bags.
+//   • a link to Mis bolsas (/punto/bolsas) with reseller_app.bags;
+//   • its statements (estados de cuenta, phase 5; GET /reseller-app/statements)
+//     with reseller_app.statements: the approved and settled ones, each with
+//     its period, closing ("Debes entregar" / "Te debemos"), status and PDF.
 // The cash-box card is titled "Tu caja" and says whether one is open.
 // =============================================================================
 
@@ -34,8 +37,9 @@ import { can } from '@/auth/permissions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
 import {
-  apiErrorCode, closePuntoCashSession, fetchPuntoCashSession, fetchPuntoCollections, fetchPuntoLedger, puntoKeys, toNumber,
-  voidPuntoCollection, type PuntoClosedSession, type PuntoCollection, type PuntoOpenSession,
+  apiErrorCode, closePuntoCashSession, downloadStatementPdf, fetchPuntoCashSession, fetchPuntoCollections, fetchPuntoLedger,
+  fetchPuntoStatements, puntoKeys, toNumber, voidPuntoCollection, type PuntoClosedSession, type PuntoCollection,
+  type PuntoOpenSession, type ResellerStatement,
 } from './puntoApi';
 import {
   StatusChip, errorText, formatDateTime, formatTime, mutedText, pageTitle, sectionTitle, useRefreshPuntoMoney, usePuntoCurrency,
@@ -278,11 +282,79 @@ function Ledger({ currency }: { currency: string }) {
   );
 }
 
+const STATEMENTS_PAGE = 6;
+
+function StatementRow({ statement, currency }: { statement: ResellerStatement; currency: string }) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const closing = toNumber(statement.closing_balance);
+  async function download() {
+    setBusy(true);
+    setError('');
+    try {
+      await downloadStatementPdf(statement);
+    } catch {
+      setError(t('punto.statements.downloadError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <li style={{ ...row, borderTop: '1px solid var(--border-subtle)', paddingTop: 8, flexWrap: 'wrap' }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600 }}>{t('punto.statements.period', { start: statement.period_start, end: statement.period_end })}</div>
+        <div style={mutedText}>
+          {closing < 0
+            ? t('punto.statements.closingOwedToYou', { amount: formatMoney(-closing, statement.currency || currency) })
+            : t('punto.statements.closingOwe', { amount: formatMoney(closing, statement.currency || currency) })}
+        </div>
+        <div style={mutedText}>
+          {statement.status === 'settled'
+            ? t('punto.statements.settled', { ref: statement.bank_ref ?? '' })
+            : t('punto.statements.approved')}
+        </div>
+        {error && <div role="alert" style={errorText}>{error}</div>}
+      </div>
+      <button type="button" className="punto-btn-secondary" onClick={() => { void download(); }} disabled={busy} style={{ whiteSpace: 'nowrap' }}>
+        {busy ? t('punto.statements.downloading') : t('punto.statements.pdf')}
+      </button>
+    </li>
+  );
+}
+
+function Statements({ currency }: { currency: string }) {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const q = useQuery({
+    queryKey: puntoKeys.statements(page),
+    queryFn: () => fetchPuntoStatements(page, STATEMENTS_PAGE),
+    placeholderData: keepPreviousData,
+  });
+  const total = q.data?.meta?.total ?? 0;
+  return (
+    <section className="punto-card" aria-labelledby="punto-statements-title">
+      <h2 id="punto-statements-title" style={sectionTitle}>{t('punto.statements.title')}</h2>
+      <p style={{ ...mutedText, marginBottom: 10 }}>{t('punto.statements.intro')}</p>
+      {q.isLoading && <LoadingState />}
+      {q.isError && <ErrorState message={t('punto.statements.loadError')} onRetry={() => { void q.refetch(); }} />}
+      {q.data && q.data.data.length === 0 && <p style={mutedText}>{t('punto.statements.empty')}</p>}
+      {q.data && q.data.data.length > 0 && (
+        <ul className="punto-list">
+          {q.data.data.map(st => <StatementRow key={st.id} statement={st} currency={currency} />)}
+        </ul>
+      )}
+      <Pager page={page} pages={Math.max(1, Math.ceil(total / STATEMENTS_PAGE))} onPage={setPage} />
+    </section>
+  );
+}
+
 export function PuntoCash() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const canCollect = can(user, 'reseller_app.collect');
   const canBags = can(user, 'reseller_app.bags');
+  const canStatements = can(user, 'reseller_app.statements');
   const currency = usePuntoCurrency();
   const [page, setPage] = useState(1);
   const [justClosed, setJustClosed] = useState<PuntoClosedSession | null>(null);
@@ -374,6 +446,7 @@ export function PuntoCash() {
       )}
 
       <Ledger currency={currency} />
+      {canStatements && <Statements currency={currency} />}
     </div>
   );
 }
