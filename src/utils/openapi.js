@@ -3317,10 +3317,7 @@ function generateSpec() {
         delete: { tags: ['Resellers'], summary: 'Remove custom plan price', operationId: 'deleteResellerPlanPrice', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'ppId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
       },
       '/resellers/{id}/commissions': {
-        get: { tags: ['Resellers'], summary: 'List commission records', operationId: 'listResellerCommissions', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Commission[]') },
-      },
-      '/resellers/{id}/commissions/{cId}/approve': {
-        post: { tags: ['Resellers'], summary: 'Approve or mark commission paid', operationId: 'approveResellerCommission', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'cId', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: jsonBody('status'), responses: { ...r200('Commission'), 403: errorResponse('Org-level staff only: a reseller-bound caller cannot change this') } },
+        get: { tags: ['Resellers'], summary: "The reseller's commissions, newest first (phase 4): one per invoice of a client of its subtree, earned while the invoice is paid and reversed while it is not, at the top-level reseller's rate on the invoice subtotal (taxes excluded). Booked on the top-level reseller: a sub-reseller has none. Each one has its commission / commission_reversal line in the cash ledger", operationId: 'listResellerCommissions', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['earned', 'reversed'] } }, pageParam(), limitParam()], responses: { 200: { description: 'Commissions', content: { 'application/json': { schema: resellerCommissionPageSchema() } } }, 404: errorResponse('Reseller not found'), 422: errorResponse('Unknown status') } },
       },
       '/resellers/{id}/ip-pools': {
         get: { tags: ['Resellers'], summary: 'List IP pool allocations', operationId: 'listResellerIpPools', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('IpPoolAllocation[]') },
@@ -3353,8 +3350,8 @@ function generateSpec() {
         put: { tags: ['Resellers'], summary: 'Replace the plans a top-level reseller and its sub-resellers may offer (org-level admins only; an empty list allows every active plan)', operationId: 'setResellerAllowedPlans', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['plan_ids'], properties: { plan_ids: { type: 'array', items: { type: 'integer', minimum: 1 } } } }, 'Plan ids of the organization'), responses: { 200: { description: 'Allowed plans', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'array', items: resellerAllowedPlanSchema() }) } } }, 403: errorResponse('Reseller-bound callers cannot manage allowed plans'), 404: errorResponse('Reseller not found'), 422: errorResponse('A plan does not belong to the organization, or the reseller is a sub-reseller') } },
       },
       '/resellers/{id}/ledger': {
-        get: { tags: ['Resellers'], summary: "A reseller's cash ledger, newest first, with the summary (balance it owes, effective credit limit, available to collect). Org-level staff with reseller_ledger.view", operationId: 'getResellerLedger', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(true) } } }, 403: errorResponse('Reseller-bound callers cannot read reseller ledgers'), 404: errorResponse('Reseller not found') } },
-        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand, the balance: the cash of a sealed bag already left it at sealing) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE') } },
+        get: { tags: ['Resellers'], summary: "A reseller's cash ledger, newest first, with the summary (balance it owes, negative when the ISP owes it; effective credit limit; available to collect). Commission lines name their invoice. Org-level staff with reseller_ledger.view", operationId: 'getResellerLedger', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(true) } } }, 403: errorResponse('Reseller-bound callers cannot read reseller ledgers'), 404: errorResponse('Reseller not found') } },
+        post: { tags: ['Resellers'], summary: 'Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand, the balance: the cash of a sealed bag already left it at sealing), what the ISP paid it (payout: amount > 0, at most what the ISP owes it, minus a negative balance) or an adjustment (signed, non-zero, with a note). Never a payment; commission lines are posted only by the commission engine. Org-level staff with reseller_ledger.manage', operationId: 'createResellerLedgerEntry', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['entry_type', 'amount'], properties: { entry_type: { type: 'string', enum: ['deposit', 'adjustment', 'payout'] }, amount: { type: 'number', description: 'A deposit is positive (booked as -amount); a payout is positive (booked as +amount); an adjustment is signed (+ the reseller owes more)' }, note: { type: 'string', maxLength: 500, description: 'Required for an adjustment' } } }, 'The entry'), responses: { 201: { description: 'Entry', content: { 'application/json': { schema: { type: 'object', required: ['data', 'summary'], properties: { data: resellerLedgerEntrySchema(true), summary: resellerLedgerSummarySchema(true) } } } } }, 403: errorResponse('Reseller-bound callers cannot record ledger entries'), 404: errorResponse('Reseller not found'), 422: errorResponse('Validation failed, a sub-reseller (book on its parent), DEPOSIT_EXCEEDS_BALANCE or PAYOUT_EXCEEDS_OWED') } },
       },
       '/resellers/{id}/users/{userId}': {
         put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('ResellerUserBinding'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Reseller or user not found'), 422: errorResponse('Cannot bind your own account') } },
@@ -3363,7 +3360,7 @@ function generateSpec() {
 
       // ---- §19.3 Reseller Portal ----
       '/reseller-portal/{id}/dashboard': {
-        get: { tags: ['Reseller Portal'], summary: 'Reseller dashboard aggregates', operationId: 'getResellerDashboard', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ResellerDashboard') },
+        get: { tags: ['Reseller Portal'], summary: "Reseller dashboard aggregates over its subtree: active clients, total of invoices paid this business month (by paid_at), open tickets, and pending_commission: the commission its clients' invoices earned this month and still keep", operationId: 'getResellerDashboard', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ResellerDashboard') },
       },
       '/reseller-portal/{id}/clients': {
         get: { tags: ['Reseller Portal'], summary: 'List reseller clients', operationId: 'listResellerPortalClients', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Client[]') },
@@ -3421,7 +3418,7 @@ function generateSpec() {
         post: { tags: ['Reseller App'], summary: "Close the caller's open cash session with the cash counted; computes the expected total and the variance. The ledger does not change. Needs reseller_app.collect", operationId: 'closeResellerAppCashSession', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['counted_total'], properties: { counted_total: { type: 'number', minimum: 0 }, notes: { type: 'string', maxLength: 1000 } } }, 'The count'), responses: { 200: { description: 'Closed session', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppClosedSessionSchema()) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 409: errorResponse('NO_OPEN_CASH_SESSION'), 422: errorResponse('Validation failed') } },
       },
       '/reseller-app/ledger': {
-        get: { tags: ['Reseller App'], summary: "The collecting reseller's cash ledger, newest first, with the summary", operationId: 'getResellerAppLedger', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(false) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
+        get: { tags: ['Reseller App'], summary: "The collecting reseller's cash ledger, newest first, with the summary; commission lines (the commission it keeps when an invoice of its subtree is paid, and its reversal) name their invoice", operationId: 'getResellerAppLedger', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(false) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
       },
 
       // ---- Reseller app, phase 3: cash bags, carriers, the carrier app ----
@@ -3805,10 +3802,10 @@ function resellerAppMoneySchema() {
   return {
     type: 'object',
     required: ['currency', 'balance', 'in_bags', 'cash_on_hand', 'credit_limit', 'available_to_collect', 'collected_today',
-      'empty_bags', 'bags_ready_for_pickup', 'bags_in_transit'],
+      'empty_bags', 'bags_ready_for_pickup', 'bags_in_transit', 'commission_rate', 'commission_month'],
     properties: {
       currency: { type: 'string' },
-      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger); a sealed bag left it at sealing' },
+      balance: { type: 'number', description: 'What the collecting reseller owes the ISP (sum of its ledger, net of the commissions it kept); a sealed bag left it at sealing. Negative: what the ISP owes it' },
       in_bags: { type: 'number', description: 'Declared cash in its sealed bags not yet received (ready_for_pickup, in_transit), already off the balance; for information' },
       cash_on_hand: { type: 'number', description: 'The collected cash it still holds: equal to balance' },
       credit_limit: { type: 'number', description: 'Effective limit: its own, or the organization default' },
@@ -3817,6 +3814,8 @@ function resellerAppMoneySchema() {
       empty_bags: { type: 'integer', description: 'Empty cash bags at the reseller it may fill (at_reseller)' },
       bags_ready_for_pickup: { type: 'integer', description: 'Sealed bags waiting for the carrier' },
       bags_in_transit: { type: 'integer', description: 'Bags on their way to the ISP' },
+      commission_rate: { type: 'number', description: "The top-level reseller's commission rate (percent of the invoice subtotal), which applies to every client of its subtree" },
+      commission_month: { type: 'number', description: 'Commission earned this business month and still standing (reversed ones excluded); already kept from the cash, so balance is net of it' },
     },
   };
 }
@@ -3948,17 +3947,22 @@ function resellerAppCashSessionSchema() {
 function resellerLedgerEntrySchema(staff) {
   const properties = {
     id: { type: 'integer' },
-    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'] },
-    amount: { type: 'number', description: 'Signed: + increases what the reseller owes' },
+    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout'] },
+    amount: { type: 'number', description: 'Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)' },
     note: nullableString(),
     created_at: { type: 'string', format: 'date-time' },
     payment_id: nullableInteger(),
     cash_bag_serial: { type: ['string', 'null'], description: 'The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt' },
+    invoice_number: { type: ['string', 'null'], description: 'The invoice behind a commission or commission_reversal' },
   };
-  const required = ['id', 'entry_type', 'amount', 'note', 'created_at', 'payment_id', 'cash_bag_serial'];
+  const required = ['id', 'entry_type', 'amount', 'note', 'created_at', 'payment_id', 'cash_bag_serial', 'invoice_number'];
   if (staff) {
-    Object.assign(properties, { currency: { type: 'string' }, cash_session_id: nullableInteger(), created_by: nullableInteger(), cash_bag_id: nullableInteger() });
-    required.push('currency', 'cash_session_id', 'created_by', 'cash_bag_id');
+    Object.assign(properties, {
+      currency: { type: 'string' }, cash_session_id: nullableInteger(),
+      created_by: { type: ['integer', 'null'], description: 'null: posted by the system (commission lines)' },
+      cash_bag_id: nullableInteger(), invoice_id: nullableInteger(), commission_id: nullableInteger(),
+    });
+    required.push('currency', 'cash_session_id', 'created_by', 'cash_bag_id', 'invoice_id', 'commission_id');
   }
   return { type: 'object', required, properties };
 }
@@ -3976,6 +3980,49 @@ function resellerLedgerSummarySchema(staff) {
     required.push('credit_limit_override');
   }
   return { type: 'object', required, properties };
+}
+function resellerCommissionSchema() {
+  return {
+    type: 'object',
+    required: ['id', 'reseller_id', 'invoice_id', 'invoice_number', 'client_id', 'client_name', 'commission_rate', 'base_amount',
+      'invoice_total', 'commission_amount', 'currency', 'status', 'earned_at', 'reversed_at', 'created_at'],
+    properties: {
+      id: { type: 'integer' },
+      reseller_id: { type: 'integer', description: 'The top-level reseller that earns it' },
+      invoice_id: { type: 'integer' },
+      invoice_number: nullableString(),
+      client_id: { type: 'integer' },
+      client_name: nullableString(),
+      commission_rate: { type: ['number', 'null'], description: 'Percent, the top-level reseller\'s rate when it was earned' },
+      base_amount: { type: ['number', 'null'], description: 'The invoice subtotal, taxes excluded' },
+      invoice_total: { type: ['number', 'null'] },
+      commission_amount: { type: ['number', 'null'] },
+      currency: { type: 'string' },
+      status: { type: 'string', enum: ['earned', 'reversed'] },
+      earned_at: { type: ['string', 'null'], format: 'date-time', description: 'When it last became standing' },
+      reversed_at: { type: ['string', 'null'], format: 'date-time', description: 'Set while the invoice is not paid' },
+      created_at: { type: ['string', 'null'], format: 'date-time' },
+    },
+  };
+}
+function resellerCommissionPageSchema() {
+  return {
+    type: 'object',
+    required: ['data', 'summary', 'meta'],
+    properties: {
+      data: { type: 'array', items: resellerCommissionSchema() },
+      summary: {
+        type: 'object',
+        required: ['earned', 'reversed', 'earned_this_month'],
+        properties: {
+          earned: { type: 'number', description: 'Sum of the standing commissions' },
+          reversed: { type: 'number', description: 'Sum of the reversed ones' },
+          earned_this_month: { type: 'number', description: 'Standing commissions earned this business month' },
+        },
+      },
+      meta: { type: 'object', required: ['total', 'page', 'limit'], properties: { total: { type: 'integer' }, page: { type: 'integer' }, limit: { type: 'integer' } } },
+    },
+  };
 }
 function resellerLedgerPageSchema(staff) {
   return {

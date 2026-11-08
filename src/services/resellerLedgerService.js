@@ -12,6 +12,15 @@
 //   adjustment        +/-       a correction, with a note
 //   bag_sealed        -declared cash sealed in a cash bag (phase 3,
 //                               migration 006; only cashBagService.seal posts it)
+//   commission        -amount   the commission it keeps from the cash: an
+//                               invoice of its (subtree's) client became paid
+//   commission_reversal +amount that invoice stopped being paid
+//   payout            +amount   the ISP paid it what the ISP owed (phase 4,
+//                               migration 007; resellerCommissionService
+//                               alone posts the two commission lines)
+//
+// A negative balance is what the ISP owes the reseller ("Te debemos"): its
+// commissions passed the cash it holds for the ISP; staff record a payout.
 //
 // Every figure the app and the staff pages show comes from here:
 //
@@ -30,9 +39,15 @@
 // way to the ISP. Receiving the bag posts only the difference with the count
 // (an adjustment of D - C); a lost bag posts nothing, so the ISP absorbs it.
 //
-// Rows are never updated or deleted; a correction is a new entry. A writer
-// locks the reseller row first (lockReseller) so the credit check and the
-// entry it guards cannot interleave with another collection, deposit or seal.
+// Rows are never updated or deleted; a correction is a new entry. A writer of
+// its own reseller's money (collection, void, deposit, payout, adjustment,
+// bag) locks that reseller row FOR UPDATE (lockReseller) so the credit check
+// and the entry it guards cannot interleave with another one. Lock order
+// (phase 4): payment, then invoices, then reseller rows (ascending id; FOR
+// UPDATE only the one whose money is written, LOCK IN SHARE MODE any other),
+// then the cash bag or the commission row. The commission engine takes reseller
+// rows in share mode only, after the invoices its caller already holds; see
+// resellerCommissionService.js for why this cannot deadlock.
 // =============================================================================
 
 const db = require('../config/database');
@@ -41,10 +56,17 @@ const { requireOrgId } = require('../utils/requireOrgId');
 const { inPlaceholders } = require('../utils/sqlBuild');
 const { ORG_SETTING_DEFS } = require('./settingsCatalog');
 
-const ENTRY_TYPES = ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'];
+const ENTRY_TYPES = [
+  'collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed',
+  'commission', 'commission_reversal', 'payout',
+];
 // What staff may post by hand (POST /resellers/:id/ledger); every other type
-// is written by the flow it records (a collection, its void, a sealed bag).
-const MANUAL_ENTRY_TYPES = ['deposit', 'adjustment'];
+// is written by the flow it records (a collection, its void, a sealed bag, a
+// paid or un-paid invoice).
+const MANUAL_ENTRY_TYPES = ['deposit', 'adjustment', 'payout'];
+// The lines that move what the reseller owes without moving the cash it holds:
+// the commission it keeps, its reversal and a payout (cashHeld leaves them out).
+const NON_CASH_ENTRY_TYPES = ['commission', 'commission_reversal', 'payout'];
 const DEFAULT_LIMIT_KEY = 'reseller_default_credit_limit';
 
 const defaultExec = () => db.query.bind(db);
@@ -192,6 +214,51 @@ async function ledgerBalance(orgId, resellerId, exec = defaultExec()) {
 }
 
 /**
+ * The collected cash the reseller physically holds: the balance without its
+ * commission, commission_reversal and payout lines. A void gives a
+ * collection's cash back from the drawer, so it is checked against this, not
+ * against the balance, which the commissions it kept lower.
+ */
+async function cashHeld(orgId, resellerId, exec = defaultExec()) {
+  requireOrgId(orgId, 'resellerLedgerService.cashHeld');
+  const [rows] = await exec(
+    `SELECT COALESCE(SUM(amount), 0) AS cash_held
+       FROM reseller_ledger_entries
+      WHERE organization_id = ? AND reseller_id = ?
+        AND entry_type NOT IN (${inPlaceholders(NON_CASH_ENTRY_TYPES)})`,
+    [orgId, resellerId, ...NON_CASH_ENTRY_TYPES],
+  );
+  return toMoney(rows && rows[0] ? rows[0].cash_held : 0);
+}
+
+/**
+ * Lock reseller rows in ascending id order: `exclusiveId` FOR UPDATE (the
+ * reseller whose money the caller writes), every id of `sharedIds` LOCK IN
+ * SHARE MODE (a reseller whose commission the same transaction may post).
+ * Called after the caller's invoices are locked. Returns the exclusive row
+ * ({ id, name, status, credit_limit, parent_id }) or null.
+ */
+async function lockResellers(exec, orgId, { exclusiveId, sharedIds = [] }) {
+  requireOrgId(orgId, 'resellerLedgerService.lockResellers');
+  const exclusive = Number(exclusiveId);
+  const ids = [...new Set([exclusive, ...sharedIds.map(Number)])]
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .sort((a, b) => a - b);
+  let row = null;
+  for (const id of ids) {
+    if (id === exclusive) {
+      row = await lockReseller(exec, orgId, id);
+    } else {
+      await exec(
+        'SELECT id FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL LOCK IN SHARE MODE',
+        [id, orgId],
+      );
+    }
+  }
+  return row;
+}
+
+/**
  * Lock the reseller row for the rest of the caller's transaction and return
  * { id, name, status, credit_limit, parent_id }, or null when it is not a live
  * reseller of the organization.
@@ -252,21 +319,35 @@ async function balancesFor(orgId, resellerIds, exec = defaultExec()) {
 
 /**
  * Append one entry on the caller's transaction. The sign of `amount` is the
- * caller's: + for a collection, - for a void or a deposit.
+ * caller's: + for a collection, - for a void or a deposit. createdBy is null
+ * only for a line the system posts (commission, commission_reversal).
  * @returns {Promise<number>} the new entry id
  */
 async function appendEntry(exec, {
   orgId, resellerId, entryType, amount, currency, paymentId = null, cashSessionId = null, note = null, createdBy,
-  cashBagId = null,
+  cashBagId = null, invoiceId = null, commissionId = null,
 }) {
   requireOrgId(orgId, 'resellerLedgerService.appendEntry');
   if (!ENTRY_TYPES.includes(entryType)) throw new Error(`Unknown reseller ledger entry type: ${entryType}`);
-  // cash_bag_id goes last, so the column order of phase 2 is unchanged.
+  const author = createdBy === undefined ? null : createdBy;
+  if (author === null && !['commission', 'commission_reversal'].includes(entryType)) {
+    throw new Error(`A ${entryType} ledger entry needs the user who records it`);
+  }
+  // cash_bag_id (phase 3) and the invoice and commission (phase 4) go last, so
+  // the column order of phase 2 is unchanged.
+  const phase4 = invoiceId !== null || commissionId !== null;
   const [result] = await exec(
-    `INSERT INTO reseller_ledger_entries
-       (organization_id, reseller_id, entry_type, amount, currency, payment_id, cash_session_id, note, created_by, cash_bag_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [orgId, resellerId, entryType, toMoney(amount), currency, paymentId, cashSessionId, note, createdBy, cashBagId],
+    phase4
+      ? `INSERT INTO reseller_ledger_entries
+           (organization_id, reseller_id, entry_type, amount, currency, payment_id, cash_session_id, note, created_by, cash_bag_id,
+            invoice_id, commission_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      : `INSERT INTO reseller_ledger_entries
+           (organization_id, reseller_id, entry_type, amount, currency, payment_id, cash_session_id, note, created_by, cash_bag_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    phase4
+      ? [orgId, resellerId, entryType, toMoney(amount), currency, paymentId, cashSessionId, note, author, cashBagId, invoiceId, commissionId]
+      : [orgId, resellerId, entryType, toMoney(amount), currency, paymentId, cashSessionId, note, author, cashBagId],
   );
   return result.insertId;
 }
@@ -284,7 +365,26 @@ function entryRow(r) {
     created_by: r.created_by === null || r.created_by === undefined ? null : Number(r.created_by),
     cash_bag_id: r.cash_bag_id === null || r.cash_bag_id === undefined ? null : Number(r.cash_bag_id),
     cash_bag_serial: r.cash_bag_serial ?? null,
+    invoice_id: r.invoice_id === null || r.invoice_id === undefined ? null : Number(r.invoice_id),
+    invoice_number: r.invoice_number ?? null,
+    commission_id: r.commission_id === null || r.commission_id === undefined ? null : Number(r.commission_id),
   };
+}
+
+/** Set invoice_number on the rows that name an invoice (a commission and its reversal). */
+async function withInvoiceNumbers(orgId, rows) {
+  const ids = [...new Set((rows || []).map((r) => Number(r.invoice_id)).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return rows;
+  const [invoices] = await db.query(
+    `/* includes deleted rows: a ledger line keeps naming the invoice it was posted for */
+     SELECT id, invoice_number FROM invoices WHERE organization_id = ? AND id IN (${inPlaceholders(ids)})`,
+    [orgId, ...ids],
+  );
+  const numbers = new Map((invoices || []).map((i) => [Number(i.id), i.invoice_number]));
+  for (const r of rows) {
+    if (r.invoice_id !== null && r.invoice_id !== undefined) r.invoice_number = numbers.get(Number(r.invoice_id)) ?? null;
+  }
+  return rows;
 }
 
 /** Set cash_bag_serial on the rows that name a bag (its seal, and the difference or legacy deposit of its receipt). */
@@ -307,7 +407,8 @@ async function withBagSerials(orgId, rows) {
 async function listEntries(orgId, resellerId, { limit, offset }) {
   requireOrgId(orgId, 'resellerLedgerService.listEntries');
   const [rows] = await db.query(
-    `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by, cash_bag_id
+    `SELECT id, entry_type, amount, currency, note, created_at, payment_id, cash_session_id, created_by, cash_bag_id,
+            invoice_id, commission_id
        FROM reseller_ledger_entries
       WHERE organization_id = ? AND reseller_id = ?
       ORDER BY created_at DESC, id DESC
@@ -315,6 +416,7 @@ async function listEntries(orgId, resellerId, { limit, offset }) {
     [orgId, resellerId],
   );
   await withBagSerials(orgId, rows);
+  await withInvoiceNumbers(orgId, rows);
   const [[count]] = await db.query(
     'SELECT COUNT(*) AS total FROM reseller_ledger_entries WHERE organization_id = ? AND reseller_id = ?',
     [orgId, resellerId],
@@ -325,6 +427,7 @@ async function listEntries(orgId, resellerId, { limit, offset }) {
 module.exports = {
   ENTRY_TYPES,
   MANUAL_ENTRY_TYPES,
+  NON_CASH_ENTRY_TYPES,
   defaultCreditLimit,
   effectiveCreditLimit,
   topLevelResellerId,
@@ -335,11 +438,14 @@ module.exports = {
   inBagsFor,
   bagCounts,
   ledgerBalance,
+  cashHeld,
   lockReseller,
+  lockResellers,
   summaryFor,
   balancesFor,
   appendEntry,
   listEntries,
   withBagSerials,
+  withInvoiceNumbers,
   entryRow,
 };

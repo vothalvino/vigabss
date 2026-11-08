@@ -31,6 +31,7 @@ jest.mock('../src/services/businessEvents', () => ({
 const request = require('supertest');
 const jwt = require('./helpers/staffJwt');
 const { handleCashBagSql } = require('./helpers/cashBagFakeDb');
+const { handleCommissionSql } = require('./helpers/commissionFakeDb');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const User = require('../src/models/User');
@@ -71,9 +72,10 @@ function freshState() {
       41: { id: 41, organization_id: ORG, name: 'José Pérez', phone: '+52 1 722 555 0003', email: null, address: 'Calle 3', status: 'active', reseller_id: null },
     },
     invoices: {
-      801: { id: 801, organization_id: ORG, client_id: 21, contract_id: 61, invoice_number: 'F-801', status: 'overdue', total: '300.00', currency: 'MXN', issue_date: '2026-09-01', due_date: '2026-09-10' },
-      802: { id: 802, organization_id: ORG, client_id: 21, contract_id: 61, invoice_number: 'F-802', status: 'issued', total: '300.00', currency: 'MXN', issue_date: '2026-10-01', due_date: '2026-10-10' },
-      811: { id: 811, organization_id: ORG, client_id: 31, contract_id: 62, invoice_number: 'F-811', status: 'issued', total: '450.00', currency: 'MXN', issue_date: '2026-10-01', due_date: '2026-10-10' },
+      // subtotal + 16% IVA = total; the commission is on the subtotal (phase 4).
+      801: { id: 801, organization_id: ORG, client_id: 21, contract_id: 61, invoice_number: 'F-801', status: 'overdue', subtotal: '258.62', total: '300.00', currency: 'MXN', issue_date: '2026-09-01', due_date: '2026-09-10', paid_at: null, deleted_at: null },
+      802: { id: 802, organization_id: ORG, client_id: 21, contract_id: 61, invoice_number: 'F-802', status: 'issued', subtotal: '258.62', total: '300.00', currency: 'MXN', issue_date: '2026-10-01', due_date: '2026-10-10', paid_at: null, deleted_at: null },
+      811: { id: 811, organization_id: ORG, client_id: 31, contract_id: 62, invoice_number: 'F-811', status: 'issued', subtotal: '387.93', total: '450.00', currency: 'MXN', issue_date: '2026-10-01', due_date: '2026-10-10', paid_at: null, deleted_at: null },
     },
     payments: [],
     allocations: [],
@@ -84,7 +86,8 @@ function freshState() {
     bags: [],
     events: [],
     assignments: [],
-    seq: { payment: 500, alloc: 900, ledger: 100, session: 40, bag: 700, event: 0 },
+    commissions: [],
+    seq: { payment: 500, alloc: 900, ledger: 100, session: 40, bag: 700, event: 0, commission: 0 },
   };
 }
 
@@ -107,6 +110,17 @@ function handle(sql, params = []) {
   const s = String(sql);
   const bagAnswer = handleCashBagSql(state, s, params);
   if (bagAnswer !== undefined) return bagAnswer;
+  const commissionAnswer = handleCommissionSql(state, s, params);
+  if (commissionAnswer !== undefined) return commissionAnswer;
+  // the invoices a voided collection is allocated to (read before its
+  // transaction, and again as its first plain read)
+  if (/SELECT DISTINCT pa\.invoice_id FROM payment_allocations pa\s+JOIN payments p ON p\.id = pa\.payment_id AND p\.organization_id = \? AND p\.reseller_id = \?\s+WHERE pa\.payment_id = \? AND pa\.deleted_at IS NULL/.test(s)) {
+    const [org, resellerId, paymentId] = params.map(Number);
+    const pay = state.payments.find((x) => x.id === paymentId);
+    if (!pay || Number(pay.organization_id) !== org || Number(pay.reseller_id) !== resellerId) return [[]];
+    return [[...new Set(state.allocations.filter((a) => a.payment_id === paymentId && !a.deleted_at).map((a) => a.invoice_id))]
+      .map((invoice_id) => ({ invoice_id }))];
+  }
   // --- identity, scope, organization
   if (/FROM reseller_user_bindings b/.test(s)) return [binding ? [binding] : []];
   if (/JOIN roles g ON g\.id = u\.group_id/.test(s)) return [groupName ? [{ group_name: groupName }] : []];
@@ -201,15 +215,24 @@ function handle(sql, params = []) {
   }
   if (/AS allocated\s+FROM invoices i WHERE i\.id = \?/.test(s)) {
     const inv = state.invoices[Number(params[0])];
-    return [inv ? [{ total: inv.total, allocated: fromCents(allocatedOn(inv.id)) }] : []];
+    return [inv ? [{ total: inv.total, organization_id: inv.organization_id, allocated: fromCents(allocatedOn(inv.id)) }] : []];
   }
-  if (/UPDATE invoices SET status = \?/.test(s)) { state.invoices[Number(params[1])].status = params[0]; return [{ affectedRows: 1 }]; }
-  if (/UPDATE invoices SET status = 'issued'/.test(s)) {
-    const inv = state.invoices[Number(params[0])];
-    if (inv && inv.status === 'paid') inv.status = 'issued';
+  if (/UPDATE invoices SET status = \?/.test(s)) {
+    Object.assign(state.invoices[Number(params[1])], { status: params[0], paid_at: new Date() });
     return [{ affectedRows: 1 }];
   }
-  if (/UPDATE invoices SET status = 'paid'/.test(s)) { state.invoices[Number(params[0])].status = 'paid'; return [{ affectedRows: 1 }]; }
+  if (/UPDATE invoices SET status = 'issued'/.test(s)) {
+    const inv = state.invoices[Number(params[0])];
+    const changed = Boolean(inv && inv.status === 'paid');
+    if (changed) Object.assign(inv, { status: 'issued', paid_at: null });
+    return [{ affectedRows: changed ? 1 : 0 }];
+  }
+  if (/UPDATE invoices SET status = 'paid'/.test(s)) {
+    const inv = state.invoices[Number(params[0])];
+    const changed = Boolean(inv && PAYABLE.includes(inv.status));
+    if (changed) Object.assign(inv, { status: 'paid', paid_at: new Date() });
+    return [{ affectedRows: changed ? 1 : 0 }];
+  }
   // --- allocations
   if (/INSERT INTO payment_allocations/.test(s)) {
     if (failAllocation) throw new Error('allocation exploded');
@@ -527,12 +550,27 @@ describe('a collection', () => {
     expect(state.invoices[801].status).toBe('paid');
     expect(state.invoices[802].status).toBe('issued');
     expect(state.sessions).toEqual([expect.objectContaining({ id: 41, agent_user_id: USER, status: 'open' })]);
-    expect(state.ledger).toEqual([expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '450.00', payment_id: 501, cash_session_id: 41 })]);
+    expect(state.ledger.filter((e) => e.reseller_id === 1)).toEqual([expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '450.00', payment_id: 501, cash_session_id: 41 })]);
+    // Phase 4: the invoice it paid off earns the commission of the client's
+    // owner (R2, 5% of the 258.62 subtotal), whoever collected, in the same
+    // transaction. The half-paid F-802 earns nothing yet.
+    expect(state.ledger.filter((e) => e.reseller_id === 2)).toEqual([expect.objectContaining({
+      entry_type: 'commission', amount: '-12.93', invoice_id: 801, commission_id: 1, created_by: null, payment_id: null,
+    })]);
+    expect(state.commissions).toEqual([expect.objectContaining({
+      reseller_id: 2, invoice_id: 801, client_id: 21, commission_rate: '5.00', base_amount: '258.62', commission_amount: '12.93', status: 'earned',
+    })]);
     expect(conn.beginTransaction).toHaveBeenCalledTimes(1);
     expect(conn.commit).toHaveBeenCalledTimes(1);
-    // The reseller row is locked before anything is read or written.
-    const first = conn.execute.mock.calls[0][0];
-    expect(first).toMatch(/FROM resellers[\s\S]*FOR UPDATE/);
+    // Lock order (phase 4): the client's invoices, then the reseller rows in
+    // ascending id order: the collector (R1) FOR UPDATE, the owner (R2) in
+    // share mode; all before anything is read or written.
+    const onTx = conn.execute.mock.calls.map(([q]) => String(q));
+    expect(onTx[0]).toMatch(/SELECT id FROM invoices WHERE organization_id <=> \?[\s\S]*FOR UPDATE/);
+    expect(onTx[1]).toMatch(/FROM resellers[\s\S]*FOR UPDATE/);
+    expect(conn.execute.mock.calls[1][1]).toEqual([1, ORG]);
+    expect(onTx[2]).toMatch(/FROM resellers[\s\S]*LOCK IN SHARE MODE/);
+    expect(conn.execute.mock.calls[2][1]).toEqual([2, ORG]);
   });
 
   test('a sub-reseller user collects for its top-level reseller', async () => {
@@ -583,10 +621,13 @@ describe('a collection', () => {
     const onTx = conn.execute.mock.calls.map(([q]) => String(q));
     const invoiceLock = onTx.findIndex((q) => /SELECT id FROM invoices WHERE organization_id <=> \?[\s\S]*FOR UPDATE/.test(q));
     const firstPlainRead = onTx.findIndex((q) => /^\s*(\/\*[\s\S]*?\*\/\s*)?SELECT/.test(q) && !/FOR UPDATE\s*$/.test(q.trim()));
-    expect(invoiceLock).toBeGreaterThan(0);
+    expect(invoiceLock).toBe(0);
     expect(firstPlainRead).toBeGreaterThan(invoiceLock);
-    // Reseller first, then the invoices: one lock order.
-    expect(onTx.findIndex((q) => /FROM resellers[\s\S]*FOR UPDATE/.test(q))).toBeLessThan(invoiceLock);
+    // Invoices first, then the reseller (phase 4): one lock order with every
+    // allocator that syncs a commission while it holds invoices.
+    const resellerLock = onTx.findIndex((q) => /FROM resellers[\s\S]*FOR UPDATE/.test(q));
+    expect(resellerLock).toBeGreaterThan(invoiceLock);
+    expect(firstPlainRead).toBeGreaterThan(resellerLock);
     const lockCall = conn.execute.mock.calls[invoiceLock];
     expect(lockCall[1]).toEqual([ORG, 21]);
   });
@@ -726,7 +767,7 @@ describe('cash bags free the limit (phase 3)', () => {
     expect(voided.status).toBe(409);
     expect(voided.body.error.code).toBe('CASH_SEALED_IN_BAG');
     expect(state.payments[0].status).toBe('completed');
-    expect(state.ledger.map((e) => e.entry_type)).toEqual(['collection', 'bag_sealed']);
+    expect(state.ledger.filter((e) => e.reseller_id === 1).map((e) => e.entry_type)).toEqual(['collection', 'bag_sealed']);
   });
 
   test('without empty bags the refusal says so', async () => {
@@ -737,7 +778,7 @@ describe('cash bags free the limit (phase 3)', () => {
     expect(res.body.error.message).toMatch(/wait for empty cash bags/);
   });
 
-  test('a seal waits for the reseller lock a collection holds: both lock the reseller row first', async () => {
+  test('a seal waits for the reseller lock a collection holds: the collection locks its invoices, then the reseller; the seal the reseller, then the bag', async () => {
     state.resellers[1].credit_limit = '300.00';
     state.bags.push(emptyBag(701, 'BAG-1'));
     const token = asBoundReseller([...COLLECTOR, 'reseller_app.bags']);
@@ -745,9 +786,11 @@ describe('cash bags free the limit (phase 3)', () => {
     await post('/reseller-app/bags/seal', token, { serial: 'BAG-1', declared_amount: 100 });
     const locks = conn.execute.mock.calls.map(([q]) => String(q)).filter((q) => /FOR UPDATE/.test(q));
     const firstOf = (re) => locks.findIndex((q) => re.test(q));
-    // The collection's lock comes first in its transaction, and so does the seal's.
-    expect(locks[0]).toMatch(/FROM resellers/);
-    const sealLocks = locks.slice(locks.findIndex((q, i) => i > 0 && /FROM resellers/.test(q)));
+    // The collection locks its invoices, then the reseller; a seal locks no
+    // invoice, so the two serialize on the reseller row and cannot deadlock.
+    expect(locks[0]).toMatch(/FROM invoices/);
+    expect(locks[1]).toMatch(/FROM resellers/);
+    const sealLocks = locks.slice(locks.findIndex((q, i) => i > 1 && /FROM resellers/.test(q)));
     expect(sealLocks[0]).toMatch(/FROM resellers/);
     expect(sealLocks[1]).toMatch(/FROM cash_bags/);
     expect(firstOf(/FROM cash_bags/)).toBeGreaterThan(firstOf(/FROM resellers/));
@@ -799,6 +842,8 @@ describe('credit limit', () => {
     expect(me.body.data.money).toEqual({
       currency: 'MXN', balance: 100, in_bags: 0, cash_on_hand: 100, credit_limit: 300, available_to_collect: 200, collected_today: 300,
       empty_bags: 0, bags_ready_for_pickup: 0, bags_in_transit: 0,
+      // The client paid is R2's: R1 (10%) earns nothing this month.
+      commission_rate: 10, commission_month: 0,
     });
     expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 200 })).status).toBe(201);
   });
@@ -821,8 +866,16 @@ describe('void', () => {
     expect(state.payments[0].deleted_at).toBeTruthy();
     expect(state.allocations.every((a) => a.deleted_at)).toBe(true);
     expect(state.invoices[801].status).toBe('issued');
-    expect(state.ledger.map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['collection_void', '-300.00']]);
-    expect(state.ledger[1]).toMatchObject({ payment_id: id, cash_session_id: 41, note: 'monto equivocado' });
+    const own = state.ledger.filter((e) => e.reseller_id === 1);
+    expect(own.map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['collection_void', '-300.00']]);
+    expect(own[1]).toMatchObject({ payment_id: id, cash_session_id: 41, note: 'monto equivocado' });
+    // The invoice is no longer paid: the owner's commission is reversed in the
+    // void's transaction (phase 4).
+    expect(state.ledger.filter((e) => e.reseller_id === 2).map((e) => [e.entry_type, e.amount, e.invoice_id])).toEqual([
+      ['commission', '-12.93', 801], ['commission_reversal', '12.93', 801],
+    ]);
+    expect(state.commissions[0]).toMatchObject({ status: 'reversed' });
+    expect(state.commissions[0].reversed_at).toBeInstanceOf(Date);
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'void', tableName: 'payments', recordId: id }));
     // Voiding again is a conflict.
     expect((await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'otra vez' })).status).toBe(409);
@@ -834,8 +887,46 @@ describe('void', () => {
     const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'monto equivocado' });
     expect(res.status).toBe(200);
     expect(res.body.data.amount).toBe(300);
-    expect(state.ledger.map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['collection_void', '-300.00']]);
+    expect(state.ledger.filter((e) => e.reseller_id === 1).map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['collection_void', '-300.00']]);
     expect(ledgerSum(1)).toBe(0);
+    expect(ledgerSum(2)).toBe(0);
+  });
+
+  test('locks the payment, its invoices, then the reseller rows, with no locking read of payment_allocations (a gap lock allocators insert into)', async () => {
+    const id = await collected(300);
+    conn.execute.mockClear();
+    const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'monto equivocado' });
+    expect(res.status).toBe(200);
+    const onTx = conn.execute.mock.calls.map(([q, p]) => [String(q).replace(/\s+/g, ' ').trim(), p]);
+    const locks = onTx.filter(([q]) => /FOR UPDATE|LOCK IN SHARE MODE/.test(q));
+    expect(locks[0][0]).toMatch(/FROM payments WHERE id = \? AND organization_id = \? AND reseller_id = \? FOR UPDATE/);
+    expect(locks[1][0]).toMatch(/SELECT id FROM invoices WHERE organization_id <=> \?.*FOR UPDATE/);
+    // The allocated invoice, read before the transaction, is locked with the client's.
+    expect(locks[1][1]).toEqual([ORG, 801, 21]);
+    expect(locks[2][0]).toMatch(/FROM resellers/);
+    expect(onTx.filter(([q]) => /FROM payment_allocations/.test(q) && /FOR UPDATE/.test(q))).toEqual([]);
+    const resellerLock = onTx.findIndex(([q]) => /FROM resellers/.test(q) && /FOR UPDATE|LOCK IN SHARE MODE/.test(q));
+    const allocationRead = onTx.findIndex(([q]) => /SELECT DISTINCT pa\.invoice_id FROM payment_allocations pa/.test(q));
+    expect(allocationRead).toBeGreaterThan(resellerLock);
+  });
+
+  test('a collection reallocated between the read and the lock is refused for a retry, and nothing changes', async () => {
+    const id = await collected(300);
+    const ledgerBefore = state.ledger.length;
+    const real = conn.execute.getMockImplementation();
+    conn.execute.mockImplementation(async (sql, params) => {
+      // Staff move the allocation to another invoice just before the void locks the payment.
+      if (/FROM payments\s+WHERE id = \? AND organization_id = \? AND reseller_id = \?\s+FOR UPDATE/.test(String(sql))) {
+        state.allocations.filter((a) => a.payment_id === id).forEach((a) => { a.invoice_id = 899; });
+      }
+      return real(sql, params);
+    });
+    const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'monto equivocado' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LOCK_CONTENTION');
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(state.payments[0].status).toBe('completed');
+    expect(state.ledger).toHaveLength(ledgerBefore);
   });
 
   test("a colleague bound to the same reseller cannot void another user's collection", async () => {
@@ -846,7 +937,8 @@ describe('void', () => {
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('NOT_YOUR_COLLECTION');
     expect(state.payments[0]).toMatchObject({ status: 'completed', deleted_at: null });
-    expect(state.ledger).toHaveLength(1);
+    // Nothing moved: R1's collection and R2's commission stand.
+    expect(state.ledger.map((e) => e.entry_type)).toEqual(['commission', 'collection']);
     // Its collector still sees it voidable.
     expect((await get('/reseller-app/payments', asBoundReseller())).body.data[0].voidable).toBe(true);
   });
@@ -899,7 +991,7 @@ describe('void', () => {
     const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'con REP' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('PAYMENT_HAS_REP');
-    expect(state.ledger).toHaveLength(1);
+    expect(state.ledger.map((e) => e.entry_type)).toEqual(['commission', 'collection']);
     expect(state.allocations.some((a) => !a.deleted_at)).toBe(true);
   });
 
@@ -960,7 +1052,9 @@ describe('collections list, receipt and cash box', () => {
     expect(closed.status).toBe(200);
     expect(closed.body.data).toMatchObject({ id: 41, expected_total: 300, counted_total: 290, variance: -10, status: 'closed' });
     // Closing does not touch the ledger: the cash is still to be handed in.
-    expect(state.ledger.reduce((t, e) => t + cents(e.amount), 0)).toBe(30000);
+    expect(ledgerSum(1)).toBe(30000);
+    // R2 keeps the commission on F-801, which client 21 paid through R1.
+    expect(ledgerSum(2)).toBe(-1293);
 
     const after = await get('/reseller-app/cash-session', asBoundReseller());
     expect(after.body.data.current).toBeNull();
@@ -977,6 +1071,98 @@ describe('collections list, receipt and cash box', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([expect.objectContaining({ entry_type: 'collection', amount: 300, payment_id: 501 })]);
     expect(res.body.summary).toEqual({ balance: 300, in_bags: 0, cash_on_hand: 300, credit_limit: 2000, available_to_collect: 1700 });
+  });
+});
+
+describe('commissions and payouts (phase 4)', () => {
+  // Client 31 belongs to sub-reseller R3; the commission is R1's (10%) on the
+  // 387.93 subtotal of F-811 (450.00 with IVA): 38.79, kept from the cash.
+  test('a reseller that collects its own client keeps the commission: the balance is net of it', async () => {
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(31), amount: 450 });
+    expect(res.status).toBe(201);
+    expect(state.invoices[811].status).toBe('paid');
+    expect(state.ledger.map((e) => [e.reseller_id, e.entry_type, e.amount])).toEqual([
+      [1, 'commission', '-38.79'], [1, 'collection', '450.00'],
+    ]);
+    const me = await get('/reseller-app/me', asBoundReseller(COLLECTOR, 3));
+    // The sub-reseller's user sees R1's rate (its own 0.00 does not apply) and month.
+    expect(me.body.data.money).toMatchObject({ balance: 411.21, cash_on_hand: 411.21, commission_rate: 10, commission_month: 38.79 });
+    const ledgerPage = await get('/reseller-app/ledger', asBoundReseller());
+    // Newest first; the commission line names its invoice.
+    expect(ledgerPage.body.data).toEqual([
+      expect.objectContaining({ entry_type: 'collection', amount: 450, invoice_number: null }),
+      expect.objectContaining({ entry_type: 'commission', amount: -38.79, invoice_number: 'F-811' }),
+    ]);
+    const staff = await get('/resellers/1/ledger', asOrgAdmin());
+    expect(staff.body.data.find((e) => e.entry_type === 'commission')).toMatchObject({
+      invoice_id: 811, invoice_number: 'F-811', commission_id: 1, created_by: null,
+    });
+    expect(ledgerSum(1)).toBe(cents(staff.body.summary.balance));
+  });
+
+  test('its void still works although the commission lowered the balance, and reverses the commission', async () => {
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(31), amount: 450 });
+    const voided = await post(`/reseller-app/payments/${res.body.data.payment_id}/void`, asBoundReseller(), { reason: 'error' });
+    expect(voided.status).toBe(200);
+    expect(state.ledger.map((e) => [e.entry_type, e.amount])).toEqual([
+      ['commission', '-38.79'], ['collection', '450.00'], ['commission_reversal', '38.79'], ['collection_void', '-450.00'],
+    ]);
+    expect(ledgerSum(1)).toBe(0);
+  });
+
+  test('the staff Commissions list shows base, rate, amount and status', async () => {
+    await collect(asBoundReseller(), { collect_token: tokenForClient(31), amount: 450 });
+    mockQuery.mockImplementation(async (sql, params) => {
+      if (/FROM reseller_commissions rc\s+LEFT JOIN clients c/.test(sql)) {
+        return [state.commissions.map((c) => ({ ...c, client_name: state.clients[c.client_id].name, invoice_number: state.invoices[c.invoice_id].invoice_number }))];
+      }
+      if (/COUNT\(\*\) AS total FROM reseller_commissions rc/.test(sql)) return [[{ total: state.commissions.length }]];
+      if (/CASE WHEN reversed_at IS NULL THEN commission_amount END/.test(sql)) return [[{ earned: '38.79', reversed: '0.00' }]];
+      return handle(sql, params);
+    });
+    const res = await get('/resellers/1/commissions', asOrgAdmin(['reseller_commissions.view']));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([expect.objectContaining({
+      reseller_id: 1, invoice_id: 811, invoice_number: 'F-811', client_id: 31, client_name: 'Ana Ruiz',
+      commission_rate: 10, base_amount: 387.93, invoice_total: 450, commission_amount: 38.79, currency: 'MXN', status: 'earned', reversed_at: null,
+    })]);
+    expect(res.body.summary).toEqual({ earned: 38.79, reversed: 0, earned_this_month: 38.79 });
+    expect(res.body.meta).toEqual({ total: 1, page: 1, limit: 50 });
+  });
+
+  test('staff cannot post a commission, a reversal, a sealed bag or a collection by hand', async () => {
+    const admin = asOrgAdmin();
+    for (const entryType of ['commission', 'commission_reversal', 'bag_sealed', 'collection', 'collection_void']) {
+      const res = await post('/resellers/1/ledger', admin, { entry_type: entryType, amount: 5, note: 'a mano' });
+      expect(res.status).toBe(422);
+    }
+    expect(state.ledger).toEqual([]);
+  });
+
+  test('a payout is at most what the ISP owes (a negative balance); a deposit is refused then', async () => {
+    const admin = asOrgAdmin();
+    // Nothing owed: a payout is refused.
+    const none = await post('/resellers/1/ledger', admin, { entry_type: 'payout', amount: 1 });
+    expect(none.status).toBe(422);
+    expect(none.body.error.code).toBe('PAYOUT_EXCEEDS_OWED');
+    // The ISP owes R1 100.00: its commissions passed the cash it holds.
+    state.ledger.push({ id: 1, reseller_id: 1, entry_type: 'commission', amount: '-100.00', payment_id: null, cash_session_id: null });
+    expect((await post('/resellers/1/ledger', admin, { entry_type: 'deposit', amount: 1 })).body.error.code).toBe('DEPOSIT_EXCEEDS_BALANCE');
+    const tooMuch = await post('/resellers/1/ledger', admin, { entry_type: 'payout', amount: 100.01 });
+    expect(tooMuch.status).toBe(422);
+    expect(tooMuch.body.error.code).toBe('PAYOUT_EXCEEDS_OWED');
+    expect((await post('/resellers/1/ledger', admin, { entry_type: 'payout', amount: -5 })).status).toBe(422);
+    const paid = await post('/resellers/1/ledger', admin, { entry_type: 'payout', amount: 100, note: 'transferencia' });
+    expect(paid.status).toBe(201);
+    expect(paid.body.data).toMatchObject({ entry_type: 'payout', amount: 100, note: 'transferencia', created_by: USER, invoice_id: null });
+    expect(paid.body.summary).toMatchObject({ balance: 0 });
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'reseller_payout', tableName: 'reseller_ledger_entries' }));
+    expect((await post('/resellers/1/ledger', admin, { entry_type: 'payout', amount: 0.01 })).status).toBe(422);
+  });
+
+  test('a bound reseller cannot record a payout', async () => {
+    const res = await post('/resellers/1/ledger', asBoundReseller([...COLLECTOR, 'reseller_ledger.manage']), { entry_type: 'payout', amount: 1 });
+    expect(res.status).toBe(403);
   });
 });
 

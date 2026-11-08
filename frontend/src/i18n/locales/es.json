@@ -4949,7 +4949,7 @@
     "subscribers": "Suscriptores Activos",
     "revenue": "Ingresos (Este Mes)",
     "openTickets": "Tickets Abiertos",
-    "pendingCommission": "Comision Pendiente",
+    "pendingCommission": "Comisión de este mes",
     "bandwidthQuota": "Cuota de Ancho de Banda",
     "ipPools": "Asignaciones de Pool IP",
     "download": "Descarga",
@@ -10055,7 +10055,13 @@
       "atLimit": "Llegaste a tu límite: entrega el efectivo para seguir cobrando.",
       "collectedToday": "Cobrado hoy",
       "collect": "Cobrar",
-      "viewCash": "Ver mi caja"
+      "viewCash": "Ver mi caja",
+      "owedToYou": "Te debemos"
+    },
+    "commission": {
+      "title": "Tu comisión",
+      "month": "Ganada este mes",
+      "help": "Ganas el {{rate}}% de cada factura pagada de tus clientes, sin IVA. La tomas del efectivo que cobras, así que ya está descontada de lo que debes entregar."
     },
     "collect": {
       "title": "Cobrar",
@@ -10154,6 +10160,7 @@
       "voidNotYours": "Solo quien recibió este efectivo puede anular el cobro.",
       "voidHasRep": "Este cobro ya se reportó al SAT con un complemento de pago. Pide a la empresa que lo cancele.",
       "voidSealedInBag": "El efectivo de este cobro ya está sellado en una bolsa. Pide a la empresa que lo corrija.",
+      "voidChanged": "Este cobro cambió mientras se anulaba. Inténtalo de nuevo.",
       "noOpenToClose": "No tienes una caja abierta para cerrar.",
       "closeTitle": "Cerrar caja",
       "closeHelp": "Cuenta el efectivo que tienes y escribe el total. Cerrar la caja no cambia lo que debes: eso baja cuando la empresa recibe tu efectivo.",
@@ -10177,16 +10184,20 @@
     },
     "ledger": {
       "title": "Movimientos",
-      "intro": "Cada cobro suma a lo que debes entregar a la empresa; cada entrega de efectivo y cada bolsa que sellas lo bajan.",
+      "intro": "Cada cobro suma a lo que debes entregar a la empresa; cada entrega de efectivo, cada bolsa que sellas y cada comisión que ganas lo bajan. Si tus comisiones pasan el efectivo que tienes, la empresa te debe la diferencia.",
       "loadError": "No pudimos cargar tus movimientos.",
       "empty": "Todavía no hay movimientos.",
       "limit": "Tu límite de efectivo",
+      "invoice": "Factura {{number}}",
       "types": {
         "collection": "Cobro",
         "collection_void": "Cobro anulado",
         "deposit": "Entrega de efectivo",
         "adjustment": "Ajuste",
-        "bag_sealed": "Bolsa sellada"
+        "bag_sealed": "Bolsa sellada",
+        "commission": "Comisión ganada",
+        "commission_reversal": "Comisión revertida",
+        "payout": "Pago de la empresa"
       }
     }
   },
@@ -10273,7 +10284,7 @@
   "resellerLedger": {
     "tab": "Movimientos",
     "title": "Movimientos de efectivo",
-    "help": "El efectivo que un revendedor cobró a nombre de la empresa, el que ya entregó y el que selló en bolsas (se descuenta de lo que debe al sellarlas). Los sub-revendedores cobran en la cuenta de su revendedor principal.",
+    "help": "El efectivo que un revendedor cobró a nombre de la empresa, el que ya entregó, el que selló en bolsas (se descuenta de lo que debe al sellarlas) y la comisión que toma del efectivo por las facturas pagadas de sus clientes. Un saldo negativo es lo que la empresa le debe. Los sub-revendedores cobran y ganan en la cuenta de su revendedor principal.",
     "reseller": "Revendedor",
     "selectReseller": "— Elige un revendedor —",
     "loadError": "No se pudieron cargar los movimientos del revendedor.",
@@ -10282,6 +10293,18 @@
     "creditLimit": "Límite de efectivo",
     "available": "Aún puede cobrar",
     "viewPayments": "Ver los cobros de este revendedor",
+    "owedToReseller": "La empresa le debe",
+    "invoice": "Factura {{number}}",
+    "payoutTitle": "Registrar pago al revendedor",
+    "payoutHelp": "Lo que la empresa le pagó al revendedor cuando sus comisiones pasaron el efectivo que tenía. Regresa el saldo hacia cero.",
+    "payoutOwed": "La empresa le debe {{amount}} a este revendedor.",
+    "payoutNothingOwed": "Por ahora la empresa no le debe nada a este revendedor.",
+    "payoutAmount": "Monto pagado",
+    "payoutSubmit": "Registrar pago",
+    "payoutSaved": "Pago al revendedor de {{amount}} registrado.",
+    "payoutInvalid": "Escribe un monto mayor a cero, con hasta dos decimales.",
+    "payoutTooMuch": "Un pago no puede ser mayor a lo que la empresa le debe al revendedor.",
+    "depositTooMuch": "Una entrega no puede ser mayor al efectivo que tiene el revendedor.",
     "depositTitle": "Registrar entrega de efectivo",
     "depositHelp": "El efectivo que el revendedor entregó a la empresa. Baja lo que debe y libera su límite.",
     "depositAmount": "Monto recibido",
@@ -10310,8 +10333,38 @@
       "collection_void": "Cobro anulado",
       "deposit": "Entrega de efectivo",
       "adjustment": "Ajuste",
-      "bag_sealed": "Bolsa sellada"
+      "bag_sealed": "Bolsa sellada",
+      "commission": "Comisión",
+      "commission_reversal": "Comisión revertida",
+      "payout": "Pago al revendedor"
     }
+  },
+  "resellerCommissions": {
+    "title": "Comisiones",
+    "help": "Un revendedor gana su porcentaje de comisión sobre el subtotal (sin IVA) de cada factura pagada de un cliente que trajo, sin importar quién cobró. Los clientes de los sub-revendedores ganan con el porcentaje de su revendedor principal, en su cuenta. Una comisión se revierte cuando su factura deja de estar pagada y se vuelve a ganar si se paga de nuevo. El revendedor la toma del efectivo que cobra: ver Movimientos.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Elige un revendedor —",
+    "status": "Estado",
+    "statusAll": "Todas",
+    "statuses": {
+      "earned": "Ganada",
+      "reversed": "Revertida"
+    },
+    "resellersError": "No se pudieron cargar los revendedores.",
+    "loadError": "No se pudieron cargar las comisiones.",
+    "summary": "Resumen",
+    "earnedThisMonth": "Ganado este mes",
+    "earnedTotal": "Ganado (vigente)",
+    "reversedTotal": "Revertido",
+    "colEarned": "Ganada el",
+    "colInvoice": "Factura",
+    "colClient": "Cliente",
+    "colBase": "Base (sin IVA)",
+    "colRate": "Porcentaje",
+    "colAmount": "Comisión",
+    "colStatus": "Estado",
+    "empty": "Todavía no hay comisiones.",
+    "reversedOn": "Revertida el {{date}}"
   },
   "serialScan": {
     "scan": "Escanear con la cámara",

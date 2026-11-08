@@ -757,7 +757,6 @@ describe('ISP decisions about a reseller are org-level only', () => {
 
   test.each([
     ['post', '/resellers/1/suspend', {}],
-    ['post', '/resellers/1/commissions/9/approve', { status: 'paid' }],
     ['post', '/resellers/1/plan-prices', { plan_id: 10, custom_price: 1 }],
     ['delete', '/resellers/1/plan-prices/4', undefined],
     ['post', '/resellers/1/ip-pools', { ip_pool_id: 2 }],
@@ -772,6 +771,14 @@ describe('ISP decisions about a reseller are org-level only', () => {
       : method === 'put' ? await put(path, token, body) : await post(path, token, body);
     expect(res.status).toBe(403);
     expect(res.body.error.message).toBe('Only the ISP can change this for a reseller');
+    expect(sqlCalls(/^\s*(UPDATE|INSERT|DELETE)\b/)).toHaveLength(0);
+  });
+
+  test('the commission approve route is gone for everyone (phase 4)', async () => {
+    const bound = await post('/resellers/1/commissions/9/approve', asBoundReseller(ALL), { status: 'paid' });
+    const staff = await post('/resellers/1/commissions/9/approve', asOrgAdmin(['reseller_commissions.approve']), { status: 'paid' });
+    expect(bound.status).toBe(404);
+    expect(staff.status).toBe(404);
     expect(sqlCalls(/^\s*(UPDATE|INSERT|DELETE)\b/)).toHaveLength(0);
   });
 

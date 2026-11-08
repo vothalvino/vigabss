@@ -42,7 +42,7 @@ const MONEY = {
   currency: 'MXN', balance: '800.00', cash_on_hand: '800.00', credit_limit: '2000.00',
   available_to_collect: '1200.00', collected_today: '350.00',
 };
-let money: typeof MONEY = MONEY;
+let money: typeof MONEY & { commission_rate?: number; commission_month?: number } = MONEY;
 const me = () => ({
   data: {
     reseller: { id: 4, name: 'Punto Norte', level: 1, status: 'active', commission_rate: '10.00', parent_id: null },
@@ -184,6 +184,39 @@ describe('Inicio money card', () => {
     expect(within(card).getByText('Debes entregar').parentElement).toHaveTextContent('$2,000.00');
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
     expect(within(card).queryByRole('link', { name: 'Cobrar' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Inicio commission (phase 4)', () => {
+  it('shows the commission earned this month at the top-level rate', async () => {
+    money = { ...MONEY, commission_rate: 7.5, commission_month: 38.79 };
+    renderAt('/punto');
+    const card = await screen.findByRole('region', { name: 'Your commission' });
+    expect(within(card).getByText('Earned this month').parentElement).toHaveTextContent('$38.79');
+    expect(card).toHaveTextContent('You earn 7.5% of each paid invoice of your clients, before taxes.');
+  });
+
+  it('shows nothing for a reseller that earns no commission, or an older server', async () => {
+    money = { ...MONEY, commission_rate: 0, commission_month: 0 };
+    const { unmount } = renderAt('/punto');
+    await screen.findByRole('region', { name: 'Your cash' });
+    expect(screen.queryByRole('region', { name: 'Your commission' })).not.toBeInTheDocument();
+    unmount();
+    money = MONEY;
+    renderAt('/punto');
+    await screen.findByRole('region', { name: 'Your cash' });
+    expect(screen.queryByRole('region', { name: 'Your commission' })).not.toBeInTheDocument();
+  });
+
+  it('says "Te debemos" when the commissions passed the cash the reseller holds', async () => {
+    money = { ...MONEY, balance: '-45.50', cash_on_hand: '-45.50', available_to_collect: '2045.50', commission_rate: 10, commission_month: 80 };
+    await i18n.changeLanguage('es');
+    renderAt('/punto');
+    const card = await screen.findByRole('region', { name: 'Tu efectivo' });
+    expect(within(card).getByText('Te debemos').parentElement).toHaveTextContent('$45.50');
+    expect(within(card).queryByText('Debes entregar')).not.toBeInTheDocument();
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('region', { name: 'Tu comisión' })).toHaveTextContent('$80.00');
   });
 });
 
@@ -407,6 +440,27 @@ describe('Mi caja', () => {
     expect(within(ledger).getByText('-$500.00')).toBeInTheDocument();
   });
 
+  it('labels the commission lines with their invoice and a negative balance as owed to the reseller', async () => {
+    override = (path) => (path.startsWith('/reseller-app/ledger?') ? {
+      data: [
+        { id: 6, entry_type: 'payout', amount: '20.00', note: null, created_at: '2026-11-07T19:00:00Z', payment_id: null, invoice_number: null },
+        { id: 5, entry_type: 'commission_reversal', amount: '38.79', note: null, created_at: '2026-11-07T18:00:00Z', payment_id: null, invoice_number: 'F-0811' },
+        { id: 4, entry_type: 'commission', amount: '-38.79', note: null, created_at: '2026-11-07T17:00:00Z', payment_id: null, invoice_number: 'F-0811' },
+      ],
+      summary: { balance: '-12.00', cash_on_hand: '-12.00', credit_limit: '2000.00', available_to_collect: '2012.00' },
+      meta: { total: 3, page: 1, limit: 20 },
+    } : undefined);
+    renderAt('/punto/caja');
+    const ledger = await screen.findByRole('region', { name: 'Movements' });
+    const earned = (await within(ledger).findByText('Commission earned')).closest('li')!;
+    expect(earned).toHaveTextContent('Invoice F-0811');
+    expect(earned).toHaveTextContent('-$38.79');
+    expect(within(ledger).getByText('Commission reversed').closest('li')).toHaveTextContent('+$38.79');
+    expect(within(ledger).getByText('Payment from the company').closest('li')).toHaveTextContent('+$20.00');
+    expect(within(ledger).getByText('We owe you').nextElementSibling).toHaveTextContent('$12.00');
+    expect(within(ledger).queryByText('You must hand in')).not.toBeInTheDocument();
+  });
+
   it('voids a collection with a reason', async () => {
     const user = userEvent.setup();
     renderAt('/punto/caja');
@@ -450,6 +504,7 @@ describe('Mi caja', () => {
     ['ALREADY_VOIDED', 'This payment was already voided.'],
     ['NOT_YOUR_COLLECTION', 'Only the person who took this cash can void it.'],
     ['CASH_SEALED_IN_BAG', 'The cash of this payment is already sealed in a cash bag. Ask the company to correct it.'],
+    ['LOCK_CONTENTION', 'This payment changed while it was being voided. Try again.'],
   ])('explains the %s refusal of a void in the reader\'s language', async (code, text) => {
     override = (path, init) => {
       if (path === '/reseller-app/payments/101/void' && init?.method === 'POST') {

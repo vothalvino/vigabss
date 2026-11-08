@@ -52,8 +52,11 @@ function isPaymentSettled(payment) {
  * `['paid', invoice.id]`) intentionally matches what POST /:id/allocate has
  * always issued — existing tests assert on it.
  *
+ * Marking it paid also syncs the reseller commission of the invoice on the
+ * same exec (resellerCommissionService.syncResellerCommission).
+ *
  * @param {Function} exec - bound query function: (sql, params) => Promise
- * @param {{id:number, total:string|number}} invoice
+ * @param {{id:number, total:string|number, organization_id?:number}} invoice
  * @returns {Promise<boolean>} true if this call just marked it paid
  */
 async function finalizeIfFullyPaid(exec, invoice) {
@@ -70,6 +73,10 @@ async function finalizeIfFullyPaid(exec, invoice) {
     'UPDATE invoices SET status = ?, paid_at = NOW() WHERE id = ?',
     ['paid', invoice.id],
   );
+  // The reseller's commission on the paid invoice, in this transaction
+  // (phase 4). Every allocator reaches it: allocate, allocate-auto, gateway
+  // reconcile, reseller collect, payment plans and group billing.
+  await require('./resellerCommissionService').syncCommissionByInvoice(exec, invoice.id, invoice.organization_id);
   return true;
 }
 

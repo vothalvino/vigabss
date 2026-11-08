@@ -172,12 +172,13 @@ router.get('/ledger', requirePermission('reseller_app.use'), async (req, res, ne
       ledger.summaryFor(req.orgId, collectorId),
     ]);
     res.json({
+      // invoice_number names the invoice of a commission line (phase 4).
       data: rows.map(({
         id, entry_type: entryType, amount, note, created_at: createdAt, payment_id: paymentId,
-        cash_bag_serial: cashBagSerial,
+        cash_bag_serial: cashBagSerial, invoice_number: invoiceNumber,
       }) => ({
         id, entry_type: entryType, amount, note, created_at: createdAt, payment_id: paymentId,
-        cash_bag_serial: cashBagSerial,
+        cash_bag_serial: cashBagSerial, invoice_number: invoiceNumber,
       })),
       summary: {
         balance: summary.balance,

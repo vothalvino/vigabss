@@ -16,8 +16,14 @@ jest.mock('../src/config/database', () => ({
   pool: { end: jest.fn() },
 }));
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(undefined) }));
+// The reseller commission of a paid or un-paid invoice (phase 4) has its own
+// suite (tests/resellerCommissions.test.js); here only that it is synced.
+jest.mock('../src/services/resellerCommissionService', () => ({
+  syncCommissionByInvoice: jest.fn().mockResolvedValue({ action: 'none' }),
+}));
 
 const db = require('../src/config/database');
+const resellerCommissionService = require('../src/services/resellerCommissionService');
 const service = require('../src/services/creditNoteApplicationService');
 
 // A small in-memory model of the three tables syncApplication touches.
@@ -37,7 +43,7 @@ function fakeDb({ invoice, applications = [], notes = [] }) {
       if (Number(p[0]) !== inv.id) return [[]];
       if (/i\.status IN/.test(sql) && !['issued', 'sent', 'overdue', 'paid'].includes(inv.status)) return [[]];
       const credited = live().filter((a) => a.invoice_id === inv.id).reduce((s, a) => s + Number(a.amount), 0);
-      return [[{ id: inv.id, total: inv.total, status: inv.status, covered: Number(inv.allocated || 0) + credited }]];
+      return [[{ id: inv.id, organization_id: 5, total: inv.total, status: inv.status, covered: Number(inv.allocated || 0) + credited }]];
     }
     if (/^UPDATE credit_note_applications SET deleted_at = NOW\(\) WHERE id = \?/.test(sql)) {
       state.applications.find((a) => a.id === p[0]).deleted_at = 'now';
@@ -52,12 +58,14 @@ function fakeDb({ invoice, applications = [], notes = [] }) {
       return [{ insertId: nextId }];
     }
     if (/^UPDATE invoices SET status = 'paid'/.test(sql)) {
-      if (['issued', 'sent', 'overdue'].includes(state.invoice.status)) state.invoice.status = 'paid';
-      return [{ affectedRows: 1 }];
+      const changed = ['issued', 'sent', 'overdue'].includes(state.invoice.status);
+      if (changed) state.invoice.status = 'paid';
+      return [{ affectedRows: changed ? 1 : 0 }];
     }
     if (/^UPDATE invoices SET status = 'issued'/.test(sql)) {
-      if (state.invoice.status === 'paid') state.invoice.status = 'issued';
-      return [{ affectedRows: 1 }];
+      const changed = state.invoice.status === 'paid';
+      if (changed) state.invoice.status = 'issued';
+      return [{ affectedRows: changed ? 1 : 0 }];
     }
     if (/^UPDATE credit_notes SET status = \?/.test(sql)) {
       state.noteStatus = p[0];
@@ -83,13 +91,18 @@ describe('syncApplication', () => {
     expect(state.applications).toEqual([expect.objectContaining({ credit_note_id: 40, invoice_id: 60, amount: 1160 })]);
     expect(state.invoice.status).toBe('paid');
     expect(state.noteStatus).toBe('applied');
+    // The paid invoice's reseller commission, on the note's transaction.
+    expect(resellerCommissionService.syncCommissionByInvoice).toHaveBeenCalledWith(exec, '60', 5);
   });
 
   test('a partial credit lowers what the invoice owes and leaves it issued', async () => {
     const { state, exec } = fakeDb({ invoice: INVOICE });
+    resellerCommissionService.syncCommissionByInvoice.mockClear();
     await service.syncApplication(exec, note({ total: '400.00' }), 5);
     expect(state.applications[0].amount).toBe(400);
     expect(state.invoice.status).toBe('issued');
+    // Still unpaid: no status change, nothing to sync.
+    expect(resellerCommissionService.syncCommissionByInvoice).not.toHaveBeenCalled();
     expect(state.noteStatus).toBe('applied');
   });
 
@@ -112,9 +125,12 @@ describe('syncApplication', () => {
     const { state, exec } = fakeDb({ invoice: INVOICE });
     await service.syncApplication(exec, note(), 5);
     expect(state.invoice.status).toBe('paid');
+    resellerCommissionService.syncCommissionByInvoice.mockClear();
     await service.syncApplication(exec, note({ status: 'cancelled' }), 5);
     expect(state.applications.every((a) => a.deleted_at)).toBe(true);
     expect(state.invoice.status).toBe('issued');
+    // Un-paid: the commission is reversed on the same transaction.
+    expect(resellerCommissionService.syncCommissionByInvoice).toHaveBeenCalledWith(exec, '60', 5);
   });
 
   test('a draft or invoice-less note applies nothing', async () => {
@@ -158,19 +174,34 @@ describe('every open balance subtracts applied credit', () => {
 
   test('refreshInvoicePaidStatus', async () => {
     const billingService = require('../src/services/billingService');
-    db.query.mockResolvedValue([[]]);
+    // Without a caller transaction it opens its own (phase 4: the recompute
+    // and the commission sync commit together).
+    const conn = {
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+      execute: jest.fn().mockResolvedValue([[]]),
+    };
+    db.getConnection.mockResolvedValue(conn);
     await billingService.refreshInvoicePaidStatus(60);
-    expect(db.query.mock.calls[0][0]).toMatch(credit);
+    expect(conn.execute.mock.calls[0][0]).toMatch(credit);
+    expect(conn.commit).toHaveBeenCalled();
+    expect(conn.release).toHaveBeenCalled();
   });
 
   test.each([
     ['suspension', '../src/services/suspensionService'],
     ['payment retries', '../src/services/paymentRetryService'],
     ['client archive guard', '../src/routes/clients'],
-    ['gateway refund reversal', '../src/services/paymentGatewayService'],
+    // The gateway refund reversal re-derives through the shared recompute.
+    ['gateway refund reversal (billingService.refreshInvoicePaidStatus)', '../src/services/billingService'],
   ])('%s', (_name, mod) => {
     const src = require('fs').readFileSync(require.resolve(mod), 'utf8');
     expect(src).toMatch(/creditAppliedSql\('i'\)/);
+  });
+
+  test('the gateway refund reversal uses that shared recompute', () => {
+    const src = require('fs').readFileSync(require.resolve('../src/services/paymentGatewayService'), 'utf8');
+    expect(src).toMatch(/require\('\.\/billingService'\)\.refreshAllThenSync\(exec, /);
+    expect(src).not.toMatch(/UPDATE invoices SET status/);
   });
 });
 

@@ -5,7 +5,39 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller program, phase 4: resellers earn their commission.** When an
+  invoice of a customer a *Punto de Venta* brought in is paid, the reseller
+  earns its commission percentage of the invoice amount before IVA, whoever
+  took the money: the reseller itself, the ISP's staff, an online payment or
+  another reseller.
+  - **The reseller keeps it from the cash it holds.** A "Comisión" line in
+    its movements lowers what it owes the ISP ("Debes entregar") at once. If
+    the invoice stops being paid (the payment is deleted, unapplied, moved or
+    refunded, the collection is voided, a credit note is cancelled, or the
+    invoice is voided, cancelled at SAT or deleted), a reversal line puts it
+    back; paying the invoice again earns it again, never twice.
+  - **Sub-resellers:** their customers earn the commission of the top-level
+    reseller, at its rate and on its account.
+  - **Only new payments count:** invoices paid before you upgrade (or, for
+    an organization created later, before it was created) earn nothing, nor
+    do imported invoices marked paid; there is no back-pay. An invoice's
+    payment date can no longer be edited by hand.
+  - **What does not earn:** an invoice in another currency than the
+    organization's. An invoice settled by a credit note counts as paid and
+    earns like any other.
+  - **When the ISP owes the reseller** (its commissions are more than the
+    cash it holds, "Te debemos"), staff record what they pay it as a payout
+    in its movements, at most what is owed.
+  - Staff see each commission (invoice, amount before IVA, rate, amount,
+    earned or reversed) in the reseller's Commissions tab; the old approve
+    step is gone. The reseller app shows the commission of the month, and
+    "Te debemos" instead of "Debes entregar" when the ISP owes the reseller.
+- **Fixes found on the way:** restoring a deleted payment can no longer mark
+  a voided or cancelled invoice as paid; unapplying or moving a payment now
+  updates the invoice's paid status in the same step; the reseller dashboard
+  counts revenue by the day invoices were paid.
+- Migration 007 adds the commission fields and the new movement types, and
+  records the upgrade time as the start of commissions.
 
 ## 0.1.0-alpha.13 — 2026-11-07
 

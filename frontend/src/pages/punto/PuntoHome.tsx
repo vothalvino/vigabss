@@ -2,9 +2,14 @@
 // Reseller app (/punto) — Inicio
 // =============================================================================
 // The reseller's numbers from GET /reseller-app/me: the cash it holds for the
-// ISP against its limit (money), today's collections, its cash bags (with
-// reseller_app.bags), the phase-1 counts, and the main actions (collect, new
-// sign-up).
+// ISP against its limit (money), today's collections, the commission it
+// earned this month (phase 4), its cash bags (with reseller_app.bags), the
+// phase-1 counts, and the main actions (collect, new sign-up).
+//
+// The reseller keeps its commission from the cash it collects: a paid invoice
+// of one of its clients takes the commission off what it must hand in. When
+// its commissions pass the cash it holds, the balance is negative and the
+// card says what the ISP owes it ("Te debemos") instead.
 // =============================================================================
 
 import { Link } from 'react-router-dom';
@@ -26,7 +31,10 @@ import { mutedText, pageTitle } from './puntoUi';
 export function MoneyCard({ money, canCollect, canBags = false }: { money: PuntoMoney; canCollect: boolean; canBags?: boolean }) {
   const { t } = useTranslation();
   const limit = toNumber(money.credit_limit);
-  const held = toNumber(money.cash_on_hand);
+  const balance = toNumber(money.balance);
+  // A negative balance is what the ISP owes the reseller (its commissions).
+  const owedToReseller = balance < 0;
+  const held = Math.max(0, toNumber(money.cash_on_hand));
   const available = Math.max(0, toNumber(money.available_to_collect));
   const used = limit > 0 ? Math.min(100, Math.round((held / limit) * 100)) : 100;
   const atLimit = available <= 0;
@@ -37,8 +45,10 @@ export function MoneyCard({ money, canCollect, canBags = false }: { money: Punto
     <section className="punto-card" aria-labelledby="punto-money-title" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h2 id="punto-money-title" style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{t('punto.money.title')}</h2>
       <div className="punto-money-row">
-        <span>{t('punto.money.owe')}</span>
-        <strong style={{ fontSize: '1.4rem' }}>{fmt(money.balance)}</strong>
+        <span>{owedToReseller ? t('punto.money.owedToYou') : t('punto.money.owe')}</span>
+        <strong style={{ fontSize: '1.4rem', ...(owedToReseller ? { color: 'var(--success)' } : {}) }}>
+          {fmt(owedToReseller ? -balance : money.balance)}
+        </strong>
       </div>
       {money.in_bags !== undefined && toNumber(money.in_bags) > 0 && (
         <div className="punto-money-row">
@@ -80,6 +90,33 @@ export function MoneyCard({ money, canCollect, canBags = false }: { money: Punto
   );
 }
 
+/** A commission rate such as 10 or 7.5, without trailing zeros. */
+function rateText(value: number | string | undefined): string {
+  return String(Math.round(toNumber(value) * 100) / 100);
+}
+
+/**
+ * What the reseller earned this month on its clients' paid invoices, at its
+ * (top-level) rate. Hidden for a reseller that earns no commission.
+ */
+export function CommissionCard({ money }: { money: PuntoMoney }) {
+  const { t } = useTranslation();
+  if (money.commission_month === undefined) return null;
+  const rate = toNumber(money.commission_rate);
+  const month = toNumber(money.commission_month);
+  if (rate <= 0 && month <= 0) return null;
+  return (
+    <section className="punto-card" aria-labelledby="punto-commission-title" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <h2 id="punto-commission-title" style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{t('punto.commission.title')}</h2>
+      <div className="punto-money-row">
+        <span>{t('punto.commission.month')}</span>
+        <strong style={{ fontSize: '1.15rem', color: 'var(--success)' }}>{formatMoney(month, money.currency)}</strong>
+      </div>
+      {rate > 0 && <p style={mutedText}>{t('punto.commission.help', { rate: rateText(money.commission_rate) })}</p>}
+    </section>
+  );
+}
+
 function StatCard({ label, value, to, tone }: { label: string; value: number; to: string; tone?: string }) {
   return (
     <Link to={to} className="punto-card punto-list-link" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -107,6 +144,7 @@ export function PuntoHome() {
       {me.isLoading && <LoadingState />}
       {me.isError && <ErrorState message={t('punto.home.loadError')} onRetry={() => { void me.refetch(); }} />}
       {me.data?.money && <MoneyCard money={me.data.money} canCollect={canCollect} canBags={canBags} />}
+      {me.data?.money && <CommissionCard money={me.data.money} />}
       {me.data?.money && canBags && <PuntoBagsCard money={me.data.money} />}
 
       {canSignup && (

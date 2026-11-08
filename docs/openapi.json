@@ -61382,7 +61382,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "List commission records",
+        "summary": "The reseller's commissions, newest first (phase 4): one per invoice of a client of its subtree, earned while the invoice is paid and reversed while it is not, at the top-level reseller's rate on the invoice subtotal (taxes excluded). Booked on the top-level reseller: a sub-reseller has none. Each one has its commission / commission_reversal line in the cash ledger",
         "operationId": "listResellerCommissions",
         "security": [
           {
@@ -61397,75 +61397,233 @@
             "schema": {
               "type": "integer"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Commission[]",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "earned",
+                "reversed"
+              ]
             }
-          }
-        }
-      }
-    },
-    "/resellers/{id}/commissions/{cId}/approve": {
-      "post": {
-        "tags": [
-          "Resellers"
-        ],
-        "summary": "Approve or mark commission paid",
-        "operationId": "approveResellerCommission",
-        "security": [
+          },
           {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
+            "name": "page",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "integer"
             }
           },
           {
-            "name": "cId",
-            "in": "path",
-            "required": true,
+            "name": "limit",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "integer"
             }
           }
         ],
-        "requestBody": {
-          "description": "status",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": "Commission",
+            "description": "Commissions",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "summary",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "reseller_id",
+                          "invoice_id",
+                          "invoice_number",
+                          "client_id",
+                          "client_name",
+                          "commission_rate",
+                          "base_amount",
+                          "invoice_total",
+                          "commission_amount",
+                          "currency",
+                          "status",
+                          "earned_at",
+                          "reversed_at",
+                          "created_at"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "reseller_id": {
+                            "type": "integer",
+                            "description": "The top-level reseller that earns it"
+                          },
+                          "invoice_id": {
+                            "type": "integer"
+                          },
+                          "invoice_number": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "client_id": {
+                            "type": "integer"
+                          },
+                          "client_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "commission_rate": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "description": "Percent, the top-level reseller's rate when it was earned"
+                          },
+                          "base_amount": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "description": "The invoice subtotal, taxes excluded"
+                          },
+                          "invoice_total": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "commission_amount": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "earned",
+                              "reversed"
+                            ]
+                          },
+                          "earned_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "When it last became standing"
+                          },
+                          "reversed_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "Set while the invoice is not paid"
+                          },
+                          "created_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "earned",
+                        "reversed",
+                        "earned_this_month"
+                      ],
+                      "properties": {
+                        "earned": {
+                          "type": "number",
+                          "description": "Sum of the standing commissions"
+                        },
+                        "reversed": {
+                          "type": "number",
+                          "description": "Sum of the reversed ones"
+                        },
+                        "earned_this_month": {
+                          "type": "number",
+                          "description": "Standing commissions earned this business month"
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
           },
-          "403": {
-            "description": "Org-level staff only: a reseller-bound caller cannot change this",
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown status",
             "content": {
               "application/json": {
                 "schema": {
@@ -62579,7 +62737,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "A reseller's cash ledger, newest first, with the summary (balance it owes, effective credit limit, available to collect). Org-level staff with reseller_ledger.view",
+        "summary": "A reseller's cash ledger, newest first, with the summary (balance it owes, negative when the ISP owes it; effective credit limit; available to collect). Commission lines name their invoice. Org-level staff with reseller_ledger.view",
         "operationId": "getResellerLedger",
         "security": [
           {
@@ -62637,10 +62795,13 @@
                           "created_at",
                           "payment_id",
                           "cash_bag_serial",
+                          "invoice_number",
                           "currency",
                           "cash_session_id",
                           "created_by",
-                          "cash_bag_id"
+                          "cash_bag_id",
+                          "invoice_id",
+                          "commission_id"
                         ],
                         "properties": {
                           "id": {
@@ -62653,12 +62814,15 @@
                               "collection_void",
                               "deposit",
                               "adjustment",
-                              "bag_sealed"
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
                           },
                           "note": {
                             "type": [
@@ -62683,6 +62847,13 @@
                             ],
                             "description": "The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt"
                           },
+                          "invoice_number": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The invoice behind a commission or commission_reversal"
+                          },
                           "currency": {
                             "type": "string"
                           },
@@ -62696,9 +62867,22 @@
                             "type": [
                               "integer",
                               "null"
-                            ]
+                            ],
+                            "description": "null: posted by the system (commission lines)"
                           },
                           "cash_bag_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "invoice_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "commission_id": {
                             "type": [
                               "integer",
                               "null"
@@ -62830,7 +63014,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand, the balance: the cash of a sealed bag already left it at sealing) or an adjustment (signed, non-zero, with a note). Never a payment. Org-level staff with reseller_ledger.manage",
+        "summary": "Record cash the reseller handed in (deposit: amount > 0, at most its cash_on_hand, the balance: the cash of a sealed bag already left it at sealing), what the ISP paid it (payout: amount > 0, at most what the ISP owes it, minus a negative balance) or an adjustment (signed, non-zero, with a note). Never a payment; commission lines are posted only by the commission engine. Org-level staff with reseller_ledger.manage",
         "operationId": "createResellerLedgerEntry",
         "security": [
           {
@@ -62863,12 +63047,13 @@
                     "type": "string",
                     "enum": [
                       "deposit",
-                      "adjustment"
+                      "adjustment",
+                      "payout"
                     ]
                   },
                   "amount": {
                     "type": "number",
-                    "description": "A deposit is positive (booked as -amount); an adjustment is signed (+ the reseller owes more)"
+                    "description": "A deposit is positive (booked as -amount); a payout is positive (booked as +amount); an adjustment is signed (+ the reseller owes more)"
                   },
                   "note": {
                     "type": "string",
@@ -62902,10 +63087,13 @@
                         "created_at",
                         "payment_id",
                         "cash_bag_serial",
+                        "invoice_number",
                         "currency",
                         "cash_session_id",
                         "created_by",
-                        "cash_bag_id"
+                        "cash_bag_id",
+                        "invoice_id",
+                        "commission_id"
                       ],
                       "properties": {
                         "id": {
@@ -62918,12 +63106,15 @@
                             "collection_void",
                             "deposit",
                             "adjustment",
-                            "bag_sealed"
+                            "bag_sealed",
+                            "commission",
+                            "commission_reversal",
+                            "payout"
                           ]
                         },
                         "amount": {
                           "type": "number",
-                          "description": "Signed: + increases what the reseller owes"
+                          "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
                         },
                         "note": {
                           "type": [
@@ -62948,6 +63139,13 @@
                           ],
                           "description": "The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt"
                         },
+                        "invoice_number": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "The invoice behind a commission or commission_reversal"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -62961,9 +63159,22 @@
                           "type": [
                             "integer",
                             "null"
-                          ]
+                          ],
+                          "description": "null: posted by the system (commission lines)"
                         },
                         "cash_bag_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "invoice_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "commission_id": {
                           "type": [
                             "integer",
                             "null"
@@ -63070,7 +63281,7 @@
             }
           },
           "422": {
-            "description": "Validation failed, a sub-reseller (book on its parent), or DEPOSIT_EXCEEDS_BALANCE",
+            "description": "Validation failed, a sub-reseller (book on its parent), DEPOSIT_EXCEEDS_BALANCE or PAYOUT_EXCEEDS_OWED",
             "content": {
               "application/json": {
                 "schema": {
@@ -63325,7 +63536,7 @@
         "tags": [
           "Reseller Portal"
         ],
-        "summary": "Reseller dashboard aggregates",
+        "summary": "Reseller dashboard aggregates over its subtree: active clients, total of invoices paid this business month (by paid_at), open tickets, and pending_commission: the commission its clients' invoices earned this month and still keep",
         "operationId": "getResellerDashboard",
         "security": [
           {
@@ -63508,7 +63719,9 @@
                             "collected_today",
                             "empty_bags",
                             "bags_ready_for_pickup",
-                            "bags_in_transit"
+                            "bags_in_transit",
+                            "commission_rate",
+                            "commission_month"
                           ],
                           "properties": {
                             "currency": {
@@ -63516,7 +63729,7 @@
                             },
                             "balance": {
                               "type": "number",
-                              "description": "What the collecting reseller owes the ISP (sum of its ledger); a sealed bag left it at sealing"
+                              "description": "What the collecting reseller owes the ISP (sum of its ledger, net of the commissions it kept); a sealed bag left it at sealing. Negative: what the ISP owes it"
                             },
                             "in_bags": {
                               "type": "number",
@@ -63549,6 +63762,14 @@
                             "bags_in_transit": {
                               "type": "integer",
                               "description": "Bags on their way to the ISP"
+                            },
+                            "commission_rate": {
+                              "type": "number",
+                              "description": "The top-level reseller's commission rate (percent of the invoice subtotal), which applies to every client of its subtree"
+                            },
+                            "commission_month": {
+                              "type": "number",
+                              "description": "Commission earned this business month and still standing (reversed ones excluded); already kept from the cash, so balance is net of it"
                             }
                           }
                         },
@@ -66456,7 +66677,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "The collecting reseller's cash ledger, newest first, with the summary",
+        "summary": "The collecting reseller's cash ledger, newest first, with the summary; commission lines (the commission it keeps when an invoice of its subtree is paid, and its reversal) name their invoice",
         "operationId": "getResellerAppLedger",
         "security": [
           {
@@ -66505,7 +66726,8 @@
                           "note",
                           "created_at",
                           "payment_id",
-                          "cash_bag_serial"
+                          "cash_bag_serial",
+                          "invoice_number"
                         ],
                         "properties": {
                           "id": {
@@ -66518,12 +66740,15 @@
                               "collection_void",
                               "deposit",
                               "adjustment",
-                              "bag_sealed"
+                              "bag_sealed",
+                              "commission",
+                              "commission_reversal",
+                              "payout"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
                           },
                           "note": {
                             "type": [
@@ -66547,6 +66772,13 @@
                               "null"
                             ],
                             "description": "The cash bag behind the entry: its seal (bag_sealed) or the difference (or legacy deposit) of its receipt"
+                          },
+                          "invoice_number": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The invoice behind a commission or commission_reversal"
                           }
                         }
                       }

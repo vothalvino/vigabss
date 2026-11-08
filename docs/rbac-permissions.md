@@ -170,9 +170,8 @@ Creating a reseller login (`POST /resellers/:id/users`) needs
 `resellers.update` and `users.update`. Both, and the allowed plans
 (`/resellers/:id/allowed-plans`), are refused to bound users. So are the
 ISP's decisions about a reseller, whatever permissions the bound user's group
-holds: suspend or reactivate (`POST /resellers/:id/suspend`), commission
-approval, plan prices, IP pools, OLT ports, bandwidth quota and the billing
-entity. A bound user may still create sub-resellers of its own reseller,
+holds: suspend or reactivate (`POST /resellers/:id/suspend`), plan prices,
+IP pools, OLT ports, bandwidth quota and the billing entity. A bound user may still create sub-resellers of its own reseller,
 without a commission rate or status.
 
 ### Reseller cash (migration 004)
@@ -181,7 +180,7 @@ without a commission rate or status.
 |----------------|-----------|-------------|
 | `reseller_app.collect` | `reseller_admin`, `admin` | Cash collection in the reseller app (`/reseller-app/collect/*`, `POST /reseller-app/payments`, its void, `POST /reseller-app/cash-session/close`); the routes still refuse an unbound user |
 | `reseller_ledger.view` | `admin` | A reseller's cash ledger and summary (`GET /resellers/:id/ledger`) |
-| `reseller_ledger.manage` | `admin` | Record cash a reseller handed in, or an adjustment (`POST /resellers/:id/ledger`) |
+| `reseller_ledger.manage` | `admin` | Record cash a reseller handed in, a payout of what the ISP owes it (migration 007), or an adjustment (`POST /resellers/:id/ledger`) |
 
 Both ledger routes are org-level only, whatever the bound user's group holds,
 and so is a reseller's `credit_limit` on `POST`/`PUT /resellers`. A bound
@@ -189,6 +188,17 @@ user reads its own position in the app (`GET /reseller-app/me`, `/ledger`).
 `reseller_admin` holds no `cash_reconciliation.*` permission: a reseller's
 cash box is the reseller app's `/cash-session`, and the staff
 cash-reconciliation routes are behind the fence.
+
+### Reseller commissions (migration 007)
+
+No new permission. `reseller_commissions.view` reads a reseller's commissions
+(`GET /resellers/:id/commissions`, org-level staff and, within its subtree, a
+bound user whose group holds it). The commission engine writes them and their
+ledger lines; nobody approves or pays a commission by hand, so the old
+`POST /resellers/:id/commissions/:cId/approve` route is gone and
+`reseller_commissions.approve` is still seeded but guards nothing (removing it
+would need a destructive migration). A payout is recorded with
+`reseller_ledger.manage`, like a deposit.
 
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with

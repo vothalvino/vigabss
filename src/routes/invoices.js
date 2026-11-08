@@ -259,9 +259,23 @@ const ctrl = crudController(Invoice, {
   // the CFDI can still disagree with the row. Fixing that means re-reading
   // after the lock, on the stamper's side — tracked separately.
   transactionalWrites: true,
+  // The reseller commission hooks below (phase 4) run inside the row-locked
+  // transaction of the write they follow, so a failure rolls it back.
+  transactionalAfterHooks: true,
+  fatalAfterHooks: true,
   beforeUpdate: async (old, req, exec) => {
     assertInvoiceNotTerminal(old.status);
+    // paid_at is fillable but server-owned: only the paid-status recomputes
+    // write it, when a payment or a credit note settles the invoice. A hand
+    // edit of it would move the invoice across the reseller commission
+    // go-live point (an invoice paid before it would earn on the next sync).
+    if (req.body) delete req.body.paid_at;
     await assertUpdateFiscallySafe(old, req, exec);
+  },
+  // A hand edit can take a paid invoice back to 'draft' or 'issued': the
+  // commission follows the row as it now stands.
+  afterUpdate: async (record, req, exec) => {
+    await require('../services/resellerCommissionService').syncResellerCommission(exec, record.id, req.orgId);
   },
 
   // DELETE and restore went straight to the generic controller with no fiscal
@@ -293,10 +307,24 @@ const ctrl = crudController(Invoice, {
     }
     // A credit note applied to it stays the client's credit, unapplied.
     await require('../services/creditNoteApplicationService').releaseForInvoice(exec, old.id);
+    // An invoice paid by credit notes alone can be archived: it is no longer
+    // paid, so its reseller commission is reversed (the row is deleted just
+    // after this hook, in the same transaction).
+    await require('../services/resellerCommissionService').syncResellerCommission(exec, old.id, req.orgId, { unpaid: true });
   },
   beforeRestore: async (req, exec) => {
     await assertNoLiveCfdi(exec, req.params.id,
       'This invoice has a live CFDI; restoring it would resurrect a row that disagrees with the filed document.');
+  },
+  // The archive released the credit notes that paid it, so a restored 'paid'
+  // invoice is re-derived (back to 'issued' when nothing covers it) and its
+  // commission follows. An invoice marked paid outside the system (an
+  // import: paid_at NULL, no payment or note behind it) keeps its status:
+  // re-deriving it would turn a settled invoice back into debt.
+  afterRestore: async (record, req, exec) => {
+    const paidOutsideSystem = record && record.status === 'paid' && (record.paid_at === null || record.paid_at === undefined);
+    if (!paidOutsideSystem) await billingService.refreshInvoicePaidStatus(record.id, exec);
+    await require('../services/resellerCommissionService').syncResellerCommission(exec, record.id, req.orgId);
   },
 });
 
