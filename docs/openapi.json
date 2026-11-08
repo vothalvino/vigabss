@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VigaBSS API",
-    "version": "0.1.0-alpha.14",
+    "version": "0.1.0-alpha.15",
     "description": "Open source ISP management — customers, plans, billing, and network monitoring, with Mexican fiscal compliance (CFDI 4.0) enabled for MX organizations and omitted in global mode.",
     "license": {
       "name": "MIT",

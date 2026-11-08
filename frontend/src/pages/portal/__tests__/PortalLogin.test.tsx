@@ -53,7 +53,7 @@ describe('PortalLogin page', () => {
     renderPortalLogin();
     expect(screen.getByText('VigaBSS')).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
-    expect(screen.getByText('v0.1.0-alpha.14')).toBeInTheDocument();
+    expect(screen.getByText('v0.1.0-alpha.15')).toBeInTheDocument();
     expect(screen.getByText('Client Account Portal')).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
