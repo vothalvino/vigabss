@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.14 — 2026-11-07
+
 - **Reseller program, phase 4: resellers earn their commission.** When an
   invoice of a customer a *Punto de Venta* brought in is paid, the reseller
   earns its commission percentage of the invoice amount before IVA, whoever
