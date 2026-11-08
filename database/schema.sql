@@ -15328,6 +15328,73 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
   COMMENT='Append-only cash ledger of a collecting reseller; the sum is what it owes the ISP (migration 004)';
 
 -- ---------------------------------------------------------------------------
+-- Table: reseller_settlements (migration 008)
+-- Purpose: Statements (estados de cuenta) of a top-level reseller's cash
+--          ledger: the period's opening balance, totals by entry type and
+--          closing balance, rebuilt from reseller_ledger_entries; draft,
+--          approved, settled (with the deposit or payout line that settled
+--          it), or void (a discarded draft).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reseller_settlements (
+    id                        BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id           BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller',
+    reseller_id               BIGINT UNSIGNED NOT NULL COMMENT 'Top-level reseller whose ledger the statement closes',
+    period_start              DATE            NOT NULL COMMENT 'First business day of the period (organization time zone)',
+    period_end                DATE            NOT NULL COMMENT 'Last business day of the period, inclusive',
+    currency                  CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
+    opening_balance           DECIMAL(14, 2)  NOT NULL DEFAULT 0 COMMENT 'SUM(amount) of the ledger before the period',
+    total_collection          DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_collection_void     DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_deposit             DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_adjustment          DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_bag_sealed          DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_commission          DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_commission_reversal DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_payout              DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    closing_balance           DECIMAL(14, 2)  NOT NULL DEFAULT 0 COMMENT 'opening_balance + every total; positive: the reseller owes the ISP',
+    entry_count               INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Ledger entries in the period',
+    sweep_earned              INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Missing commissions the gap sweep booked before generating',
+    sweep_reversed            INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Stale commissions the gap sweep reversed before generating',
+    status                    ENUM('draft', 'approved', 'settled', 'void') NOT NULL DEFAULT 'draft',
+    generated_by              BIGINT UNSIGNED NULL,
+    generated_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    approved_by               BIGINT UNSIGNED NULL,
+    approved_at               TIMESTAMP       NULL DEFAULT NULL,
+    settled_by                BIGINT UNSIGNED NULL,
+    settled_at                TIMESTAMP       NULL DEFAULT NULL,
+    bank_ref                  VARCHAR(100)    NULL COMMENT 'Bank or transfer reference of the settlement',
+    settlement_entry_id       BIGINT UNSIGNED NULL COMMENT 'The deposit or payout line settling posted (NULL: nothing to post, or record only)',
+    voided_by                 BIGINT UNSIGNED NULL,
+    voided_at                 TIMESTAMP       NULL DEFAULT NULL,
+    notes                     VARCHAR(500)    NULL,
+    created_at                TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at                TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_reseller_settlements_org_reseller_period (organization_id, reseller_id, period_start),
+    KEY idx_reseller_settlements_reseller (reseller_id),
+    KEY idx_reseller_settlements_entry (settlement_entry_id),
+    KEY idx_reseller_settlements_generated_by (generated_by),
+    KEY idx_reseller_settlements_approved_by (approved_by),
+    KEY idx_reseller_settlements_settled_by (settled_by),
+    KEY idx_reseller_settlements_voided_by (voided_by),
+    CONSTRAINT fk_reseller_settlements_organization FOREIGN KEY (organization_id)
+      REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_reseller FOREIGN KEY (reseller_id)
+      REFERENCES resellers (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_entry FOREIGN KEY (settlement_entry_id)
+      REFERENCES reseller_ledger_entries (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_generated_by FOREIGN KEY (generated_by)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_approved_by FOREIGN KEY (approved_by)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_settled_by FOREIGN KEY (settled_by)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_settlements_voided_by FOREIGN KEY (voided_by)
+      REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Statements of a top-level reseller cash ledger: draft, approved, settled (migration 008)';
+
+-- ---------------------------------------------------------------------------
 -- Column added to clients by migration 345 (§19.1 reseller scoping):
 --   reseller_id  BIGINT UNSIGNED NULL (FK → resellers ON DELETE SET NULL)
 -- Applied via stored-procedure guard. See migration 345.

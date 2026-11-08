@@ -565,8 +565,49 @@ rate) and `commission_month` (standing commissions earned this business
 month), and its `/ledger` rows name the invoice of a commission line. The
 reseller portal dashboard counts revenue by `paid_at` this business month and
 `pending_commission` as the standing commission its subtree's clients earned
-this month. Statements, settlement (`settlement_id`) and the gap sweep are
-phase 5.
+this month.
+
+#### Reseller statements and settlement (phase 5, migration 008)
+
+A statement (`reseller_settlements`, `src/services/resellerSettlementService.js`)
+closes a period of a top-level reseller's ledger. Its figures are never typed
+in; they are rebuilt from `reseller_ledger_entries`: `opening_balance` is the
+sum of the entries created before the period, `total_<type>` the sum of the
+period's entries of each entry type (one column per type; a type without a
+column makes generation fail rather than fall out of the closing), and
+`closing_balance` = opening + every total. The period is business days of the
+organization time zone, half-open on instants
+(`businessDayStartUtc(period_start)` to `businessDayStartUtc(period_end + 1)`);
+it must have ended before it is generated, and statements of one reseller
+never overlap (a void one excepted). Ledger lines are always created now, so a
+line posted later, such as a late commission reversal, falls in a later
+period and an approved statement never changes; approving still recomputes in
+its transaction and reports `recomputed` if a draft was stale.
+
+Generating (or regenerating a draft) first runs the commission gap sweep
+(`resellerCommissionService.sweepCommissionGaps`, also
+`POST /resellers/:id/commissions/sweep`): two set-based reads find a paid live
+invoice of the reseller's subtree, paid at or after the go-live point, with no
+standing commission, and a standing commission of the reseller whose invoice
+is no longer paid or is deleted; each is synced in its own short transaction
+(at most 2000 per direction and run, `truncated` otherwise). It repairs what
+the best-effort void and SAT-cancel sync left behind.
+
+Status: draft (regenerate, discard to `void`), approved
+(`reseller_settlements.approve`, frozen), settled. Settling an approved
+statement with a bank reference posts the transfer that squares its closing
+balance: a `deposit` of the closing when the reseller owed the ISP, a
+`payout` of its absolute value when the ISP owed the reseller, nothing at 0;
+the line is `settlement_entry_id`. The usual caps hold against the reseller's
+current balance (a deposit at most its cash on hand, a payout at most what
+the ISP owes); when the money already moved (bags, deposits or payouts since
+the period), settling answers 409 `SETTLEMENT_EXCEEDS_BALANCE` and
+`record_only` marks it settled without a line. Lock order: the reseller row
+FOR UPDATE, then the statement row. The reseller app lists and prints the
+approved and settled statements of its collecting reseller
+(`/reseller-app/statements`, `reseller_app.statements`; a sub-reseller login
+sees its parent's), never a draft; the PDF is
+`src/services/resellerStatementPdf.js`.
 
 ### RBAC resolution
 

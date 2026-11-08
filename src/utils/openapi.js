@@ -10,6 +10,7 @@ const path = require('path');
 const product = require('../product');
 const { tableRowSchema } = require('./tableRowSchema');
 const { cashBagPaths } = require('./openapiCashBags');
+const { settlementPaths } = require('./openapiSettlements');
 
 /**
  * Build OpenAPI spec from routes and schema files.
@@ -3423,6 +3424,9 @@ function generateSpec() {
 
       // ---- Reseller app, phase 3: cash bags, carriers, the carrier app ----
       ...cashBagPaths(),
+
+      // ---- Reseller program, phase 5: statements and settlement ----
+      ...settlementPaths({ ledgerEntrySchema: resellerLedgerEntrySchema, ledgerSummarySchema: resellerLedgerSummarySchema }),
 
       // ---- §20.2 Integration Providers ----
       '/integrations/providers': {

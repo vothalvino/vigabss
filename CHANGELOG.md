@@ -5,7 +5,30 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Reseller program, phase 5: statements (estados de cuenta).** Staff close
+  a month (or any past period) of a reseller's cash in a statement, in the new
+  "Estados de cuenta" tab of the reseller page: what it owed at the start,
+  what it collected, voided, sealed in bags, kept as commission, handed in or
+  was paid in the period, and what it owes at the end ("Debes entregar"), or
+  what the ISP owes it ("Te debemos"). The figures always come from its
+  movements, never typed in.
+  - **Commissions are checked first.** Before a statement is drawn up, every
+    paid invoice of the reseller's customers is checked against its
+    commissions: a missing one is booked and one whose invoice is no longer
+    paid is reversed. This also repairs the rare voided or SAT-cancelled
+    invoice whose commission could not be reversed at the time. Staff can run
+    the check on its own too.
+  - **Draft, approved, settled.** A draft can be redone or discarded. Once
+    approved it never changes: a movement posted later, such as a late
+    reversal, goes in the next statement. Approving needs its own permission,
+    so one person can prepare a statement and another approve it.
+  - **Settling** records the transfer that squares the statement, with its
+    bank reference: what the reseller handed in, or what the ISP paid it. If
+    that money already moved some other way (in cash bags, for example), it
+    can be marked settled without recording it again.
+  - **PDF.** Staff and the reseller download each statement as a PDF. The
+    reseller sees its approved and settled statements in Mi caja.
+- Migration 008 adds the statements and their permissions.
 
 ## 0.1.0-alpha.14 — 2026-11-07
 

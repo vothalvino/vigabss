@@ -16,7 +16,8 @@
 //  GET  /reseller-app/leads/:id/feasibility coverage summary for such a lead
 //  ...and the phase-2 collection, receipt, cash-box and ledger routes of
 //  routes/resellerAppCollect.js and the phase-3 cash-bag routes of
-//  routes/resellerAppBags.js, mounted below with the same guards.
+//  routes/resellerAppBags.js and the phase-5 statements of
+//  routes/resellerAppStatements.js, mounted below with the same guards.
 //
 // Every route needs a binding: org-level staff get 403 (they use the staff
 // pages). The subtree is the bound reseller and its sub-resellers
@@ -615,6 +616,8 @@ router.get('/leads/:id/feasibility', requirePermission('reseller_app.use'), asyn
 router.use(require('./resellerAppCollect'));
 // Phase 3: the reseller's cash bags.
 router.use(require('./resellerAppBags'));
+// Phase 5: the reseller's statements (estados de cuenta).
+router.use(require('./resellerAppStatements'));
 
 module.exports = router;
 module.exports.assertClientInResellerScope = assertClientInResellerScope;

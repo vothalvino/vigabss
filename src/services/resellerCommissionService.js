@@ -432,6 +432,117 @@ async function syncResellerCommissionBestEffort(invoiceId, orgId) {
   }
 }
 
+/**
+ * The go-live instant of the engine for an organization (a Date), or null:
+ * the reseller_commissions_since setting (migration 007), else the
+ * organization's creation, as commissionTerms reads it.
+ */
+async function commissionsSince(orgId, exec = db.query.bind(db)) {
+  requireOrgId(orgId, 'resellerCommissionService.commissionsSince');
+  const [rows] = await exec(
+    `SELECT o.created_at, s.setting_value AS commissions_since
+       FROM organizations o
+       LEFT JOIN organization_settings s ON s.organization_id = o.id AND s.setting_key = ?
+      WHERE o.id = ? AND o.deleted_at IS NULL`,
+    [COMMISSIONS_SINCE_KEY, orgId],
+  );
+  const org = rows && rows[0];
+  if (!org) return null;
+  const ms = instant(org.commissions_since) ?? instant(org.created_at);
+  return ms === null ? null : new Date(ms);
+}
+
+// The most invoices one sweep reconciles in each direction; the rest wait for
+// the next sweep (it reports truncated).
+const SWEEP_LIMIT = 2000;
+
+/**
+ * The commission gap sweep (phase 5): reconcile a top-level reseller's
+ * commissions with its subtree's invoices, for the invoice changes whose sync
+ * did not run or failed (a void or SAT cancellation syncs best-effort, after
+ * its own statements). Two set-based reads find the candidates:
+ *
+ *   (a) a paid, live invoice of a client of the reseller or one of its
+ *       sub-resellers, paid at or after the go-live point, without a
+ *       standing commission;
+ *   (b) a standing commission of the reseller whose invoice is no longer
+ *       paid, or is deleted.
+ *
+ * Each candidate is synced in its own short transaction
+ * (syncResellerCommissionInOwnTransaction), never in one long one. A candidate
+ * of (a) that earns nothing by the rules (a foreign currency, a rate of 0)
+ * comes back on every sweep and counts as unchanged.
+ *
+ * @returns {Promise<{earned: number, restored: number, reversed: number, unchanged: number, failed: number, truncated: boolean}>}
+ */
+async function sweepCommissionGaps(orgId, topResellerId) {
+  requireOrgId(orgId, 'resellerCommissionService.sweepCommissionGaps');
+  const out = { earned: 0, restored: 0, reversed: 0, unchanged: 0, failed: 0, truncated: false };
+  const rootId = Number(topResellerId);
+  if (orgId === null || !Number.isInteger(rootId) || rootId < 1) return out;
+
+  const [subtree] = await db.query(
+    `SELECT id FROM resellers
+      WHERE organization_id = ? AND deleted_at IS NULL AND (id = ? OR parent_id = ?)`,
+    [orgId, rootId, rootId],
+  );
+  const resellerIds = (subtree || []).map((r) => Number(r.id));
+  const since = await commissionsSince(orgId);
+
+  let missing = [];
+  if (resellerIds.length && since) {
+    const [rows] = await db.query(
+      `/* includes deleted rows: an archived client's paid invoices still earn its reseller's commission */
+       SELECT i.id
+         FROM invoices i
+         JOIN clients c ON c.id = i.client_id AND c.organization_id = i.organization_id
+        WHERE i.organization_id = ? AND i.status = 'paid' AND i.deleted_at IS NULL
+          AND i.paid_at IS NOT NULL AND i.paid_at >= ?
+          AND c.reseller_id IN (${inPlaceholders(resellerIds)})
+          AND NOT EXISTS (
+            SELECT 1 FROM reseller_commissions rc
+             WHERE rc.organization_id = i.organization_id AND rc.invoice_id = i.id AND rc.reversed_at IS NULL
+          )
+        ORDER BY i.id
+        LIMIT ${SWEEP_LIMIT + 1}`,
+      [orgId, since, ...resellerIds],
+    );
+    missing = (rows || []).map((r) => Number(r.id));
+  }
+  const [staleRows] = await db.query(
+    `/* includes deleted rows: a deleted invoice's standing commission is stale and must be reversed */
+     SELECT DISTINCT rc.invoice_id
+       FROM reseller_commissions rc
+       JOIN invoices i ON i.id = rc.invoice_id AND i.organization_id = rc.organization_id
+      WHERE rc.organization_id = ? AND rc.reseller_id = ? AND rc.reversed_at IS NULL
+        AND (i.status <> 'paid' OR i.deleted_at IS NOT NULL)
+      ORDER BY rc.invoice_id
+      LIMIT ${SWEEP_LIMIT + 1}`,
+    [orgId, rootId],
+  );
+  let stale = (staleRows || []).map((r) => Number(r.invoice_id));
+  if (missing.length > SWEEP_LIMIT || stale.length > SWEEP_LIMIT) out.truncated = true;
+  missing = missing.slice(0, SWEEP_LIMIT);
+  stale = stale.slice(0, SWEEP_LIMIT);
+
+  for (const invoiceId of [...stale, ...missing]) {
+    try {
+      const result = await syncResellerCommissionInOwnTransaction(invoiceId, orgId);
+      if (result.action === 'earned') out.earned += 1;
+      else if (result.action === 'restored') out.restored += 1;
+      else if (result.action === 'reversed') out.reversed += 1;
+      else out.unchanged += 1;
+    } catch (err) {
+      out.failed += 1;
+      logger.error({ err, invoiceId, orgId }, 'Reseller commission gap sweep could not reconcile an invoice');
+    }
+  }
+  if (out.earned || out.restored || out.reversed || out.failed) {
+    logger.info({ orgId, resellerId: rootId, ...out }, 'Reseller commission gap sweep reconciled invoices');
+  }
+  return out;
+}
+
 function businessMonthStartUtc() {
   return businessDayStartUtc(`${businessToday().slice(0, 7)}-01`);
 }
@@ -531,6 +642,9 @@ module.exports = {
   syncAfterStatusWrite,
   syncResellerCommissionInOwnTransaction,
   syncResellerCommissionBestEffort,
+  commissionsSince,
+  sweepCommissionGaps,
+  SWEEP_LIMIT,
   commissionThisMonth,
   listCommissions,
   commissionRow,

@@ -32,13 +32,14 @@ import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
 import { ResellerBagsTab } from './resellers/ResellerBagsTab';
 import { ResellerCommissionsTab } from './resellers/ResellerCommissionsTab';
+import { ResellerStatementsTab } from './resellers/ResellerStatementsTab';
 import { ResellerListNotice, resellerOptionKeys, useResellerOptions } from './resellers/resellerOptions';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'bags' | 'commissions' | 'portal' | 'staffAccess';
+type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'bags' | 'commissions' | 'statements' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
@@ -307,6 +308,7 @@ const TABS: { key: Tab; labelKey: string; permission?: string }[] = [
   { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view' },
   { key: 'bags', labelKey: 'cashBags.resellerTab.tab', permission: 'cash_bags.view' },
   { key: 'commissions', labelKey: 'reseller.tabCommissions', permission: 'reseller_commissions.view' },
+  { key: 'statements', labelKey: 'resellerStatements.tab', permission: 'reseller_settlements.view' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
   { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
 ];
@@ -346,6 +348,7 @@ export default function ResellerPage() {
       {activeTab === 'ledger' && <ResellerLedgerTab />}
       {activeTab === 'bags' && <ResellerBagsTab />}
       {activeTab === 'commissions' && <ResellerCommissionsTab />}
+      {activeTab === 'statements' && <ResellerStatementsTab />}
       {activeTab === 'portal' && <PortalTab />}
       {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}
     </div>
