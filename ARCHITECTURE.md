@@ -609,6 +609,36 @@ approved and settled statements of its collecting reseller
 sees its parent's), never a draft; the PDF is
 `src/services/resellerStatementPdf.js`.
 
+#### Reportar falla and the remote signing link (phase 5b, migration 009)
+
+`src/routes/resellerAppSupport.js` (behind the reseller app's binding and
+fence). A reported fault is an ordinary ticket of the ISP's queue with
+`source = 'reseller'` and `tickets.reseller_id` (the reporting user's bound
+reseller), inserted directly and announced with `emitTicketCreated` (staff
+broadcast and webhooks; no customer message); a reseller may file at most 30
+in 24 hours and lists only those of its subtree's clients.
+
+A remote signing link (`document_signing_links`,
+`src/services/documentSigningLinkService.js`) lets the customer of a new
+installation in process read and sign its pending `signed_documents` on its
+own device. The token is `<organization id>-<43 base64url characters>`: the
+prefix selects the tenant database (`db.withTenantContext`), and only the
+SHA-256 of the whole token is stored. Staff create one per service order
+(`signed_documents.create`): email or SMS to the contact on file through the
+message outbox (transactional, `sensitive`: the body is cleared after
+delivery), or `copy`, which returns the URL once. A reseller asks the ISP for
+its lead (`reseller_app.signup`) by email or SMS only and never receives the
+URL. A new link revokes the order's live ones; links expire
+(`SIGNING_LINK_TTL_HOURS`, default 72) and complete when nothing is pending.
+The public routes (`/api/v1/public/signing/:token`, listed in
+`src/middleware/v1DefaultDeny.js`, `publicLimiter`, no-store) show the
+documents and sign one through `legalDocumentService.sign` with
+`performedBy = null` (self-service capture) and `signingLinkId`, stored in
+`signed_documents.signing_link_id` outside the evidence digest. Every
+on-site rule still applies: the activation contract and the service
+acknowledgment are signable only while the installation work order is in
+progress, so the page shows them as waiting for the visit until then.
+
 ### RBAC resolution
 
 Backend authorization is authoritative. `requirePermission` first enforces API

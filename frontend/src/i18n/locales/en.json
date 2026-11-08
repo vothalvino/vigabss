@@ -9414,6 +9414,7 @@
       "text": "  ·  "
     },
     "ticketDetail": {
+      "sourceReseller": "Reported by a reseller (Punto de venta)",
       "actions": "Actions",
       "status": "Status",
       "assignedTo": "Assigned To",
@@ -9882,6 +9883,56 @@
     "downloadError": "Could not download the PDF. Please try again."
   },
   "punto": {
+    "fault": {
+      "title": "Report a fault",
+      "open": "Report a fault",
+      "help": "Describe what the customer reports. It goes to the company's support team.",
+      "subject": "What happens",
+      "description": "Details (since when, lights on the equipment…)",
+      "submit": "Send report",
+      "sending": "Sending…",
+      "cancel": "Cancel",
+      "sent": "Report sent. You can follow it here.",
+      "subjectRequired": "Write what happens (at least 3 characters).",
+      "descriptionRequired": "Add a few details (at least 5 characters).",
+      "error": "We could not send the report.",
+      "tooMany": "Too many reports today. Try again tomorrow.",
+      "loadError": "We could not load the reports.",
+      "reportedOn": "#{{id}} · {{date}}",
+      "status": {
+        "open": "Open",
+        "in_progress": "In progress",
+        "waiting": "Waiting",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      }
+    },
+    "signing": {
+      "open": "Contract signature",
+      "title": "Contract signature",
+      "loadError": "We could not load the signature status.",
+      "state": {
+        "no_installation": "The company has not scheduled the installation yet.",
+        "not_started": "The installation has not started yet; the documents will be ready then.",
+        "pending": "{{pending}} document(s) to sign, {{signed}} signed.",
+        "signed": "All the documents are signed.",
+        "installed": "The installation is done."
+      },
+      "lastSent": "Link sent to {{destination}} on {{date}}.",
+      "lastCompleted": "The customer signed through the link.",
+      "opened": "The customer opened it.",
+      "help": "The company sends the customer a link to sign from its own phone. You never see the link.",
+      "byEmail": "Send by email",
+      "bySms": "Send by SMS",
+      "noContact": "The customer has no email or phone on file.",
+      "sent": "The company sent the link to {{destination}}.",
+      "blocked": "Not sent: the customer's messages are blocked.",
+      "noEmail": "The customer has no email on file.",
+      "noPhone": "The customer has no phone on file.",
+      "notStarted": "The installation has not started yet.",
+      "nothingPending": "There is nothing left to sign.",
+      "error": "We could not send the link."
+    },
     "statements": {
       "title": "Statements",
       "intro": "Each month the company closes your account in a statement. Here are the approved ones, to download.",
@@ -10443,6 +10494,76 @@
       "notDraft": "Only a draft can be changed.",
       "notApproved": "Only an approved statement can be settled.",
       "bothDates": "Write both dates, or neither for last month."
+    }
+  },
+  "publicSigning": {
+    "hello": "Hello, {{name}}",
+    "helloNoName": "Hello",
+    "intro": "Read and sign the documents of your internet installation. Take your time: each one opens in full before you sign.",
+    "status": {
+      "signed": "Signed",
+      "pending": "To sign",
+      "waiting": "When the technician arrives"
+    },
+    "waitingHelp": "You can sign this one once the technician has started your installation.",
+    "readAndSign": "Read and sign",
+    "name": "Your full name",
+    "signHere": "Sign here with your finger",
+    "accept": "I have read this document and I agree to sign it.",
+    "sign": "Sign",
+    "signing": "Signing…",
+    "signed": "\"{{title}}\" is signed.",
+    "nameRequired": "Write your full name.",
+    "signatureRequired": "Draw your signature.",
+    "choicesRequired": "Review the optional messages and confirm your choices.",
+    "acceptRequired": "Confirm that you read the document and agree to sign it.",
+    "signError": "We could not save your signature. Try again.",
+    "footer": "This link is personal. If you did not ask for an internet service, close this page.",
+    "allDone": {
+      "title": "All done",
+      "body": "You signed every document. Thank you!"
+    },
+    "problem": {
+      "expired": {
+        "title": "This link has expired",
+        "body": "Ask your provider for a new link."
+      },
+      "revoked": {
+        "title": "This link was replaced",
+        "body": "Your provider sent you a newer link. Use that one."
+      },
+      "completed": {
+        "title": "Already signed",
+        "body": "Every document of this link is signed. Nothing else to do."
+      },
+      "notFound": {
+        "title": "Link not found",
+        "body": "Check that you opened the whole link, or ask your provider for a new one."
+      },
+      "loadError": {
+        "title": "We could not open the documents",
+        "body": "Check your connection and try again."
+      }
+    }
+  },
+  "signingLink": {
+    "label": "Signing link for the customer:",
+    "email": "Email",
+    "sms": "SMS",
+    "copy": "Copy link",
+    "urlLabel": "Signing link",
+    "copyButton": "Copy",
+    "copied": "Copied",
+    "copyHelp": "Hand it only to the customer. It replaces earlier links and expires in 72 hours.",
+    "sent": "Link sent to {{destination}}.",
+    "blocked": "Not sent: the customer's messages are blocked ({{code}}).",
+    "errors": {
+      "noEmail": "The customer has no email on file.",
+      "noPhone": "The customer has no phone on file.",
+      "notSignable": "Documents are signed while the installation is in process.",
+      "nothingPending": "There is nothing left to sign.",
+      "notQueued": "The message could not be queued; nothing was sent.",
+      "generic": "The link could not be created."
     }
   },
   "resellerCommissions": {

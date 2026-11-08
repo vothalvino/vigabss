@@ -17,7 +17,8 @@
 //  ...and the phase-2 collection, receipt, cash-box and ledger routes of
 //  routes/resellerAppCollect.js and the phase-3 cash-bag routes of
 //  routes/resellerAppBags.js and the phase-5 statements of
-//  routes/resellerAppStatements.js, mounted below with the same guards.
+//  routes/resellerAppStatements.js and the phase-5b support routes of
+//  routes/resellerAppSupport.js, mounted below with the same guards.
 //
 // Every route needs a binding: org-level staff get 403 (they use the staff
 // pages). The subtree is the bound reseller and its sub-resellers
@@ -618,6 +619,8 @@ router.use(require('./resellerAppCollect'));
 router.use(require('./resellerAppBags'));
 // Phase 5: the reseller's statements (estados de cuenta).
 router.use(require('./resellerAppStatements'));
+// Phase 5b: "Reportar falla" and the signing link of a lead's installation.
+router.use(require('./resellerAppSupport'));
 
 module.exports = router;
 module.exports.assertClientInResellerScope = assertClientInResellerScope;

@@ -177,6 +177,10 @@
   "discovery_results": {
     "device_id": "devices"
   },
+  "document_signing_links": {
+    "client_id": "clients",
+    "service_order_id": "service_orders"
+  },
   "dsar_requests": {
     "client_id": "clients"
   },

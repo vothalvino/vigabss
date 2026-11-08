@@ -34,6 +34,8 @@ import { DialogFocusManager } from '@/components/DialogFocusManager';
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword })));
 const ResetPassword = lazy(() => import('@/pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
 const VerifyEmail = lazy(() => import('@/pages/VerifyEmail').then((m) => ({ default: m.VerifyEmail })));
+// The customer signs its installation documents through the ISP's link (no session).
+const PublicSigning = lazy(() => import('@/pages/PublicSigning'));
 const PortalLogin = lazy(() => import('@/pages/portal/PortalLogin').then((m) => ({ default: m.PortalLogin })));
 const PortalForgotPassword = lazy(() => import('@/pages/portal/PortalForgotPassword').then((m) => ({ default: m.PortalForgotPassword })));
 const PortalResetPassword = lazy(() => import('@/pages/portal/PortalResetPassword').then((m) => ({ default: m.PortalResetPassword })));
@@ -243,6 +245,7 @@ export function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/firmar/:token" element={<PublicSigning />} />
 
               {/* ---- Reseller app: staff accounts bound to a reseller ----
                   PuntoRoute sends anyone else to the staff console, and

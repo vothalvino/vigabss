@@ -65,7 +65,7 @@ test('after the migrations, reseller_admin holds no organization-wide permission
   // It still works as a reseller role.
   expect(held).toEqual(expect.arrayContaining([
     'reseller_app.use', 'reseller_app.signup', 'reseller_app.collect', 'reseller_app.bags',
-    'reseller_app.statements', 'reseller_portal.dashboard', 'reseller_portal.manage_customers',
+    'reseller_app.statements', 'reseller_app.tickets', 'reseller_portal.dashboard', 'reseller_portal.manage_customers',
   ]));
   // Cash bags are received, voided and handed out by the ISP only.
   expect(held.filter((name) => /^(?:cash_bags|carriers|carrier_app)\./.test(name))).toEqual([]);
@@ -139,4 +139,18 @@ test('migration 008 grants the statements view to reseller_admin and the stateme
   const refuse = rollback.indexOf("SIGNAL SQLSTATE '45000'");
   expect(refuse).toBeGreaterThan(-1);
   expect(refuse).toBeLessThan(rollback.indexOf('DROP TABLE IF EXISTS reseller_settlements'));
+});
+
+test('migration 009 grants reseller_app.tickets to reseller_admin and admin, and the rollback drops it', () => {
+  const name = '009_reseller_tickets_signing_links.sql';
+  const sql = fs.readFileSync(path.join(MIGRATIONS, name), 'utf8').replace(/--.*$/gm, '');
+  const grants = [...sql.matchAll(/INSERT\s+IGNORE\s+INTO\s+role_permissions[^;]*?p\.name\s+IN\s*\(([^)]*)\)[^;]*?r\.name\s*=\s*'(\w+)'/gi)]
+    .map((m) => [m[2], names(m[1]).sort()]);
+  expect(grants).toEqual([
+    ['reseller_admin', ['reseller_app.tickets']],
+    ['admin', ['reseller_app.tickets']],
+  ]);
+  const rollback = fs.readFileSync(path.join(ROLLBACKS, name), 'utf8').replace(/--.*$/gm, '');
+  expect(names(rollback.match(/DELETE FROM permissions WHERE name IN \(([^)]*)\)/i)[1])).toEqual(['reseller_app.tickets']);
+  expect(rollback.indexOf("SIGNAL SQLSTATE '45000'")).toBeLessThan(rollback.indexOf('DROP TABLE IF EXISTS document_signing_links'));
 });

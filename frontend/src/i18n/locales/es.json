@@ -9408,6 +9408,7 @@
       "text": "  ·  "
     },
     "ticketDetail": {
+      "sourceReseller": "Reportado por un punto de venta",
       "actions": "Acciones",
       "status": "Estado",
       "assignedTo": "Asignado a",
@@ -9876,6 +9877,56 @@
     "downloadError": "No se pudo descargar el PDF. Inténtalo de nuevo."
   },
   "punto": {
+    "fault": {
+      "title": "Reportar falla",
+      "open": "Reportar falla",
+      "help": "Describe lo que reporta el cliente. Llega al equipo de soporte de la empresa.",
+      "subject": "¿Qué pasa?",
+      "description": "Detalles (desde cuándo, luces del equipo…)",
+      "submit": "Enviar reporte",
+      "sending": "Enviando…",
+      "cancel": "Cancelar",
+      "sent": "Reporte enviado. Puedes seguirlo aquí.",
+      "subjectRequired": "Escribe qué pasa (al menos 3 caracteres).",
+      "descriptionRequired": "Agrega algunos detalles (al menos 5 caracteres).",
+      "error": "No pudimos enviar el reporte.",
+      "tooMany": "Demasiados reportes hoy. Inténtalo mañana.",
+      "loadError": "No pudimos cargar los reportes.",
+      "reportedOn": "#{{id}} · {{date}}",
+      "status": {
+        "open": "Abierto",
+        "in_progress": "En proceso",
+        "waiting": "En espera",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      }
+    },
+    "signing": {
+      "open": "Firma del contrato",
+      "title": "Firma del contrato",
+      "loadError": "No pudimos cargar el estado de la firma.",
+      "state": {
+        "no_installation": "La empresa aún no programa la instalación.",
+        "not_started": "La instalación aún no inicia; los documentos estarán listos entonces.",
+        "pending": "{{pending}} documento(s) por firmar, {{signed}} firmado(s).",
+        "signed": "Todos los documentos están firmados.",
+        "installed": "La instalación está terminada."
+      },
+      "lastSent": "Liga enviada a {{destination}} el {{date}}.",
+      "lastCompleted": "El cliente firmó con la liga.",
+      "opened": "El cliente ya la abrió.",
+      "help": "La empresa le envía al cliente una liga para firmar desde su propio teléfono. Tú nunca ves la liga.",
+      "byEmail": "Enviar por correo",
+      "bySms": "Enviar por SMS",
+      "noContact": "El cliente no tiene correo ni teléfono registrados.",
+      "sent": "La empresa envió la liga a {{destination}}.",
+      "blocked": "No se envió: los mensajes del cliente están bloqueados.",
+      "noEmail": "El cliente no tiene correo registrado.",
+      "noPhone": "El cliente no tiene teléfono registrado.",
+      "notStarted": "La instalación aún no inicia.",
+      "nothingPending": "No queda nada por firmar.",
+      "error": "No pudimos enviar la liga."
+    },
     "statements": {
       "title": "Estados de cuenta",
       "intro": "Cada mes la empresa cierra tu cuenta en un estado de cuenta. Aquí están los aprobados, para descargar.",
@@ -10437,6 +10488,76 @@
       "notDraft": "Solo se puede cambiar un borrador.",
       "notApproved": "Solo se puede liquidar un estado de cuenta aprobado.",
       "bothDates": "Escribe las dos fechas, o ninguna para el mes pasado."
+    }
+  },
+  "publicSigning": {
+    "hello": "Hola, {{name}}",
+    "helloNoName": "Hola",
+    "intro": "Lee y firma los documentos de tu instalación de internet. Tómate tu tiempo: cada uno se abre completo antes de firmar.",
+    "status": {
+      "signed": "Firmado",
+      "pending": "Por firmar",
+      "waiting": "Cuando llegue el técnico"
+    },
+    "waitingHelp": "Podrás firmar este cuando el técnico haya iniciado tu instalación.",
+    "readAndSign": "Leer y firmar",
+    "name": "Tu nombre completo",
+    "signHere": "Firma aquí con tu dedo",
+    "accept": "Leí este documento y acepto firmarlo.",
+    "sign": "Firmar",
+    "signing": "Firmando…",
+    "signed": "\"{{title}}\" quedó firmado.",
+    "nameRequired": "Escribe tu nombre completo.",
+    "signatureRequired": "Dibuja tu firma.",
+    "choicesRequired": "Revisa los mensajes opcionales y confirma tus preferencias.",
+    "acceptRequired": "Confirma que leíste el documento y aceptas firmarlo.",
+    "signError": "No pudimos guardar tu firma. Inténtalo de nuevo.",
+    "footer": "Esta liga es personal. Si no solicitaste un servicio de internet, cierra esta página.",
+    "allDone": {
+      "title": "Listo",
+      "body": "Firmaste todos los documentos. ¡Gracias!"
+    },
+    "problem": {
+      "expired": {
+        "title": "Esta liga venció",
+        "body": "Pide a tu proveedor una liga nueva."
+      },
+      "revoked": {
+        "title": "Esta liga fue reemplazada",
+        "body": "Tu proveedor te envió una liga más reciente. Usa esa."
+      },
+      "completed": {
+        "title": "Ya está firmado",
+        "body": "Todos los documentos de esta liga están firmados. No hay nada más que hacer."
+      },
+      "notFound": {
+        "title": "No encontramos la liga",
+        "body": "Revisa que abriste la liga completa, o pide una nueva a tu proveedor."
+      },
+      "loadError": {
+        "title": "No pudimos abrir los documentos",
+        "body": "Revisa tu conexión e inténtalo de nuevo."
+      }
+    }
+  },
+  "signingLink": {
+    "label": "Liga de firma para el cliente:",
+    "email": "Correo",
+    "sms": "SMS",
+    "copy": "Copiar liga",
+    "urlLabel": "Liga de firma",
+    "copyButton": "Copiar",
+    "copied": "Copiada",
+    "copyHelp": "Entrégala solo al cliente. Reemplaza las ligas anteriores y vence en 72 horas.",
+    "sent": "Liga enviada a {{destination}}.",
+    "blocked": "No se envió: los mensajes del cliente están bloqueados ({{code}}).",
+    "errors": {
+      "noEmail": "El cliente no tiene correo registrado.",
+      "noPhone": "El cliente no tiene teléfono registrado.",
+      "notSignable": "Los documentos se firman mientras la instalación está en proceso.",
+      "nothingPending": "No queda nada por firmar.",
+      "notQueued": "No se pudo poner en cola el mensaje; no se envió nada.",
+      "generic": "No se pudo crear la liga."
     }
   },
   "resellerCommissions": {

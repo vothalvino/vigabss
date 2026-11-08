@@ -26,6 +26,7 @@ const {
 const lifecycleService = require('../services/lifecycleService');
 const { assertPlanSelectable } = require('../services/planAvailability');
 const auditLog = require('../services/auditLog');
+const documentSigningLinkService = require('../services/documentSigningLinkService');
 const db = require('../config/database');
 const { NotFoundError, ValidationError, ForbiddenError, ConflictError } = require('../utils/errors');
 
@@ -399,6 +400,71 @@ router.patch('/:id/tasks/:taskId', requirePermission('service_orders.update'), v
     if (result.affectedRows === 0) throw new NotFoundError('Service order task');
     const [rows] = await db.query('SELECT * FROM service_order_tasks WHERE id = ?', [req.params.taskId]);
     res.json({ data: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// =============================================================================
+// Remote signing links (reseller program phase 5b, migration 009;
+// services/documentSigningLinkService.js)
+// =============================================================================
+// The ISP sends the customer of a new installation in process a link to read
+// and sign its pending documents on its own device: to the email or phone on
+// file, or as a copy staff hand over. A new link replaces the order's earlier
+// ones. The on-site signing rules still hold.
+
+const signingLinkSchema = {
+  channel: { type: 'string', required: true, enum: documentSigningLinkService.CHANNELS },
+};
+
+// GET /service-orders/:id/signing-links — the order's links, without tokens
+router.get('/:id/signing-links', requirePermission('signed_documents.view'), async (req, res, next) => {
+  try {
+    const order = await ServiceOrder.findById(req.params.id, req.orgId);
+    if (!order) throw new NotFoundError('Service order');
+    res.json({ data: await documentSigningLinkService.listForOrder(req.orgId, order.id) });
+  } catch (err) { next(err); }
+});
+
+// POST /service-orders/:id/signing-links — create and send (or copy) a link
+router.post(
+  '/:id/signing-links',
+  requirePermission('signed_documents.create'),
+  validate(signingLinkSchema),
+  async (req, res, next) => {
+    try {
+      const order = await ServiceOrder.findById(req.params.id, req.orgId);
+      if (!order) throw new NotFoundError('Service order');
+      const result = await documentSigningLinkService.create({
+        orgId: req.orgId, serviceOrderId: order.id, channel: req.body.channel, requestedBy: req.user.id,
+      });
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: 'signing_link_create',
+        tableName: 'document_signing_links',
+        recordId: result.link.id,
+        newValues: { service_order_id: Number(order.id), channel: result.link.channel, destination: result.link.destination_masked },
+      });
+      res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /service-orders/:id/signing-links/revoke — end the order's live links
+router.post('/:id/signing-links/revoke', requirePermission('signed_documents.create'), async (req, res, next) => {
+  try {
+    const order = await ServiceOrder.findById(req.params.id, req.orgId);
+    if (!order) throw new NotFoundError('Service order');
+    const revoked = await documentSigningLinkService.revokeForOrder(req.orgId, order.id);
+    await auditLog.log({
+      userId: req.user.id,
+      organizationId: req.orgId,
+      action: 'signing_link_revoke',
+      tableName: 'service_orders',
+      recordId: Number(order.id),
+      newValues: { revoked },
+    });
+    res.json({ data: { revoked } });
   } catch (err) { next(err); }
 });
 

@@ -5,7 +5,7 @@
 // (dispatch → start → complete/cancel) and materials sub-resource.
 // =============================================================================
 
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,8 @@ import {
 } from '@/components/MxContractEnvironment';
 import { parseApiError } from '@/api/errors';
 import { SignedDocumentViewer } from '@/components/SignedDocumentView';
+import { SignatureCanvas } from '@/components/SignatureCanvas';
+import { SigningLinkActions } from '@/components/SigningLinkActions';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -474,72 +476,6 @@ function needsCommunicationChoices(document: SignedDocDetail): boolean {
   return capturesCommunicationChoices(document.template_type) && document.communication_choices_recorded !== true;
 }
 
-function SignatureCanvas({ onChange }: { onChange: (dataUrl: string | null) => void }) {
-  const { t } = useTranslation();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawing = useRef(false);
-  const dirty = useRef(false);
-
-  function pos(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * (rect.width ? e.currentTarget.width / rect.width : 1),
-      y: (e.clientY - rect.top) * (rect.height ? e.currentTarget.height / rect.height : 1),
-    };
-  }
-  function start(e: React.PointerEvent<HTMLCanvasElement>) {
-    drawing.current = true;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = pos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-  function move(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = pos(e);
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#111';
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    dirty.current = true;
-  }
-  function end() {
-    drawing.current = false;
-    if (dirty.current && canvasRef.current) onChange(canvasRef.current.toDataURL('image/png'));
-  }
-  function clear() {
-    const c = canvasRef.current;
-    const ctx = c?.getContext('2d');
-    if (c && ctx) ctx.clearRect(0, 0, c.width, c.height);
-    dirty.current = false;
-    onChange(null);
-  }
-
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={420}
-        height={140}
-        data-testid="signature-canvas"
-        style={{ border: '1px dashed var(--border-color, #9ca3af)', borderRadius: 8, background: '#fff', touchAction: 'none', width: '100%', maxWidth: 420 }}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-      />
-      <button type="button" style={{ ...styles.btnSecondary, marginTop: 4, padding: '3px 10px', fontSize: '0.78rem' }} onClick={clear}>
-        {t('workOrders.documents.clearSignature')}
-      </button>
-    </div>
-  );
-}
-
 function SignDocumentModal({ docId, onClose, onSigned }: {
   docId: number; onClose: () => void; onSigned: () => void;
 }) {
@@ -811,6 +747,7 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
   const isMxOrg = user?.organization_locale === 'MX';
   const canViewDocuments = can(user, 'signed_documents.view');
   const canSignDocuments = can(user, 'signed_documents.sign');
+  const canSendLink = can(user, 'signed_documents.create');
 
   const docsQ = useQuery({
     queryKey: ['wo-documents', workOrderId, serviceOrderId],
@@ -877,6 +814,9 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
           </li>
         ))}
       </ul>
+      {serviceOrderId !== null && canSendLink && docs.some(d => d.status === 'pending') && (
+        <SigningLinkActions serviceOrderId={serviceOrderId} />
+      )}
       {signingId !== null && (
         <SignDocumentModal
           docId={signingId}

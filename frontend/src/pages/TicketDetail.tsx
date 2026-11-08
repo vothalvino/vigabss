@@ -1936,7 +1936,7 @@ export function TicketDetail() {
                   ? `${assignedUser.first_name} ${assignedUser.last_name}`
                   : ticket.assigned_to ? `#${ticket.assigned_to}` : '—'}
               </MetaRow>
-              <MetaRow label={t('ui.ticketDetail.category')}>{ticket.category ?? '—'}</MetaRow>
+              <MetaRow label={t('ui.ticketDetail.category')}>{ticket.category ?? '—'}{ticket.source === 'reseller' ? ` · ${t('ui.ticketDetail.sourceReseller')}` : ''}</MetaRow>
               <MetaRow label={t('ui.ticketDetail.created')}>{fmt(ticket.created_at)}</MetaRow>
               <MetaRow label={t('ui.ticketDetail.updated')}>{fmt(ticket.updated_at)}</MetaRow>
               {ticket.contract_id && (

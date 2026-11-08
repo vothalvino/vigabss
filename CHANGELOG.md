@@ -29,6 +29,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   - **PDF.** Staff and the reseller download each statement as a PDF. The
     reseller sees its approved and settled statements in Mi caja.
 - Migration 008 adds the statements and their permissions.
+- **Reportar falla.** In the reseller app, a client's page has a "Reportar
+  falla" button: the reseller describes the problem and it becomes a ticket in
+  the ISP's queue, marked as reported by that reseller. Staff are notified as
+  for any new ticket; the customer is not. The reseller sees the status of
+  what it reported.
+- **The customer signs on its own phone.** Staff can send the customer of an
+  installation in process a link (by email or SMS to the contact on file, or
+  copy it to hand over) to read and sign the installation documents from its
+  own phone. A reseller can ask the ISP to send it for its own customer, but
+  never sees the link. The usual rules still apply: the installation
+  authorization can be signed right away, the contract only once the
+  technician's visit has started. The signature is recorded as the
+  customer's own, with the link it came through. Links expire after 72 hours
+  (`SIGNING_LINK_TTL_HOURS`) and a new one replaces the old.
+- Migration 009 adds the signing links and the ticket's reseller.
 
 ## 0.1.0-alpha.14 — 2026-11-07
 

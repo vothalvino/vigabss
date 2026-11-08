@@ -304,6 +304,8 @@ export const puntoKeys = {
   ledger: (page: number) => ['punto', 'ledger', page] as const,
   bags: ['punto', 'bags'] as const,
   statements: (page: number) => ['punto', 'statements', page] as const,
+  tickets: (clientId: number) => ['punto', 'tickets', clientId] as const,
+  leadSigning: (leadId: number) => ['punto', 'lead-signing', leadId] as const,
 };
 
 /** Every query a collection, a void, a cash-box close or a sealed bag changes. */
@@ -576,4 +578,62 @@ export async function downloadStatementPdf(
   link.download = named?.[1] ?? `estado-de-cuenta-${statement.id}-${statement.period_start}-${statement.period_end}.pdf`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// Reportar falla and the signing link (phase 5b)
+// ---------------------------------------------------------------------------
+
+export type PuntoTicketStatus = 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
+
+export interface PuntoTicket {
+  id: number;
+  client_id: number;
+  client_name: string | null;
+  subject: string;
+  category: string;
+  status: PuntoTicketStatus | string;
+  created_at: string;
+  updated_at: string | null;
+  resolved_at: string | null;
+}
+
+export async function fetchPuntoTickets(clientId: number) {
+  return apiFetch<{ data: PuntoTicket[]; meta: PuntoListMeta }>(`/reseller-app/tickets?client_id=${clientId}&limit=20`);
+}
+
+export async function createPuntoTicket(body: { client_id: number; subject: string; description: string }): Promise<PuntoTicket> {
+  const res = await apiFetch<{ data: PuntoTicket }>('/reseller-app/tickets', { method: 'POST', body: JSON.stringify(body) });
+  return res.data;
+}
+
+export type PuntoSigningState = 'no_installation' | 'not_started' | 'pending' | 'signed' | 'installed';
+
+export interface PuntoLeadSigning {
+  state: PuntoSigningState;
+  pending_documents: number;
+  signed_documents: number;
+  can_send: boolean;
+  contacts: { email: boolean; phone: boolean } | null;
+  last_link: {
+    channel: string;
+    destination_masked: string | null;
+    created_at: string;
+    expires_at: string;
+    completed_at: string | null;
+    revoked_at: string | null;
+    opened: boolean;
+  } | null;
+}
+
+export async function fetchPuntoLeadSigning(leadId: number): Promise<PuntoLeadSigning> {
+  const res = await apiFetch<{ data: PuntoLeadSigning }>(`/reseller-app/leads/${leadId}/signing`);
+  return res.data;
+}
+
+export async function sendPuntoSigningLink(leadId: number, channel: 'email' | 'sms') {
+  const res = await apiFetch<{ data: { link: { destination_masked: string | null }; message: { skipped: boolean; code: string | null } | null } }>(
+    `/reseller-app/leads/${leadId}/signing-link`, { method: 'POST', body: JSON.stringify({ channel }) },
+  );
+  return res.data;
 }

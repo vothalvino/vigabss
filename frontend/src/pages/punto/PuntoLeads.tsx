@@ -3,7 +3,8 @@
 // =============================================================================
 // The sign-ups this reseller (and its sub-resellers) captured, from
 // GET /reseller-app/leads, with where each one stands. A converted lead links
-// to its client.
+// to its client. "Firma del contrato" shows where the customer's installation
+// documents stand and asks the ISP to send it the signing link (phase 5b).
 // =============================================================================
 
 import { useState } from 'react';
@@ -14,11 +15,16 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatDate } from '@/lib/dates';
 import { fetchPuntoLeads, puntoKeys } from './puntoApi';
 import { StatusChip, mutedText, pageTitle } from './puntoUi';
+import { LeadSigning } from './PuntoSupport';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 
 const PAGE_SIZE = 20;
 
 export function PuntoLeads() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canSign = can(user, 'reseller_app.signup');
   const [page, setPage] = useState(1);
   const q = useQuery({
     queryKey: puntoKeys.leads(page),
@@ -57,6 +63,7 @@ export function PuntoLeads() {
                   <Link to={`/punto/clientes/${l.converted_client_id}`}>{t('punto.leads.viewClient')}</Link>
                 )}
               </div>
+              {canSign && <LeadSigning leadId={l.id} />}
             </li>
           ))}
         </ul>
