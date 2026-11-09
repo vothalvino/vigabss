@@ -417,8 +417,8 @@ function ReadinessBanner() {
   const formatDetail = (source: ReadinessSource) => source.detailCode
     ? t(
       `pppoe_diagnostics.readiness.details.${source.detailCode}`,
-      source.detail,
-      source.detailParams,
+      // i18next 26.7 types: the default text rides in the options object.
+      { ...(source.detailParams ?? {}), defaultValue: source.detail },
     )
     : source.detail;
 

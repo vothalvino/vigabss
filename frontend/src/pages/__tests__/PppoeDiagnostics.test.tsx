@@ -10,7 +10,12 @@ import { PppoeDiagnostics } from '../PppoeDiagnostics';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback: string, values?: Record<string, string | number>) => {
+    // Both i18next call shapes: t(key, default, values) and
+    // t(key, { ...values, defaultValue }).
+    t: (_key: string, second: string | Record<string, string | number>, third?: Record<string, string | number>) => {
+      const opts = typeof second === 'object' && second !== null ? second : undefined;
+      const fallback = opts ? String(opts.defaultValue ?? '') : (second as string);
+      const values = opts ? Object.fromEntries(Object.entries(opts).filter(([k]) => k !== 'defaultValue')) : third;
       if (_key === 'pppoe_diagnostics.readiness.details.router_waiting_no_events') {
         return `Localized RouterOS readiness: ${values?.coveredNas} of ${values?.totalNas}`;
       }
