@@ -76,7 +76,7 @@ services:
   playwright:
     # Must match the playwright version pnpm-lock.yaml resolves; CI's
     # dependency-scan job fails when they differ.
-    image: mcr.microsoft.com/playwright:v1.59.1-jammy@sha256:8a0360d39d1973be506dd59002904a774f6d697d4946c94063b3fd006461c8ff
+    image: mcr.microsoft.com/playwright:v1.65.0-jammy@sha256:5a8620d70618963ec6628dd77cc25ec6a4b232e26c4a41241a8c1def04e2dc04
     depends_on:
       app:
         condition: service_healthy
