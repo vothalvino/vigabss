@@ -139,6 +139,7 @@ function SealForm({ empties, money, onSealed, error, setError }: SealFormProps) 
             <label key={b.serial} className="punto-check">
               <input type="radio" name="punto-seal-bag" checked={serial === b.serial} onChange={() => choose(b.serial)} />
               <span style={mono}>{b.serial}</span>
+              {b.status === 'with_carrier' && <span style={mutedText}>{' · '}{t('puntoBags.seal.onTheWay')}</span>}
             </label>
           ))}
         </fieldset>
@@ -215,7 +216,10 @@ export function PuntoBags() {
   const money = me.data?.money;
   const currency = money?.currency || me.data?.currency || user?.organization_currency || 'MXN';
   const list = bags.data ?? [];
-  const empties = list.filter(b => b.status === 'at_reseller');
+  // Bags staff assigned to this point are its own as soon as a carrier has
+  // them: they may be filled before the carrier confirms the delivery.
+  const empties = list.filter(b => b.status === 'at_reseller' || b.status === 'with_carrier');
+  const onTheWay = list.filter(b => b.status === 'with_carrier');
   const showSealForm = Boolean(money && bags.data && empties.length > 0 && toNumber(money.cash_on_hand) > 0);
   const onSealed = (text: string) => { setSealError(''); setMsg(text); };
 
@@ -247,10 +251,17 @@ export function PuntoBags() {
         <>
           <BagSection id="punto-bags-ready" title={t('puntoBags.list.readyTitle')} bags={list.filter(b => b.status === 'ready_for_pickup')} currency={currency} when="sealed" />
           <BagSection id="punto-bags-transit" title={t('puntoBags.list.transitTitle')} bags={list.filter(b => b.status === 'in_transit')} currency={currency} when="picked" />
-          {empties.length > 0 && (
+          {empties.length > onTheWay.length && (
             <section className="punto-card" aria-labelledby="punto-bags-empty">
-              <h2 id="punto-bags-empty" style={sectionTitle}>{t('puntoBags.list.emptyTitle', { count: empties.length })}</h2>
-              <p style={{ ...mono, margin: 0 }}>{empties.map(b => b.serial).join(', ')}</p>
+              <h2 id="punto-bags-empty" style={sectionTitle}>{t('puntoBags.list.emptyTitle', { count: empties.length - onTheWay.length })}</h2>
+              <p style={{ ...mono, margin: 0 }}>{empties.filter(b => b.status === 'at_reseller').map(b => b.serial).join(', ')}</p>
+            </section>
+          )}
+          {onTheWay.length > 0 && (
+            <section className="punto-card" aria-labelledby="punto-bags-coming">
+              <h2 id="punto-bags-coming" style={sectionTitle}>{t('puntoBags.list.comingTitle', { count: onTheWay.length })}</h2>
+              <p style={mutedText}>{t('puntoBags.list.comingHelp')}</p>
+              <p style={{ ...mono, margin: 0 }}>{onTheWay.map(b => b.serial).join(', ')}</p>
             </section>
           )}
         </>

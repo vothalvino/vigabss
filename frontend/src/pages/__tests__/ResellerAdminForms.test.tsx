@@ -470,7 +470,7 @@ describe('ResellerLedgerTab', () => {
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(within(summary).getByText('Cash to hand in').parentElement).toHaveTextContent('$850.00');
     expect(within(summary).getByText('Cash limit').parentElement).toHaveTextContent('$2,000.00');
-    expect(within(summary).getByText('Can still collect').parentElement).toHaveTextContent('$1,150.00');
+    expect(within(summary).getByText('Before the limit').parentElement).toHaveTextContent('$1,150.00');
     expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers/4/ledger?page=1&limit=25');
     const deposit = screen.getByText('Entrega semanal').closest('tr')!;
     expect(deposit).toHaveTextContent('Cash handed in');

@@ -506,10 +506,17 @@ describe('create a reseller login', () => {
     expect(User.delete).toHaveBeenCalledWith(42, ORG);
   });
 
-  test('needs users.create and org-level access', async () => {
+  test('needs users.create or point_logins.create, and org-level access', async () => {
     const token = asOrgAdmin();
     User.getPermissions.mockResolvedValue(['resellers.update']);
     expect((await post('/resellers/1/users', token, body)).status).toBe(403);
+    // A manager creates reseller logins with point_logins.create alone.
+    User.findByEmail.mockResolvedValue(null);
+    User.create.mockResolvedValue({ id: 43, email: 'rosa@example.com' });
+    User.getPermissions.mockResolvedValue(['resellers.update', 'point_logins.create']);
+    expect((await post('/resellers/1/users', token, body)).status).toBe(201);
+    expect(User.create.mock.calls[0][0]).toMatchObject({ group_id: 8 });
+    User.create.mockClear();
     const bound = asBoundReseller(['resellers.update', 'users.create']);
     expect((await post('/resellers/1/users', bound, body)).status).toBe(403);
     expect(User.create).not.toHaveBeenCalled();

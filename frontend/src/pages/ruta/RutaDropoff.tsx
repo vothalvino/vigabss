@@ -1,11 +1,13 @@
 // =============================================================================
 // Carrier app (/ruta) — Entregar bolsas vacías
 // =============================================================================
-// The carrier leaves empty bags from its stock at a reseller: choose the
-// reseller, scan or type each serial (or tap it in the stock list), then
-// POST /carrier-app/dropoff. The server takes all of them or none and names
-// the serials that are not in the carrier's stock (422); those stay marked
-// in the list so the carrier can remove them and try again.
+// The carrier confirms it delivered empty bags: staff already assigned each
+// bag to its point when they handed it over (the point sees it and may fill
+// it), so the carrier only chooses where it is, scans or types each serial
+// (or taps it in the list of that point's bags), then POST
+// /carrier-app/dropoff. The server takes all of them or none and names the
+// serials that are not in the carrier's stock or are for another point
+// (422); those stay marked in the list so the carrier can remove them.
 // =============================================================================
 
 import { useState } from 'react';
@@ -28,6 +30,9 @@ export function RutaDropoff() {
   const { resellers, list, selected, select } = useRutaReseller();
   const bags = useQuery({ queryKey: rutaKeys.bags, queryFn: fetchRutaBags });
   const stock = (bags.data ?? []).filter(b => b.status === 'with_carrier');
+  // The selected point's bags, and those with no point (taken back from one).
+  const forHere = stock.filter(b => b.resellerId === null || b.resellerId === selected?.id);
+  const elsewhere = stock.filter(b => b.resellerId !== null && b.resellerId !== selected?.id);
   const [serials, setSerials] = useState<string[]>([]);
   const [failed, setFailed] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -44,7 +49,9 @@ export function RutaDropoff() {
     onError: (err: unknown) => {
       const bad = failedSerials(err);
       setFailed(bad);
-      if (err instanceof ApiRequestError && (err.status === 422 || err.status === 409) && bad.length) setError(t('ruta.dropoff.someFailed', { serials: bad.join(', ') }));
+      const code = err instanceof ApiRequestError ? (err.body as { error?: { code?: string } } | null)?.error?.code : undefined;
+      if (code === 'BAGS_FOR_ANOTHER_POINT' && bad.length) setError(t('ruta.dropoff.forAnotherPoint', { serials: bad.join(', ') }));
+      else if (err instanceof ApiRequestError && (err.status === 422 || err.status === 409) && bad.length) setError(t('ruta.dropoff.someFailed', { serials: bad.join(', ') }));
       else if (err instanceof ApiRequestError && err.status === 404) setError(t('ruta.dropoff.notAssigned'));
       else if (err instanceof ApiRequestError && err.status === 422) setError(t('ruta.dropoff.refused'));
       else setError(t('ruta.dropoff.error'));
@@ -133,9 +140,10 @@ export function RutaDropoff() {
         {bags.isLoading && <LoadingState />}
         {bags.isError && <ErrorState message={t('ruta.bags.loadError')} onRetry={() => { void bags.refetch(); }} />}
         {bags.data && stock.length === 0 && <p style={mutedText}>{t('ruta.dropoff.noStock')}</p>}
-        {stock.length > 0 && (
+        {selected && stock.length > 0 && forHere.length === 0 && <p style={mutedText}>{t('ruta.dropoff.noneForHere', { name: selected.name })}</p>}
+        {forHere.length > 0 && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {stock.map(b => (
+            {forHere.map(b => (
               <button
                 key={b.serial}
                 type="button"
@@ -148,6 +156,15 @@ export function RutaDropoff() {
               </button>
             ))}
           </div>
+        )}
+        {elsewhere.length > 0 && (
+          <ul className="punto-list" style={{ marginTop: 8 }} aria-label={t('ruta.dropoff.elsewhereTitle')}>
+            {elsewhere.map(b => (
+              <li key={b.serial} style={mutedText}>
+                <span style={mono}>{b.serial}</span> · {t('ruta.dropoff.forPoint', { name: b.resellerName ?? '' })}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

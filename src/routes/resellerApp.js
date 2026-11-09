@@ -334,10 +334,13 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
           cash_on_hand: summary.cash_on_hand,
           credit_limit: summary.credit_limit,
           available_to_collect: summary.available_to_collect,
+          limit_reached: summary.limit_reached,
           collected_today: collectedToday,
-          // Cash bags (phase 3): empty ones it may fill, sealed ones waiting
-          // for the carrier, and those on their way to the ISP.
-          empty_bags: bags.at_reseller,
+          // Cash bags (phase 3): empty ones it may fill (including those a
+          // carrier is bringing it, migration 010), sealed ones waiting for
+          // the carrier, and those on their way to the ISP.
+          empty_bags: bags.empty,
+          bags_on_the_way: bags.on_the_way,
           bags_ready_for_pickup: bags.ready_for_pickup,
           bags_in_transit: bags.in_transit,
           // Commission (phase 4): the rate of the top-level reseller, which

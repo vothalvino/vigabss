@@ -31,7 +31,12 @@
 //                          shown for information, subtracted nowhere
 //   credit_limit         = COALESCE(resellers.credit_limit,
 //                                   reseller_default_credit_limit setting)
-//   available_to_collect = max(0, credit_limit - cash_on_hand)
+//   available_to_collect = max(0, credit_limit - cash_on_hand): the room left
+//   before the limit. The limit never refuses the collection that crosses it
+//   (owner decision, 2026-11-08): it only says the reseller must fill a bag
+//   (or hand the cash in) before its next collection.
+//   limit_reached = cash_on_hand >= credit_limit: collections are refused
+//   (409 CREDIT_LIMIT) until a sealed bag or a deposit brings it back under.
 //
 // Sealing a bag (phase 3, services/cashBagService.js) takes its declared
 // amount off the reseller's ledger at once (a bag_sealed entry of -D), which
@@ -141,6 +146,7 @@ function summarize(balance, creditLimit, inBagsAmount = 0) {
     cash_on_hand: cashOnHand,
     credit_limit: limit,
     available_to_collect: Math.max(0, money.sub(limit, cashOnHand)),
+    limit_reached: money.toCents(cashOnHand) >= money.toCents(limit),
   };
 }
 
@@ -180,22 +186,29 @@ async function inBagsFor(orgId, resellerIds, exec = defaultExec()) {
 
 /**
  * How many of the reseller's bags are in each live status:
- * { at_reseller (empty bags it may fill), ready_for_pickup, in_transit }.
+ * { at_reseller (empty bags it holds), on_the_way (empty bags a carrier is
+ * bringing it, migration 010), empty (both: it may fill either),
+ * ready_for_pickup, in_transit }.
  */
 async function bagCounts(orgId, resellerId, exec = defaultExec()) {
   requireOrgId(orgId, 'resellerLedgerService.bagCounts');
   const [rows] = await exec(
     `SELECT COALESCE(SUM(status = 'at_reseller'), 0) AS at_reseller,
+            COALESCE(SUM(status = 'with_carrier'), 0) AS on_the_way,
             COALESCE(SUM(status = 'ready_for_pickup'), 0) AS ready_for_pickup,
             COALESCE(SUM(status = 'in_transit'), 0) AS in_transit
        FROM cash_bags
       WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL
-        AND status IN ('at_reseller', 'ready_for_pickup', 'in_transit')`,
+        AND status IN ('at_reseller', 'with_carrier', 'ready_for_pickup', 'in_transit')`,
     [orgId, resellerId],
   );
   const row = (rows && rows[0]) || {};
+  const atReseller = Number(row.at_reseller) || 0;
+  const onTheWay = Number(row.on_the_way) || 0;
   return {
-    at_reseller: Number(row.at_reseller) || 0,
+    at_reseller: atReseller,
+    on_the_way: onTheWay,
+    empty: atReseller + onTheWay,
     ready_for_pickup: Number(row.ready_for_pickup) || 0,
     in_transit: Number(row.in_transit) || 0,
   };

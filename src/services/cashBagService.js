@@ -7,13 +7,21 @@
 // writes a cash_bag_events row with the actor and the time.
 //
 //   in_stock --handover--> with_carrier --dropoff--> at_reseller
-//   at_reseller --seal--> ready_for_pickup --pickup--> in_transit
+//   at_reseller | with_carrier --seal--> ready_for_pickup --pickup--> in_transit
 //   in_transit | ready_for_pickup --receive--> received
 //   in_stock | with_carrier | at_reseller --void--> void   (no money in it)
 //   ready_for_pickup | in_transit --lose--> lost           (money in it)
 //   with_carrier --return--> in_stock, at_reseller --return--> with_carrier
 //
 // received, void and lost are terminal.
+//
+// Staff assign each bag to its point (a top-level reseller or collector) when
+// they hand it to a carrier (migration 010): handover sets reseller_id, and
+// from then on the bag shows on the point's page and the point may seal it
+// (typing its serial proves it holds the bag). The carrier only carries: its
+// drop-off just confirms the delivery, and only at the bag's own point. A bag
+// with no point (taken back from a point, or handed over before migration
+// 010) may be dropped off at any point assigned to the carrier.
 //
 // Money (services/resellerLedgerService.js; migration 006). Sealing a bag with
 // a declared amount D (0 < D <= cash on hand) posts a bag_sealed entry of -D
@@ -32,14 +40,14 @@
 // Lock order is the reseller row, then the bag: the same order as a
 // collection (reseller, then invoices), so a seal and a concurrent collection
 // cannot both pass the credit check, and a receive or a loss cannot race
-// either. Every transition whose bag has or gets a reseller (dropoff, seal,
-// pickup, receive, lose, and void or return of an at_reseller bag) takes the
+// either. Every transition whose bag has or gets a reseller (handover,
+// dropoff, seal, pickup, receive, lose, and void or return of an assigned
+// bag) takes the
 // reseller row FOR UPDATE before the bag, even when it moves no money: its
 // cash_bag_events row (and dropoff's reseller_id) goes through a foreign key
 // to resellers, and InnoDB checks that key with a shared lock on the reseller
 // row. Taking the bag first would invert the order of a concurrent seal or
-// receive on the same bag and deadlock. Only handover (no reseller) locks the
-// bags alone.
+// receive on the same bag and deadlock.
 // =============================================================================
 
 const db = require('../config/database');
@@ -60,7 +68,7 @@ const TERMINAL_STATUSES = ['received', 'void', 'lost'];
 const TRANSITIONS = {
   handover: { from: ['in_stock'], to: 'with_carrier' },
   dropoff: { from: ['with_carrier'], to: 'at_reseller' },
-  seal: { from: ['at_reseller'], to: 'ready_for_pickup' },
+  seal: { from: ['at_reseller', 'with_carrier'], to: 'ready_for_pickup' },
   pickup: { from: ['ready_for_pickup'], to: 'in_transit' },
   receive: { from: ['in_transit', 'ready_for_pickup'], to: 'received' },
   void: { from: ['in_stock', 'with_carrier', 'at_reseller'], to: 'void' },
@@ -275,12 +283,14 @@ function resellerBag(row) {
 function carrierBag(row, resellers = new Map()) {
   const resellerId = idOrNull(row.reseller_id);
   const travelling = row.status === 'in_transit';
+  // Its point: where an empty bag goes (null = any of the carrier's points),
+  // or whose cash a picked-up bag carries.
   return {
     id: Number(row.id),
     serial: row.serial,
     status: row.status,
-    reseller_id: travelling ? resellerId : null,
-    reseller_name: travelling && resellerId !== null ? resellers.get(resellerId) ?? null : null,
+    reseller_id: resellerId,
+    reseller_name: resellerId !== null ? resellers.get(resellerId) ?? null : null,
     picked_up_at: travelling ? row.picked_up_at ?? null : null,
   };
 }
@@ -498,17 +508,30 @@ function bagIdList(raw) {
   return [...new Set(raw)];
 }
 
-/** POST /cash-bags/handover: in_stock -> with_carrier, all or nothing. */
-async function handOver({ orgId, userId, carrierUserId, serials: rawSerials, bagIds: rawIds }) {
+/**
+ * POST /cash-bags/handover: in_stock -> with_carrier for the point the bags
+ * are for, all or nothing. The point must be assigned to the carrier.
+ */
+async function handOver({ orgId, userId, carrierUserId, resellerId, serials: rawSerials, bagIds: rawIds }) {
   requireOrgId(orgId, 'cashBagService.handOver');
   const carrier = await carrierService.findCarrier(orgId, carrierUserId);
   if (!carrier) throw new ValidationError('carrier_user_id: not a carrier of this organization');
+  const carrierId = Number(carrier.id);
+  const point = await carrierService.assignedReseller(orgId, carrierId, resellerId);
+  if (!point) {
+    const err = new ValidationError('reseller_id: choose a point (reseller or collector) assigned to this carrier');
+    err.code = 'POINT_NOT_ASSIGNED_TO_CARRIER';
+    throw err;
+  }
+  const rid = Number(point.id);
   const byIds = rawIds !== undefined && rawIds !== null;
   const ids = byIds ? bagIdList(rawIds) : null;
   const serials = byIds ? null : serialList(rawSerials);
-  const carrierId = Number(carrier.id);
 
   const bags = await inTransaction(async (exec) => {
+    // The point first (see the header): the events and the new reseller_id
+    // check their foreign key against this row.
+    if (!(await ledger.lockReseller(exec, orgId, rid))) throw new NotFoundError('Reseller');
     const rows = await lockBagsBy(exec, orgId, { serials, ids });
     const found = new Map(rows.map((r) => [byIds ? Number(r.id) : r.serial, r]));
     const wanted = byIds ? ids : serials;
@@ -521,28 +544,34 @@ async function handOver({ orgId, userId, carrierUserId, serials: rawSerials, bag
     }
     const bagIds = rows.map((r) => Number(r.id));
     const [result] = await exec(
-      `UPDATE cash_bags SET status = 'with_carrier', carrier_user_id = ?
+      `UPDATE cash_bags SET status = 'with_carrier', carrier_user_id = ?, reseller_id = ?
         WHERE organization_id = ? AND status = 'in_stock' AND deleted_at IS NULL AND id IN (${inPlaceholders(bagIds)})`,
-      [carrierId, orgId, ...bagIds],
+      [carrierId, rid, orgId, ...bagIds],
     );
     moved(result, bagIds.length);
     await recordEvents(exec, rows.map((r) => ({
-      orgId, bagId: Number(r.id), from: 'in_stock', to: 'with_carrier', actorId: userId, carrierUserId: carrierId,
+      orgId, bagId: Number(r.id), from: 'in_stock', to: 'with_carrier', actorId: userId, carrierUserId: carrierId, resellerId: rid,
     })));
     return rows.map((r) => ({ id: Number(r.id), serial: r.serial, status: 'with_carrier' }));
   });
   await audit({
     userId, organizationId: orgId, action: 'cash_bag_handover', recordId: bags[0].id,
-    newValues: { carrier_user_id: carrierId, serials: bags.map((b) => b.serial) },
+    newValues: { carrier_user_id: carrierId, reseller_id: rid, serials: bags.map((b) => b.serial) },
   });
-  return { carrier_user_id: carrierId, carrier_name: carrierService.fullName(carrier), bags };
+  return {
+    carrier_user_id: carrierId, carrier_name: carrierService.fullName(carrier), reseller_id: rid, reseller_name: point.name, bags,
+  };
 }
 
 // -----------------------------------------------------------------------------
 // Carrier: drop off and pick up
 // -----------------------------------------------------------------------------
 
-/** POST /carrier-app/dropoff: the carrier's own with_carrier bags -> at_reseller, all or nothing. */
+/**
+ * POST /carrier-app/dropoff: the carrier confirms it delivered its own
+ * with_carrier bags -> at_reseller, all or nothing. A bag assigned to another
+ * point is refused; a bag with no point takes this one.
+ */
 async function dropOff({ orgId, carrierUserId, resellerId, serials: rawSerials, body = {} }) {
   requireOrgId(orgId, 'cashBagService.dropOff');
   const serials = serialList(rawSerials, 'serials', 50);
@@ -563,6 +592,15 @@ async function dropOff({ orgId, carrierUserId, resellerId, serials: rawSerials, 
     if (failed.length) {
       const err = new AppError('Some serials are not empty bags in your stock; nothing was dropped off.', 422, 'BAGS_NOT_IN_YOUR_STOCK');
       err.details = { failed };
+      throw err;
+    }
+    // The carrier only carries: a bag staff assigned to another point stays
+    // in its hands.
+    const elsewhere = rows.filter((r) => r.reseller_id !== null && r.reseller_id !== undefined && Number(r.reseller_id) !== rid)
+      .map((r) => r.serial);
+    if (elsewhere.length) {
+      const err = new AppError('Some bags are for another point; nothing was dropped off.', 422, 'BAGS_FOR_ANOTHER_POINT');
+      err.details = { failed: elsewhere };
       throw err;
     }
     const bagIds = rows.map((r) => Number(r.id));
@@ -660,7 +698,8 @@ async function seal({ orgId, userId, resellerId, serial: rawSerial, declaredAmou
     if (!reseller) throw new NotFoundError('Reseller');
     const [rows] = await exec(
       `SELECT ${BAG_COLUMNS} FROM cash_bags
-        WHERE organization_id = ? AND serial = ? AND reseller_id = ? AND status = 'at_reseller' AND deleted_at IS NULL
+        WHERE organization_id = ? AND serial = ? AND reseller_id = ? AND status IN ('at_reseller', 'with_carrier')
+          AND deleted_at IS NULL
         FOR UPDATE`,
       [orgId, serial, resellerId],
     );
@@ -679,12 +718,12 @@ async function seal({ orgId, userId, resellerId, serial: rawSerial, declaredAmou
     }
     const [result] = await exec(
       `UPDATE cash_bags SET status = 'ready_for_pickup', declared_amount = ?, sealed_at = NOW(), sealed_by = ?
-        WHERE id = ? AND organization_id = ? AND status = 'at_reseller' AND deleted_at IS NULL`,
-      [declared, userId, bag.id, orgId],
+        WHERE id = ? AND organization_id = ? AND status = ? AND deleted_at IS NULL`,
+      [declared, userId, bag.id, orgId, bag.status],
     );
     moved(result, 1);
     await recordEvents(exec, [{
-      orgId, bagId: Number(bag.id), from: 'at_reseller', to: 'ready_for_pickup', actorId: userId,
+      orgId, bagId: Number(bag.id), from: bag.status, to: 'ready_for_pickup', actorId: userId,
       amount: declared, resellerId, carrierUserId: idOrNull(bag.carrier_user_id),
     }]);
     // The cash leaves the reseller's ledger now, not when the ISP receives it.
@@ -694,11 +733,11 @@ async function seal({ orgId, userId, resellerId, serial: rawSerial, declaredAmou
     });
     const after = await ledger.summaryFor(orgId, resellerId, { exec, reseller });
     const counts = await ledger.bagCounts(orgId, resellerId, exec);
-    return { bag: await reloadBag(exec, orgId, bag.id), summary: after, counts, entryId };
+    return { bag: await reloadBag(exec, orgId, bag.id), summary: after, counts, entryId, from: bag.status };
   });
   await audit({
     userId, organizationId: orgId, action: 'cash_bag_seal', recordId: Number(out.bag.id),
-    oldValues: { status: 'at_reseller' },
+    oldValues: { status: out.from },
     newValues: { status: 'ready_for_pickup', declared_amount: declared, reseller_id: Number(resellerId), ledger_entry_ids: [out.entryId] },
   });
   return out;
@@ -902,7 +941,7 @@ async function returnBag({ orgId, userId, bagId, reason, carrierUserId = null })
     let carrier = null;
     if (to === 'in_stock') {
       const [result] = await exec(
-        `UPDATE cash_bags SET status = 'in_stock', carrier_user_id = NULL
+        `UPDATE cash_bags SET status = 'in_stock', carrier_user_id = NULL, reseller_id = NULL
           WHERE id = ? AND organization_id = ? AND status = 'with_carrier' AND deleted_at IS NULL`,
         [bag.id, orgId],
       );
@@ -1108,8 +1147,8 @@ async function resellerAppBags(orgId, resellerId) {
     `SELECT id, serial, status, declared_amount, sealed_at, picked_up_at
        FROM cash_bags
       WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL
-        AND status IN ('at_reseller', 'ready_for_pickup', 'in_transit')
-      ORDER BY FIELD(status, 'at_reseller', 'ready_for_pickup', 'in_transit'), serial ASC
+        AND status IN ('at_reseller', 'with_carrier', 'ready_for_pickup', 'in_transit')
+      ORDER BY FIELD(status, 'at_reseller', 'with_carrier', 'ready_for_pickup', 'in_transit'), serial ASC
       LIMIT 500`,
     [orgId, resellerId],
   );
@@ -1129,28 +1168,33 @@ async function carrierAppBags(orgId, carrierUserId) {
     [orgId, carrierUserId],
   );
   const list = rows || [];
-  const names = await resellerNames(orgId, list.filter((r) => r.status === 'in_transit').map((r) => r.reseller_id));
+  const names = await resellerNames(orgId, list.map((r) => r.reseller_id));
   return list.map((r) => carrierBag(r, names));
 }
 
-/** Bag counts per reseller for the carrier's list: Map(id → { ready_for_pickup, empty_bags }). */
+/** Bag counts per reseller for the carrier's list: Map(id → { ready_for_pickup, empty_bags, to_deliver }). */
 async function pickupCounts(orgId, resellerIds) {
   requireOrgId(orgId, 'cashBagService.pickupCounts');
   const ids = [...new Set((resellerIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
-  const out = new Map(ids.map((id) => [id, { ready_for_pickup: 0, empty_bags: 0 }]));
+  const out = new Map(ids.map((id) => [id, { ready_for_pickup: 0, empty_bags: 0, to_deliver: 0 }]));
   if (!ids.length) return out;
   const [rows] = await db.query(
     `SELECT reseller_id,
             COALESCE(SUM(status = 'ready_for_pickup'), 0) AS ready_for_pickup,
-            COALESCE(SUM(status = 'at_reseller'), 0) AS empty_bags
+            COALESCE(SUM(status = 'at_reseller'), 0) AS empty_bags,
+            COALESCE(SUM(status = 'with_carrier'), 0) AS to_deliver
        FROM cash_bags
       WHERE organization_id = ? AND reseller_id IN (${inPlaceholders(ids)}) AND deleted_at IS NULL
-        AND status IN ('ready_for_pickup', 'at_reseller')
+        AND status IN ('ready_for_pickup', 'at_reseller', 'with_carrier')
       GROUP BY reseller_id`,
     [orgId, ...ids],
   );
   for (const r of rows || []) {
-    out.set(Number(r.reseller_id), { ready_for_pickup: Number(r.ready_for_pickup) || 0, empty_bags: Number(r.empty_bags) || 0 });
+    out.set(Number(r.reseller_id), {
+      ready_for_pickup: Number(r.ready_for_pickup) || 0,
+      empty_bags: Number(r.empty_bags) || 0,
+      to_deliver: Number(r.to_deliver) || 0,
+    });
   }
   return out;
 }

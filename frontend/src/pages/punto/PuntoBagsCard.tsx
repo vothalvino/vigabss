@@ -20,7 +20,7 @@ import { fetchPuntoBags, puntoKeys, toNumber, type PuntoBag, type PuntoMoney } f
 import { Chip, mutedText } from './puntoUi';
 
 const BAG_TONE: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
-  at_reseller: 'neutral', ready_for_pickup: 'warning', in_transit: 'info',
+  at_reseller: 'neutral', with_carrier: 'info', ready_for_pickup: 'warning', in_transit: 'info',
 };
 
 export function BagStatusChip({ status }: { status: string }) {
@@ -34,7 +34,8 @@ export interface BagCounts { empty: number; ready: number; transit: number }
 export function bagCounts(bags: PuntoBag[] | undefined, money?: PuntoMoney | null): BagCounts {
   const list = bags ?? [];
   return {
-    empty: bags ? list.filter(b => b.status === 'at_reseller').length : toNumber(money?.empty_bags ?? 0),
+    // Empty bags it may fill, including those a carrier is bringing it.
+    empty: bags ? list.filter(b => b.status === 'at_reseller' || b.status === 'with_carrier').length : toNumber(money?.empty_bags ?? 0),
     ready: bags ? list.filter(b => b.status === 'ready_for_pickup').length : toNumber(money?.bags_ready_for_pickup ?? 0),
     transit: bags ? list.filter(b => b.status === 'in_transit').length : toNumber(money?.bags_in_transit ?? 0),
   };

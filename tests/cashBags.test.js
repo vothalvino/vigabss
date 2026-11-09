@@ -262,7 +262,7 @@ describe('the state machine', () => {
   const EXPECTED = {
     handover: { in_stock: 'with_carrier' },
     dropoff: { with_carrier: 'at_reseller' },
-    seal: { at_reseller: 'ready_for_pickup' },
+    seal: { at_reseller: 'ready_for_pickup', with_carrier: 'ready_for_pickup' },
     pickup: { ready_for_pickup: 'in_transit' },
     receive: { in_transit: 'received', ready_for_pickup: 'received' },
     void: { in_stock: 'void', with_carrier: 'void', at_reseller: 'void' },
@@ -341,19 +341,37 @@ describe('registration (POST /cash-bags)', () => {
 
 // ---------------------------------------------------------------------------
 describe('hand over to a carrier (POST /cash-bags/handover)', () => {
-  test('bags in stock go to the carrier', async () => {
-    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, serials: ['bag-101', 'BAG-102'] });
+  test('bags in stock go to the carrier for one of its points, which owns them at once', async () => {
+    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, reseller_id: 1, serials: ['bag-101', 'BAG-102'] });
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({
-      carrier_user_id: CARRIER, carrier_name: 'Carlos Ruta',
+      carrier_user_id: CARRIER, carrier_name: 'Carlos Ruta', reseller_id: 1, reseller_name: 'Tienda Lupita',
       bags: [{ id: 101, serial: 'BAG-101', status: 'with_carrier' }, { id: 102, serial: 'BAG-102', status: 'with_carrier' }],
     });
-    expect(bagBySerial('BAG-101')).toMatchObject({ status: 'with_carrier', carrier_user_id: CARRIER });
-    expect(state.events.map((e) => [e.bag_id, e.from_status, e.to_status])).toEqual([[101, 'in_stock', 'with_carrier'], [102, 'in_stock', 'with_carrier']]);
+    expect(bagBySerial('BAG-101')).toMatchObject({ status: 'with_carrier', carrier_user_id: CARRIER, reseller_id: 1 });
+    expect(state.events.map((e) => [e.bag_id, e.from_status, e.to_status, e.reseller_id])).toEqual([[101, 'in_stock', 'with_carrier', 1], [102, 'in_stock', 'with_carrier', 1]]);
+    // The point first, then the bags (the events' foreign key checks the point).
+    expect(lockOrder()).toEqual(['resellers', 'cash_bags']);
+    // The point sees them on its way and counts them as bags it may fill.
+    const mine = await get('/reseller-app/bags', asReseller());
+    expect(mine.body.data.filter((b) => b.status === 'with_carrier').map((b) => b.serial)).toEqual(['BAG-101', 'BAG-102']);
+    expect(mine.body.summary).toMatchObject({ empty_bags: 3, bags_on_the_way: 2 });
+    // The carrier sees where each goes.
+    const carried = await get('/carrier-app/bags', asCarrier());
+    expect(carried.body.data.find((b) => b.serial === 'BAG-101')).toEqual({ id: 101, serial: 'BAG-101', status: 'with_carrier', reseller_id: 1, reseller_name: 'Tienda Lupita', picked_up_at: null });
+  });
+
+  test('the point must be one of the carrier\'s points, and is required', async () => {
+    const other = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, reseller_id: 2, serials: ['BAG-101'] });
+    expect(other.status).toBe(422);
+    expect(other.body.error.code).toBe('POINT_NOT_ASSIGNED_TO_CARRIER');
+    expect((await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, serials: ['BAG-101'] })).status).toBe(422);
+    expect(bagBySerial('BAG-101')).toMatchObject({ status: 'in_stock', reseller_id: null });
+    expect(state.events).toHaveLength(0);
   });
 
   test('all or nothing: one bag not in stock moves none', async () => {
-    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, bag_ids: [101, 105, 999] });
+    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: CARRIER, reseller_id: 1, bag_ids: [101, 105, 999] });
     expect(res.status).toBe(422);
     expect(res.body.error).toMatchObject({ code: 'BAGS_NOT_IN_STOCK', details: { failed: ['BAG-105', '999'] } });
     expect(bagBySerial('BAG-101').status).toBe('in_stock');
@@ -361,7 +379,7 @@ describe('hand over to a carrier (POST /cash-bags/handover)', () => {
   });
 
   test('the user must be a carrier of the organization', async () => {
-    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: RESELLER_USER, serials: ['BAG-101'] });
+    const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: RESELLER_USER, reseller_id: 1, serials: ['BAG-101'] });
     expect(res.status).toBe(422);
     expect(bagBySerial('BAG-101').status).toBe('in_stock');
   });
@@ -448,7 +466,7 @@ describe('the carrier app', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([{
       id: 1, name: 'Tienda Lupita', address: 'Av. Juárez 10', city: 'Toluca', phone: '722 555 0001',
-      latitude: 19.2826, longitude: -99.6557, counts: { ready_for_pickup: 1, empty_bags: 1 },
+      latitude: 19.2826, longitude: -99.6557, counts: { ready_for_pickup: 1, empty_bags: 1, to_deliver: 0 },
     }]);
     expect(JSON.stringify(res.body)).not.toMatch(MONEY_KEYS);
   });
@@ -514,6 +532,18 @@ describe('the carrier app', () => {
     expect(bagBySerial('BAG-103')).toMatchObject({ status: 'at_reseller', reseller_id: 1 });
   });
 
+  test('a drop-off of a bag staff assigned to another point is refused; at its own point it is confirmed', async () => {
+    state.assignments.push({ organization_id: ORG, carrier_user_id: CARRIER, reseller_id: 2 });
+    Object.assign(bagBySerial('BAG-103'), { reseller_id: 2 });
+    const wrong = await post('/carrier-app/dropoff', asCarrier(), { reseller_id: 1, serials: ['BAG-103'] });
+    expect(wrong.status).toBe(422);
+    expect(wrong.body.error).toMatchObject({ code: 'BAGS_FOR_ANOTHER_POINT', details: { failed: ['BAG-103'] } });
+    expect(bagBySerial('BAG-103')).toMatchObject({ status: 'with_carrier', reseller_id: 2 });
+    const right = await post('/carrier-app/dropoff', asCarrier(), { reseller_id: 2, serials: ['BAG-103'] });
+    expect(right.status).toBe(200);
+    expect(bagBySerial('BAG-103')).toMatchObject({ status: 'at_reseller', reseller_id: 2 });
+  });
+
   test("a drop-off is all or nothing, and another carrier's bag fails like an unknown one", async () => {
     const res = await post('/carrier-app/dropoff', asCarrier(), { reseller_id: 1, serials: ['BAG-103', 'BAG-104', 'NOPE-9'] });
     expect(res.status).toBe(422);
@@ -550,13 +580,25 @@ describe('the carrier app', () => {
 // ---------------------------------------------------------------------------
 describe('sealing a bag (POST /reseller-app/bags/seal)', () => {
   // R1 collected 800 and sealed 500 in bags 106 and 109: it owes and holds 300, limit 1000.
+  test('a bag staff assigned to the point may be sealed before the carrier confirms the delivery', async () => {
+    Object.assign(bagBySerial('BAG-103'), { reseller_id: 1 });
+    const res = await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-103', declared_amount: 100 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.bag).toMatchObject({ serial: 'BAG-103', status: 'ready_for_pickup', declared_amount: 100 });
+    expect(state.events).toEqual([expect.objectContaining({ bag_id: 103, from_status: 'with_carrier', to_status: 'ready_for_pickup', reseller_id: 1 })]);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'cash_bag_seal', oldValues: { status: 'with_carrier' } }));
+    // Another point's bag (or one with no point) is not its to seal.
+    Object.assign(bagBySerial('BAG-104'), { reseller_id: 2 });
+    expect((await post('/reseller-app/bags/seal', asReseller(), { serial: 'BAG-104', declared_amount: 10 })).status).toBe(404);
+  });
+
   test('posts one bag_sealed line of -declared: the balance drops by it at once', async () => {
     const res = await post('/reseller-app/bags/seal', asReseller(), { serial: 'bag-105', declared_amount: 250.5 });
     expect(res.status).toBe(200);
     expect(res.body.data.bag).toEqual({ id: 105, serial: 'BAG-105', status: 'ready_for_pickup', declared_amount: 250.5, sealed_at: expect.any(String), picked_up_at: null });
     expect(res.body.data.summary).toEqual({
-      currency: 'MXN', balance: 49.5, in_bags: 750.5, cash_on_hand: 49.5, credit_limit: 1000, available_to_collect: 950.5,
-      empty_bags: 0, bags_ready_for_pickup: 2, bags_in_transit: 1,
+      currency: 'MXN', balance: 49.5, in_bags: 750.5, cash_on_hand: 49.5, credit_limit: 1000, available_to_collect: 950.5, limit_reached: false,
+      empty_bags: 0, bags_on_the_way: 0, bags_ready_for_pickup: 2, bags_in_transit: 1,
     });
     expect(state.ledger).toHaveLength(LEDGER_AT_START + 1);
     expect(state.ledger.filter((e) => e.cash_bag_id === 105)).toEqual([expect.objectContaining({
@@ -794,8 +836,10 @@ describe('void, lost and return', () => {
   });
 
   test('a carrier hands stock back, or takes an empty bag back', async () => {
+    Object.assign(bagBySerial('BAG-103'), { reseller_id: 1 });
     const back = await post('/cash-bags/103/return', asAdmin(), {});
-    expect(back.body.data).toMatchObject({ status: 'in_stock', carrier_user_id: null });
+    // Back in stock it is nobody's: its point is cleared.
+    expect(back.body.data).toMatchObject({ status: 'in_stock', carrier_user_id: null, reseller_id: null });
     const taken = await post('/cash-bags/105/return', asAdmin(), { reason: 'la tienda cerró' });
     expect(taken.body.data).toMatchObject({ status: 'with_carrier', reseller_id: null, carrier_user_id: CARRIER });
     expect((await post('/cash-bags/106/return', asAdmin(), {})).status).toBe(409);
@@ -944,7 +988,15 @@ describe('carriers (staff)', () => {
     expect((await post('/carriers', creator, { first_name: 'P', last_name: 'M', email: 'pedro@example.com', password: 'Moto-2026-ruta' })).status).toBe(409);
   });
 
-  test('creating a carrier login needs users.create as well as carriers.manage', async () => {
+  test('point_logins.create (manager) is enough to create a carrier login, without users.create', async () => {
+    User.findByEmail.mockResolvedValue(null);
+    User.create.mockResolvedValue({ id: 81 });
+    const res = await post('/carriers', asAdmin(['carriers.manage', 'point_logins.create']), { first_name: 'Ana', last_name: 'Ruta', email: 'ana@example.com', password: 'Moto-2026-ruta' });
+    expect(res.status).toBe(201);
+    expect(User.create.mock.calls[0][0]).toMatchObject({ group_id: CARRIER_GROUP });
+  });
+
+  test('creating a carrier login needs users.create (or point_logins.create) as well as carriers.manage', async () => {
     User.findByEmail.mockResolvedValue(null);
     User.create.mockResolvedValue({ id: 80 });
     const res = await post('/carriers', asAdmin(['carriers.manage']), { first_name: 'Pedro', last_name: 'Moto', email: 'pedro@example.com', password: 'Moto-2026-ruta' });

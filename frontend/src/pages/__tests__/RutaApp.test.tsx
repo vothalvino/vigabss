@@ -255,6 +255,34 @@ describe('Entregar bolsas vacías', () => {
     expect(screen.getByRole('region', { name: '1 bag to drop off' })).toBeInTheDocument();
   });
 
+  it('offers only the bags for the chosen point, names where the others go, and explains a bag for another point', async () => {
+    override = (path, init) => {
+      if (path === '/carrier-app/bags') {
+        return { data: [
+          { serial: 'B-0001', status: 'with_carrier', reseller_id: 5, reseller_name: 'Punto Sur' },
+          { serial: 'B-0002', status: 'with_carrier', reseller_id: null, reseller_name: null },
+          { serial: 'N-0001', status: 'with_carrier', reseller_id: 4, reseller_name: 'Punto Norte' },
+        ] };
+      }
+      if (path === '/carrier-app/dropoff' && init?.method === 'POST') {
+        throw new ApiRequestError('For another point', 422, { error: { code: 'BAGS_FOR_ANOTHER_POINT', message: 'x', details: { failed: ['N-0001'] } } });
+      }
+      return undefined;
+    };
+    const user = userEvent.setup();
+    renderAt('/ruta/entregar?punto=5');
+    await waitFor(() => expect(screen.getByLabelText('Reseller')).toHaveValue('5'));
+    const stock = screen.getByRole('region', { name: 'Your empty bags' });
+    expect(await within(stock).findByRole('button', { name: 'B-0001' })).toBeInTheDocument();
+    expect(within(stock).getByRole('button', { name: 'B-0002' })).toBeInTheDocument();
+    expect(within(stock).queryByRole('button', { name: 'N-0001' })).toBeNull();
+    expect(within(within(stock).getByRole('list', { name: 'Bags for other points' })).getByText(/for Punto Norte/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Bag number'), 'N-0001');
+    await user.click(screen.getByRole('button', { name: 'Add bag' }));
+    await user.click(screen.getByRole('button', { name: 'Drop off 1 bag' }));
+    expect(await screen.findByText(/These bags are for another point: N-0001\./)).toBeInTheDocument();
+  });
+
   it('does not add a serial twice', async () => {
     const user = userEvent.setup();
     renderAt('/ruta/entregar?punto=5');

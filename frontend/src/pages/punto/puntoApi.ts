@@ -47,8 +47,12 @@ export interface PuntoMoney {
   cash_on_hand: number | string;
   credit_limit: number | string;
   available_to_collect: number | string;
+  /** cash_on_hand >= credit_limit: it must fill a bag (or hand in the cash) before collecting again. */
+  limit_reached?: boolean;
   collected_today: number | string;
   empty_bags?: number;
+  /** Empty bags a carrier is bringing it (counted in empty_bags too). */
+  bags_on_the_way?: number;
   bags_ready_for_pickup?: number;
   bags_in_transit?: number;
   /**
@@ -477,6 +481,16 @@ function errorField(err: ApiRequestError, name: string): unknown {
   const e = (typeof body.error === 'object' && body.error ? body.error : {}) as Record<string, unknown>;
   const details = (e.details && typeof e.details === 'object' && !Array.isArray(e.details) ? e.details : {}) as Record<string, unknown>;
   return e[name] ?? details[name] ?? body[name];
+}
+
+/**
+ * True once the cash on hand reached the limit: the next collection is
+ * refused until a bag is filled or the cash handed in. The payment that
+ * crosses the limit is never refused.
+ */
+export function limitReached(money: Pick<PuntoMoney, 'cash_on_hand' | 'credit_limit' | 'limit_reached'>): boolean {
+  if (typeof money.limit_reached === 'boolean') return money.limit_reached;
+  return Math.round(toNumber(money.cash_on_hand) * 100) >= Math.round(toNumber(money.credit_limit) * 100);
 }
 
 /** The CREDIT_LIMIT refusal of POST /payments, with what may still be collected and the empty bags at hand. */

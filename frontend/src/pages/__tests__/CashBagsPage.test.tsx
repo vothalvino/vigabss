@@ -291,7 +291,7 @@ describe('board', () => {
     expect(calls('POST', '/cash-bags')).toHaveLength(0);
   });
 
-  it('hands bags in stock to a carrier and names the ones refused', async () => {
+  it('hands bags in stock to a carrier for one of its points and names the ones refused', async () => {
     override = (path, init) => {
       if (path === '/cash-bags/handover' && init?.method === 'POST' && JSON.parse(String(init.body)).serials.includes('A-0001')) {
         throw new ApiRequestError('Not in stock', 422, { error: { code: 'BAGS_NOT_IN_STOCK', message: 'Not in stock', details: { failed: ['A-0001'] } } });
@@ -303,15 +303,21 @@ describe('board', () => {
     await user.click(await screen.findByRole('button', { name: 'Hand over to a carrier' }));
     const form = screen.getByRole('form', { name: 'Hand bags to a carrier' });
     await within(form).findByRole('option', { name: 'Pedro Ruta' });
+    // The point picker lists only the carrier's points, once a carrier is chosen.
+    expect(within(form).getByLabelText('For the point')).toBeDisabled();
     await user.selectOptions(within(form).getByLabelText('Carrier'), '30');
     await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004, A-0001');
+    await user.click(within(form).getByRole('button', { name: 'Hand over' }));
+    expect(within(form).getByRole('alert')).toHaveTextContent('Choose the point the bags are for.');
+    expect(within(within(form).getByLabelText('For the point')).getAllByRole('option').map(o => o.textContent)).toEqual(['— Choose a point —', 'Punto Norte']);
+    await user.selectOptions(within(form).getByLabelText('For the point'), '4');
     await user.click(within(form).getByRole('button', { name: 'Hand over' }));
     expect(await within(form).findByRole('alert')).toHaveTextContent('These bags are not in stock: A-0001.');
     await user.clear(within(form).getByLabelText(/Bag numbers/));
     await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004');
     await user.click(within(form).getByRole('button', { name: 'Hand over' }));
-    expect(await within(form).findByRole('status')).toHaveTextContent('1 bag handed to Pedro Ruta.');
-    expect(bodyOf(calls('POST', '/cash-bags/handover')[1])).toEqual({ carrier_user_id: 30, serials: ['A-0004'] });
+    expect(await within(form).findByRole('status')).toHaveTextContent('1 bag handed to Pedro Ruta for Punto Norte.');
+    expect(bodyOf(calls('POST', '/cash-bags/handover')[1])).toEqual({ carrier_user_id: 30, reseller_id: 4, serials: ['A-0004'] });
   });
 
   it('offers only viewing with cash_bags.view alone', async () => {

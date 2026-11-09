@@ -5,8 +5,9 @@
 // as prefix + zero-padded number (at most 500 per call). Serials already
 // registered are skipped and reported. New bags are in stock.
 // Hand over (POST /cash-bags/handover, cash_bags.manage): bags in stock go to
-// a carrier, who drops them empty at its resellers. The server takes all of
-// the serials or none and names the ones that are not in stock.
+// one point (a reseller or collector assigned to the carrier); they show on
+// the point's page at once and the carrier only takes them there. The server
+// takes all of the serials or none and names the ones that are not in stock.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';
@@ -114,16 +115,20 @@ export function HandoverForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useTranslation();
   const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers });
   const [carrierId, setCarrierId] = useState<number | null>(null);
+  const [pointId, setPointId] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const serials = parseSerials(text);
+  const carrier = carriers.data?.find(c => c.user_id === carrierId) ?? null;
+  const points = carrier?.resellers ?? [];
 
   const save = useMutation({
-    mutationFn: () => handoverCashBags({ carrier_user_id: carrierId ?? 0, serials }),
+    mutationFn: () => handoverCashBags({ carrier_user_id: carrierId ?? 0, reseller_id: pointId ?? 0, serials }),
     onSuccess: (list: string[]) => {
-      const name = carriers.data?.find(c => c.user_id === carrierId)?.name ?? '';
-      setDone(t('cashBags.handover.done', { count: list.length, name }));
+      const name = carrier?.name ?? '';
+      const point = points.find(p => p.id === pointId)?.name ?? '';
+      setDone(t('cashBags.handover.done', { count: list.length, name, point }));
       setText('');
       onSaved();
     },
@@ -138,6 +143,7 @@ export function HandoverForm({ onSaved }: { onSaved: () => void }) {
     setError('');
     setDone('');
     if (!carrierId) { setError(t('cashBags.handover.pickCarrier')); return; }
+    if (!pointId) { setError(t('cashBags.handover.pickPoint')); return; }
     if (serials.length === 0) { setError(t('cashBags.handover.noSerials')); return; }
     if (serials.length > RANGE_MAX) { setError(t('cashBags.handover.tooMany', { max: RANGE_MAX })); return; }
     save.mutate();
@@ -148,11 +154,19 @@ export function HandoverForm({ onSaved }: { onSaved: () => void }) {
       <h4 id="cash-bags-handover-title" style={{ margin: 0 }}>{t('cashBags.handover.title')}</h4>
       <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{t('cashBags.handover.help')}</p>
       <label style={styles.label} htmlFor="cash-bags-handover-carrier">{t('cashBags.handover.carrier')}</label>
-      <select id="cash-bags-handover-carrier" style={field} value={carrierId ?? ''} onChange={e => setCarrierId(Number(e.target.value) || null)}>
+      <select id="cash-bags-handover-carrier" style={field} value={carrierId ?? ''} onChange={e => { setCarrierId(Number(e.target.value) || null); setPointId(null); }}>
         <option value="">{t('cashBags.handover.chooseCarrier')}</option>
         {(carriers.data ?? []).filter(c => c.is_active).map(c => <option key={c.user_id} value={c.user_id}>{c.name}</option>)}
       </select>
       {carriers.isError && <p role="alert" style={styles.errorText}>{t('cashBags.carriers.loadError')}</p>}
+      <label style={styles.label} htmlFor="cash-bags-handover-point">{t('cashBags.handover.point')}</label>
+      <select id="cash-bags-handover-point" style={field} value={pointId ?? ''} disabled={!carrier || points.length === 0} onChange={e => setPointId(Number(e.target.value) || null)}>
+        <option value="">{t('cashBags.handover.choosePoint')}</option>
+        {points.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        {carrier && points.length === 0 ? t('cashBags.handover.noPoints') : t('cashBags.handover.pointHelp')}
+      </p>
       <label style={styles.label} htmlFor="cash-bags-handover-serials">{t('cashBags.handover.serials')}</label>
       <textarea id="cash-bags-handover-serials" rows={3} style={field} value={text} onChange={e => setText(e.target.value)} />
       <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{t('cashBags.handover.count', { count: serials.length })}</p>

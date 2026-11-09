@@ -228,7 +228,7 @@ export async function registerCashBags(body: { serial: string } | { prefix: stri
   return { created: serialList(created), skipped: serialList(data.skipped ?? data.existing) };
 }
 
-export async function handoverCashBags(body: { carrier_user_id: number; serials: string[] }): Promise<string[]> {
+export async function handoverCashBags(body: { carrier_user_id: number; reseller_id: number; serials: string[] }): Promise<string[]> {
   const res = await apiFetch<{ data?: unknown }>('/cash-bags/handover', { method: 'POST', body: JSON.stringify(body) });
   const data = res?.data;
   const list = Array.isArray(data) ? data : obj(data).bags ?? obj(data).serials;

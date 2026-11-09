@@ -26,6 +26,7 @@ function BagList({ id, title, empty, bags, transit }: { id: string; title: strin
               <div style={{ minWidth: 0 }}>
                 <div style={mono}>{b.serial}</div>
                 {transit && b.resellerName && <div style={mutedText}>{t('ruta.bags.from', { name: b.resellerName })}</div>}
+                {!transit && b.resellerName && <div style={mutedText}>{t('ruta.dropoff.forPoint', { name: b.resellerName })}</div>}
               </div>
               {transit ? <Chip tone="info">{t('ruta.status.in_transit')}</Chip> : <Chip>{t('ruta.status.with_carrier')}</Chip>}
             </li>

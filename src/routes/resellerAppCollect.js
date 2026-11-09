@@ -186,6 +186,7 @@ router.get('/ledger', requirePermission('reseller_app.use'), async (req, res, ne
         cash_on_hand: summary.cash_on_hand,
         credit_limit: summary.credit_limit,
         available_to_collect: summary.available_to_collect,
+        limit_reached: summary.limit_reached,
       },
       meta: { total, page, limit },
     });
