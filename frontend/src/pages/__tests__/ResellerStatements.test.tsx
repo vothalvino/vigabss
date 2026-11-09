@@ -201,8 +201,10 @@ describe('Mi caja: statements', () => {
   it('lists the approved and settled statements with what was owed', async () => {
     mocks.user = RESELLER;
     mocks.apiFetch.mockImplementation(async (path: string) => puntoRespond(path));
+    const user = userEvent.setup();
     wrap(<PuntoCash />);
-    const section = await screen.findByRole('region', { name: 'Statements' });
+    await user.click(await screen.findByRole('tab', { name: 'Statements' }));
+    const section = screen.getByRole('tabpanel');
     await within(section).findByText('2026-10-01 to 2026-10-31');
     expect(within(section).getByText('We owed you $80.00')).toBeInTheDocument();
     expect(within(section).getByText('Settled · ref. SPEI 9')).toBeInTheDocument();
@@ -214,8 +216,8 @@ describe('Mi caja: statements', () => {
     mocks.user = { ...RESELLER, permissions: ['reseller_app.use'] };
     mocks.apiFetch.mockImplementation(async (path: string) => puntoRespond(path));
     wrap(<PuntoCash />);
-    await screen.findByRole('heading', { name: 'My cash box' });
-    expect(screen.queryByRole('region', { name: 'Statements' })).toBeNull();
+    await screen.findByRole('heading', { name: 'My cash' });
+    expect(screen.queryByRole('tab', { name: 'Statements' })).toBeNull();
     expect(mocks.apiFetch.mock.calls.some(([p]) => String(p).startsWith('/reseller-app/statements'))).toBe(false);
   });
 });

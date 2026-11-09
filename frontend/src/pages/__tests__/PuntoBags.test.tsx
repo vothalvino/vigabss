@@ -349,22 +349,22 @@ describe('Cobrar at the cash limit', () => {
 });
 
 describe('Mi caja', () => {
-  it('titles the card by state, links to the bags and names the bag on its ledger lines', async () => {
+  it('shows what is owed, the cash in bags, links to the bags and names the bag on its movements', async () => {
     await i18n.changeLanguage('es');
+    const user = userEvent.setup();
     renderAt('/punto/caja');
-    const box = await screen.findByRole('region', { name: 'Tu caja' });
-    expect(box).toHaveTextContent('Cerrada');
-    expect(box).not.toHaveTextContent('Caja abierta');
-    expect(screen.getByRole('link', { name: 'Mis bolsas' })).toHaveAttribute('href', '/punto/bolsas');
-    const ledger = screen.getByRole('region', { name: 'Movimientos' });
+    const summary = await screen.findByRole('region', { name: 'Debes entregar a la empresa' });
+    expect(summary).toHaveTextContent('$1,500.00');
+    expect(within(summary).getByText('Ya en bolsas, en camino').nextElementSibling).toHaveTextContent('$500.00');
+    // At the limit with empty bags: the main action is to fill one.
+    expect(within(summary).getByRole('link', { name: 'Llena una bolsa para seguir cobrando' })).toHaveAttribute('href', '/punto/bolsas');
+    expect(screen.queryByText('Tu caja')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Movimientos' }));
+    const panel = screen.getByRole('tabpanel');
     // GET /reseller-app/ledger sends cash_bag_serial (no cash_bag_id): both the
     // seal and the receipt's difference name the bag.
-    expect(await within(ledger).findAllByText('Bolsa B-0007')).toHaveLength(2);
-    expect(within(ledger).getByText('Bolsa sellada')).toBeInTheDocument();
-    expect(within(ledger).getByText('Debes entregar').nextElementSibling).toHaveTextContent('$1,500.00');
-    expect(within(ledger).getByText('En bolsas por recoger o en camino').nextElementSibling).toHaveTextContent('$500.00');
-    // Cash on hand is the balance: Mi caja does not repeat it.
-    expect(within(ledger).queryByText('Efectivo en mano')).not.toBeInTheDocument();
+    expect((await within(panel).findAllByText(/· Bolsa B-0007$/)).length).toBe(2);
+    expect(within(panel).getByText('Bolsa sellada')).toBeInTheDocument();
   });
 });
 
