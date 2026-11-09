@@ -128,6 +128,19 @@ describe('maskUrl', () => {
     expect(maskUrl('/api/clients?phone=5551234567')).toBe('/api/clients?phone=[REDACTED]');
   });
 
+  test('masks credentials carried in the path (signing link, portal chat)', () => {
+    const tok = `1-${'Ab9_-'.repeat(8)}xyz`;
+    expect(maskUrl(`/firmar/${tok}`)).toBe('/firmar/[REDACTED]');
+    expect(maskUrl(`/api/v1/public/signing/${tok}`)).toBe('/api/v1/public/signing/[REDACTED]');
+    expect(maskUrl(`/api/v1/public/signing/${tok}/documents/12/sign`))
+      .toBe('/api/v1/public/signing/[REDACTED]/documents/12/sign');
+    expect(maskUrl(`/api/v1/portal/chat/${tok}/message`)).toBe('/api/v1/portal/chat/[REDACTED]/message');
+    expect(maskUrl(`/firmar/${tok}?token=x`)).toBe('/firmar/[REDACTED]?token=[REDACTED]');
+    // Other paths keep their ids.
+    expect(maskUrl('/api/v1/service-orders/70/signing-links')).toBe('/api/v1/service-orders/70/signing-links');
+    expect(maskUrl('/api/v1/portal/chat')).toBe('/api/v1/portal/chat');
+  });
+
   test('leaves non-sensitive params unchanged', () => {
     expect(maskUrl('/api/clients?page=1&limit=50')).toBe('/api/clients?page=1&limit=50');
   });

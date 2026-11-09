@@ -15,6 +15,11 @@ const logger = require('../utils/logger');
 const SENSITIVE_PARAMS = /[?&](password|token|api_key|secret|access_token|refresh_token|username|email|phone|ip_address|source_ip|destination_ip|translated_source_ip|nat_ip|mac|session_id|acct_session_id|extensions|authorization)=[^&]*/gi;
 // A bearer token anywhere in a URL, raw or percent-encoded ("Bearer%20…").
 const BEARER_IN_URL = /Bearer(?:%20|\+|\s)+[A-Za-z0-9._~+/=-]+/gi;
+// Credentials carried in the PATH: the remote signing link (the customer's
+// page /firmar/<token> and its API /api/v1/public/signing/<token>) and the
+// portal chat session token. Whoever holds a signing token can sign as the
+// customer, so it never reaches a log line.
+const SECRET_PATH_SEGMENTS = /(\/(?:firmar|api\/v1\/public\/signing|api\/v1\/portal\/chat)\/)[^/?#]+/gi;
 
 /**
  * Mask sensitive query parameters in a URL.
@@ -25,7 +30,8 @@ function maskUrl(url) {
       const eqIdx = match.indexOf('=');
       return match.slice(0, eqIdx + 1) + '[REDACTED]';
     })
-    .replace(BEARER_IN_URL, 'Bearer [REDACTED]');
+    .replace(BEARER_IN_URL, 'Bearer [REDACTED]')
+    .replace(SECRET_PATH_SEGMENTS, '$1[REDACTED]');
 }
 
 /**
