@@ -235,4 +235,71 @@ describe('redeploy preserves the installer topology', () => {
     expect(reexecAt).toBeLessThan(tagAt);
     expect(script).toContain('docker compose "${COMPOSE_ARGS[@]}"');
   });
+
+  describe('a changed nginx.conf reaches the bundled nginx', () => {
+    // The single-file bind mount keeps the old inode in a running container,
+    // and `dc up -d` does not recreate it, so redeploy compares the live file
+    // with the deployed one, tests the new one and restarts nginx.
+    function run({ services = 'app\nnginx', live = 'old', testOk = true } = {}) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'redeploy-nginx-'));
+      fs.mkdirSync(path.join(dir, 'nginx'));
+      fs.writeFileSync(path.join(dir, 'nginx', 'nginx.conf'), 'events {}\n');
+      const deployedSum = execFileSync('sha256sum', [path.join(dir, 'nginx', 'nginx.conf')]).toString().split(' ')[0];
+      const liveSum = live === 'same' ? deployedSum : 'f'.repeat(64);
+      const fn = shellFunction(fs.readFileSync(REDEPLOY, 'utf8'), 'reload_bundled_nginx');
+      const script = `
+        APP_DIR=${JSON.stringify(dir)}; COMPOSE_FILE=c.yml; ENV_FILE=e.env
+        dc() {
+          echo "dc $*" >> "$APP_DIR/calls"
+          case "$1" in
+            config) printf '%b\\n' ${JSON.stringify(services)} ;;
+            exec) echo "${liveSum}  /etc/nginx/nginx.conf" ;;
+            run) return ${testOk ? 0 : 1} ;;
+            restart) return 0 ;;
+          esac
+        }
+        ${fn}
+        reload_bundled_nginx
+      `;
+      const out = spawnSync('bash', ['-c', script], { encoding: 'utf8' });
+      const calls = fs.existsSync(path.join(dir, 'calls')) ? fs.readFileSync(path.join(dir, 'calls'), 'utf8') : '';
+      fs.rmSync(dir, { recursive: true, force: true });
+      return { status: out.status, stdout: out.stdout, stderr: out.stderr, calls };
+    }
+
+    test('restarts nginx after testing the new file when the live one differs', () => {
+      const r = run();
+      expect(r.status).toBe(0);
+      expect(r.calls).toMatch(/dc run --rm --no-deps -T --entrypoint nginx nginx -t/);
+      expect(r.calls).toMatch(/dc restart -t 10 nginx/);
+      expect(r.calls.indexOf('dc run')).toBeLessThan(r.calls.indexOf('dc restart'));
+    });
+
+    test('leaves nginx alone when the file did not change', () => {
+      const r = run({ live: 'same' });
+      expect(r.calls).not.toMatch(/dc (run|restart)/);
+    });
+
+    test('keeps the running config when the new file fails nginx -t', () => {
+      const r = run({ testOk: false });
+      expect(r.status).toBe(0);
+      expect(r.calls).not.toMatch(/dc restart/);
+      expect(r.stderr).toMatch(/fails nginx -t; nginx keeps its running config/);
+    });
+
+    test('does nothing on a host-nginx install (no nginx service)', () => {
+      const r = run({ services: 'app\\ndb-primary' });
+      expect(r.calls).not.toMatch(/dc (exec|run|restart)/);
+    });
+
+    test('runs right after the containers start, before the readiness probe', () => {
+      const script = fs.readFileSync(REDEPLOY, 'utf8');
+      const upAt = script.indexOf('echo "==> Starting containers"');
+      const callAt = script.indexOf('\nreload_bundled_nginx\n');
+      const probeAt = script.indexOf('echo "==> Waiting for the app readiness probe"');
+      expect(upAt).toBeGreaterThan(0);
+      expect(callAt).toBeGreaterThan(upAt);
+      expect(callAt).toBeLessThan(probeAt);
+    });
+  });
 });

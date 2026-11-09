@@ -5,7 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **A change to the proxy's settings now takes effect on update.** The
+  bundled nginx kept running with the settings file it started with, so an
+  update that changed them (such as the signing-link masking in alpha.16)
+  did not reach it until the server restarted. `sudo redeploy` now notices a
+  changed file, checks it, and restarts nginx; if the new file fails the
+  check, nginx keeps running as it was and the update says so. On an
+  install that uses the server's own nginx (host-nginx), copy the new
+  `nginx/host-nginx.conf` into `/etc/nginx/conf.d/` by hand, as before.
 
 ## 0.1.0-alpha.16 — 2026-11-08
 
