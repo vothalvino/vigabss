@@ -83,9 +83,7 @@ afterEach(async () => { await i18n.changeLanguage('en'); });
 
 async function openReseller() {
   const user = userEvent.setup();
-  wrap(<ResellerStatementsTab />);
-  await screen.findByRole('option', { name: 'Punto Norte' });
-  await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+  wrap(<ResellerStatementsTab resellerId={4} />);
   await screen.findByText('2026-10-01 to 2026-10-31');
   return user;
 }

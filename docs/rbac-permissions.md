@@ -256,7 +256,7 @@ usable app: `/punto` shows a no-access notice. Logins created with
 | `carrier_app.use` | `carrier`, `admin` | The carrier app reads (`GET /carrier-app/me`, `/resellers`, `/bags`); the routes still refuse anyone outside the carrier group |
 | `carrier_app.pickup` | `carrier`, `admin` | Pick up a sealed bag and drop off empty ones (`POST /carrier-app/pickup`, `/dropoff`) |
 | `cash_bags.view` | `admin`, `manager` | Bags, their history and the per-reseller differences (`GET /cash-bags`, `/cash-bags/summary`, `/cash-bags/:id`, `/resellers/:id/bags`) |
-| `cash_bags.manage` | `admin`, `manager` | Register bags, hand them to a carrier for one of its points (migration 010), return, void or mark them lost |
+| `cash_bags.manage` | `admin`, `manager` | Register bags, assign them to a point directly or hand them to a carrier for one of its points (migration 010), return, void or mark them lost |
 | `cash_bags.receive` | `admin`, `manager` | Count and receive a bag, posting its deposit and any difference to the reseller ledger (`POST /cash-bags/:id/receive`) |
 | `carriers.manage` | `admin`, `manager` | Carrier logins and the resellers each may visit (`/carriers`); creating a carrier login (`POST /carriers`) also needs `users.create` or `point_logins.create`, as a reseller login does |
 

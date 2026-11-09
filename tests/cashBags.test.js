@@ -267,6 +267,7 @@ describe('the state machine', () => {
     receive: { in_transit: 'received', ready_for_pickup: 'received' },
     void: { in_stock: 'void', with_carrier: 'void', at_reseller: 'void' },
     lose: { ready_for_pickup: 'lost', in_transit: 'lost' },
+    assign: { in_stock: 'at_reseller' },
     return: { with_carrier: 'in_stock', at_reseller: 'with_carrier' },
   };
 
@@ -382,6 +383,57 @@ describe('hand over to a carrier (POST /cash-bags/handover)', () => {
     const res = await post('/cash-bags/handover', asAdmin(), { carrier_user_id: RESELLER_USER, reseller_id: 1, serials: ['BAG-101'] });
     expect(res.status).toBe(422);
     expect(bagBySerial('BAG-101').status).toBe('in_stock');
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('assign straight to a point (POST /cash-bags/assign)', () => {
+  test('bags in stock go to the point with no carrier, which may seal them at once', async () => {
+    const res = await post('/cash-bags/assign', asAdmin(), { reseller_id: 2, serials: ['bag-101', 'BAG-102'] });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      reseller_id: 2, reseller_name: 'Papelería Sol',
+      bags: [{ id: 101, serial: 'BAG-101', status: 'at_reseller' }, { id: 102, serial: 'BAG-102', status: 'at_reseller' }],
+    });
+    // No carrier assignment is needed (reseller 2 has none).
+    expect(bagBySerial('BAG-101')).toMatchObject({ status: 'at_reseller', carrier_user_id: null, reseller_id: 2 });
+    expect(state.events.map((e) => [e.bag_id, e.from_status, e.to_status, e.reseller_id, e.carrier_user_id]))
+      .toEqual([[101, 'in_stock', 'at_reseller', 2, null], [102, 'in_stock', 'at_reseller', 2, null]]);
+    expect(lockOrder()).toEqual(['resellers', 'cash_bags']);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'cash_bag_assign', newValues: { reseller_id: 2, serials: ['BAG-101', 'BAG-102'] } }));
+  });
+
+  test('a sub-reseller or another organization\'s point is refused, and nothing moves', async () => {
+    const sub = await post('/cash-bags/assign', asAdmin(), { reseller_id: 3, serials: ['BAG-101'] });
+    expect(sub.status).toBe(422);
+    expect(sub.body.error.code).toBe('POINT_IS_SUB_RESELLER');
+    expect((await post('/cash-bags/assign', asAdmin(), { reseller_id: 9, serials: ['BAG-101'] })).status).toBe(404);
+    expect((await post('/cash-bags/assign', asAdmin(), { serials: ['BAG-101'] })).status).toBe(422);
+    expect((await post('/cash-bags/assign', asAdmin(), { reseller_id: 1 })).status).toBe(422);
+    expect(bagBySerial('BAG-101')).toMatchObject({ status: 'in_stock', reseller_id: null });
+    expect(state.events).toHaveLength(0);
+  });
+
+  test('all or nothing: one bag not in stock moves none', async () => {
+    const res = await post('/cash-bags/assign', asAdmin(), { reseller_id: 1, bag_ids: [101, 103] });
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatchObject({ code: 'BAGS_NOT_IN_STOCK', details: { failed: ['BAG-103'] } });
+    expect(bagBySerial('BAG-101').status).toBe('in_stock');
+  });
+
+  test('without cash_bags.manage it is refused', async () => {
+    const token = asAdmin(ADMIN_PERMISSIONS.filter((p) => p !== 'cash_bags.manage'));
+    expect((await post('/cash-bags/assign', token, { reseller_id: 1, serials: ['BAG-101'] })).status).toBe(403);
+    expect(bagBySerial('BAG-101').status).toBe('in_stock');
+  });
+
+  test('a bag assigned with no carrier goes back to stock when returned; naming a carrier hands it to them', async () => {
+    await post('/cash-bags/assign', asAdmin(), { reseller_id: 1, serials: ['BAG-101', 'BAG-102'] });
+    const back = await post('/cash-bags/101/return', asAdmin(), { reason: 'sobraban' });
+    expect(back.status).toBe(200);
+    expect(back.body.data).toMatchObject({ status: 'in_stock', reseller_id: null, carrier_user_id: null });
+    const carried = await post('/cash-bags/102/return', asAdmin(), { carrier_user_id: CARRIER_2 });
+    expect(carried.body.data).toMatchObject({ status: 'with_carrier', reseller_id: null, carrier_user_id: CARRIER_2 });
   });
 });
 

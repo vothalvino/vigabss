@@ -17,7 +17,7 @@
 // hand-in ("Registrar entrega de efectivo", at most what it owes), a payout
 // (at most what the ISP owes it) or an adjustment (with a required note).
 // Neither is ever a payment. Sub-resellers collect and earn on their
-// top-level reseller's account, so only top-level ones are listed.
+// top-level reseller's account, so the tab shows on top-level points only.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';
@@ -34,7 +34,7 @@ import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { apiErrorCode, toLedgerPage, toNumber, type PuntoLedgerPage } from '../punto/puntoApi';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
+import { resellerDetailKey } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 const MONEY = /^-?\d+(\.\d{1,2})?$/;
@@ -127,7 +127,7 @@ function EntryForm({ resellerId, type, currency, owed, onSaved }: {
   );
 }
 
-export function ResellerLedgerTab() {
+export function ResellerLedgerTab({ resellerId }: { resellerId: number }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -135,14 +135,11 @@ export function ResellerLedgerTab() {
   const canSeePayments = can(user, 'payments.view');
   const canSeeInvoices = can(user, 'invoices.view');
   const currency = user?.organization_currency || 'MXN';
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [msg, setMsg] = useState('');
 
-  const resellersQ = useResellerOptions({ topLevel: true });
   const ledgerQ = useQuery({
     queryKey: ['reseller-ledger', resellerId, page],
-    enabled: resellerId !== null,
     queryFn: async (): Promise<PuntoLedgerPage> => toLedgerPage(await apiFetch(`/resellers/${resellerId}/ledger?page=${page}&limit=${PAGE_SIZE}`)),
     placeholderData: keepPreviousData,
   });
@@ -159,28 +156,17 @@ export function ResellerLedgerTab() {
     setMsg(text);
     setPage(1);
     void qc.invalidateQueries({ queryKey: ['reseller-ledger', resellerId] });
+    // The reseller page's header shows the same money.
+    void qc.invalidateQueries({ queryKey: resellerDetailKey(resellerId) });
   }
 
   return (
     <div>
       <h3>{t('resellerLedger.title')}</h3>
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('resellerLedger.help')}</p>
-      <label style={styles.filterLabel}>
-        {t('resellerLedger.reseller')}
-        <select
-          style={styles.filterSelect}
-          value={resellerId ?? ''}
-          onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); setMsg(''); }}
-        >
-          <option value="">{t('resellerLedger.selectReseller')}</option>
-          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-      <ResellerListNotice list={resellersQ.data} />
-
       {msg && <p role="status" style={{ color: 'var(--success)', margin: '12px 0 0' }}>{msg}</p>}
 
-      {resellerId !== null && (ledgerQ.isLoading ? <LoadingState /> : ledgerQ.isError ? (
+      {(ledgerQ.isLoading ? <LoadingState /> : ledgerQ.isError ? (
         <p style={styles.msgError}>{t('resellerLedger.loadError')}</p>
       ) : (
         <>

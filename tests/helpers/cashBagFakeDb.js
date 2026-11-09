@@ -181,9 +181,16 @@ function handleCashBagSql(state, sql, params = []) {
     const [id, orgId, from] = params;
     return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === from, (b) => { b.status = to; });
   }
+  if (/^UPDATE cash_bags SET status = 'at_reseller', carrier_user_id = NULL, reseller_id = \? WHERE organization_id = \? AND status = 'in_stock'/.test(s.trim())) {
+    const [rid, orgId] = params;
+    const ids = idsOf(2);
+    return update((b) => b.organization_id === orgId && b.status === 'in_stock' && ids.includes(b.id), (b) => {
+      b.status = 'at_reseller'; b.carrier_user_id = null; b.reseller_id = rid;
+    });
+  }
   if (/^UPDATE cash_bags SET status = 'in_stock', carrier_user_id = NULL, reseller_id = NULL/.test(s.trim())) {
-    const [id, orgId] = params;
-    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === 'with_carrier', (b) => {
+    const [id, orgId, from] = params;
+    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === from, (b) => {
       b.status = 'in_stock'; b.carrier_user_id = null; b.reseller_id = null;
     });
   }

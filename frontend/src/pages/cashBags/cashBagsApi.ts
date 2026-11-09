@@ -236,6 +236,13 @@ export async function handoverCashBags(body: { carrier_user_id: number; reseller
   return serials.length ? serials : body.serials;
 }
 
+/** POST /cash-bags/assign: bags in stock straight to a point, no carrier. */
+export async function assignCashBags(body: { reseller_id: number; serials: string[] }): Promise<string[]> {
+  const res = await apiFetch<{ data?: unknown }>('/cash-bags/assign', { method: 'POST', body: JSON.stringify(body) });
+  const serials = serialList(obj(res?.data).bags);
+  return serials.length ? serials : body.serials;
+}
+
 export async function receiveCashBag(id: number, body: { counted_amount: number; note?: string }): Promise<ReceiveResult> {
   const data = obj((await apiFetch<{ data?: Raw }>(`/cash-bags/${id}/receive`, { method: 'POST', body: JSON.stringify(body) }))?.data);
   const bagRaw = data.bag ? obj(data.bag) : data.serial ? data : null;

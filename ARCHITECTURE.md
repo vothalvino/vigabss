@@ -467,8 +467,11 @@ declared amount D, 0 < D ≤ cash on hand, from `at_reseller` or already from
 `with_carrier`: typing the serial proves it holds the bag) → `in_transit` (the carrier picks it up by its serial at
 that reseller) → `received` (staff count C); also `ready_for_pickup` →
 `received` when the reseller brings it in, `void` from the three states
-without money, `lost` from the two with money, and the returns `with_carrier`
-→ `in_stock` and `at_reseller` → `with_carrier` (both clear the point). `received`, `void` and
+without money, `lost` from the two with money, `assign` (`in_stock` →
+`at_reseller`, staff give bags straight to a top-level point with no carrier:
+`POST /cash-bags/assign`), and the returns `with_carrier` → `in_stock` and
+`at_reseller` → `with_carrier` (both clear the point; a bag at the point with
+no carrier, given none to take it, goes back to `in_stock`). `received`, `void` and
 `lost` are terminal; no transition takes a sealed bag back to an empty
 state. Sealing posts, in the seal's transaction, a `bag_sealed` entry of −D
 with `reseller_ledger_entries.cash_bag_id` and the sealing user, so the
@@ -479,7 +482,7 @@ being received without a `bag_sealed` entry (sealed under migration 005;
 migration 006 backfills the open ones) also gets the old `deposit` of −D, so
 no bag is counted twice or never. A lost bag posts nothing: D left the
 reseller's ledger at sealing, and the ISP absorbs the loss. Every transition whose bag has or
-gets a reseller (handover, drop-off, seal, pickup, receive, lost, and void or
+gets a reseller (handover, assign, drop-off, seal, pickup, receive, lost, and void or
 return of an assigned bag) locks the reseller row first, then the bag (the order of
 a collection), so a seal and a concurrent collection cannot both pass the
 credit check, and two transitions of one bag cannot deadlock: the

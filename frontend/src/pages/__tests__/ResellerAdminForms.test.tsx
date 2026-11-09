@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n';
-import ResellerPage from '../ResellerPage';
 import { ResellerFormModal } from '../resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from '../resellers/ResellerAllowedPlansTab';
 import { ResellerLedgerTab } from '../resellers/ResellerLedgerTab';
@@ -144,53 +143,6 @@ describe('ResellerFormModal', () => {
   });
 });
 
-describe('ResellerPage', () => {
-  it('shows only the phase-1 tabs and opens the new-reseller form', async () => {
-    mocks.permissions = [...mocks.permissions, 'reseller_commissions.view'];
-    mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
-    wrap(<ResellerPage />);
-    const tabs = screen.getAllByRole('button').map(b => b.textContent);
-    expect(tabs).toEqual(expect.arrayContaining(['Resellers', 'Allowed plans', 'Commissions', 'Portal', 'Staff access']));
-    expect(tabs).not.toContain('Plan Prices');
-    expect(tabs).not.toContain('Resources');
-    expect(tabs).not.toContain('Billing');
-    await userEvent.click(screen.getByRole('button', { name: 'New reseller' }));
-    expect(screen.getByRole('dialog', { name: 'New reseller' })).toBeInTheDocument();
-  });
-
-  it('refreshes the reseller pickers of the other tabs after a save', async () => {
-    mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
-      if (init?.method === 'POST') return { data: { id: 10 } };
-      if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: [] };
-      return { data: [], meta: { total: 0, page: 1, limit: 25 } };
-    });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const invalidate = vi.spyOn(qc, 'invalidateQueries');
-    render(<QueryClientProvider client={qc}><ResellerPage /></QueryClientProvider>);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'New reseller' }));
-    await user.type(screen.getByLabelText(/^Name/), 'Punto Centro');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
-    await waitFor(() => {
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['resellers-options'] });
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['resellers-top-level'] });
-    });
-  });
-
-  it('hides New reseller and Edit without the permissions', async () => {
-    mocks.permissions = ['resellers.view'];
-    mocks.apiFetch.mockImplementation(async () => ({
-      data: [{ id: 1, name: 'Punto Norte', level: 1, parent_name: null, commission_rate: '10.00', status: 'active' }],
-      meta: { total: 1, page: 1, limit: 25 },
-    }));
-    wrap(<ResellerPage />);
-    await screen.findByText('Punto Norte');
-    expect(screen.queryByRole('button', { name: 'New reseller' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-  });
-});
-
 describe('ResellerAllowedPlansTab', () => {
   beforeEach(() => {
     mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
@@ -209,11 +161,9 @@ describe('ResellerAllowedPlansTab', () => {
   });
 
   it('loads the saved set and replaces it', async () => {
-    wrap(<ResellerAllowedPlansTab />);
+    wrap(<ResellerAllowedPlansTab resellerId={4} />);
     const user = userEvent.setup();
     expect(screen.getByText(/If none are selected, the reseller can offer every active plan/)).toBeInTheDocument();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     const fibra100 = await screen.findByRole('checkbox', { name: /Fibra 100/ });
     expect(fibra100).toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Fibra 300/ })).not.toBeChecked();
@@ -228,10 +178,8 @@ describe('ResellerAllowedPlansTab', () => {
   });
 
   it('saves an empty set (every active plan)', async () => {
-    wrap(<ResellerAllowedPlansTab />);
+    wrap(<ResellerAllowedPlansTab resellerId={4} />);
     const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     await user.click(await screen.findByRole('checkbox', { name: /Fibra 100/ }));
     expect(screen.getByText('None selected: the reseller can offer every active plan.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save allowed plans' }));
@@ -249,9 +197,7 @@ describe('ResellerAllowedPlansTab', () => {
       }
       return base(path, init);
     });
-    wrap(<ResellerAllowedPlansTab />);
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await userEvent.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrap(<ResellerAllowedPlansTab resellerId={4} />);
     expect(await screen.findByRole('checkbox', { name: /Plan 101/ })).toBeInTheDocument();
     expect(screen.getAllByRole('checkbox')).toHaveLength(101);
     expect(mocks.apiFetch.mock.calls.filter(([p]) => String(p).startsWith('/plans?'))).toHaveLength(2);
@@ -259,9 +205,7 @@ describe('ResellerAllowedPlansTab', () => {
 
   it('is read only without resellers.update', async () => {
     mocks.permissions = ['resellers.view'];
-    wrap(<ResellerAllowedPlansTab />);
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await userEvent.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrap(<ResellerAllowedPlansTab resellerId={4} />);
     expect(await screen.findByRole('checkbox', { name: /Fibra 100/ })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Save allowed plans' })).not.toBeInTheDocument();
   });
@@ -278,9 +222,7 @@ describe('Create login (Staff access tab)', () => {
   });
 
   async function openTab() {
-    wrap(<ResellerUserBindingsTab />);
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await userEvent.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrap(<ResellerUserBindingsTab resellerId={4} />);
   }
 
   it('posts the new login for the chosen reseller', async () => {
@@ -486,10 +428,7 @@ describe('ResellerLedgerTab', () => {
   });
 
   it('shows the summary and the movements of a reseller', async () => {
-    wrapRouter(<ResellerLedgerTab />);
-    const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrapRouter(<ResellerLedgerTab resellerId={4} />);
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(within(summary).getByText('Cash to hand in').parentElement).toHaveTextContent('$850.00');
     expect(within(summary).getByText('Cash limit').parentElement).toHaveTextContent('$2,000.00');
@@ -503,10 +442,8 @@ describe('ResellerLedgerTab', () => {
   });
 
   it('records a cash hand-in and an adjustment', async () => {
-    wrapRouter(<ResellerLedgerTab />);
+    wrapRouter(<ResellerLedgerTab resellerId={4} />);
     const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     const deposit = await screen.findByRole('form', { name: 'Record cash handed in' });
     await user.type(within(deposit).getByLabelText('Amount received'), '-5');
     await user.click(within(deposit).getByRole('button', { name: 'Record hand-in' }));
@@ -529,10 +466,7 @@ describe('ResellerLedgerTab', () => {
 
   it('is read only without reseller_ledger.manage', async () => {
     mocks.permissions = ['resellers.view', 'reseller_ledger.view'];
-    wrapRouter(<ResellerLedgerTab />);
-    const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrapRouter(<ResellerLedgerTab resellerId={4} />);
     await screen.findByRole('region', { name: 'Summary' });
     expect(screen.queryByRole('form', { name: 'Record cash handed in' })).not.toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Adjustment' })).not.toBeInTheDocument();
@@ -556,10 +490,8 @@ describe('ResellerLedgerTab', () => {
       if (path === '/resellers/4/ledger' && init?.method === 'POST') return { data: { id: 6 } };
       throw new Error(`unexpected ${path}`);
     });
-    wrapRouter(<ResellerLedgerTab />);
+    wrapRouter(<ResellerLedgerTab resellerId={4} />);
     const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(within(summary).getByText('Company owes the reseller').parentElement).toHaveTextContent('$120.50');
     expect(within(summary).queryByText('Cash to hand in')).not.toBeInTheDocument();
@@ -602,10 +534,8 @@ describe('ResellerLedgerTab', () => {
     });
     await i18n.changeLanguage('es');
     try {
-      wrapRouter(<ResellerLedgerTab />);
+      wrapRouter(<ResellerLedgerTab resellerId={4} />);
       const user = userEvent.setup();
-      await screen.findByRole('option', { name: 'Punto Norte' });
-      await user.selectOptions(screen.getByLabelText('Revendedor'), '4');
       const row = (await screen.findByText('Comisión')).closest('tr')!;
       expect(within(row).getByText('Factura F-0811')).toBeInTheDocument();
       expect(within(row).queryByRole('link', { name: 'Factura F-0811' })).not.toBeInTheDocument();
@@ -616,16 +546,6 @@ describe('ResellerLedgerTab', () => {
     } finally {
       await i18n.changeLanguage('en');
     }
-  });
-
-  it('is a ResellerPage tab only with reseller_ledger.view', () => {
-    mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
-    const { unmount } = wrap(<ResellerPage />);
-    expect(screen.getByRole('button', { name: 'Movements' })).toBeInTheDocument();
-    unmount();
-    mocks.permissions = ['resellers.view'];
-    wrap(<ResellerPage />);
-    expect(screen.queryByRole('button', { name: 'Movements' })).not.toBeInTheDocument();
   });
 });
 
@@ -658,10 +578,7 @@ describe('ResellerCommissionsTab', () => {
   });
 
   it('lists a top-level reseller\'s commissions with base, rate, amount and status', async () => {
-    wrapRouter(<ResellerCommissionsTab />);
-    const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    wrapRouter(<ResellerCommissionsTab resellerId={4} />);
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(within(summary).getByText('Earned this month').parentElement).toHaveTextContent('$38.79');
     expect(within(summary).getByText('Reversed').parentElement).toHaveTextContent('$30.00');
@@ -682,24 +599,12 @@ describe('ResellerCommissionsTab', () => {
 
   it('filters by status and names the invoice without a link without invoices.view', async () => {
     mocks.permissions = ['resellers.view', 'reseller_commissions.view'];
-    wrapRouter(<ResellerCommissionsTab />);
+    wrapRouter(<ResellerCommissionsTab resellerId={4} />);
     const user = userEvent.setup();
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
     await screen.findByText('Ana López');
     expect(screen.queryByRole('link', { name: 'F-0811' })).not.toBeInTheDocument();
     expect(screen.getByText('F-0811')).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Status'), 'reversed');
     await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers/4/commissions?status=reversed&page=1&limit=25'));
-  });
-
-  it('is a ResellerPage tab only with reseller_commissions.view', () => {
-    mocks.apiFetch.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 25 } }));
-    const { unmount } = wrap(<ResellerPage />);
-    expect(screen.getByRole('button', { name: 'Commissions' })).toBeInTheDocument();
-    unmount();
-    mocks.permissions = ['resellers.view'];
-    wrap(<ResellerPage />);
-    expect(screen.queryByRole('button', { name: 'Commissions' })).not.toBeInTheDocument();
   });
 });

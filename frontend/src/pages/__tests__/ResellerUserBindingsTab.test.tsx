@@ -32,14 +32,12 @@ const ok = (data: unknown) => Promise.resolve({ data: { data }, error: undefined
 
 const renderIt = () => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <ResellerUserBindingsTab />
+    <ResellerUserBindingsTab resellerId={4} />
   </QueryClientProvider>,
 );
 
 async function chooseReseller() {
   renderIt();
-  await screen.findByRole('option', { name: 'Norte Fibra' });
-  await userEvent.selectOptions(screen.getByLabelText(t('resellerAccess.reseller')), '4');
 }
 
 describe('ResellerUserBindingsTab', () => {

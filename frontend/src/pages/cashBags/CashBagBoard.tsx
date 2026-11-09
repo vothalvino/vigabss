@@ -25,7 +25,7 @@ import {
 } from './cashBagsApi';
 import { RECEIVABLE } from './CashBagActions';
 import { CashBagDetailDialog, type BagAction } from './CashBagDetailDialog';
-import { HandoverForm, RegisterBagsForm } from './CashBagForms';
+import { AssignBagsForm, RegisterBagsForm } from './CashBagForms';
 import { BagStatusBadge, VarianceText, formatMoment, mono } from './cashBagUi';
 import { ResellerListNotice, useResellerOptions } from '../resellers/resellerOptions';
 
@@ -196,7 +196,7 @@ export function CashBagBoard() {
   const canManage = can(user, 'cash_bags.manage');
   const canCarriers = can(user, 'carriers.manage');
   const [filters, setFilters] = useState<Filters>({ reseller_id: null, carrier_user_id: null, serial: '' });
-  const [panel, setPanel] = useState<'register' | 'handover' | null>(null);
+  const [panel, setPanel] = useState<'register' | 'assign' | null>(null);
   const [open, setOpen] = useState<{ id: number; action: BagAction } | null>(null);
   const resellers = useResellerOptions({ topLevel: true, enabled: can(user, 'resellers.view') });
   const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers, enabled: canCarriers });
@@ -245,12 +245,12 @@ export function CashBagBoard() {
         {canManage && (
           <>
             <button type="button" style={styles.btnSecondary} aria-expanded={panel === 'register'} onClick={() => setPanel(p => (p === 'register' ? null : 'register'))}>{t('cashBags.register.open')}</button>
-            <button type="button" style={styles.btnSecondary} aria-expanded={panel === 'handover'} onClick={() => setPanel(p => (p === 'handover' ? null : 'handover'))}>{t('cashBags.handover.open')}</button>
+            <button type="button" style={styles.btnSecondary} aria-expanded={panel === 'assign'} onClick={() => setPanel(p => (p === 'assign' ? null : 'assign'))}>{t('cashBags.assign.open')}</button>
           </>
         )}
       </div>
       {canManage && panel === 'register' && <div style={{ display: 'flex', margin: '12px 0' }}><RegisterBagsForm onSaved={refresh} /></div>}
-      {canManage && panel === 'handover' && <div style={{ display: 'flex', margin: '12px 0' }}><HandoverForm onSaved={refresh} /></div>}
+      {canManage && panel === 'assign' && <div style={{ display: 'flex', margin: '12px 0' }}><AssignBagsForm onSaved={refresh} /></div>}
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 12 }}>
         <Column id="cash-bags-col-ready" title={t('cashBags.board.ready')} status="ready_for_pickup" filters={filters} currency={currency} onOpen={onOpen} />

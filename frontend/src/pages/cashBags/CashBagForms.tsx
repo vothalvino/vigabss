@@ -1,13 +1,14 @@
 // =============================================================================
-// Cash bags (staff) — register bags and hand them to a carrier
+// Cash bags (staff) — register bags and assign them to a point
 // =============================================================================
 // Register (POST /cash-bags, cash_bags.manage): one serial, or a range built
 // as prefix + zero-padded number (at most 500 per call). Serials already
 // registered are skipped and reported. New bags are in stock.
-// Hand over (POST /cash-bags/handover, cash_bags.manage): bags in stock go to
-// one point (a reseller or collector assigned to the carrier); they show on
-// the point's page at once and the carrier only takes them there. The server
-// takes all of the serials or none and names the ones that are not in stock.
+// Assign (cash_bags.manage): bags in stock go to one point (a top-level
+// reseller or a collector), delivered by staff (POST /cash-bags/assign) or
+// with a carrier that serves the point (POST /cash-bags/handover). They show
+// on the point's page at once. The server takes all of the serials or none
+// and names the ones that are not in stock.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';
@@ -16,7 +17,10 @@ import { useTranslation } from 'react-i18next';
 import { useMutation } from '@/api/useMutation';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles } from '../crudStyles';
-import { RANGE_MAX, cashBagKeys, fetchCarriers, handoverCashBags, rangeSerials, refusedSerials, registerCashBags, type RegisterResult } from './cashBagsApi';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
+import { ResellerListNotice, useResellerOptions } from '../resellers/resellerOptions';
+import { RANGE_MAX, assignCashBags, cashBagKeys, fetchCarriers, handoverCashBags, rangeSerials, refusedSerials, registerCashBags, type RegisterResult } from './cashBagsApi';
 import { mono, parseSerials } from './cashBagUi';
 
 const card = { ...styles.tableCard, padding: '0.75rem 1rem', flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 6 } as const;
@@ -111,30 +115,48 @@ export function RegisterBagsForm({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-export function HandoverForm({ onSaved }: { onSaved: () => void }) {
+/**
+ * Assign empty bags in stock to one point (a top-level reseller or a
+ * collector): delivered by staff (POST /cash-bags/assign) or sent with a
+ * carrier that serves the point (POST /cash-bags/handover). On the reseller
+ * page the point is fixed (`pointId`); on the board it is picked first.
+ */
+export function AssignBagsForm({ pointId: fixedPoint, pointName: fixedName, onSaved }: {
+  pointId?: number; pointName?: string; onSaved: () => void;
+}) {
   const { t } = useTranslation();
-  const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers });
+  const { user } = useAuth();
+  // Carriers need carriers.manage; without it bags can still be delivered directly.
+  const canListCarriers = can(user, 'carriers.manage');
+  const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers, enabled: canListCarriers });
+  const points = useResellerOptions({ enabled: fixedPoint === undefined });
+  const [pointId, setPointId] = useState<number | null>(fixedPoint ?? null);
+  const [mode, setMode] = useState<'direct' | 'carrier'>('direct');
   const [carrierId, setCarrierId] = useState<number | null>(null);
-  const [pointId, setPointId] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const serials = parseSerials(text);
-  const carrier = carriers.data?.find(c => c.user_id === carrierId) ?? null;
-  const points = carrier?.resellers ?? [];
+  // Bags belong to top-level points; a sub-reseller seals on its parent's.
+  const pointOptions = (points.data?.rows ?? []).filter(r => r.parent_id === null);
+  const pointName = fixedName ?? pointOptions.find(p => p.id === pointId)?.name ?? '';
+  const serving = (carriers.data ?? []).filter(c => c.is_active && pointId !== null && c.resellers.some(r => r.id === pointId));
+  const carrier = serving.find(c => c.user_id === carrierId) ?? null;
 
   const save = useMutation({
-    mutationFn: () => handoverCashBags({ carrier_user_id: carrierId ?? 0, reseller_id: pointId ?? 0, serials }),
+    mutationFn: () => (mode === 'carrier'
+      ? handoverCashBags({ carrier_user_id: carrierId ?? 0, reseller_id: pointId ?? 0, serials })
+      : assignCashBags({ reseller_id: pointId ?? 0, serials })),
     onSuccess: (list: string[]) => {
-      const name = carrier?.name ?? '';
-      const point = points.find(p => p.id === pointId)?.name ?? '';
-      setDone(t('cashBags.handover.done', { count: list.length, name, point }));
+      setDone(mode === 'carrier'
+        ? t('cashBags.assign.doneCarrier', { count: list.length, name: carrier?.name ?? '', point: pointName })
+        : t('cashBags.assign.doneDirect', { count: list.length, point: pointName }));
       setText('');
       onSaved();
     },
     onError: (err: unknown) => {
       const bad = refusedSerials(err);
-      setError(bad.length ? t('cashBags.handover.someFailed', { serials: bad.join(', ') }) : extractApiError(err, t('cashBags.handover.error')));
+      setError(bad.length ? t('cashBags.assign.someFailed', { serials: bad.join(', ') }) : extractApiError(err, t('cashBags.assign.error')));
     },
   });
 
@@ -142,38 +164,61 @@ export function HandoverForm({ onSaved }: { onSaved: () => void }) {
     e.preventDefault();
     setError('');
     setDone('');
-    if (!carrierId) { setError(t('cashBags.handover.pickCarrier')); return; }
-    if (!pointId) { setError(t('cashBags.handover.pickPoint')); return; }
-    if (serials.length === 0) { setError(t('cashBags.handover.noSerials')); return; }
-    if (serials.length > RANGE_MAX) { setError(t('cashBags.handover.tooMany', { max: RANGE_MAX })); return; }
+    if (!pointId) { setError(t('cashBags.assign.pickPoint')); return; }
+    if (mode === 'carrier' && !carrier) { setError(t('cashBags.assign.pickCarrier')); return; }
+    if (serials.length === 0) { setError(t('cashBags.assign.noSerials')); return; }
+    if (serials.length > RANGE_MAX) { setError(t('cashBags.assign.tooMany', { max: RANGE_MAX })); return; }
     save.mutate();
   }
 
+  const id = `cash-bags-assign-${fixedPoint ?? 'board'}`;
   return (
-    <form onSubmit={submit} noValidate aria-labelledby="cash-bags-handover-title" style={card}>
-      <h4 id="cash-bags-handover-title" style={{ margin: 0 }}>{t('cashBags.handover.title')}</h4>
-      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{t('cashBags.handover.help')}</p>
-      <label style={styles.label} htmlFor="cash-bags-handover-carrier">{t('cashBags.handover.carrier')}</label>
-      <select id="cash-bags-handover-carrier" style={field} value={carrierId ?? ''} onChange={e => { setCarrierId(Number(e.target.value) || null); setPointId(null); }}>
-        <option value="">{t('cashBags.handover.chooseCarrier')}</option>
-        {(carriers.data ?? []).filter(c => c.is_active).map(c => <option key={c.user_id} value={c.user_id}>{c.name}</option>)}
-      </select>
-      {carriers.isError && <p role="alert" style={styles.errorText}>{t('cashBags.carriers.loadError')}</p>}
-      <label style={styles.label} htmlFor="cash-bags-handover-point">{t('cashBags.handover.point')}</label>
-      <select id="cash-bags-handover-point" style={field} value={pointId ?? ''} disabled={!carrier || points.length === 0} onChange={e => setPointId(Number(e.target.value) || null)}>
-        <option value="">{t('cashBags.handover.choosePoint')}</option>
-        {points.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-        {carrier && points.length === 0 ? t('cashBags.handover.noPoints') : t('cashBags.handover.pointHelp')}
-      </p>
-      <label style={styles.label} htmlFor="cash-bags-handover-serials">{t('cashBags.handover.serials')}</label>
-      <textarea id="cash-bags-handover-serials" rows={3} style={field} value={text} onChange={e => setText(e.target.value)} />
-      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{t('cashBags.handover.count', { count: serials.length })}</p>
+    <form onSubmit={submit} noValidate aria-labelledby={`${id}-title`} style={card}>
+      <h4 id={`${id}-title`} style={{ margin: 0 }}>{fixedPoint === undefined ? t('cashBags.assign.title') : t('cashBags.assign.titleFor', { point: pointName })}</h4>
+      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{t('cashBags.assign.help')}</p>
+      {fixedPoint === undefined && (
+        <>
+          <label style={styles.label} htmlFor={`${id}-point`}>{t('cashBags.assign.point')}</label>
+          <select id={`${id}-point`} style={field} value={pointId ?? ''} onChange={e => { setPointId(Number(e.target.value) || null); setCarrierId(null); }}>
+            <option value="">{t('cashBags.assign.choosePoint')}</option>
+            {pointOptions.map(p => (
+              <option key={p.id} value={p.id}>{p.kind === 'collector' ? t('cashBags.assign.collectorOption', { name: p.name }) : p.name}</option>
+            ))}
+          </select>
+          <ResellerListNotice list={points.data} />
+        </>
+      )}
+      <fieldset style={{ border: 'none', padding: 0, margin: '4px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <legend style={{ ...styles.label, padding: 0 }}>{t('cashBags.assign.how')}</legend>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input type="radio" name={`${id}-mode`} checked={mode === 'direct'} onChange={() => setMode('direct')} />
+          {t('cashBags.assign.direct')}
+        </label>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input type="radio" name={`${id}-mode`} checked={mode === 'carrier'} disabled={!canListCarriers} onChange={() => setMode('carrier')} />
+          {t('cashBags.assign.withCarrier')}
+        </label>
+      </fieldset>
+      {mode === 'carrier' && (
+        <>
+          <label style={styles.label} htmlFor={`${id}-carrier`}>{t('cashBags.assign.carrier')}</label>
+          <select id={`${id}-carrier`} style={field} value={carrierId ?? ''} disabled={serving.length === 0} onChange={e => setCarrierId(Number(e.target.value) || null)}>
+            <option value="">{t('cashBags.assign.chooseCarrier')}</option>
+            {serving.map(c => <option key={c.user_id} value={c.user_id}>{c.name}</option>)}
+          </select>
+          {carriers.isError && <p role="alert" style={styles.errorText}>{t('cashBags.carriers.loadError')}</p>}
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            {pointId !== null && carriers.data && serving.length === 0 ? t('cashBags.assign.noCarrier') : t('cashBags.assign.carrierHelp')}
+          </p>
+        </>
+      )}
+      <label style={styles.label} htmlFor={`${id}-serials`}>{t('cashBags.assign.serials')}</label>
+      <textarea id={`${id}-serials`} rows={3} style={field} value={text} onChange={e => setText(e.target.value)} />
+      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{t('cashBags.assign.count', { count: serials.length })}</p>
       {error && <p role="alert" style={styles.errorText}>{error}</p>}
       {done && <p role="status" style={{ margin: 0, color: 'var(--success)' }}>{done}</p>}
       <button type="submit" style={{ ...styles.btnPrimary, alignSelf: 'flex-start' }} disabled={save.isPending}>
-        {save.isPending ? t('cashBags.common.saving') : t('cashBags.handover.submit')}
+        {save.isPending ? t('cashBags.common.saving') : t('cashBags.assign.submit')}
       </button>
     </form>
   );

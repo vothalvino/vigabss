@@ -301,7 +301,7 @@ function locationFromBody(body) {
 // GET /resellers
 router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, status, parent_id, kind } = req.query;
+    const { page = 1, limit = 50, status, parent_id, kind, search } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
@@ -316,6 +316,13 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
     if (kind !== undefined && kind !== '') {
       if (!collectorService.KINDS.includes(kind)) throw new ValidationError('kind must be reseller or collector');
       conditions.push('r.kind = ?'); params.push(kind);
+    }
+    // Partial name, contact, city, email or phone (the reseller list's search box).
+    const term = typeof search === 'string' ? search.trim().slice(0, 100) : '';
+    if (term) {
+      const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      conditions.push('(r.name LIKE ? OR r.contact_name LIKE ? OR r.city LIKE ? OR r.email LIKE ? OR r.phone LIKE ?)');
+      params.push(like, like, like, like, like);
     }
     if (parent_id !== undefined) {
       if (parent_id === 'null') {
