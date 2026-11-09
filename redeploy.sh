@@ -917,6 +917,35 @@ fi
 echo "==> Starting containers"
 dc up -d
 
+# The bundled nginx bind-mounts the single file nginx/nginx.conf. A deploy
+# replaces that file (a new inode), but a running container keeps reading the
+# old one, and `dc up -d` does not recreate a container whose Compose
+# definition did not change, so a config change would never reach nginx.
+# When the live file differs from the deployed one, test the new file in a
+# throwaway container and restart nginx; a config that fails the test leaves
+# the running nginx untouched. Host-nginx installs have no nginx service here.
+reload_bundled_nginx() {
+  dc config --services 2>/dev/null | grep -qx nginx || return 0
+  local deployed live
+  deployed="$(sha256sum "$APP_DIR/nginx/nginx.conf" 2>/dev/null | cut -d' ' -f1)"
+  live="$(dc exec -T nginx sha256sum /etc/nginx/nginx.conf 2>/dev/null | cut -d' ' -f1)"
+  if [[ -z "$deployed" || -z "$live" || "$deployed" == "$live" ]]; then
+    return 0
+  fi
+  echo "==> nginx.conf changed; testing it before restarting nginx"
+  if ! dc run --rm --no-deps -T --entrypoint nginx nginx -t >/dev/null 2>&1; then
+    echo "warning: the new nginx.conf fails nginx -t; nginx keeps its running config." >&2
+    echo "         Check with: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE run --rm --no-deps --entrypoint nginx nginx -t" >&2
+    return 0
+  fi
+  if dc restart -t 10 nginx >/dev/null 2>&1; then
+    echo "    nginx restarted with the new config"
+  else
+    echo "warning: nginx did not restart; run: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE restart nginx" >&2
+  fi
+}
+reload_bundled_nginx
+
 # Require the actual readiness endpoint, not merely a running Node process.
 # This catches a booting/crash-looping image, an unavailable dependency, and a
 # schema readiness failure before the deploy is reported as successful.
