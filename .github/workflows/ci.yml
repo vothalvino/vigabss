@@ -1361,9 +1361,9 @@ jobs:
         run: pnpm exec jest --ci --testPathPatterns 'tests/(installReloadCron|tlsBootstrapRecovery|tlsRenewalConfig|redeployTopology|redeployEnvSync|redeployVerifiesSignature|deployRequest|deployPullsImage|hostNginxScope|productionBootstrap|releaseChannel|setupScriptHardening|setupSecrets|secretsInArgv|shellScriptsCi)\.test\.js$'
 
   helm-lint:
-    # Lint and render run everywhere with a read-only token. Releasing needs
-    # contents: write, which this job held on every push and PR (OPS-08), so
-    # it moved to the tag-only helm-release job below.
+    # Lint and render run everywhere with a read-only token. Releasing (a push
+    # of the chart to ghcr.io) happens only in the tag-only helm-release job
+    # below (OPS-08).
     name: Helm lint
     timeout-minutes: 30
     runs-on: ubuntu-latest

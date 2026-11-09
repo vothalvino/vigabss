@@ -35,10 +35,13 @@ test('container-scan does not hold id-token: write; publish-manifest, which sign
   expect(job('publish-manifest')).toMatch(/id-token: write/);
 });
 
-test('only the tag-gated helm-release job can write repository contents', () => {
+test('no job can write repository contents; only the tag-gated helm-release pushes the chart', () => {
+  // The chart goes to ghcr.io as an OCI artifact, so no job needs to push to
+  // the repository (chart-releaser needed contents: write for gh-pages).
+  for (const [, text] of workflows) expect(text).not.toMatch(/^\s+contents: write/m);
   expect(job('helm-lint')).toMatch(/^\s+contents: read$/m);
-  expect(job('helm-lint')).not.toMatch(/^\s+contents: write/m);
   const release = job('helm-release');
-  expect(release).toMatch(/contents: write/);
+  expect(release).toMatch(/^\s+contents: read$/m);
+  expect(release).toMatch(/^\s+packages: write/m);
   expect(release).toMatch(/\n {4}if: startsWith\(github\.ref, 'refs\/tags\/v'\)/);
 });
