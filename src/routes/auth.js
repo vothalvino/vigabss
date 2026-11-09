@@ -19,6 +19,8 @@ const { tokenResponseBody } = require('../utils/browserTokens');
 const logger = require('../utils/logger');
 const { setCsrfCookie, clearCsrfCookie } = require('../middleware/csrf');
 const { BROWSER_WS_PATH, BROWSER_WS_COOKIE } = require('../services/browserWebSocketAuth');
+const loginSecurity = require('../services/loginSecurityService');
+const { loginIpGuard } = require('../middleware/loginIpGuard');
 
 const router = Router();
 
@@ -211,10 +213,11 @@ async function sendLoginSession(req, res, result) {
 }
 
 router.post('/login',
+  loginIpGuard,
   validate(authSchemas.login, { strip: false }),
   async (req, res, next) => {
     try {
-      const result = await authService.login(req.body);
+      const result = await authService.login(req.body, loginSecurity.requestContext(req));
       if (result.mfaRequired) {
         // Password accepted, second factor pending: NO cookies and NO session.
         // The challenge token only works on POST /auth/login/2fa.
@@ -232,13 +235,14 @@ router.post('/login',
 // POST /api/auth/login/2fa — complete a password or SSO login with a TOTP or
 // backup code. Mounted under the auth rate limiter like /login.
 router.post('/login/2fa',
+  loginIpGuard,
   validate(authSchemas.loginMfa, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.completeMfaLogin({
         mfaToken: req.body.mfa_token,
         code: req.body.code,
-      });
+      }, loginSecurity.requestContext(req));
       await sendLoginSession(req, res, result);
     } catch (err) {
       next(err);

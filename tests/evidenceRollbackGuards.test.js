@@ -29,6 +29,8 @@ function offenders(sql) {
   for (const m of sql.matchAll(DESTRUCTIVE)) {
     const statement = m[0];
     if (/^ALTER TABLE/i.test(statement) && !/\bDROP\b/i.test(statement)) continue;
+    // Dropping an index (or key) removes no row and no value.
+    if (/^ALTER TABLE/i.test(statement) && !/\bDROP\s+(?!INDEX\b|KEY\b)/i.test(statement)) continue;
     const before = sql.slice(0, m.index);
     if (!/SIGNAL SQLSTATE '45000'/.test(before)) found.push(statement.slice(0, 80));
   }
@@ -39,6 +41,8 @@ test('the rule catches an unguarded drop and accepts a guarded one', () => {
   expect(offenders('DROP TABLE signed_documents;')).toHaveLength(1);
   expect(offenders('ALTER TABLE subscriber_consents DROP COLUMN captured_by;')).toHaveLength(1);
   expect(offenders('ALTER TABLE subscriber_consents ADD COLUMN x INT;')).toHaveLength(0);
+  expect(offenders('ALTER TABLE audit_logs DROP INDEX idx_audit_logs_org_action;')).toHaveLength(0);
+  expect(offenders('ALTER TABLE audit_logs DROP INDEX idx_a, DROP COLUMN user_agent;')).toHaveLength(1);
   expect(offenders(`IF EXISTS (SELECT 1 FROM signed_documents LIMIT 1) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'evidence exists';
   END IF;

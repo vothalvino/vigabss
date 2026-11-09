@@ -692,7 +692,7 @@
           "Auth"
         ],
         "summary": "Login",
-        "description": "For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.",
+        "description": "For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies. Every attempt is written to the audit log (login_success, login_failed, account_locked); an IP blocked for repeated failures gets 429 LOGIN_IP_BLOCKED with Retry-After.",
         "operationId": "login",
         "requestBody": {
           "description": "auth_login",
@@ -714,6 +714,33 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too many attempts, or the IP is blocked at sign-in (LOGIN_IP_BLOCKED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -724,7 +751,7 @@
           "Auth"
         ],
         "summary": "Complete a two-factor login",
-        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
+        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout and are audited as login_mfa_failed. Returns the same body and cookies as a one-step login. A blocked IP gets 429 LOGIN_IP_BLOCKED.",
         "operationId": "loginTwoFactor",
         "requestBody": {
           "description": "Two-factor challenge and code",
@@ -765,6 +792,33 @@
           },
           "401": {
             "description": "Invalid or expired challenge, wrong or reused code, or locked account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The IP is blocked at sign-in (LOGIN_IP_BLOCKED)",
             "content": {
               "application/json": {
                 "schema": {
@@ -26765,7 +26819,7 @@
           "Audit Logs"
         ],
         "summary": "List audit log entries",
-        "description": "scope=install lists install-wide events (no organization) and requires the install operator.",
+        "description": "scope=install lists install-wide events (no organization) and requires the install operator. category filters by every action of that category (GET /audit-logs/actions); action wins when both are sent.",
         "operationId": "listAuditLogs",
         "security": [
           {
@@ -26786,6 +26840,35 @@
               "default": "organization"
             },
             "description": "install: events with no organization (install operator only)"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "records",
+                "sign_in",
+                "security",
+                "billing",
+                "resellers",
+                "cash_bags",
+                "service",
+                "network",
+                "compliance",
+                "data",
+                "other"
+              ]
+            }
           }
         ],
         "responses": {
@@ -48904,6 +48987,7 @@
           "Portal Auth"
         ],
         "summary": "Client portal login",
+        "description": "Audited as portal_login_success / portal_login_failed / portal_account_locked; an IP blocked for repeated failures gets 429 LOGIN_IP_BLOCKED.",
         "operationId": "portalLogin",
         "requestBody": {
           "description": "email + password",
@@ -48922,6 +49006,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts, or the IP is blocked at sign-in (LOGIN_IP_BLOCKED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -56363,6 +56474,122 @@
         }
       }
     },
+    "/audit-logs/actions": {
+      "get": {
+        "tags": [
+          "Audit Logs"
+        ],
+        "summary": "The audit actions that occur in a scope, with their category",
+        "description": "For the audit page filter. Every action written in the organization (or, with scope=install, the install-wide events) with its count and category (src/utils/auditActions.js); an uncatalogued action is in the other category.",
+        "operationId": "listAuditLogActions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "organization",
+                "install"
+              ],
+              "default": "organization"
+            },
+            "description": "install: events with no organization (install operator only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actions in the scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "categories"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "action",
+                          "category",
+                          "count",
+                          "last_at"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "records",
+                              "sign_in",
+                              "security",
+                              "billing",
+                              "resellers",
+                              "cash_bags",
+                              "service",
+                              "network",
+                              "compliance",
+                              "data",
+                              "other"
+                            ]
+                          },
+                          "count": {
+                            "type": "integer"
+                          },
+                          "last_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "records",
+                          "sign_in",
+                          "security",
+                          "billing",
+                          "resellers",
+                          "cash_bags",
+                          "service",
+                          "network",
+                          "compliance",
+                          "data",
+                          "other"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "scope=install without the install operator"
+          }
+        }
+      }
+    },
     "/audit-logs/export": {
       "get": {
         "tags": [
@@ -58230,6 +58457,505 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/security-admin/login-ip-blocks": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "List the IPs blocked at sign-in, active first",
+        "description": "Install-wide (migration 013): login_ip_blocks.view and the install operator. A block refuses staff /auth/login, /auth/login/2fa and portal /portal/auth/login with 429 LOGIN_IP_BLOCKED.",
+        "operationId": "listLoginIpBlocks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked IPs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "pagination",
+                    "settings",
+                    "your_ip"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "ip_address",
+                          "source",
+                          "failures",
+                          "refused_count",
+                          "blocked_until",
+                          "note",
+                          "created_by",
+                          "lifted_at",
+                          "lifted_by",
+                          "created_at",
+                          "active"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "ip_address": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "auto",
+                              "manual"
+                            ]
+                          },
+                          "failures": {
+                            "type": "integer"
+                          },
+                          "refused_count": {
+                            "type": "integer"
+                          },
+                          "blocked_until": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time",
+                            "description": "null: until lifted"
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "lifted_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "lifted_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "page",
+                        "limit",
+                        "total",
+                        "pages"
+                      ],
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pages": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "settings": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "enabled",
+                        "threshold",
+                        "window_minutes",
+                        "hours"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "threshold": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "window_minutes": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "hours": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "your_ip": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the install operator, or no permission"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "Block an IP at sign-in by hand",
+        "description": "login_ip_blocks.manage and the install operator. hours omitted or null blocks until lifted. Private, loopback and CGNAT addresses, and your own IP, are refused (422); an IP already blocked is 409 ALREADY_BLOCKED.",
+        "operationId": "createLoginIpBlock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The IP to block",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "ip"
+                ],
+                "properties": {
+                  "ip": {
+                    "type": "string",
+                    "maxLength": 45
+                  },
+                  "hours": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 8760
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "ip_address",
+                        "source",
+                        "failures",
+                        "refused_count",
+                        "blocked_until",
+                        "note",
+                        "created_by",
+                        "lifted_at",
+                        "lifted_by",
+                        "created_at",
+                        "active"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "ip_address": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "auto",
+                            "manual"
+                          ]
+                        },
+                        "failures": {
+                          "type": "integer"
+                        },
+                        "refused_count": {
+                          "type": "integer"
+                        },
+                        "blocked_until": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "description": "null: until lifted"
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "lifted_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lifted_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "active": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the install operator, or no permission"
+          },
+          "409": {
+            "description": "Already blocked"
+          },
+          "422": {
+            "description": "Not an IP, a private address, or your own IP"
+          }
+        }
+      }
+    },
+    "/security-admin/login-ip-blocks/{id}/lift": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "summary": "Lift a sign-in IP block now",
+        "operationId": "liftLoginIpBlock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The block (lifted: false when it was already lifted)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "lifted"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "ip_address",
+                        "source",
+                        "failures",
+                        "refused_count",
+                        "blocked_until",
+                        "note",
+                        "created_by",
+                        "lifted_at",
+                        "lifted_by",
+                        "created_at",
+                        "active"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "ip_address": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "auto",
+                            "manual"
+                          ]
+                        },
+                        "failures": {
+                          "type": "integer"
+                        },
+                        "refused_count": {
+                          "type": "integer"
+                        },
+                        "blocked_until": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "description": "null: until lifted"
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "lifted_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lifted_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "active": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "lifted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the install operator, or no permission"
+          },
+          "404": {
+            "description": "No such block"
           }
         }
       }
@@ -96451,6 +97177,27 @@
         },
         "required": [
           "cidr"
+        ]
+      },
+      "security_createLoginIpBlock": {
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string",
+            "maximum": 45
+          },
+          "hours": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 8760
+          },
+          "note": {
+            "type": "string",
+            "maximum": 255
+          }
+        },
+        "required": [
+          "ip"
         ]
       },
       "security_triggerCpeScan": {

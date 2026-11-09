@@ -297,6 +297,17 @@ work orders. A later migration that grants `admin` a permission grants it to
 |----------------|-----------|-------------|
 | `point_logins.create` | `admin`, `manager` | Create the login of a reseller (`POST /resellers/:id/users`, with `resellers.update`) or a carrier (`POST /carriers`, with `carriers.manage`) without `users.create`; those routes only create an account in their own group |
 
+### Blocked IPs at sign-in (migration 013)
+
+A block applies to every sign-in route of the install, so both routes also
+require the install operator (403 otherwise). `manager` does not get them
+(the `security` module).
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `login_ip_blocks.view` | `admin` | List the IPs blocked at sign-in (`GET /security-admin/login-ip-blocks`) |
+| `login_ip_blocks.manage` | `admin` | Block an IP by hand (`POST /security-admin/login-ip-blocks`) or lift a block (`POST /security-admin/login-ip-blocks/:id/lift`) |
+
 ## Route Authorization
 
 Routes without RBAC middleware (by design):

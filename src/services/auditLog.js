@@ -31,12 +31,14 @@ const { noteAuditWriteFailure } = require('../utils/opsMetrics');
  * @param {string} [params.summary]    - Human-readable description
  * @param {object} [params.oldValues]  - Previous values (for update/delete)
  * @param {object} [params.newValues]  - New values (for create/update)
+ * @param {string} [params.ipAddress]  - Request IP (sign-in events, migration 013)
+ * @param {string} [params.userAgent]  - Request browser / client
  */
-async function log({ userId, organizationId, action, tableName, entityType, recordId, entityId, summary, oldValues, newValues }) {
+async function log({ userId, organizationId, action, tableName, entityType, recordId, entityId, summary, oldValues, newValues, ipAddress, userAgent }) {
   try {
     await runInPrimaryContext(() => db.query(
-      `INSERT INTO audit_logs (user_id, organization_id, action, entity_type, entity_id, summary, old_values, new_values)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO audit_logs (user_id, organization_id, action, entity_type, entity_id, summary, old_values, new_values, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId || null,
         organizationId || null,
@@ -46,6 +48,8 @@ async function log({ userId, organizationId, action, tableName, entityType, reco
         summary || null,
         oldValues ? JSON.stringify(oldValues) : null,
         newValues ? JSON.stringify(newValues) : null,
+        ipAddress ? String(ipAddress).slice(0, 45) : null,
+        userAgent ? String(userAgent).slice(0, 500) : null,
       ],
     ));
   } catch (err) {

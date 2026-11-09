@@ -117,7 +117,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
         .send({ mfa_token: 'challenge-jwt', code: '123456' });
 
       expect(res.status).toBe(200);
-      expect(authService.completeMfaLogin).toHaveBeenCalledWith({ mfaToken: 'challenge-jwt', code: '123456' });
+      expect(authService.completeMfaLogin).toHaveBeenCalledWith({ mfaToken: 'challenge-jwt', code: '123456' }, expect.objectContaining({ ip: expect.any(String) }));
       expect(res.body.data.accessToken).toBe('access-jwt');
       const cookies = res.headers['set-cookie'];
       expect(cookies.find(c => c.startsWith('fireisp_access=access-jwt'))).toBeDefined();

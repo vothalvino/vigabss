@@ -51,7 +51,7 @@ describe('auditLog', () => {
     expect(sql).toContain('entity_id');
     // Regression guard: the columns that never existed must not reappear.
     expect(sql).not.toMatch(/table_name|record_id/);
-    expect(params).toEqual([5, 42, 'create', 'clients', 100, null, null, JSON.stringify({ name: 'John' })]);
+    expect(params).toEqual([5, 42, 'create', 'clients', 100, null, null, JSON.stringify({ name: 'John' }), null, null]);
   });
 
   test('accepts the entityType/entityId param spelling too', async () => {
@@ -68,7 +68,7 @@ describe('auditLog', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO audit_logs'),
-      [7, 42, 'partial_update', 'invoices', 900, 'marked paid', null, null],
+      [7, 42, 'partial_update', 'invoices', 900, 'marked paid', null, null, null, null],
     );
   });
 
@@ -87,8 +87,17 @@ describe('auditLog', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO audit_logs'),
-      [5, 42, 'update', 'clients', 100, null, JSON.stringify({ name: 'Old' }), JSON.stringify({ name: 'New' })],
+      [5, 42, 'update', 'clients', 100, null, JSON.stringify({ name: 'Old' }), JSON.stringify({ name: 'New' }), null, null],
     );
+  });
+
+  test('writes the request IP and browser when given (sign-in events, migration 013)', async () => {
+    db.query.mockResolvedValueOnce([{ insertId: 6 }]);
+    await auditLog.log({ action: 'login_failed', entityType: 'users', ipAddress: '203.0.113.9', userAgent: 'x'.repeat(600) });
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/ip_address, user_agent\)/);
+    expect(params[8]).toBe('203.0.113.9');
+    expect(params[9]).toHaveLength(500);
   });
 
   test('accepts a non-ENUM action verb (widened to VARCHAR in migration 374)', async () => {
@@ -111,7 +120,7 @@ describe('auditLog', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO audit_logs'),
-      [null, null, 'delete', 'clients', 100, null, null, null],
+      [null, null, 'delete', 'clients', 100, null, null, null, null, null],
     );
   });
 

@@ -221,6 +221,31 @@ derived key; it sets no cookies and creates no session, and
 with a single-use TOTP step or backup code, for a session. Any new path that
 mints a staff session must apply `authService.requiresSecondFactor()` first.
 
+Since migration 013 every sign-in attempt is audited through
+`src/services/loginSecurityService.record` with the IP and browser in the
+`audit_logs.ip_address`/`user_agent` columns (and `new_values`): staff
+`login_success` (password, 2FA, SSO), `login_failed` (`new_values.reason`:
+`unknown_account`, `inactive_account`, `account_locked`, `wrong_password`),
+`login_mfa_failed`, `account_locked` (the failure that locked it), and the
+portal's `portal_login_success` / `portal_login_failed` /
+`portal_account_locked`. A failure for an email nobody has goes to the
+install scope (`organization_id` NULL). The person signing in gets the same
+answer as before. `user_sessions` now keep the sign-in's `ip_address` and
+`user_agent`, carried through refresh rotations. Every failure also counts
+against its IP (`noteFailure`, a `cacheService` fixed window): at
+`LOGIN_IP_BLOCK_THRESHOLD` (20) failures in `LOGIN_IP_BLOCK_WINDOW_MINUTES`
+(60) the IP gets a `login_ip_blocks` row for `LOGIN_IP_BLOCK_HOURS` (24), then
+7 and 30 days if it returns within 30 days (`login_ip_auto_blocked`).
+`middleware/loginIpGuard.js` refuses a blocked IP with 429 `LOGIN_IP_BLOCKED`
+and `Retry-After` on `POST /auth/login`, `/auth/login/2fa` and
+`/portal/auth/login`, before any password work, counting the refusal on the
+row instead of auditing it. Private, loopback, link-local, CGNAT and
+`LOGIN_IP_BLOCK_EXEMPT` addresses are never counted, blocked or looked up,
+and a guard lookup error lets the request through (the account lockout and
+the per-IP `authLimiter` still apply). Blocks are install-wide, so
+`/security-admin/login-ip-blocks` needs `login_ip_blocks.view`/`.manage` and
+the install operator.
+
 SSO (`src/services/ssoService.js`) may only sign in accounts that belong to the
 configuring organization alone, never an install operator or super-admin, and
 links each account to the IdP identity (`user_sso_identities`, bound by
@@ -916,6 +941,14 @@ writer). It refuses an invoice of another organization, of another client
 `PAYABLE_STATUSES`, and maps the guard triggers to 422 `OVER_ALLOCATION` and
 `ALLOCATION_EXISTS`. Waterfalls without a selection pre-filter invoices with
 `allocationRefusal`, so another currency stays unallocated credit.
+
+`audit_logs.action` is a free VARCHAR. `src/utils/auditActions.categoryOf`
+puts each action in a category (exact names, then prefixes such as
+`cash_bag_`, `reseller_`, `cfdi_`); `GET /audit-logs/actions` lists the
+actions of a scope with counts and categories for the audit page filter, and
+`GET /audit-logs?category=` filters by all of a category's actions
+(`idx_audit_logs_org_action`, migration 013). `tests/loginSecurity.test.js`
+fails when a literal action written in `src/` has no category.
 
 A payment's unallocated remainder is the client's credit, and since migration
 012 it pays the client's payable invoices on its own

@@ -1490,6 +1490,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     KEY idx_audit_logs_entity (entity_type, entity_id),
     KEY idx_audit_logs_entity_type_id (entity_type, entity_id, created_at DESC),
     KEY idx_audit_logs_action (action),
+    KEY idx_audit_logs_org_action (organization_id, action, created_at),
     KEY idx_audit_logs_created_at (created_at),
     CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -14164,6 +14165,28 @@ CREATE TABLE IF NOT EXISTS admin_ip_allowlist (
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Per-org DB-driven IP allowlist entries for admin access (§17)';
+
+-- ---------------------------------------------------------------------------
+-- Table: login_ip_blocks (migration 013)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS login_ip_blocks (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ip_address       VARCHAR(45)     NOT NULL COMMENT 'The blocked address, IPv4 or IPv6, as the app sees it',
+    source           ENUM('auto', 'manual') NOT NULL COMMENT 'auto: too many failed sign-ins; manual: staff',
+    failures         INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Failed sign-ins counted when it was blocked',
+    refused_count    INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Sign-in attempts refused while blocked',
+    blocked_until    DATETIME        NULL     COMMENT 'NULL = until lifted (manual only)',
+    note             VARCHAR(255)    NULL,
+    created_by       BIGINT UNSIGNED NULL     COMMENT 'NULL = the app (auto)',
+    lifted_at        DATETIME        NULL,
+    lifted_by        BIGINT UNSIGNED NULL,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_login_ip_blocks_ip (ip_address, lifted_at, blocked_until),
+    KEY idx_login_ip_blocks_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='IPs refused at sign-in (migration 013)';
 
 -- ---------------------------------------------------------------------------
 -- Table: password_policies (migration 325 — §17)

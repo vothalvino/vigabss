@@ -224,6 +224,11 @@ function requiresSecondFactor(user) {
 // right, so locked_until sees the new count.
 async function recordFailedLoginAttempt(user) {
   const policy = await passwordPolicy.loadPolicy(user.organization_id);
+  // Whether THIS failure locks the account (for the audit log): the same
+  // arithmetic as the UPDATE below, on the row read before it.
+  const lockExpired = user.locked_until && new Date(user.locked_until) <= new Date();
+  const count = lockExpired ? 1 : (Number(user.failed_login_attempts) || 0) + 1;
+  const lockedNow = !isLocked(user) && count >= Number(policy.lockout_attempts);
   await db.query(
     `UPDATE users SET
        failed_login_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= NOW() THEN 1
@@ -234,6 +239,55 @@ async function recordFailedLoginAttempt(user) {
      WHERE id = ?`,
     [policy.lockout_attempts, policy.lockout_duration_minutes, user.id],
   );
+  return { lockedNow, minutes: Number(policy.lockout_duration_minutes) };
+}
+
+// ---------------------------------------------------------------------------
+// Sign-in auditing (migration 013): every attempt goes to the audit log with
+// the IP and the browser; every failure counts against its IP for the
+// blocked-IP list (services/loginSecurityService.js). Neither changes the
+// answer the person signing in gets.
+// ---------------------------------------------------------------------------
+function loginSecurity() {
+  return require('./loginSecurityService');
+}
+
+async function auditLoginFailure({ user, email, reason, ctx, mfa = false }) {
+  const ls = loginSecurity();
+  await ls.record({
+    action: mfa ? 'login_mfa_failed' : 'login_failed',
+    organizationId: user ? (user.organization_id ?? null) : null,
+    userId: user ? user.id : null,
+    entityId: user ? user.id : null,
+    email: email || (user && user.email) || null,
+    ctx,
+    extra: { reason },
+  });
+  await ls.noteFailure(ctx && ctx.ip);
+}
+
+async function auditLockout(user, ctx, minutes) {
+  await loginSecurity().record({
+    action: 'account_locked',
+    organizationId: user.organization_id ?? null,
+    userId: user.id,
+    entityId: user.id,
+    email: user.email,
+    ctx,
+    extra: { minutes },
+  });
+}
+
+async function auditLoginSuccess(user, ctx, method) {
+  await loginSecurity().record({
+    action: 'login_success',
+    organizationId: user.organization_id ?? null,
+    userId: user.id,
+    entityId: user.id,
+    email: user.email,
+    ctx,
+    extra: { method },
+  });
 }
 
 // Unknown, inactive and locked accounts are answered exactly like a wrong
@@ -255,7 +309,7 @@ function isLocked(user) {
  * Callers must already have verified every required factor (and stamped
  * last_login_at).
  */
-async function issueSession(user, orgs, activeOrgId) {
+async function issueSession(user, orgs, activeOrgId, ctx = {}) {
   const accessToken = signStaffAccessToken({
     sub: user.id,
     email: user.email,
@@ -272,7 +326,7 @@ async function issueSession(user, orgs, activeOrgId) {
   await db.query(
     `INSERT INTO user_sessions (user_id, token_hash, token_family, ip_address, user_agent, expires_at)
      VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
-    [user.id, refreshHash, family, null, null, REFRESH_SECONDS],
+    [user.id, refreshHash, family, ctx.ip || null, ctx.userAgent || null, REFRESH_SECONDS],
   );
 
   return {
@@ -312,20 +366,24 @@ async function resolveLoginOrganizations(user) {
  * the login with completeMfaLogin(). The failed-attempt counter is NOT reset
  * until the second factor succeeds.
  */
-async function login({ email, password }) {
+async function login({ email, password }, ctx = {}) {
   const user = await User.findByEmail(email);
   // A locked account is not checked against the password at all: a different
   // answer for the right password would let guessing continue through the
   // lock. Failures during a lock do not extend it.
   if (!user || user.status !== 'active' || isLocked(user)) {
     await burnPasswordCheck(password);
+    const reason = !user ? 'unknown_account' : user.status !== 'active' ? 'inactive_account' : 'account_locked';
+    await auditLoginFailure({ user: user || null, email, reason, ctx });
     throw new UnauthorizedError(INVALID_LOGIN);
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     // Increment failed attempts and potentially lock the account
-    await recordFailedLoginAttempt(user);
+    const attempt = await recordFailedLoginAttempt(user);
+    await auditLoginFailure({ user, email, reason: 'wrong_password', ctx });
+    if (attempt && attempt.lockedNow) await auditLockout(user, ctx, attempt.minutes);
     throw new UnauthorizedError(INVALID_LOGIN);
   }
 
@@ -356,7 +414,9 @@ async function login({ email, password }) {
   // Update last_login_at
   await db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
   const { orgs, activeOrgId } = await resolveLoginOrganizations(user);
-  return issueSession(user, orgs, activeOrgId);
+  const session = await issueSession(user, orgs, activeOrgId, ctx);
+  await auditLoginSuccess(user, ctx, 'password');
+  return session;
 }
 
 /**
@@ -379,7 +439,7 @@ function createSsoMfaChallenge(user, organizationId) {
  * and a TOTP or backup code, then mints the session exactly as login() does.
  * An SSO challenge stays bound to the SSO organization it was issued for.
  */
-async function completeMfaLogin({ mfaToken, code }) {
+async function completeMfaLogin({ mfaToken, code }, ctx = {}) {
   let challenge;
   try {
     challenge = verifyMfaChallengeToken(mfaToken);
@@ -405,7 +465,9 @@ async function completeMfaLogin({ mfaToken, code }) {
     await twoFactorService.verifyCode(user.id, code);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
-      await recordFailedLoginAttempt(user);
+      const attempt = await recordFailedLoginAttempt(user);
+      await auditLoginFailure({ user, reason: 'wrong_2fa_code', ctx, mfa: true });
+      if (attempt && attempt.lockedNow) await auditLockout(user, ctx, attempt.minutes);
       throw new UnauthorizedError('Invalid 2FA code');
     }
     throw err;
@@ -435,7 +497,9 @@ async function completeMfaLogin({ mfaToken, code }) {
     ({ orgs, activeOrgId } = await resolveLoginOrganizations(user));
   }
 
-  return issueSession(user, orgs, activeOrgId);
+  const session = await issueSession(user, orgs, activeOrgId, ctx);
+  await auditLoginSuccess(user, ctx, challenge.method === 'sso' ? 'sso_2fa' : 'password_2fa');
+  return session;
 }
 
 /**
@@ -541,7 +605,8 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
   // transaction ensures a failed INSERT rolls the claim back — otherwise a
   // single DB blip mid-rotation would destroy the session outright, leaving
   // the user with zero valid refresh tokens.
-  await consumeAndReplaceSession(session.id, [user.id, newRefreshHash, family, null, null, REFRESH_SECONDS]);
+  // The rotated row keeps the sign-in's IP and browser (migration 013).
+  await consumeAndReplaceSession(session.id, [user.id, newRefreshHash, family, session.ip_address ?? null, session.user_agent ?? null, REFRESH_SECONDS]);
 
   return {
     accessToken: newAccessToken,
@@ -806,7 +871,7 @@ async function switchOrganization(userId, organizationId, currentRefreshToken) {
   // fails, so a DB blip can't destroy the session.
   const newRefreshValue = generateRefreshToken();
   const newRefreshHash = crypto.createHash('sha256').update(newRefreshValue).digest('hex');
-  await consumeAndReplaceSession(session.id, [user.id, newRefreshHash, session.token_family, null, null, REFRESH_SECONDS]);
+  await consumeAndReplaceSession(session.id, [user.id, newRefreshHash, session.token_family, session.ip_address ?? null, session.user_agent ?? null, REFRESH_SECONDS]);
 
   return {
     accessToken: newAccessToken,
