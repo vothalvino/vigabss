@@ -37,6 +37,8 @@ export type RutaBagStatus = 'with_carrier' | 'in_transit' | string;
 export interface RutaBag {
   serial: string;
   status: RutaBagStatus;
+  /** with_carrier: the point staff assigned it to (null = any of yours); in_transit: where it was picked up. */
+  resellerId: number | null;
   resellerName: string | null;
 }
 
@@ -102,6 +104,7 @@ export function toRutaBag(raw: Raw): RutaBag {
   return {
     serial: String(raw.serial ?? ''),
     status: String(raw.status ?? ''),
+    resellerId: Number(raw.reseller_id ?? reseller.id) || null,
     resellerName: str(raw.reseller_name ?? reseller.name),
   };
 }

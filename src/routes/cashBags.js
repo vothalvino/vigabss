@@ -65,6 +65,7 @@ const registerSchema = {
 
 const handoverSchema = {
   carrier_user_id: { type: 'number', required: true, min: 1 },
+  reseller_id:     { type: 'number', required: true, min: 1 },
   serials:         { type: 'array' },
   bag_ids:         { type: 'array' },
 };
@@ -129,7 +130,7 @@ router.post('/handover', requirePermission('cash_bags.manage'), validate(handove
       throw new ValidationError('Send serials or bag_ids (one of them)');
     }
     const data = await cashBags.handOver({
-      orgId: req.orgId, userId: req.user.id, carrierUserId: req.body.carrier_user_id, serials, bagIds,
+      orgId: req.orgId, userId: req.user.id, carrierUserId: req.body.carrier_user_id, resellerId: req.body.reseller_id, serials, bagIds,
     });
     res.json({ data });
   } catch (err) { next(err); }

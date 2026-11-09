@@ -47,7 +47,7 @@ export function ResellerUserBindingsTab() {
   const [userId, setUserId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canManage = can(user, 'resellers.update') && can(user, 'users.update');
-  const canCreateLogin = can(user, 'resellers.update') && can(user, 'users.create');
+  const canCreateLogin = can(user, 'resellers.update') && (can(user, 'users.create') || can(user, 'point_logins.create'));
 
   const resellersQ = useResellerOptions();
   const bindingsQ = useQuery({

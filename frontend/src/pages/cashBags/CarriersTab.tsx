@@ -142,8 +142,9 @@ function AssignResellers({ carrier, onSaved, onClose }: { carrier: Carrier; onSa
 export function CarriersTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // A carrier login is a new account: POST /carriers needs users.create too.
-  const canCreate = can(user, 'users.create');
+  // A carrier login is a new account: POST /carriers needs users.create or
+  // point_logins.create too.
+  const canCreate = can(user, 'users.create') || can(user, 'point_logins.create');
   const qc = useQueryClient();
   const carriers = useQuery({ queryKey: cashBagKeys.carriers, queryFn: fetchCarriers });
   const [editing, setEditing] = useState<number | null>(null);

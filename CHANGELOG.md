@@ -14,6 +14,24 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 - In the reseller app, listing the faults of a client outside the reseller's
   customers is now refused (404) like every other client lookup, instead of
   returning an empty list.
+- **Manager.** A new built-in user group for whoever runs the operation: it
+  can do everything an administrator does except change the organization's
+  settings, create or edit staff users and their groups, and touch security
+  and integrations (API tokens, webhooks, PAC, certificates, payment
+  gateways). It can create reseller and carrier logins.
+- **Cash bags go to a point when they leave the office.** Staff (admin,
+  manager or super admin) now choose, when they hand bags to a carrier, the
+  point they are for. The bags appear on that reseller's page right away
+  ("En camino") and it can fill them as soon as it has them; the carrier
+  only carries them, and its "Entregar" just confirms the delivery at that
+  point. A bag for another point is refused.
+- **The cash limit means "fill a bag", not "stop".** A reseller (or
+  collector) is no longer refused the payment that takes it past its cash
+  limit: the payment goes through in full. Once its cash reaches the limit,
+  it has to fill a bag (or hand the cash in) before it can take the next
+  one. The app says how much is left before the limit instead of "you can
+  still collect".
+- Migration 010 adds the Manager group and the point login permission.
 
 ## 0.1.0-alpha.15 — 2026-11-08
 

@@ -236,7 +236,7 @@ function creditLimitRefusal(summary, amount, emptyBags = 0) {
     ? 'fill a cash bag with the cash you hold to keep collecting'
     : 'hand in the cash you hold, or wait for empty cash bags, to keep collecting';
   const err = new AppError(
-    `This collection would exceed your cash limit. You can still collect ${summary.available_to_collect.toFixed(2)}; ${hint}.`,
+    `You reached your cash limit (${summary.credit_limit.toFixed(2)}); ${hint}.`,
     409, 'CREDIT_LIMIT',
   );
   err.extra = {
@@ -390,12 +390,15 @@ async function collect(req, body, idempotencyKey = null) {
       }
     }
 
-    // 5. The credit limit: exactly at the limit is allowed. Cash sealed in a
-    // bag left the balance at sealing (bag_sealed), which frees the limit.
+    // 5. The credit limit is a point to fill a bag at, not a cap on the
+    // payment in hand: a collection is refused only once the cash on hand
+    // has reached the limit; the one that crosses it goes through, and the
+    // reseller must then seal a bag (or hand the cash in) to collect again.
+    // Cash sealed in a bag left the balance at sealing (bag_sealed).
     const summary = await ledger.summaryFor(orgId, collectorId, { exec, reseller });
-    if (money.toCents(money.add(summary.cash_on_hand, amount)) > money.toCents(summary.credit_limit)) {
+    if (summary.limit_reached) {
       const counts = await ledger.bagCounts(orgId, collectorId, exec);
-      throw creditLimitRefusal(summary, amount, counts.at_reseller);
+      throw creditLimitRefusal(summary, amount, counts.empty);
     }
 
     // 6. The client, still live in the organization, and the waterfall

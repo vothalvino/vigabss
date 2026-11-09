@@ -10,10 +10,11 @@
 //   3. confirm the cash was received, then POST /reseller-app/payments with
 //      an Idempotency-Key that stays the same for retries of that attempt.
 // A subscriber who is not the reseller's own client arrives with a masked
-// name and no contact data. The server refuses a collection that would take
-// the reseller past its cash limit (409 CREDIT_LIMIT); the page says how much
-// it may still collect and, with an empty cash bag at hand, to fill it (that
-// frees the limit at once). Success opens the receipt.
+// name and no contact data. The cash limit is where a bag must be filled,
+// not a cap on the payment: the one that crosses it goes through, and once
+// the cash on hand reached the limit the server refuses the next collection
+// (409 CREDIT_LIMIT); the page then asks to fill an empty cash bag (that
+// frees the limit at once) or hand in the cash. Success opens the receipt.
 // =============================================================================
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -26,7 +27,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import {
-  apiErrorCode, createPuntoCollection, creditLimitError, fetchPuntoCollectClient, fetchPuntoMe, lookupPuntoCollect,
+  apiErrorCode, createPuntoCollection, creditLimitError, fetchPuntoCollectClient, fetchPuntoMe, limitReached, lookupPuntoCollect,
   newIdempotencyKey, puntoKeys, toNumber,
   type PuntoCollectBody, type PuntoCollectResult, type PuntoCollectTarget, type PuntoOpenInvoice,
 } from './puntoApi';
@@ -199,9 +200,7 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
       if (limit) {
         refreshMoney();
         setLimitBags(limit.emptyBags ?? emptyBagsKnown);
-        setError(limit.available === null
-          ? t('punto.collect.limitReachedNoAmount')
-          : t('punto.collect.limitReached', { available: fmt(limit.available) }));
+        setError(t('punto.collect.limitReachedNoAmount'));
       } else {
         setLimitBags(undefined);
         setError(collectErrorText(err, t('punto.collect.saveError')));
@@ -218,9 +217,11 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
     if (selected.size === 0) { setError(t('punto.collect.pickInvoice')); return; }
     if (!AMOUNT.test(raw) || !(value > 0)) { setError(t('punto.collect.amountInvalid')); return; }
     if (cents(value) > cents(selectedTotal)) { setError(t('punto.collect.amountTooHigh', { max: fmt(selectedTotal) })); return; }
-    if (available !== null && cents(value) > cents(available)) {
+    // The limit is where a bag must be filled, not a cap on this payment:
+    // only a reseller already at its limit is stopped.
+    if (me.data?.money && limitReached(me.data.money)) {
       setLimitBags(emptyBagsKnown);
-      setError(available <= 0 ? t('punto.collect.limitReachedNoAmount') : t('punto.collect.limitReached', { available: fmt(available) }));
+      setError(t('punto.collect.limitReachedNoAmount'));
       return;
     }
     // Every invoice selected is the server's default allocation (oldest first).

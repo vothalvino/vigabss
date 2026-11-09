@@ -259,6 +259,23 @@ describe('Mis bolsas', () => {
     expect(screen.getByRole('region', { name: '2 empty bags' })).toHaveTextContent('B-0011, B-0012');
   });
 
+  it('shows the bags a carrier is bringing and lets it fill one already', async () => {
+    override = (path) => (path === '/reseller-app/bags'
+      ? { data: [...BAGS, { id: 13, serial: 'B-0013', status: 'with_carrier', declared_amount: null, sealed_at: null, picked_up_at: null }] }
+      : undefined);
+    const user = userEvent.setup();
+    renderAt('/punto/bolsas');
+    const coming = await screen.findByRole('region', { name: '1 bag on its way to you' });
+    expect(coming).toHaveTextContent('B-0013');
+    expect(screen.getByRole('region', { name: '2 empty bags' })).toHaveTextContent('B-0011, B-0012');
+    const form = screen.getByRole('region', { name: 'Fill a bag' });
+    await user.click(within(form).getByRole('radio', { name: /^B-0013.*on its way$/ }));
+    await user.click(within(form).getByRole('button', { name: 'Continue' }));
+    await user.click(within(form).getByRole('button', { name: 'Yes, seal the bag' }));
+    const [post] = calls('POST', '/reseller-app/bags/seal');
+    expect(bodyOf(post)).toMatchObject({ serial: 'B-0013' });
+  });
+
   it('says it needs reseller_app.bags and asks nothing', () => {
     mocks.user = { ...RESELLER_USER, permissions: ['reseller_app.use'] };
     renderAt('/punto/bolsas');
@@ -292,7 +309,8 @@ describe('Inicio', () => {
 
 describe('Cobrar at the cash limit', () => {
   function refuseWith(emptyBags: number) {
-    money = { ...MONEY, available_to_collect: '1000.00' };
+    // Under the limit as far as the page knows; the server finds it reached.
+    money = { ...MONEY, cash_on_hand: '500.00', balance: '500.00', available_to_collect: '1000.00' };
     override = (path, init) => {
       if (path === '/reseller-app/payments' && init?.method === 'POST') {
         throw new ApiRequestError('Credit limit', 409, { error: { code: 'CREDIT_LIMIT', message: 'Credit limit', available_to_collect: '0.00', empty_bags: emptyBags } });

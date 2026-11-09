@@ -365,7 +365,10 @@ that are sealed and not yet received (`ready_for_pickup`, `in_transit`),
 reported for information and subtracted nowhere; the effective limit is
 `resellers.credit_limit` or
 the per-organization setting `reseller_default_credit_limit`, and
-`available_to_collect` is the limit minus the cash on hand, never below 0.
+`available_to_collect` is the limit minus the cash on hand, never below 0
+(the room left), and `limit_reached` is cash on hand ≥ limit. The limit is
+where the reseller must fill a bag, not a cap on a payment (owner decision,
+2026-11-08): the collection that crosses it goes through in full.
 A sub-reseller's users collect, read `/me` money, `/ledger`, the day's list
 and receipts, and void against that top-level reseller, which is the only one
 staff deposit on; the bound sub-reseller must also be active to collect.
@@ -376,8 +379,9 @@ reseller that earns the client's commission in share mode (phase 4 lock order,
 see "Reseller commissions" below), all before its first plain read (DAL-04:
 under REPEATABLE READ that read fixes the snapshot the balance_due subquery,
 the over-allocation trigger and the credit check read), refuses with 409
-`CREDIT_LIMIT` when the
-cash on hand plus the amount would pass the limit (exactly at it is allowed),
+`CREDIT_LIMIT` only when the
+cash on hand has already reached the limit (`limit_reached`; a seal or a
+deposit brings it back under),
 opens the user's cash session if none is open, inserts the payment, writes
 the client-ledger credit (`billingService.recordPaymentCredit`), allocates
 oldest invoice first or to the chosen invoices with the allocate-auto
@@ -428,14 +432,18 @@ Phase 3 (migration 005) moves the cash in numbered money bags
 append-only `cash_bag_events`). The bag's status is a state machine checked
 inside the transaction that holds the bag row (`FOR UPDATE`, status
 re-checked, conditional `UPDATE`), and every change writes an event with the
-actor: `in_stock` → `with_carrier` (staff hand a batch to a carrier) →
-`at_reseller` (the carrier drops it off; `reseller_id` is always a top-level
-reseller) → `ready_for_pickup` (the reseller seals it with a declared amount D,
-0 < D ≤ cash on hand) → `in_transit` (the carrier picks it up by its serial at
+actor: `in_stock` → `with_carrier` (staff hand a batch to a carrier for one
+point, a top-level reseller assigned to that carrier, which sets
+`reseller_id`; since migration 010 the point sees the bag at once) →
+`at_reseller` (the carrier confirms the delivery, only at the bag's own point;
+a bag with no point, taken back from one or handed over before 010, takes the
+point it is dropped at) → `ready_for_pickup` (the point seals it with a
+declared amount D, 0 < D ≤ cash on hand, from `at_reseller` or already from
+`with_carrier`: typing the serial proves it holds the bag) → `in_transit` (the carrier picks it up by its serial at
 that reseller) → `received` (staff count C); also `ready_for_pickup` →
 `received` when the reseller brings it in, `void` from the three states
 without money, `lost` from the two with money, and the returns `with_carrier`
-→ `in_stock` and `at_reseller` → `with_carrier`. `received`, `void` and
+→ `in_stock` and `at_reseller` → `with_carrier` (both clear the point). `received`, `void` and
 `lost` are terminal; no transition takes a sealed bag back to an empty
 state. Sealing posts, in the seal's transaction, a `bag_sealed` entry of −D
 with `reseller_ledger_entries.cash_bag_id` and the sealing user, so the
@@ -446,22 +454,22 @@ being received without a `bag_sealed` entry (sealed under migration 005;
 migration 006 backfills the open ones) also gets the old `deposit` of −D, so
 no bag is counted twice or never. A lost bag posts nothing: D left the
 reseller's ledger at sealing, and the ISP absorbs the loss. Every transition whose bag has or
-gets a reseller (drop-off, seal, pickup, receive, lost, and void or return of
-an `at_reseller` bag) locks the reseller row first, then the bag (the order of
+gets a reseller (handover, drop-off, seal, pickup, receive, lost, and void or
+return of an assigned bag) locks the reseller row first, then the bag (the order of
 a collection), so a seal and a concurrent collection cannot both pass the
 credit check, and two transitions of one bag cannot deadlock: the
 `cash_bag_events` row and the drop-off's `reseller_id` check their foreign
 key with a shared lock on the reseller row, which would otherwise be taken
 after the bag. A bag that changed reseller between the read and the lock is
-a 409 `BAG_CHANGED`; only a handover (no reseller) locks the bags alone. A carrier (`src/routes/carrierApp.js`,
+a 409 `BAG_CHANGED`. A carrier (`src/routes/carrierApp.js`,
 `/api/v1/carrier-app`) sees only the top-level resellers of its
 `carrier_reseller_assignments` and never an amount; a pickup of an unknown
 serial, another reseller's or organization's bag, an unassigned reseller or a
 bag that is not ready is the same 404, and a drop-off is all or nothing over
 the carrier's own stock. Staff manage bags at `/api/v1/cash-bags`
 (`src/routes/cashBags.js`), carriers at `/api/v1/carriers`
-(`src/routes/carriers.js`; creating a carrier login also needs `users.create`,
-like a reseller login, and `GET /carriers/assignable-resellers` lists every
+(`src/routes/carriers.js`; creating a carrier login also needs `users.create`
+or `point_logins.create`, like a reseller login, and `GET /carriers/assignable-resellers` lists every
 live top-level reseller for the assignment picker with `carriers.manage`
 alone) and read a reseller's bags at
 `GET /resellers/:id/bags`; all of them are org-level only (refused to

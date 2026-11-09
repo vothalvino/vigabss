@@ -94,13 +94,15 @@ describe('rollback 006', () => {
 describe('the money figures (resellerLedgerService.summarize)', () => {
   test('cash on hand is the balance; in_bags is reported and subtracted nowhere', () => {
     expect(ledger.summarize('300.00', '1000.00', '500.00')).toEqual({
-      balance: 300, in_bags: 500, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700,
+      balance: 300, in_bags: 500, cash_on_hand: 300, credit_limit: 1000, available_to_collect: 700, limit_reached: false,
     });
   });
 
   test('available_to_collect never goes below 0', () => {
-    expect(ledger.summarize('1200.00', '1000.00', 0)).toMatchObject({ cash_on_hand: 1200, available_to_collect: 0 });
-    expect(ledger.summarize(0, 0, '50.00')).toEqual({ balance: 0, in_bags: 50, cash_on_hand: 0, credit_limit: 0, available_to_collect: 0 });
+    expect(ledger.summarize('1200.00', '1000.00', 0)).toMatchObject({ cash_on_hand: 1200, available_to_collect: 0, limit_reached: true });
+    expect(ledger.summarize(0, 0, '50.00')).toEqual({ balance: 0, in_bags: 50, cash_on_hand: 0, credit_limit: 0, available_to_collect: 0, limit_reached: true });
+    // Just under the limit: the next payment goes through, whatever its size.
+    expect(ledger.summarize('999.99', '1000.00', 0)).toMatchObject({ available_to_collect: 0.01, limit_reached: false });
   });
 
   test('bag_sealed is a ledger type staff cannot post by hand', () => {

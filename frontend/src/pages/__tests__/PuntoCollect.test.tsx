@@ -164,7 +164,7 @@ describe('Inicio money card', () => {
     renderAt('/punto');
     const card = await screen.findByRole('region', { name: 'Your cash' });
     expect(within(card).getByText('You must hand in').parentElement).toHaveTextContent('$800.00');
-    expect(within(card).getByText('You can still collect').parentElement).toHaveTextContent('$1,200.00');
+    expect(within(card).getByText('Before your limit').parentElement).toHaveTextContent('$1,200.00');
     expect(within(card).getByText('Collected today').parentElement).toHaveTextContent('$350.00');
     const meter = within(card).getByRole('progressbar', { name: 'Cash limit in use' });
     expect(meter).toHaveAttribute('aria-valuenow', '40');
@@ -289,7 +289,7 @@ describe('Cobrar', () => {
     expect(mocks.apiFetch).toHaveBeenCalledWith('/reseller-app/collect/client/31');
   });
 
-  it('shows the cash-limit refusal with what may still be collected', async () => {
+  it('shows the cash-limit refusal: fill a bag or hand in the cash', async () => {
     override = (path, init) => {
       if (path === '/reseller-app/payments' && init?.method === 'POST') {
         throw new ApiRequestError('Credit limit reached', 409, { error: { code: 'CREDIT_LIMIT', message: 'Credit limit reached', available_to_collect: '150.00' } });
@@ -300,15 +300,23 @@ describe('Cobrar', () => {
     renderAt('/punto/cobrar?cliente=31');
     await user.click(await screen.findByRole('button', { name: 'Collect $700.00 in cash' }));
     await user.click(screen.getByRole('button', { name: 'Yes, I received $700.00' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('You can collect up to $150.00 more; hand in the cash to keep collecting.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('You reached your cash limit: fill a bag (or hand in the cash) to keep collecting.');
   });
 
-  it('does not send a collection the known limit would refuse', async () => {
-    money = { ...MONEY, available_to_collect: '100.00' };
+  it('lets a payment cross the limit: only a reseller already at it is stopped', async () => {
+    money = { ...MONEY, cash_on_hand: '1900.00', balance: '1900.00', available_to_collect: '100.00' };
     const user = userEvent.setup();
     renderAt('/punto/cobrar?cliente=31');
     await user.click(await screen.findByRole('button', { name: 'Collect $700.00 in cash' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('You can collect up to $100.00 more');
+    expect(screen.getByRole('heading', { name: 'Did you receive the cash?' })).toBeInTheDocument();
+  });
+
+  it('does not send a collection once the known limit is reached', async () => {
+    money = { ...MONEY, cash_on_hand: '2000.00', balance: '2000.00', available_to_collect: '0.00' };
+    const user = userEvent.setup();
+    renderAt('/punto/cobrar?cliente=31');
+    await user.click(await screen.findByRole('button', { name: 'Collect $700.00 in cash' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('You reached your cash limit');
     expect(screen.queryByRole('heading', { name: 'Did you receive the cash?' })).not.toBeInTheDocument();
   });
 

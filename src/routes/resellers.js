@@ -898,7 +898,9 @@ const createResellerLoginSchema = Object.fromEntries(
 router.post(
   '/:id/users',
   requirePermission('resellers.update'),
-  requirePermission('users.create'),
+  // A reseller login is created only in the reseller_admin group, so the
+  // narrower point_logins.create (manager, migration 010) is enough.
+  requirePermission('users.create', 'point_logins.create'),
   requireOrgLevelResellerAccess,
   validate(createResellerLoginSchema, { strip: true }),
   async (req, res, next) => {
@@ -1088,6 +1090,7 @@ function ledgerSummary(summary) {
     cash_on_hand: summary.cash_on_hand,
     credit_limit: summary.credit_limit,
     available_to_collect: summary.available_to_collect,
+    limit_reached: summary.limit_reached,
     credit_limit_override: summary.credit_limit_override,
   };
 }

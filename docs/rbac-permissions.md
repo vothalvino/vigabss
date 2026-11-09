@@ -13,6 +13,7 @@
 | **support** | Support access — clients, tickets, communications | Clients + tickets + read-only contracts |
 | **technician** | Field / NOC tech — devices, jobs, network, inventory | Network + jobs + inventory |
 | **readonly** | Read-only observer — view all resources, cannot modify | All `*.view` and `*.export` |
+| **manager** | Runs the operation (migration 010) | Every admin permission except settings, staff users and groups, security and integrations (see "The Manager group") |
 
 All roles are flagged `is_system = TRUE` and cannot be deleted through the UI.
 
@@ -239,10 +240,10 @@ usable app: `/punto` shows a no-access notice. Logins created with
 | `reseller_app.bags` | `reseller_admin`, `admin` | The reseller's bags and sealing one (`GET /reseller-app/bags`, `POST /reseller-app/bags/seal`); the routes still refuse an unbound user |
 | `carrier_app.use` | `carrier`, `admin` | The carrier app reads (`GET /carrier-app/me`, `/resellers`, `/bags`); the routes still refuse anyone outside the carrier group |
 | `carrier_app.pickup` | `carrier`, `admin` | Pick up a sealed bag and drop off empty ones (`POST /carrier-app/pickup`, `/dropoff`) |
-| `cash_bags.view` | `admin` | Bags, their history and the per-reseller differences (`GET /cash-bags`, `/cash-bags/summary`, `/cash-bags/:id`, `/resellers/:id/bags`) |
-| `cash_bags.manage` | `admin` | Register bags, hand them to a carrier, return, void or mark them lost |
-| `cash_bags.receive` | `admin` | Count and receive a bag, posting its deposit and any difference to the reseller ledger (`POST /cash-bags/:id/receive`) |
-| `carriers.manage` | `admin` | Carrier logins and the resellers each may visit (`/carriers`); creating a carrier login (`POST /carriers`) also needs `users.create`, as a reseller login does |
+| `cash_bags.view` | `admin`, `manager` | Bags, their history and the per-reseller differences (`GET /cash-bags`, `/cash-bags/summary`, `/cash-bags/:id`, `/resellers/:id/bags`) |
+| `cash_bags.manage` | `admin`, `manager` | Register bags, hand them to a carrier for one of its points (migration 010), return, void or mark them lost |
+| `cash_bags.receive` | `admin`, `manager` | Count and receive a bag, posting its deposit and any difference to the reseller ledger (`POST /cash-bags/:id/receive`) |
+| `carriers.manage` | `admin`, `manager` | Carrier logins and the resellers each may visit (`/carriers`); creating a carrier login (`POST /carriers`) also needs `users.create` or `point_logins.create`, as a reseller login does |
 
 The seeded system group `carrier` holds only `carrier_app.use`,
 `carrier_app.pickup` and `webauthn.*` (its own passkeys). A user in it is a
@@ -254,12 +255,32 @@ assigned to it, and never an amount. A carrier cannot be bound to a reseller
 (`PUT /resellers/:id/users/:userId` answers 422), and a user bound to a
 reseller cannot be given the `carrier` group (`PUT`/`PATCH /users/:id` and
 `PATCH /users/:id/group` answer 422). Carrier logins created with
-`POST /carriers` (`carriers.manage` and `users.create`) are always in
+`POST /carriers` (`carriers.manage` and `users.create` or `point_logins.create`) are always in
 `carrier`; `carriers.manage` alone lists carriers and assigns them resellers
 (`GET /carriers/assignable-resellers` lists the choices).
 
 The cash bag and carrier routes are org-level only: refused to reseller-bound
 users and to carriers whatever their group holds.
+
+### The Manager group (migration 010)
+
+The seeded system group `manager` (persona `billing`, so it never takes the
+admin bypass) runs the operation: it holds every permission the `admin` group
+holds except organization settings (`settings.*`, `email_settings.*`,
+`backup_settings.*`), creating and editing staff users and groups
+(`users.create`, `users.update`, `users.delete`, `roles.*`), `organizations.*`,
+security administration (the `security` module; its own `webauthn.*` stay),
+`integration_*`, `api_tokens.*`, `webhooks.*`, `pac_providers.*`,
+`csd_certificates.*`, `payment_gateways.*`, `data_residency.*`,
+`ai.providers.*`, `ai.policy.write`, `wireguard.peers.admin`,
+`wireguard.assignments.manage`, `audit_export.view` and
+`report_access_logs.view`. It keeps `users.view` to pick staff for tickets and
+work orders. A later migration that grants `admin` a permission grants it to
+`manager` too unless it falls in those areas (`tests/managerRole.test.js`).
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `point_logins.create` | `admin`, `manager` | Create the login of a reseller (`POST /resellers/:id/users`, with `resellers.update`) or a carrier (`POST /carriers`, with `carriers.manage`) without `users.create`; those routes only create an account in their own group |
 
 ## Route Authorization
 

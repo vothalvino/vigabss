@@ -6,7 +6,7 @@
 // resellers assigned to it here.
 //
 //  GET /carriers                       carriers with their resellers and bags in hand
-//  POST /carriers                      create a carrier login (also users.create)
+//  POST /carriers                      create a carrier login (also users.create or point_logins.create)
 //  GET /carriers/assignable-resellers  top-level resellers a carrier may be given
 //  GET /carriers/:userId/resellers     resellers assigned to a carrier
 //  PUT /carriers/:userId/resellers     replace that set
@@ -95,9 +95,10 @@ router.get('/', requirePermission('carriers.manage'), async (req, res, next) => 
 // =============================================================================
 // A staff user in the carrier group, homed in this organization. It is never
 // bound to a reseller (PUT /resellers/:id/users/:userId refuses a carrier).
-// Creating a login needs users.create as well, like a reseller login (POST
-// /resellers/:id/users): carriers.manage alone only assigns resellers.
-router.post('/', requirePermission('carriers.manage'), requirePermission('users.create'), validate(createCarrierSchema, { strip: true }), async (req, res, next) => {
+// Creating a login needs users.create or point_logins.create as well, like a
+// reseller login (POST /resellers/:id/users): carriers.manage alone only
+// assigns resellers.
+router.post('/', requirePermission('carriers.manage'), requirePermission('users.create', 'point_logins.create'), validate(createCarrierSchema, { strip: true }), async (req, res, next) => {
   try {
     const email = String(req.body.email).trim();
     const existing = await runInPrimaryContext(() => User.findByEmail(email));

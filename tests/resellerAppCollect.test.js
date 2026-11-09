@@ -580,16 +580,13 @@ describe('a collection', () => {
     state.ledger.push({ id: 1, reseller_id: 1, entry_type: 'collection', amount: '400.00', payment_id: null, cash_session_id: null });
     const sub = () => asBoundReseller(COLLECTOR, 3);
     const tokenOf3 = signCollectToken({ orgId: ORG, clientId: 31, rootResellerId: 3 });
-    const refused = await collect(sub(), { collect_token: tokenOf3, amount: 150 });
-    expect(refused.status).toBe(409);
-    expect(refused.body.error).toMatchObject({ code: 'CREDIT_LIMIT', available_to_collect: 100 });
-
-    const res = await collect(sub(), { collect_token: tokenOf3, amount: 50 });
+    // 400 held of 500: the payment that crosses the limit goes through.
+    const res = await collect(sub(), { collect_token: tokenOf3, amount: 150 });
     expect(res.status).toBe(201);
     expect(res.body.data.client_name).toBe('Ana Ruiz');
     expect(state.payments[0].reseller_id).toBe(1);
     expect(state.ledger.filter((e) => e.payment_id === res.body.data.payment_id)).toEqual([
-      expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '50.00' }),
+      expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '150.00' }),
     ]);
     expect(ledgerSum(3)).toBe(0);
 
@@ -597,8 +594,8 @@ describe('a collection', () => {
     // day's list, the receipt; and it can void its own collection.
     const me = await get('/reseller-app/me', sub());
     expect(me.body.data.reseller.id).toBe(3);
-    expect(me.body.data.money).toMatchObject({ balance: 450, credit_limit: 500, available_to_collect: 50, collected_today: 50 });
-    expect((await get('/reseller-app/ledger', sub())).body.summary).toMatchObject({ balance: 450, credit_limit: 500 });
+    expect(me.body.data.money).toMatchObject({ balance: 550, credit_limit: 500, available_to_collect: 0, limit_reached: true, collected_today: 150 });
+    expect((await get('/reseller-app/ledger', sub())).body.summary).toMatchObject({ balance: 550, credit_limit: 500 });
     expect((await get('/reseller-app/payments', sub())).body.data).toEqual([expect.objectContaining({ id: res.body.data.payment_id, voidable: true })]);
     expect((await get(`/reseller-app/payments/${res.body.data.payment_id}/receipt`, sub())).status).toBe(200);
     const voided = await post(`/reseller-app/payments/${res.body.data.payment_id}/void`, sub(), { reason: 'me equivoqué' });
@@ -772,7 +769,8 @@ describe('cash bags free the limit (phase 3)', () => {
 
   test('without empty bags the refusal says so', async () => {
     state.resellers[1].credit_limit = '100.00';
-    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 100.01 });
+    expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 100.01 })).status).toBe(201);
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 1 });
     expect(res.status).toBe(409);
     expect(res.body.error.empty_bags).toBe(0);
     expect(res.body.error.message).toMatch(/wait for empty cash bags/);
@@ -798,31 +796,43 @@ describe('cash bags free the limit (phase 3)', () => {
 });
 
 describe('credit limit', () => {
-  test('the organization default (2000.00) applies when the reseller has none; exactly at the limit is allowed', async () => {
+  test('the limit is where a bag must be filled: the payment that crosses it goes through, the next one is refused', async () => {
     state.invoices[801].total = '3000.00';
     const token = asBoundReseller();
-    const atLimit = await collect(token, { collect_token: tokenForClient(21), amount: 2000 });
-    expect(atLimit.status).toBe(201);
-    const over = await collect(token, { collect_token: tokenForClient(21), amount: 0.01 });
-    expect(over.status).toBe(409);
-    expect(over.body.error).toMatchObject({ code: 'CREDIT_LIMIT', available_to_collect: 0 });
+    // The organization default (2000.00) applies when the reseller has none.
+    const crossing = await collect(token, { collect_token: tokenForClient(21), amount: 2500 });
+    expect(crossing.status).toBe(201);
+    const next = await collect(token, { collect_token: tokenForClient(21), amount: 0.01 });
+    expect(next.status).toBe(409);
+    expect(next.body.error).toMatchObject({ code: 'CREDIT_LIMIT', available_to_collect: 0 });
+    expect(next.body.error.message).toMatch(/You reached your cash limit \(2000\.00\)/);
     expect(state.payments).toHaveLength(1);
+    const me = await get('/reseller-app/me', token);
+    expect(me.body.data.money).toMatchObject({ cash_on_hand: 2500, credit_limit: 2000, available_to_collect: 0, limit_reached: true });
+  });
+
+  test('exactly at the limit counts as reached', async () => {
+    state.invoices[801].total = '3000.00';
+    const token = asBoundReseller();
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 2000 })).status).toBe(201);
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 1 })).status).toBe(409);
   });
 
   test('the organization setting replaces the default', async () => {
     state.setting = '500.00';
-    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 500.01 });
+    expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 500.01 })).status).toBe(201);
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 1 });
     expect(res.status).toBe(409);
-    expect(res.body.error.available_to_collect).toBe(500);
-    expect(res.body.error.details).toMatchObject({ credit_limit: 500, cash_on_hand: 0 });
+    expect(res.body.error.details).toMatchObject({ credit_limit: 500, cash_on_hand: 500.01 });
   });
 
   test("the reseller's own limit wins over the organization default", async () => {
     state.setting = '5000.00';
     state.resellers[1].credit_limit = '100.00';
     const token = asBoundReseller();
-    expect((await collect(token, { collect_token: tokenForClient(21), amount: 100.01 })).status).toBe(409);
-    expect((await collect(token, { collect_token: tokenForClient(21), amount: 100 })).status).toBe(201);
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 99.99 })).status).toBe(201);
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 50 })).status).toBe(201);
+    expect((await collect(token, { collect_token: tokenForClient(21), amount: 1 })).status).toBe(409);
   });
 
   test('a deposit lowers the balance and frees capacity', async () => {
@@ -840,8 +850,8 @@ describe('credit limit', () => {
 
     const me = await get('/reseller-app/me', asBoundReseller());
     expect(me.body.data.money).toEqual({
-      currency: 'MXN', balance: 100, in_bags: 0, cash_on_hand: 100, credit_limit: 300, available_to_collect: 200, collected_today: 300,
-      empty_bags: 0, bags_ready_for_pickup: 0, bags_in_transit: 0,
+      currency: 'MXN', balance: 100, in_bags: 0, cash_on_hand: 100, credit_limit: 300, available_to_collect: 200, limit_reached: false, collected_today: 300,
+      empty_bags: 0, bags_on_the_way: 0, bags_ready_for_pickup: 0, bags_in_transit: 0,
       // The client paid is R2's: R1 (10%) earns nothing this month.
       commission_rate: 10, commission_month: 0,
     });
@@ -1070,7 +1080,7 @@ describe('collections list, receipt and cash box', () => {
     const res = await get('/reseller-app/ledger', asBoundReseller());
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([expect.objectContaining({ entry_type: 'collection', amount: 300, payment_id: 501 })]);
-    expect(res.body.summary).toEqual({ balance: 300, in_bags: 0, cash_on_hand: 300, credit_limit: 2000, available_to_collect: 1700 });
+    expect(res.body.summary).toEqual({ balance: 300, in_bags: 0, cash_on_hand: 300, credit_limit: 2000, available_to_collect: 1700, limit_reached: false });
   });
 });
 

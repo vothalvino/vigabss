@@ -53,6 +53,7 @@ function handleCashBagSql(state, sql, params = []) {
     const mine = bags().filter((b) => b.reseller_id === Number(params[1]));
     return [[{
       at_reseller: mine.filter((b) => b.status === 'at_reseller').length,
+      on_the_way: mine.filter((b) => b.status === 'with_carrier').length,
       ready_for_pickup: mine.filter((b) => b.status === 'ready_for_pickup').length,
       in_transit: mine.filter((b) => b.status === 'in_transit').length,
     }]];
@@ -63,6 +64,7 @@ function handleCashBagSql(state, sql, params = []) {
       reseller_id: id,
       ready_for_pickup: bags().filter((b) => b.reseller_id === id && b.status === 'ready_for_pickup').length,
       empty_bags: bags().filter((b) => b.reseller_id === id && b.status === 'at_reseller').length,
+      to_deliver: bags().filter((b) => b.reseller_id === id && b.status === 'with_carrier').length,
     }))];
   }
   if (/SELECT carrier_user_id, COALESCE\(SUM\(status = 'with_carrier'\), 0\) AS with_carrier/.test(s)) {
@@ -124,6 +126,10 @@ function handleCashBagSql(state, sql, params = []) {
     const status = /status = '(\w+)'/.exec(s)[1];
     return [bags().filter((b) => b.serial === params[1] && b.reseller_id === Number(params[2]) && b.status === status).map(bagRow)];
   }
+  if (/FROM cash_bags WHERE organization_id = \? AND serial = \? AND reseller_id = \? AND status IN \(([^)]*)\)/.test(s)) {
+    const statuses = [.../status IN \(([^)]*)\)/.exec(s)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]);
+    return [bags().filter((b) => b.serial === params[1] && b.reseller_id === Number(params[2]) && statuses.includes(b.status)).map(bagRow)];
+  }
   if (/SELECT reseller_id FROM cash_bags WHERE id = \? AND organization_id = \?/.test(s)) {
     const b = state.bags.find((x) => x.id === Number(params[0]) && x.organization_id === Number(params[1]) && live(x));
     return [b ? [{ reseller_id: b.reseller_id }] : []];
@@ -140,10 +146,12 @@ function handleCashBagSql(state, sql, params = []) {
     return [{ affectedRows: rows.length }];
   };
   const idsOf = (from) => params.slice(from).map(Number);
-  if (/^UPDATE cash_bags SET status = 'with_carrier', carrier_user_id = \? WHERE organization_id = \? AND status = 'in_stock'/.test(s.trim())) {
-    const [carrier, orgId] = params;
-    const ids = idsOf(2);
-    return update((b) => b.organization_id === orgId && b.status === 'in_stock' && ids.includes(b.id), (b) => { b.status = 'with_carrier'; b.carrier_user_id = carrier; });
+  if (/^UPDATE cash_bags SET status = 'with_carrier', carrier_user_id = \?, reseller_id = \? WHERE organization_id = \? AND status = 'in_stock'/.test(s.trim())) {
+    const [carrier, rid, orgId] = params;
+    const ids = idsOf(3);
+    return update((b) => b.organization_id === orgId && b.status === 'in_stock' && ids.includes(b.id), (b) => {
+      b.status = 'with_carrier'; b.carrier_user_id = carrier; b.reseller_id = rid;
+    });
   }
   if (/^UPDATE cash_bags SET status = 'at_reseller', reseller_id = \?/.test(s.trim())) {
     const [rid, orgId, carrier] = params;
@@ -157,8 +165,8 @@ function handleCashBagSql(state, sql, params = []) {
     });
   }
   if (/^UPDATE cash_bags SET status = 'ready_for_pickup'/.test(s.trim())) {
-    const [declared, by, id, orgId] = params;
-    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === 'at_reseller', (b) => {
+    const [declared, by, id, orgId, from] = params;
+    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === from, (b) => {
       b.status = 'ready_for_pickup'; b.declared_amount = Number(declared).toFixed(2); b.sealed_by = by; b.sealed_at = new Date();
     });
   }
@@ -173,9 +181,11 @@ function handleCashBagSql(state, sql, params = []) {
     const [id, orgId, from] = params;
     return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === from, (b) => { b.status = to; });
   }
-  if (/^UPDATE cash_bags SET status = 'in_stock', carrier_user_id = NULL/.test(s.trim())) {
+  if (/^UPDATE cash_bags SET status = 'in_stock', carrier_user_id = NULL, reseller_id = NULL/.test(s.trim())) {
     const [id, orgId] = params;
-    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === 'with_carrier', (b) => { b.status = 'in_stock'; b.carrier_user_id = null; });
+    return update((b) => b.id === Number(id) && b.organization_id === orgId && b.status === 'with_carrier', (b) => {
+      b.status = 'in_stock'; b.carrier_user_id = null; b.reseller_id = null;
+    });
   }
   if (/^UPDATE cash_bags SET status = 'with_carrier', reseller_id = NULL, carrier_user_id = \?/.test(s.trim())) {
     const [carrier, id, orgId] = params;
@@ -231,7 +241,9 @@ function handleCashBagSql(state, sql, params = []) {
     return [[{ total: bags().filter((b) => b.reseller_id === Number(params[1])).length }]];
   }
   if (/FROM cash_bags WHERE organization_id = \? AND reseller_id = \? AND deleted_at IS NULL AND status IN \('at_reseller'/.test(s)) {
-    return [bags().filter((b) => b.reseller_id === Number(params[1]) && ['at_reseller', 'ready_for_pickup', 'in_transit'].includes(b.status)).map(bagRow)];
+    const order = ['at_reseller', 'with_carrier', 'ready_for_pickup', 'in_transit'];
+    return [bags().filter((b) => b.reseller_id === Number(params[1]) && order.includes(b.status))
+      .sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.serial.localeCompare(b.serial)).map(bagRow)];
   }
   if (/FROM cash_bags WHERE organization_id = \? AND carrier_user_id = \? AND deleted_at IS NULL AND status IN \('with_carrier', 'in_transit'\)/.test(s)) {
     return [bags().filter((b) => b.carrier_user_id === Number(params[1]) && ['with_carrier', 'in_transit'].includes(b.status)).map(bagRow)];

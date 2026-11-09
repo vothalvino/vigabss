@@ -11,7 +11,7 @@
 //  GET  /carrier-app/resellers  its assigned resellers with bag counts
 //  GET  /carrier-app/bags       its stock (with_carrier) and the bags it carries
 //  POST /carrier-app/pickup     pick up a sealed bag by its serial
-//  POST /carrier-app/dropoff    leave empty bags of its stock at a reseller
+//  POST /carrier-app/dropoff    confirm it delivered empty bags to their point
 // =============================================================================
 
 const { Router } = require('express');
@@ -103,7 +103,7 @@ router.get('/resellers', requirePermission('carrier_app.use'), async (req, res, 
         phone: r.phone ?? null,
         latitude: nullableNumber(r.latitude),
         longitude: nullableNumber(r.longitude),
-        counts: counts.get(Number(r.id)) || { ready_for_pickup: 0, empty_bags: 0 },
+        counts: counts.get(Number(r.id)) || { ready_for_pickup: 0, empty_bags: 0, to_deliver: 0 },
       })),
     });
   } catch (err) { next(err); }

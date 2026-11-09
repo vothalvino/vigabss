@@ -34,7 +34,9 @@ function moneySummary(summary, counts, currency) {
     cash_on_hand: summary.cash_on_hand,
     credit_limit: summary.credit_limit,
     available_to_collect: summary.available_to_collect,
-    empty_bags: counts.at_reseller,
+    limit_reached: summary.limit_reached,
+    empty_bags: counts.empty,
+    bags_on_the_way: counts.on_the_way,
     bags_ready_for_pickup: counts.ready_for_pickup,
     bags_in_transit: counts.in_transit,
   };

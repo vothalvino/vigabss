@@ -62247,7 +62247,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "Create a reseller login: a staff user in the reseller_admin group, bound to this reseller (org-level admins only; requires resellers.update and users.create)",
+        "summary": "Create a reseller login: a staff user in the reseller_admin group, bound to this reseller (org-level staff only; requires resellers.update and users.create or point_logins.create)",
         "operationId": "createResellerLogin",
         "security": [
           {
@@ -62921,6 +62921,9 @@
                         "available_to_collect": {
                           "type": "number"
                         },
+                        "limit_reached": {
+                          "type": "boolean"
+                        },
                         "credit_limit_override": {
                           "type": [
                             "number",
@@ -63211,6 +63214,9 @@
                         },
                         "available_to_collect": {
                           "type": "number"
+                        },
+                        "limit_reached": {
+                          "type": "boolean"
                         },
                         "credit_limit_override": {
                           "type": [
@@ -63745,7 +63751,11 @@
                             },
                             "available_to_collect": {
                               "type": "number",
-                              "description": "max(0, credit_limit - cash_on_hand)"
+                              "description": "max(0, credit_limit - cash_on_hand): the room left before the limit"
+                            },
+                            "limit_reached": {
+                              "type": "boolean",
+                              "description": "cash_on_hand >= credit_limit: collections are refused until a bag is sealed or the cash handed in"
                             },
                             "collected_today": {
                               "type": "number",
@@ -65580,7 +65590,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "Collect cash from a subscriber: in one transaction, checks the credit limit, posts a completed cash payment (reseller_id = the collecting reseller), allocates it oldest invoice first (or to invoice_ids), opens the cash session if none and books the collection in the reseller ledger; reconnection and the REP run after commit. Needs reseller_app.collect. An Idempotency-Key header (or client_request_id) replays the original answer for 24 hours",
+        "summary": "Collect cash from a subscriber: in one transaction, checks the credit limit (refused only once the cash on hand reached it), posts a completed cash payment (reseller_id = the collecting reseller), allocates it oldest invoice first (or to invoice_ids), opens the cash session if none and books the collection in the reseller ledger; reconnection and the REP run after commit. Needs reseller_app.collect. An Idempotency-Key header (or client_request_id) replays the original answer for 24 hours",
         "operationId": "createResellerAppCollection",
         "security": [
           {
@@ -65769,7 +65779,7 @@
             }
           },
           "409": {
-            "description": "CREDIT_LIMIT: the collection would take the cash on hand past the credit limit; empty_bags > 0 means the reseller can seal a bag to free it",
+            "description": "CREDIT_LIMIT: the cash on hand already reached the credit limit (the collection that crosses it is allowed); empty_bags > 0 means the reseller can seal a bag to collect again",
             "content": {
               "application/json": {
                 "schema": {
@@ -66811,6 +66821,9 @@
                         },
                         "available_to_collect": {
                           "type": "number"
+                        },
+                        "limit_reached": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -66873,7 +66886,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "The collecting reseller's live cash bags (empty at_reseller, ready_for_pickup, in_transit; received, void and lost ones do not appear) and its money position. Needs reseller_app.bags",
+        "summary": "The collecting reseller's live cash bags (empty at_reseller, empty with_carrier on their way to it, ready_for_pickup, in_transit; received, void and lost ones do not appear) and its money position. Needs reseller_app.bags",
         "operationId": "listResellerAppBags",
         "security": [
           {
@@ -66915,9 +66928,11 @@
                             "type": "string",
                             "enum": [
                               "at_reseller",
+                              "with_carrier",
                               "ready_for_pickup",
                               "in_transit"
-                            ]
+                            ],
+                            "description": "with_carrier: a carrier is bringing it; it may already be sealed"
                           },
                           "declared_amount": {
                             "type": [
@@ -66951,7 +66966,9 @@
                         "cash_on_hand",
                         "credit_limit",
                         "available_to_collect",
+                        "limit_reached",
                         "empty_bags",
+                        "bags_on_the_way",
                         "bags_ready_for_pickup",
                         "bags_in_transit"
                       ],
@@ -66974,9 +66991,16 @@
                         "available_to_collect": {
                           "type": "number"
                         },
+                        "limit_reached": {
+                          "type": "boolean"
+                        },
                         "empty_bags": {
                           "type": "integer",
-                          "description": "Bags at the reseller it may fill (at_reseller)"
+                          "description": "Empty bags it may fill: at_reseller plus those a carrier is bringing it (with_carrier)"
+                        },
+                        "bags_on_the_way": {
+                          "type": "integer",
+                          "description": "Empty bags a carrier is bringing it (with_carrier)"
                         },
                         "bags_ready_for_pickup": {
                           "type": "integer"
@@ -67036,7 +67060,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "Fill an empty bag of the reseller (at_reseller) with the cash it holds: declared_amount must be more than 0 and at most cash_on_hand, with 2 decimals. The bag becomes ready_for_pickup and, in the same transaction, a bag_sealed ledger entry of -declared_amount takes the cash off the balance (and cash_on_hand), which frees the limit at once; in_bags shows it until the bag is received. Locks the reseller row, then the bag. Needs reseller_app.bags",
+        "summary": "Fill an empty bag of the reseller (at_reseller, or with_carrier when staff assigned it and the carrier has not confirmed the delivery) with the cash it holds: declared_amount must be more than 0 and at most cash_on_hand, with 2 decimals. The bag becomes ready_for_pickup and, in the same transaction, a bag_sealed ledger entry of -declared_amount takes the cash off the balance (and cash_on_hand), which frees the limit at once; in_bags shows it until the bag is received. Locks the reseller row, then the bag. Needs reseller_app.bags",
         "operationId": "sealResellerAppBag",
         "security": [
           {
@@ -67109,9 +67133,11 @@
                               "type": "string",
                               "enum": [
                                 "at_reseller",
+                                "with_carrier",
                                 "ready_for_pickup",
                                 "in_transit"
-                              ]
+                              ],
+                              "description": "with_carrier: a carrier is bringing it; it may already be sealed"
                             },
                             "declared_amount": {
                               "type": [
@@ -67144,7 +67170,9 @@
                             "cash_on_hand",
                             "credit_limit",
                             "available_to_collect",
+                            "limit_reached",
                             "empty_bags",
+                            "bags_on_the_way",
                             "bags_ready_for_pickup",
                             "bags_in_transit"
                           ],
@@ -67167,9 +67195,16 @@
                             "available_to_collect": {
                               "type": "number"
                             },
+                            "limit_reached": {
+                              "type": "boolean"
+                            },
                             "empty_bags": {
                               "type": "integer",
-                              "description": "Bags at the reseller it may fill (at_reseller)"
+                              "description": "Empty bags it may fill: at_reseller plus those a carrier is bringing it (with_carrier)"
+                            },
+                            "bags_on_the_way": {
+                              "type": "integer",
+                              "description": "Empty bags a carrier is bringing it (with_carrier)"
                             },
                             "bags_ready_for_pickup": {
                               "type": "integer"
@@ -67537,7 +67572,8 @@
                             "type": "object",
                             "required": [
                               "ready_for_pickup",
-                              "empty_bags"
+                              "empty_bags",
+                              "to_deliver"
                             ],
                             "properties": {
                               "ready_for_pickup": {
@@ -67546,6 +67582,10 @@
                               "empty_bags": {
                                 "type": "integer",
                                 "description": "Empty bags it has (at_reseller)"
+                              },
+                              "to_deliver": {
+                                "type": "integer",
+                                "description": "Empty bags assigned to it that a carrier holds (with_carrier)"
                               }
                             }
                           }
@@ -67651,14 +67691,13 @@
                               "integer",
                               "null"
                             ],
-                            "description": "Where it was picked up (in_transit only)"
+                            "description": "with_carrier: the point it is for (null = any assigned point); in_transit: where it was picked up"
                           },
                           "reseller_name": {
                             "type": [
                               "string",
                               "null"
-                            ],
-                            "description": "in_transit only"
+                            ]
                           },
                           "picked_up_at": {
                             "type": [
@@ -67938,7 +67977,7 @@
         "tags": [
           "Carrier App"
         ],
-        "summary": "Leave empty bags of the carrier's own stock (with_carrier) at an assigned reseller: 1 to 50 serials, all or nothing. Needs carrier_app.pickup",
+        "summary": "Confirm the delivery of empty bags of the carrier's own stock (with_carrier) to their point: 1 to 50 serials, all or nothing. A bag staff assigned to another point is refused; one with no point (taken back from a point) takes this one. Needs carrier_app.pickup",
         "operationId": "carrierAppDropoff",
         "security": [
           {
@@ -68115,7 +68154,7 @@
             }
           },
           "422": {
-            "description": "BAGS_NOT_IN_YOUR_STOCK (details.failed lists the serials that are not empty bags in your stock), or validation failed",
+            "description": "BAGS_NOT_IN_YOUR_STOCK (details.failed lists the serials that are not empty bags in your stock), BAGS_FOR_ANOTHER_POINT (details.failed), or validation failed",
             "content": {
               "application/json": {
                 "schema": {
@@ -68862,7 +68901,7 @@
         "tags": [
           "Cash Bags"
         ],
-        "summary": "Hand bags in stock to a carrier (in_stock -> with_carrier), by serials or bag ids, all or nothing. Needs cash_bags.manage",
+        "summary": "Hand bags in stock to a carrier for one point (in_stock -> with_carrier, reseller_id set), by serials or bag ids, all or nothing. The point (a top-level reseller or collector) must be assigned to the carrier; from now on the bags appear on its page and it may seal them. Needs cash_bags.manage",
         "operationId": "handOverCashBags",
         "security": [
           {
@@ -68870,19 +68909,25 @@
           }
         ],
         "requestBody": {
-          "description": "The carrier and the bags (serials or bag_ids)",
+          "description": "The carrier, the point and the bags (serials or bag_ids)",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "required": [
-                  "carrier_user_id"
+                  "carrier_user_id",
+                  "reseller_id"
                 ],
                 "properties": {
                   "carrier_user_id": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "reseller_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The point the bags are for"
                   },
                   "serials": {
                     "type": "array",
@@ -68925,6 +68970,8 @@
                       "required": [
                         "carrier_user_id",
                         "carrier_name",
+                        "reseller_id",
+                        "reseller_name",
                         "bags"
                       ],
                       "properties": {
@@ -68936,6 +68983,12 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": "string"
                         },
                         "bags": {
                           "type": "array",
@@ -69007,7 +69060,7 @@
             }
           },
           "422": {
-            "description": "BAGS_NOT_IN_STOCK (details.failed), not a carrier, or validation failed",
+            "description": "BAGS_NOT_IN_STOCK (details.failed), not a carrier, POINT_NOT_ASSIGNED_TO_CARRIER, or validation failed",
             "content": {
               "application/json": {
                 "schema": {
@@ -69702,6 +69755,7 @@
                             "cash_on_hand",
                             "credit_limit",
                             "available_to_collect",
+                            "limit_reached",
                             "credit_limit_override"
                           ],
                           "properties": {
@@ -69723,7 +69777,11 @@
                             },
                             "available_to_collect": {
                               "type": "number",
-                              "description": "max(0, credit_limit - cash_on_hand)"
+                              "description": "max(0, credit_limit - cash_on_hand): the room left before the limit"
+                            },
+                            "limit_reached": {
+                              "type": "boolean",
+                              "description": "cash_on_hand >= credit_limit: collections are refused until a bag is sealed or the cash handed in"
                             },
                             "credit_limit_override": {
                               "type": [
@@ -70581,7 +70639,7 @@
         "tags": [
           "Cash Bags"
         ],
-        "summary": "A carrier hands stock back (with_carrier -> in_stock), or takes an empty bag back from a reseller (at_reseller -> with_carrier, to carrier_user_id or the carrier that dropped it off). Needs cash_bags.manage",
+        "summary": "A carrier hands stock back (with_carrier -> in_stock, its point cleared), or takes an empty bag back from a reseller (at_reseller -> with_carrier, to carrier_user_id or the carrier that dropped it off). Needs cash_bags.manage",
         "operationId": "returnCashBag",
         "security": [
           {
@@ -71547,7 +71605,7 @@
         "tags": [
           "Carriers"
         ],
-        "summary": "Create a carrier login: a staff user in the carrier group, homed in this organization, with the same validation and password policy as POST /users. Needs carriers.manage and users.create",
+        "summary": "Create a carrier login: a staff user in the carrier group, homed in this organization, with the same validation and password policy as POST /users. Needs carriers.manage and users.create or point_logins.create",
         "operationId": "createCarrier",
         "security": [
           {
@@ -71643,7 +71701,7 @@
             }
           },
           "403": {
-            "description": "Reseller-bound users and carriers are refused; also refused without carriers.manage or users.create",
+            "description": "Reseller-bound users and carriers are refused; also refused without carriers.manage, or without both users.create and point_logins.create",
             "content": {
               "application/json": {
                 "schema": {
@@ -75004,6 +75062,9 @@
                         },
                         "available_to_collect": {
                           "type": "number"
+                        },
+                        "limit_reached": {
+                          "type": "boolean"
                         },
                         "credit_limit_override": {
                           "type": [
