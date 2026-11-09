@@ -5,7 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **WireGuard tunnels connect and reach the internet.** The hub's firewall
+  named ICMPv6 by a name the server image cannot look up, so the whole
+  firewall was rejected: full-tunnel traffic had no route or address
+  translation to the internet. Creating a tunnel also stopped at that error,
+  so the new device was never added to the hub and could not connect. The
+  firewall now installs, and a firewall problem no longer keeps a new tunnel
+  off the hub. Full-tunnel configurations also name public DNS servers
+  (`WG_CLIENT_DNS`, default 1.1.1.1 and 9.9.9.9), because the phone's own
+  resolver is often on a private address the hub does not forward to.
+  Download the configuration or QR code again after upgrading to get the DNS
+  line.
 
 ## 0.1.0-alpha.17 — 2026-11-09
 

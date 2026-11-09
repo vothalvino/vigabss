@@ -35,6 +35,7 @@ jest.mock('../src/config', () => ({
     maxPeersPerUser: 5,
     maxPeersPerOrg: 250,
     clientPublicKey: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=',
+    clientDns: '1.1.1.1, 9.9.9.9',
   },
 }));
 
@@ -245,6 +246,31 @@ describe('buildConfig()', () => {
     expect(conf).not.toContain('0.0.0.0/0');
   });
 
+  test('full tunnel names the configured DNS servers in [Interface]', () => {
+    const conf = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 1 }, 'KEY==', []);
+    const iface = conf.split('[Peer]')[0];
+    expect(iface).toContain('DNS        = 1.1.1.1, 9.9.9.9');
+  });
+
+  test('split tunnel keeps the device resolver (no DNS line)', () => {
+    const conf = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 0 }, 'KEY==', ['10.1.0.0/16']);
+    expect(conf).not.toMatch(/^DNS/m);
+  });
+
+  test('DNS entries that are not IP addresses are dropped; empty disables the line', () => {
+    const saved = config.wireguard.clientDns;
+    try {
+      config.wireguard.clientDns = 'dns.example.com, 2606:4700:4700::1111,, 8.8.8.8';
+      expect(userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 1 }, 'KEY==', []))
+        .toContain('DNS        = 2606:4700:4700::1111, 8.8.8.8');
+      config.wireguard.clientDns = '';
+      expect(userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 1 }, 'KEY==', []))
+        .not.toMatch(/^DNS/m);
+    } finally {
+      config.wireguard.clientDns = saved;
+    }
+  });
+
   test('peer without full_tunnel field (legacy row) behaves as split-tunnel', () => {
     // Existing peers backfilled to full_tunnel=0 by migration;
     // rows created before the column was added may have no field at all.
@@ -309,6 +335,18 @@ describe('createPeer() — full_tunnel flag', () => {
 
     QRCode.toString.mockResolvedValue('<svg/>');
   }
+
+  test('a failing firewall check still adds the peer to the hub', async () => {
+    setupCreatePeerMocks(1);
+    wireguardServerService.ensureBaseFirewall.mockRejectedValue(new Error('nft rejected the ruleset'));
+
+    const result = await userTunnelService.createPeer(1, 1, 'Phone');
+
+    expect(wireguardServerService.syncUserPeer).toHaveBeenCalledWith({
+      publicKey: 'NEWPUBKEY==', tunnelIp: '10.99.0.55',
+    });
+    expect(result.peer.server_peer_synced).toBe(1);
+  });
 
   test('passes full_tunnel=1 to INSERT when called without explicit arg (default=true)', async () => {
     setupCreatePeerMocks(1);

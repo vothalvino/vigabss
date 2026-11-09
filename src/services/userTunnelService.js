@@ -20,6 +20,7 @@
 
 'use strict';
 
+const net = require('net');
 const QRCode = require('qrcode');
 
 const db = require('../config/database');
@@ -86,10 +87,13 @@ function assertCanIssueConfig() {
 function buildConfig(peer, privateKey, subnets, presharedKey = null) {
   // Never hand out a config a WireGuard client cannot parse or use.
   assertCanIssueConfig();
+  // A full tunnel carries DNS too, so name a resolver the hub forwards to.
+  const dns = peer.full_tunnel ? clientDnsServers() : [];
   const lines = [
     '[Interface]',
     `PrivateKey = ${privateKey}`,
     `Address    = ${peer.tunnel_address}/32`,
+    ...(dns.length ? [`DNS        = ${dns.join(', ')}`] : []),
     '',
     '[Peer]',
     `PublicKey           = ${config.wireguard.clientPublicKey}`,
@@ -117,6 +121,14 @@ function buildConfig(peer, privateKey, subnets, presharedKey = null) {
     `PersistentKeepalive = ${config.wireguard.keepalive}`,
   );
   return lines.join('\n');
+}
+
+/** WG_CLIENT_DNS as a list of IP addresses; anything that is not an IP is dropped. */
+function clientDnsServers() {
+  return String(config.wireguard.clientDns || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => net.isIP(s) !== 0);
 }
 
 /**
@@ -218,8 +230,14 @@ async function createPeer(userId, orgId, name, fullTunnel = true) {
   if (!peer) throw lastInsertErr;
 
   // 4. Sync to the WireGuard hub (best-effort; no-op when serverEnabled=false)
+  // The firewall is installed at hub start; retrying it here must not stop the
+  // peer from being added, or the device can never complete a handshake.
   try {
     await wireguardServerService.ensureBaseFirewall();
+  } catch (err) {
+    logger.warn({ userId, peerId: peer.id, err: err.message }, 'createPeer: hub firewall check failed');
+  }
+  try {
     await wireguardServerService.syncUserPeer({ publicKey, tunnelIp });
     await wireguardServerService.setUserForwardScope({
       peerId: peer.id,
