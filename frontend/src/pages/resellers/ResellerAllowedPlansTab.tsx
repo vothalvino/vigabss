@@ -17,7 +17,6 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellerOptions';
 
 interface PlanRow { id: number; name: string; price: string | number; currency?: string | null; status?: string }
 interface AllowedRow { plan_id: number; name: string; price: string | number }
@@ -37,23 +36,20 @@ async function fetchAllPlans(): Promise<PlanRow[]> {
   }
 }
 
-export function ResellerAllowedPlansTab() {
+export function ResellerAllowedPlansTab({ resellerId }: { resellerId: number }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const canSave = can(user, 'resellers.update');
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const resellersQ = useResellerOptions({ topLevel: true });
   const plansQ = useQuery({
     queryKey: ['reseller-allowed-plans-catalogue'],
     queryFn: fetchAllPlans,
   });
   const allowedQ = useQuery({
     queryKey: ['reseller-allowed-plans', resellerId],
-    enabled: resellerId !== null,
     queryFn: async () => (await apiFetch<{ data: AllowedRow[] }>(`/resellers/${resellerId}/allowed-plans`)).data ?? [],
   });
 
@@ -89,22 +85,9 @@ export function ResellerAllowedPlansTab() {
     <div>
       <h3>{t('resellerPlans.title')}</h3>
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('resellerPlans.help')}</p>
-      <label style={styles.filterLabel}>
-        {t('resellerPlans.reseller')}
-        <select
-          style={styles.filterSelect}
-          value={resellerId ?? ''}
-          onChange={e => { setResellerId(Number(e.target.value) || null); setMsg(null); }}
-        >
-          <option value="">{t('resellerPlans.selectReseller')}</option>
-          {resellersOnly(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-      <ResellerListNotice list={resellersQ.data} />
-
       {msg && <p role={msg.ok ? 'status' : 'alert'} style={{ ...(msg.ok ? styles.msg : styles.msgError), padding: '0.75rem 0', fontStyle: 'normal' }}>{msg.text}</p>}
 
-      {resellerId !== null && (
+      {(
         allowedQ.isLoading || plansQ.isLoading ? <LoadingState /> : allowedQ.isError || plansQ.isError ? (
           <p style={styles.msgError}>{t('resellerPlans.loadError')}</p>
         ) : (

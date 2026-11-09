@@ -28,7 +28,7 @@ import {
   type PuntoLedgerEntry, type PuntoListMeta, type ResellerStatement,
 } from '../punto/puntoApi';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
+import { resellerDetailKey } from './resellerOptions';
 
 const PAGE_SIZE = 12;
 const LINES_PAGE = 50;
@@ -293,19 +293,16 @@ function StatementDetailView({ resellerId, statementId, onChanged }: { resellerI
   );
 }
 
-export function ResellerStatementsTab() {
+export function ResellerStatementsTab({ resellerId }: { resellerId: number }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canManage = can(user, 'reseller_settlements.manage');
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState('');
-  const resellersQ = useResellerOptions({ topLevel: true });
   const listQ = useQuery({
     queryKey: ['reseller-statements', resellerId, page],
-    enabled: resellerId !== null,
     queryFn: () => apiFetch<StatementList>(`/resellers/${resellerId}/settlements?page=${page}&limit=${PAGE_SIZE}`),
     placeholderData: keepPreviousData,
   });
@@ -318,32 +315,20 @@ export function ResellerStatementsTab() {
     void queryClient.invalidateQueries({ queryKey: ['reseller-statements'] });
     void queryClient.invalidateQueries({ queryKey: ['reseller-statement'] });
     void queryClient.invalidateQueries({ queryKey: ['reseller-ledger'] });
+    void queryClient.invalidateQueries({ queryKey: resellerDetailKey(resellerId) });
   }
 
   return (
     <div>
       <h3>{t('resellerStatements.title')}</h3>
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('resellerStatements.help')}</p>
-      <label style={styles.filterLabel}>
-        {t('resellerStatements.reseller')}
-        <select
-          style={styles.filterSelect}
-          value={resellerId ?? ''}
-          onChange={e => { setResellerId(Number(e.target.value) || null); setSelected(null); setPage(1); setNotice(''); }}
-        >
-          <option value="">{t('resellerStatements.selectReseller')}</option>
-          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-      <ResellerListNotice list={resellersQ.data} />
-      {resellersQ.isError && <p style={styles.msgError}>{t('resellerStatements.resellersError')}</p>}
       {notice && <p role="status" style={{ ...styles.msg, textAlign: 'left', padding: 0, color: 'var(--success)' }}>{notice}</p>}
 
-      {resellerId !== null && canManage && listQ.data && (
+      {canManage && listQ.data && (
         <GenerateForm key={resellerId} resellerId={resellerId} defaults={listQ.data.meta?.default_period} onDone={changed} />
       )}
 
-      {resellerId !== null && (listQ.isLoading ? <LoadingState /> : listQ.isError ? (
+      {(listQ.isLoading ? <LoadingState /> : listQ.isError ? (
         <p style={styles.msgError}>{t('resellerStatements.loadError')}</p>
       ) : (
         <div style={styles.tableCard}>
@@ -384,7 +369,7 @@ export function ResellerStatementsTab() {
         </div>
       ))}
 
-      {resellerId !== null && selected !== null && (
+      {selected !== null && (
         <StatementDetailView key={selected} resellerId={resellerId} statementId={selected} onChanged={msg => changed(msg)} />
       )}
     </div>

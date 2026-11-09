@@ -361,6 +361,18 @@ describe('GET /api/v1/resellers', () => {
     expect(Array.isArray(res.body.data)).toBe(true);
   });
 
+  it('search matches part of the name, contact, city, email or phone, with LIKE wildcards taken literally', async () => {
+    db.query.mockClear();
+    const res = await request(app)
+      .get('/api/v1/resellers?search=%20Lupi_%25%20')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('X-Org-Id', '10');
+    expect(res.status).toBe(200);
+    const [sql, params] = db.query.mock.calls.find(([q]) => /FROM resellers r/.test(q) && /LIMIT/.test(q));
+    expect(sql).toMatch(/r\.name LIKE \? OR r\.contact_name LIKE \? OR r\.city LIKE \? OR r\.email LIKE \? OR r\.phone LIKE \?/);
+    expect(params.filter((p) => p === '%Lupi\\_\\%%')).toHaveLength(5);
+  });
+
   it('returns 401 without auth token', async () => {
     const res = await request(app).get('/api/v1/resellers').set('X-Org-Id', '10');
     expect(res.status).toBe(401);

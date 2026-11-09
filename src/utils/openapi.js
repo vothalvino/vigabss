@@ -3372,7 +3372,7 @@ function generateSpec() {
 
       // ---- §19 Resellers ----
       '/resellers': {
-        get: { tags: ['Resellers'], summary: 'List resellers; each row adds effective_credit_limit (credit_limit, or the organization default when null) and balance (what it owes in collected cash)', operationId: 'listResellers', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam(), { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'parent_id', in: 'query', schema: { type: 'integer' } }, { name: 'kind', in: 'query', schema: { type: 'string', enum: ['reseller', 'collector'] } }], responses: r200('Reseller[]') },
+        get: { tags: ['Resellers'], summary: 'List resellers; each row adds effective_credit_limit (credit_limit, or the organization default when null) and balance (what it owes in collected cash)', operationId: 'listResellers', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam(), { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'parent_id', in: 'query', schema: { type: 'integer' } }, { name: 'kind', in: 'query', schema: { type: 'string', enum: ['reseller', 'collector'] } }, { name: 'search', in: 'query', description: 'Partial name, contact name, city, email or phone', schema: { type: 'string', maxLength: 100 } }], responses: r200('Reseller[]') },
         post: { tags: ['Resellers'], summary: 'Create reseller, or a collector (kind collector, migration 011: top level, no commission; collection_fee_type none, fixed or percent with collection_fee_value)', operationId: 'createReseller', security: [{ bearerAuth: [] }], requestBody: jsonBody('Reseller'), responses: r201('Reseller') },
       },
       '/resellers/{id}': {

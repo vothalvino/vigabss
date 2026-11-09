@@ -27,7 +27,6 @@ const LOCAL_STATUS_BADGES = new Set([
   'pages/IntegrationsPage.tsx',
   'pages/OrganizationList.tsx',
   'pages/OutageList.tsx',
-  'pages/ResellerPage.tsx',
   'pages/ScheduledTaskList.tsx',
   'pages/TechnicianDashboard.tsx',
   'pages/TicketDetail.tsx',

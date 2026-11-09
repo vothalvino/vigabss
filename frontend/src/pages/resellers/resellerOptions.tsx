@@ -41,6 +41,9 @@ export interface ResellerOptionList {
   truncated: boolean;
 }
 
+/** One reseller (GET /resellers/:id) for the reseller page's header. */
+export const resellerDetailKey = (id: number) => ['reseller-detail', id] as const;
+
 /** Query keys; ResellerPage invalidates both when a reseller is saved. */
 export const resellerOptionKeys = {
   all: ['resellers-options'] as const,

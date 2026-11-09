@@ -39,6 +39,13 @@ const SUMMARY = {
 };
 const CARRIERS = [{ user_id: 30, first_name: 'Pedro', last_name: 'Ruta', email: 'ruta@example.com', phone: '5550001', status: 'active', resellers: [{ id: 4, name: 'Punto Norte' }], bags_in_hand: { with_carrier: 3, in_transit: 1 } }];
 const RESELLERS = [{ id: 4, name: 'Punto Norte' }, { id: 5, name: 'Punto Sur' }];
+// Every point the assign form may pick: top-level resellers and collectors, not sub-resellers.
+const POINTS = [
+  { id: 4, name: 'Punto Norte', parent_id: null, kind: 'reseller' },
+  { id: 5, name: 'Punto Sur', parent_id: null, kind: 'reseller' },
+  { id: 6, name: 'Cobros Centro', parent_id: null, kind: 'collector' },
+  { id: 7, name: 'Norte Chico', parent_id: 4, kind: 'reseller' },
+];
 
 type Handler = (path: string, init?: RequestInit) => unknown;
 let override: Handler | null = null;
@@ -81,6 +88,8 @@ function respond(path: string, init?: RequestInit): unknown {
   if (path === '/carriers/30/resellers' && method === 'PUT') return { data: [] };
   if (path === '/carriers/assignable-resellers') return { data: RESELLERS, meta: { total: RESELLERS.length, truncated: false } };
   if (path === '/resellers?parent_id=null&page=1&limit=100') return { data: RESELLERS };
+  if (path === '/resellers?page=1&limit=100') return { data: POINTS, meta: { total: POINTS.length } };
+  if (path === '/cash-bags/assign' && method === 'POST') return { data: { reseller_id: 5, reseller_name: 'Punto Sur', bags: JSON.parse(String(init?.body)).serials.map((serial: string) => ({ serial, status: 'at_reseller' })) } };
   if (path.startsWith('/resellers/4/bags?')) return { data: [RECEIVED, READY], meta: { total: 2, page: 1, limit: 25 }, summary: { variance: '-10.00' } };
   if (path.startsWith('/resellers/4/ledger?')) {
     return {
@@ -291,33 +300,48 @@ describe('board', () => {
     expect(calls('POST', '/cash-bags')).toHaveLength(0);
   });
 
-  it('hands bags in stock to a carrier for one of its points and names the ones refused', async () => {
+  it('assigns bags straight to a point, or with a carrier that serves it, and names the ones refused', async () => {
     override = (path, init) => {
-      if (path === '/cash-bags/handover' && init?.method === 'POST' && JSON.parse(String(init.body)).serials.includes('A-0001')) {
+      if ((path === '/cash-bags/assign' || path === '/cash-bags/handover') && init?.method === 'POST' && JSON.parse(String(init.body)).serials.includes('A-0001')) {
         throw new ApiRequestError('Not in stock', 422, { error: { code: 'BAGS_NOT_IN_STOCK', message: 'Not in stock', details: { failed: ['A-0001'] } } });
       }
       return undefined;
     };
     const user = userEvent.setup();
     renderPage(<CashBagsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Hand over to a carrier' }));
-    const form = screen.getByRole('form', { name: 'Hand bags to a carrier' });
-    await within(form).findByRole('option', { name: 'Pedro Ruta' });
-    // The point picker lists only the carrier's points, once a carrier is chosen.
-    expect(within(form).getByLabelText('For the point')).toBeDisabled();
-    await user.selectOptions(within(form).getByLabelText('Carrier'), '30');
+    await user.click(await screen.findByRole('button', { name: 'Assign bags' }));
+    const form = screen.getByRole('form', { name: 'Assign bags to a point' });
+    const point = within(form).getByLabelText('Point (reseller or collector)');
+    await within(form).findByRole('option', { name: 'Punto Sur' });
+    // Top-level resellers and collectors; a sub-reseller seals on its parent's bags.
+    expect(within(point).getAllByRole('option').map(o => o.textContent)).toEqual(['— Choose a point —', 'Punto Norte', 'Punto Sur', 'Cobros Centro (collector)']);
     await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004, A-0001');
-    await user.click(within(form).getByRole('button', { name: 'Hand over' }));
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
     expect(within(form).getByRole('alert')).toHaveTextContent('Choose the point the bags are for.');
-    expect(within(within(form).getByLabelText('For the point')).getAllByRole('option').map(o => o.textContent)).toEqual(['— Choose a point —', 'Punto Norte']);
-    await user.selectOptions(within(form).getByLabelText('For the point'), '4');
-    await user.click(within(form).getByRole('button', { name: 'Hand over' }));
+
+    // Directly (the default): no carrier needed.
+    await user.selectOptions(point, '5');
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
     expect(await within(form).findByRole('alert')).toHaveTextContent('These bags are not in stock: A-0001.');
     await user.clear(within(form).getByLabelText(/Bag numbers/));
     await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004');
-    await user.click(within(form).getByRole('button', { name: 'Hand over' }));
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
+    expect(await within(form).findByRole('status')).toHaveTextContent('1 bag assigned to Punto Sur.');
+    expect(bodyOf(calls('POST', '/cash-bags/assign')[1])).toEqual({ reseller_id: 5, serials: ['A-0004'] });
+
+    // With a carrier: only the ones that serve the point.
+    await user.click(within(form).getByRole('radio', { name: 'Send with a carrier' }));
+    expect(await within(form).findByText(/No carrier serves this point yet/)).toBeInTheDocument();
+    expect(within(form).getByLabelText('Carrier')).toBeDisabled();
+    await user.selectOptions(point, '4');
+    expect(within(within(form).getByLabelText('Carrier')).getAllByRole('option').map(o => o.textContent)).toEqual(['— Choose a carrier —', 'Pedro Ruta']);
+    await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004');
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
+    expect(within(form).getByRole('alert')).toHaveTextContent('Choose the carrier that takes them.');
+    await user.selectOptions(within(form).getByLabelText('Carrier'), '30');
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
     expect(await within(form).findByRole('status')).toHaveTextContent('1 bag handed to Pedro Ruta for Punto Norte.');
-    expect(bodyOf(calls('POST', '/cash-bags/handover')[1])).toEqual({ carrier_user_id: 30, reseller_id: 4, serials: ['A-0004'] });
+    expect(bodyOf(calls('POST', '/cash-bags/handover')[0])).toEqual({ carrier_user_id: 30, reseller_id: 4, serials: ['A-0004'] });
   });
 
   it('offers only viewing with cash_bags.view alone', async () => {
@@ -326,7 +350,7 @@ describe('board', () => {
     expect(await screen.findByText('A-0001')).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Carriers' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Register bags' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hand over to a carrier' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign bags' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Receive bag A-0001' })).not.toBeInTheDocument();
     expect(calls('GET', '/carriers')).toHaveLength(0);
   });
@@ -416,20 +440,36 @@ describe('carriers', () => {
 describe('reseller page tabs', () => {
   it('Bolsas lists a reseller bags with the total difference and opens a history', async () => {
     const user = userEvent.setup();
-    renderPage(<ResellerBagsTab />);
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    renderPage(<ResellerBagsTab resellerId={4} resellerName="Punto Norte" />);
     const total = await screen.findByRole('region', { name: 'Total difference of received bags' });
     expect(total).toHaveTextContent('$10.00 short');
     await user.click(screen.getByRole('button', { name: 'History of bag A-0003' }));
     expect(await within(await screen.findByRole('dialog')).findByText(/Lupita/)).toBeInTheDocument();
   });
 
-  it('Movimientos names the bag of a seal and shows what bags hold, apart from what the reseller owes', async () => {
+  it('Bags assigns bags in stock to this point without picking it again', async () => {
     const user = userEvent.setup();
-    renderPage(<ResellerLedgerTab />);
-    await screen.findByRole('option', { name: 'Punto Norte' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '4');
+    renderPage(<ResellerBagsTab resellerId={4} resellerName="Punto Norte" />);
+    await user.click(await screen.findByRole('button', { name: 'Assign bags' }));
+    const form = screen.getByRole('form', { name: 'Assign bags to Punto Norte' });
+    expect(within(form).queryByLabelText('Point (reseller or collector)')).not.toBeInTheDocument();
+    await user.type(within(form).getByLabelText(/Bag numbers/), 'a-0004');
+    await user.click(within(form).getByRole('button', { name: 'Assign bags' }));
+    expect(await within(form).findByRole('status')).toHaveTextContent('1 bag assigned to Punto Norte.');
+    expect(bodyOf(calls('POST', '/cash-bags/assign')[0])).toEqual({ reseller_id: 4, serials: ['A-0004'] });
+    // No reseller list is read: the point is this page's.
+    expect(mocks.apiFetch.mock.calls.some(([p]) => String(p).startsWith('/resellers?'))).toBe(false);
+  });
+
+  it('Bags offers no Assign bags without cash_bags.manage', async () => {
+    mocks.user = { id: 2, role: 'billing', organization_currency: 'MXN', permissions: ['cash_bags.view'] };
+    renderPage(<ResellerBagsTab resellerId={4} resellerName="Punto Norte" />);
+    await screen.findByText('A-0003');
+    expect(screen.queryByRole('button', { name: 'Assign bags' })).not.toBeInTheDocument();
+  });
+
+  it('Movimientos names the bag of a seal and shows what bags hold, apart from what the reseller owes', async () => {
+    renderPage(<ResellerLedgerTab resellerId={4} />);
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(within(summary).getByText('Cash to hand in').nextElementSibling).toHaveTextContent('$0.00');
     expect(within(summary).getByText('In bags awaiting pickup or on their way').nextElementSibling).toHaveTextContent('$1,300.00');

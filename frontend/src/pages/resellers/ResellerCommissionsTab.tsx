@@ -25,7 +25,6 @@ import { LoadingState } from '@/components/FetchStates';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 const DATETIME: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -63,19 +62,16 @@ const STATUS_STYLE: Record<string, { background: string; color: string }> = {
 
 const rate = (value: number | string | null) => `${Math.round(Number(value ?? 0) * 100) / 100}%`;
 
-export function ResellerCommissionsTab() {
+export function ResellerCommissionsTab({ resellerId }: { resellerId: number }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const canSeeInvoices = can(user, 'invoices.view');
   const orgCurrency = user?.organization_currency || 'MXN';
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [status, setStatus] = useState<StatusFilter>('');
   const [page, setPage] = useState(1);
 
-  const resellersQ = useResellerOptions({ topLevel: true });
   const listQ = useQuery({
     queryKey: ['reseller-commissions', resellerId, status, page],
-    enabled: resellerId !== null,
     queryFn: () => apiFetch<CommissionPage>(
       `/resellers/${resellerId}/commissions?${status ? `status=${status}&` : ''}page=${page}&limit=${PAGE_SIZE}`,
     ),
@@ -93,17 +89,6 @@ export function ResellerCommissionsTab() {
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('resellerCommissions.help')}</p>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label style={styles.filterLabel}>
-          {t('resellerCommissions.reseller')}
-          <select
-            style={styles.filterSelect}
-            value={resellerId ?? ''}
-            onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); }}
-          >
-            <option value="">{t('resellerCommissions.selectReseller')}</option>
-            {resellersOnly(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-        </label>
-        <label style={styles.filterLabel}>
           {t('resellerCommissions.status')}
           <select
             style={styles.filterSelect}
@@ -116,10 +101,8 @@ export function ResellerCommissionsTab() {
           </select>
         </label>
       </div>
-      <ResellerListNotice list={resellersQ.data} />
-      {resellersQ.isError && <p style={styles.msgError}>{t('resellerCommissions.resellersError')}</p>}
 
-      {resellerId !== null && (listQ.isLoading ? <LoadingState /> : listQ.isError ? (
+      {(listQ.isLoading ? <LoadingState /> : listQ.isError ? (
         <p style={styles.msgError}>{t('resellerCommissions.loadError')}</p>
       ) : (
         <>

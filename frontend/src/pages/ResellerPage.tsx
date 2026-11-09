@@ -2,30 +2,38 @@
 // VigaBSS 5.0 — Reseller Management Page (Section 19)
 // =============================================================================
 // A reseller is a commission agent ("Punto de Venta") who signs up clients as
-// leads in the reseller app (/punto). Tabs:
-//   1. Resellers      — hierarchy list, create and edit
-//   2. Allowed plans  — the plans a top-level reseller may offer
-//   3. Movements      — the cash a reseller collected and handed in, its cash
-//                       limit, and recording a hand-in (reseller_ledger.*)
-//   4. Bags           — a reseller's cash bags, their history and the count
-//                       differences (cash_bags.view)
-//   5. Commissions    — what a top-level reseller earned on its clients' paid
-//                       invoices: base, rate, amount, earned or reversed
-//                       (read only, reseller_commissions.view; phase 4)
-//   6. Portal         — reseller dashboard numbers
-//   7. Staff access   — reseller logins and bindings
+// leads in the reseller app (/punto); a collector (migration 011) only takes
+// payments. Two screens:
+//   /resellers      — every reseller and collector, searchable by name,
+//                     contact, city, email or phone, filtered by type and
+//                     status, with its cash against its limit; create, edit,
+//                     suspend and delete.
+//   /resellers/:id  — one point: a header with its type, status and money,
+//                     and the tabs that apply to it (?tab= keeps the choice):
+//     Summary       contact details, its numbers and its sub-resellers
+//     Movements     its cash account with the ISP (reseller_ledger.view)
+//     Bags          its cash bags; "Assign bags" (cash_bags.view/.manage)
+//     Commissions   what it earned (reseller_commissions.view; resellers)
+//     Statements    its periodic statements (reseller_settlements.view)
+//     Allowed plans the plans it may offer (resellers only)
+//     Staff access  its logins and bindings
+// A sub-reseller collects and earns on its top-level reseller's account, so
+// its page shows Summary and Staff access and links the parent for the rest.
 // Plan price overrides, network resources (IP pools, bandwidth quota, OLT
 // ports), billing entities and branding are not part of the commission-agent
 // model and are not shown; their API routes are unchanged.
 // =============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { formatMoney } from '@/lib/money';
+import { LoadingState } from '@/components/FetchStates';
+import { styles } from './crudStyles';
 import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 import { ResellerFormModal } from './resellers/ResellerFormModal';
 import { ResellerAllowedPlansTab } from './resellers/ResellerAllowedPlansTab';
@@ -33,13 +41,11 @@ import { ResellerLedgerTab } from './resellers/ResellerLedgerTab';
 import { ResellerBagsTab } from './resellers/ResellerBagsTab';
 import { ResellerCommissionsTab } from './resellers/ResellerCommissionsTab';
 import { ResellerStatementsTab } from './resellers/ResellerStatementsTab';
-import { ResellerListNotice, resellerOptionKeys, useResellerOptions } from './resellers/resellerOptions';
+import { resellerDetailKey, resellerOptionKeys } from './resellers/resellerOptions';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type Tab = 'resellers' | 'allowedPlans' | 'ledger' | 'bags' | 'commissions' | 'statements' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
@@ -48,7 +54,7 @@ interface Reseller {
   phone: string | null;
   contact_name: string | null;
   parent_id: number | null;
-  parent_name: string | null;
+  parent_name?: string | null;
   level: number;
   status: string;
   commission_rate: number | string;
@@ -56,6 +62,8 @@ interface Reseller {
   credit_limit?: number | string | null;
   effective_credit_limit?: number | string | null;
   balance?: number | string | null;
+  in_bags?: number | string | null;
+  cash_on_hand?: number | string | null;
   address?: string | null;
   city?: string | null;
   latitude?: number | string | null;
@@ -64,16 +72,6 @@ interface Reseller {
   kind?: 'reseller' | 'collector';
   collection_fee_type?: 'none' | 'fixed' | 'percent';
   collection_fee_value?: number | string;
-}
-
-/** A collector's fee per payment, in the list's commission column. */
-function CollectorFee({ row }: { row: Reseller }) {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const value = Number(row.collection_fee_value ?? 0);
-  if (row.collection_fee_type === 'fixed' && value > 0) return <>{t('resellerAdmin.feeFixed', { amount: formatMoney(value, user?.organization_currency || 'MXN') })}</>;
-  if (row.collection_fee_type === 'percent' && value > 0) return <>{t('resellerAdmin.feePercent', { rate: value })}</>;
-  return <>{t('resellerAdmin.feeNone')}</>;
 }
 
 interface ResellerDashboard {
@@ -87,154 +85,249 @@ interface ResellerDashboard {
 interface ListMeta { total: number; page: number; limit: number }
 interface ApiList<T> { data: T[]; meta: ListMeta }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+type DetailTab = 'summary' | 'ledger' | 'bags' | 'commissions' | 'statements' | 'allowedPlans' | 'staffAccess';
 
-function StatusBadge({ value }: { value: string }) {
-  const color: Record<string, string> = {
-    active: '#2ecc71', paid: '#2ecc71', approved: '#27ae60',
-    suspended: '#e67e22', inactive: '#95a5a6',
-    pending: '#f39c12', cancelled: '#e74c3c',
-  };
-  return (
-    <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-      fontSize: 11, fontWeight: 600, color: '#fff',
-      background: color[value] ?? '#7f8c8d',
-    }}>
-      {value}
-    </span>
-  );
-}
-
-function ActionButton({ label, onClick, disabled, variant = 'primary' }:
-  { label: string; onClick: () => void; disabled?: boolean; variant?: 'primary' | 'danger' | 'success' }) {
-  const bg = variant === 'danger' ? '#e74c3c' : variant === 'success' ? '#2ecc71' : '#3498db';
-  return (
-    <button onClick={onClick} disabled={disabled} style={{
-      padding: '4px 10px', fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer',
-      background: disabled ? '#ccc' : bg, color: '#fff', border: 'none', borderRadius: 4,
-    }}>
-      {label}
-    </button>
-  );
-}
+const PAGE_SIZE = 25;
+const isCollector = (r: Pick<Reseller, 'kind'>) => r.kind === 'collector';
+const isTopLevel = (r: Pick<Reseller, 'parent_id'>) => r.parent_id === null || r.parent_id === undefined;
 
 // ---------------------------------------------------------------------------
-// Tab: Resellers List
+// Small pieces
 // ---------------------------------------------------------------------------
 
-function ResellersTab() {
+const STATUS_COLORS: Record<string, CSSProperties> = {
+  active: { background: 'var(--success-soft)', color: 'var(--success)' },
+  suspended: { background: 'var(--warning-soft, #fff4e5)', color: 'var(--warning)' },
+  inactive: { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+};
+const chip: CSSProperties = { display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' };
+
+function StatusChip({ value }: { value: string }) {
   const { t } = useTranslation();
-  // Write actions show only with the permission their route requires: a
-  // reseller user holds resellers.view alone, and saw Suspend/Delete buttons
-  // that could only answer 403.
+  return <span style={{ ...chip, ...(STATUS_COLORS[value] ?? STATUS_COLORS.inactive) }}>{t(`resellerForm.statuses.${value}`, { defaultValue: value })}</span>;
+}
+
+function KindChip({ row }: { row: Reseller }) {
+  const { t } = useTranslation();
+  const label = isCollector(row) ? t('resellerAdmin.levelCollector') : isTopLevel(row) ? t('resellerAdmin.levelMaster') : t('resellerAdmin.levelSub');
+  const tone = isCollector(row)
+    ? { background: 'var(--accent-soft, #eef4ff)', color: 'var(--accent)' }
+    : { background: 'var(--bg-subtle)', color: 'var(--text-primary)' };
+  return <span style={{ ...chip, ...tone }}>{label}</span>;
+}
+
+/** A collector's fee per payment, or a reseller's commission rate. */
+function EarningText({ row }: { row: Reseller }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
+  if (!isCollector(row)) return <>{t('resellerAdmin.commission', { rate: Number(row.commission_rate) })}</>;
+  const value = Number(row.collection_fee_value ?? 0);
+  if (row.collection_fee_type === 'fixed' && value > 0) return <>{t('resellerAdmin.feeFixed', { amount: formatMoney(value, user?.organization_currency || 'MXN') })}</>;
+  if (row.collection_fee_type === 'percent' && value > 0) return <>{t('resellerAdmin.feePercent', { rate: value })}</>;
+  return <>{t('resellerAdmin.feeNone')}</>;
+}
+
+/** Cash on hand against the limit, as text and a bar (top-level points only). */
+function CashMeter({ row, compact = false }: { row: Reseller; compact?: boolean }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const currency = user?.organization_currency || 'MXN';
+  if (!isTopLevel(row) || row.cash_on_hand === undefined || row.cash_on_hand === null) return <>—</>;
+  const cash = Number(row.cash_on_hand);
+  const limit = Number(row.effective_credit_limit ?? 0);
+  const ratio = limit > 0 ? Math.min(1, Math.max(0, cash / limit)) : cash > 0 ? 1 : 0;
+  const color = ratio >= 1 ? 'var(--danger)' : ratio >= 0.8 ? 'var(--warning)' : 'var(--success)';
+  return (
+    <div style={{ minWidth: compact ? 140 : 220 }}>
+      <div style={{ fontSize: compact ? 13 : 15 }}>
+        {t('resellerAdmin.cashOfLimit', { cash: formatMoney(cash, currency), limit: formatMoney(limit, currency) })}
+      </div>
+      <div role="presentation" style={{ height: 6, background: 'var(--bg-subtle)', borderRadius: 3, marginTop: 4, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.round(ratio * 100)}%`, height: '100%', background: color }} />
+      </div>
+    </div>
+  );
+}
+
+/** Suspend/reactivate and delete, shared by the list and the detail page. */
+function useResellerActions(onDone: (msg: string) => void, onError: (msg: string) => void) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const refresh = (id: number) => {
+    void qc.invalidateQueries({ queryKey: resellerOptionKeys.all });
+    void qc.invalidateQueries({ queryKey: resellerOptionKeys.topLevel });
+    void qc.invalidateQueries({ queryKey: resellerDetailKey(id) });
+  };
+  return {
+    refresh,
+    async suspend(r: Reseller) {
+      try {
+        const result = await apiFetch<{ data: { status: string } }>(`/resellers/${r.id}/suspend`, { method: 'POST' });
+        onDone(t('resellerAdmin.statusChanged', { name: r.name, status: t(`resellerForm.statuses.${result.data.status}`, { defaultValue: result.data.status }) }));
+        refresh(r.id);
+      } catch {
+        onError(t('reseller.errorSuspend'));
+      }
+    },
+    async remove(r: Reseller): Promise<boolean> {
+      if (!window.confirm(t('resellerAdmin.confirmDeleteNamed', { name: r.name }))) return false;
+      try {
+        await apiFetch(`/resellers/${r.id}`, { method: 'DELETE' });
+        onDone(t('reseller.deleted'));
+        refresh(r.id);
+        return true;
+      } catch {
+        onError(t('reseller.errorDelete'));
+        return false;
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// /resellers — the list
+// ---------------------------------------------------------------------------
+
+function ResellerList() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const canSuspend = can(user, 'resellers.suspend');
   const canDelete = can(user, 'resellers.delete');
   const canCreate = can(user, 'resellers.create');
   const canEdit = can(user, 'resellers.update');
   const hasActions = canSuspend || canDelete || canEdit;
   const [form, setForm] = useState<{ mode: 'create' } | { mode: 'edit'; reseller: Reseller } | null>(null);
-  const [resellers, setResellers] = useState<Reseller[]>([]);
+  const [rows, setRows] = useState<Reseller[]>([]);
   const [meta, setMeta] = useState<ListMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
-  const qc = useQueryClient();
-  // The reseller pickers of the other tabs are cached; refresh them with the list.
-  const refreshPickers = () => {
-    void qc.invalidateQueries({ queryKey: resellerOptionKeys.all });
-    void qc.invalidateQueries({ queryKey: resellerOptionKeys.topLevel });
-  };
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [term, setTerm] = useState('');
+  const [kind, setKind] = useState('');
+  const [status, setStatus] = useState('');
+  const actions = useResellerActions(m => { setMsg(m); setError(null); void load(); }, setError);
+
+  // Search as the user types, a moment after the last key.
+  useEffect(() => {
+    const id = window.setTimeout(() => { setTerm(search.trim()); setPage(1); }, 300);
+    return () => window.clearTimeout(id);
+  }, [search]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await apiFetch<ApiList<Reseller>>(`/resellers?page=${page}&limit=25`);
-      setResellers(res.data); setMeta(res.meta);
+      const q = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (term) q.set('search', term);
+      if (kind) q.set('kind', kind);
+      if (status) q.set('status', status);
+      const res = await apiFetch<ApiList<Reseller>>(`/resellers?${q.toString()}`);
+      setRows(res.data); setMeta(res.meta);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
     } finally { setLoading(false); }
-  }, [page, t]);
+  }, [page, term, kind, status, t]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  async function handleSuspend(r: Reseller) {
-    try {
-      const result = await apiFetch<{ data: { status: string } }>(`/resellers/${r.id}/suspend`, { method: 'POST' });
-      setMsg(t('resellerAdmin.statusChanged', { name: r.name, status: result.data.status }));
-      load();
-      refreshPickers();
-    } catch {
-      setError(t('reseller.errorSuspend'));
-    }
-  }
-
-  async function handleDelete(r: Reseller) {
-    if (!window.confirm(t('reseller.confirmDelete'))) return;
-    try {
-      await apiFetch(`/resellers/${r.id}`, { method: 'DELETE' });
-      setMsg(t('reseller.deleted'));
-      load();
-      refreshPickers();
-    } catch {
-      setError(t('reseller.errorDelete'));
-    }
-  }
+  const pages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
+  const filtered = Boolean(term || kind || status);
+  const cols = 5 + (hasActions ? 1 : 0);
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <h3>{t('reseller.resellerList')}</h3>
-        {canCreate && <ActionButton label={t('resellerAdmin.newReseller')} onClick={() => setForm({ mode: 'create' })} />}
+    <div style={styles.container}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <h1 style={styles.title}>{t('reseller.pageTitle')}</h1>
+        {canCreate && <button type="button" style={styles.btnPrimary} onClick={() => setForm({ mode: 'create' })}>{t('resellerAdmin.newReseller')}</button>}
       </div>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
-      {msg && <p style={{ color: '#2ecc71' }}>{msg}</p>}
-      {loading ? <p>{t('reseller.loading')}</p> : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <p style={{ ...styles.msg, textAlign: 'left', padding: '4px 0 12px' }}>{t('resellerAdmin.listHelp')}</p>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+        <label style={styles.filterLabel}>
+          {t('resellerAdmin.search')}
+          <input type="search" style={{ ...styles.input, minWidth: 240 }} value={search} placeholder={t('resellerAdmin.searchPlaceholder')} onChange={e => setSearch(e.target.value)} />
+        </label>
+        <label style={styles.filterLabel}>
+          {t('resellerAdmin.type')}
+          <select style={styles.filterSelect} value={kind} onChange={e => { setKind(e.target.value); setPage(1); }}>
+            <option value="">{t('resellerAdmin.typeAll')}</option>
+            <option value="reseller">{t('resellerAdmin.typeReseller')}</option>
+            <option value="collector">{t('resellerAdmin.typeCollector')}</option>
+          </select>
+        </label>
+        <label style={styles.filterLabel}>
+          {t('resellerForm.status')}
+          <select style={styles.filterSelect} value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
+            <option value="">{t('resellerAdmin.statusAll')}</option>
+            {['active', 'suspended', 'inactive'].map(s => <option key={s} value={s}>{t(`resellerForm.statuses.${s}`)}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {error && <p role="alert" style={styles.msgError}>{error}</p>}
+      {msg && <p role="status" style={{ color: 'var(--success)', margin: '0 0 8px' }}>{msg}</p>}
+
+      <div style={{ ...styles.tableCard, overflowX: 'auto' }}>
+        <table style={styles.table}>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('resellerAdmin.id')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.name')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.level')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.parent')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.commissionRate')}</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.status')}</th>
-              {hasActions && <th style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('reseller.actions')}</th>}
+            <tr>
+              <th style={styles.th}>{t('reseller.name')}</th>
+              <th style={styles.th}>{t('resellerAdmin.type')}</th>
+              <th style={styles.th}>{t('resellerForm.status')}</th>
+              <th style={styles.th}>{t('resellerAdmin.cashColumn')}</th>
+              <th style={styles.th}>{t('resellerAdmin.earnsColumn')}</th>
+              {hasActions && <th style={styles.th}>{t('reseller.actions')}</th>}
             </tr>
           </thead>
           <tbody>
-            {resellers.length === 0 && (
-              <tr><td colSpan={hasActions ? 7 : 6} style={{ padding: 8, textAlign: 'center', color: '#999' }}>{t('reseller.noResellers')}</td></tr>
+            {loading && rows.length === 0 && <tr><td colSpan={cols} style={styles.emptyCell}>{t('reseller.loading')}</td></tr>}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={cols} style={styles.emptyCell}>{filtered ? t('resellerAdmin.noMatches') : t('reseller.noResellers')}</td></tr>
             )}
-            {resellers.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.id}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.name}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.kind === 'collector' ? t('resellerAdmin.levelCollector') : r.level === 1 ? t('resellerAdmin.levelMaster') : t('resellerAdmin.levelSub')}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.parent_name ?? '—'}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.kind === 'collector' ? <CollectorFee row={r} /> : `${Number(r.commission_rate)}%`}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={r.status} /></td>
+            {rows.map(r => (
+              <tr
+                key={r.id}
+                style={{ ...styles.tr, cursor: 'pointer' }}
+                onClick={e => { if (!(e.target as HTMLElement).closest('a,button')) navigate(`/resellers/${r.id}`); }}
+              >
+                <td style={styles.td}>
+                  <Link to={`/resellers/${r.id}`} style={{ fontWeight: 600 }}>{r.name}</Link>
+                  {!isTopLevel(r) && r.parent_name && (
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('resellerAdmin.underParent', { name: r.parent_name })}</div>
+                  )}
+                  {(r.contact_name || r.city) && (
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{[r.contact_name, r.city].filter(Boolean).join(' · ')}</div>
+                  )}
+                </td>
+                <td style={styles.td}><KindChip row={r} /></td>
+                <td style={styles.td}><StatusChip value={r.status} /></td>
+                <td style={styles.td}><CashMeter row={r} compact /></td>
+                <td style={styles.td}><EarningText row={r} /></td>
                 {hasActions && (
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd', display: 'flex', gap: 4 }}>
-                    {canEdit && <ActionButton label={t('resellerAdmin.edit')} onClick={() => setForm({ mode: 'edit', reseller: r })} />}
-                    {canSuspend && <ActionButton label={r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')} onClick={() => handleSuspend(r)} variant={r.status === 'suspended' ? 'success' : 'danger'} />}
-                    {canDelete && <ActionButton label={t('reseller.delete')} onClick={() => handleDelete(r)} variant="danger" />}
+                  <td style={styles.td}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {canEdit && <button type="button" style={styles.actionBtn} onClick={() => setForm({ mode: 'edit', reseller: r })}>{t('resellerAdmin.edit')}</button>}
+                      {canSuspend && (
+                        <button type="button" style={styles.actionBtn} onClick={() => void actions.suspend(r)}>
+                          {r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')}
+                        </button>
+                      )}
+                      {canDelete && <button type="button" style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => void actions.remove(r)}>{t('reseller.delete')}</button>}
+                    </div>
                   </td>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-      {meta && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ActionButton label="<" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} />
-          <span>{t('reseller.page')} {page} / {Math.ceil(meta.total / meta.limit)}</span>
-          <ActionButton label=">" onClick={() => setPage(p => p + 1)} disabled={page * meta.limit >= meta.total} />
+      </div>
+      {meta && pages > 1 && (
+        <div style={styles.pagination}>
+          <button type="button" style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('punto.common.previous')}</button>
+          <span style={styles.pageInfo}>{t('punto.common.pageOf', { page, pages })}</span>
+          <button type="button" style={styles.pageBtn} disabled={page >= pages} onClick={() => setPage(p => p + 1)}>{t('punto.common.next')}</button>
         </div>
       )}
       {form && (
@@ -242,7 +335,11 @@ function ResellersTab() {
           mode={form.mode}
           initial={form.mode === 'edit' ? form.reseller : undefined}
           onClose={() => setForm(null)}
-          onSaved={() => { setMsg(t('resellerAdmin.saved')); load(); refreshPickers(); }}
+          onSaved={() => {
+            setMsg(t('resellerAdmin.saved'));
+            void load();
+            actions.refresh(form.mode === 'edit' ? form.reseller.id : 0);
+          }}
         />
       )}
     </div>
@@ -250,63 +347,201 @@ function ResellersTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Reseller Portal (dashboard + client list)
+// /resellers/:id — one point
 // ---------------------------------------------------------------------------
 
-function PortalTab() {
+function SummaryTab({ reseller }: { reseller: Reseller }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const currency = user?.organization_currency || 'MXN';
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [dashboard, setDashboard] = useState<ResellerDashboard | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const resellersQ = useResellerOptions();
-  const resellers = resellersQ.data?.rows ?? [];
-  const listError = resellersQ.isError ? t('reseller.errorLoading') : null;
-
-  const load = useCallback(async () => {
-    if (!selectedId) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await apiFetch<{ data: ResellerDashboard }>(`/reseller-portal/${selectedId}/dashboard`);
-      setDashboard(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reseller.errorLoading'));
-    } finally { setLoading(false); }
-  }, [selectedId, t]);
-
-  useEffect(() => { load(); }, [load]);
+  const showNumbers = !isCollector(reseller);
+  const dashboardQ = useQuery({
+    queryKey: ['reseller-dashboard', reseller.id],
+    enabled: showNumbers,
+    queryFn: async () => (await apiFetch<{ data: ResellerDashboard }>(`/reseller-portal/${reseller.id}/dashboard`)).data,
+    retry: false,
+  });
+  const subsQ = useQuery({
+    queryKey: ['reseller-subs', reseller.id],
+    enabled: !isCollector(reseller) && isTopLevel(reseller),
+    queryFn: async () => (await apiFetch<ApiList<Reseller>>(`/resellers?parent_id=${reseller.id}&limit=100`)).data ?? [],
+  });
+  const d = dashboardQ.data;
+  const details: [string, string | null | undefined][] = [
+    [t('resellerForm.contactName'), reseller.contact_name],
+    [t('resellerForm.phone'), reseller.phone],
+    [t('resellerForm.email'), reseller.email],
+    [t('resellerForm.address'), [reseller.address, reseller.city].filter(Boolean).join(', ')],
+    [t('resellerForm.notes'), reseller.notes],
+  ];
 
   return (
-    <div>
-      <h3>{t('reseller.portal')}</h3>
-      <label htmlFor="portal-reseller">{t('reseller.selectReseller')}: </label>
-      <select id="portal-reseller" value={selectedId ?? ''} onChange={e => setSelectedId(parseInt(e.target.value, 10) || null)} style={{ padding: '4px 8px', marginBottom: 12 }}>
-        <option value="">— {t('reseller.select')} —</option>
-        {resellers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
-      <ResellerListNotice list={resellersQ.data} />
-      {(error ?? listError) && <p style={{ color: '#e74c3c' }}>{error ?? listError}</p>}
-      {loading && <p>{t('reseller.loading')}</p>}
-      {selectedId && !loading && dashboard && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {showNumbers && d && (
+        <section aria-label={t('resellerAdmin.numbers')} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           {[
-            { label: t('reseller.subscribers'), value: dashboard.subscriber_count },
-            { label: t('reseller.revenue'), value: formatMoney(dashboard.total_revenue, currency) },
-            { label: t('reseller.openTickets'), value: dashboard.open_tickets },
-            { label: t('reseller.pendingCommission'), value: formatMoney(dashboard.pending_commission, currency) },
-          ].map((card) => (
-            <div key={card.label} style={{
-              background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 8,
-              padding: 16, textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#2c3e50' }}>{card.value}</div>
-              <div style={{ fontSize: 12, color: '#7f8c8d', marginTop: 4 }}>{card.label}</div>
+            { label: t('reseller.subscribers'), value: d.subscriber_count },
+            { label: t('reseller.revenue'), value: formatMoney(d.total_revenue, currency) },
+            { label: t('reseller.openTickets'), value: d.open_tickets },
+            { label: t('reseller.pendingCommission'), value: formatMoney(d.pending_commission, currency) },
+          ].map(card => (
+            <div key={card.label} style={{ ...styles.tableCard, padding: '0.75rem 1rem' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{card.label}</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{card.value}</div>
             </div>
           ))}
+        </section>
+      )}
+      <section aria-label={t('resellerAdmin.contact')} style={{ ...styles.tableCard, padding: '0.75rem 1rem' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: '1rem' }}>{t('resellerAdmin.contact')}</h3>
+        <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 16px', margin: 0 }}>
+          {details.map(([label, value]) => (
+            <div key={label} style={{ display: 'contents' }}>
+              <dt style={{ color: 'var(--text-secondary)' }}>{label}</dt>
+              <dd style={{ margin: 0 }}>{value || '—'}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      {subsQ.data && subsQ.data.length > 0 && (
+        <section aria-label={t('resellerAdmin.subResellers')} style={{ ...styles.tableCard, padding: '0.75rem 1rem' }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: '1rem' }}>{t('resellerAdmin.subResellers')}</h3>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {subsQ.data.map(s => (
+              <li key={s.id}><Link to={`/resellers/${s.id}`}>{s.name}</Link> <StatusChip value={s.status} /></li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+const DETAIL_TABS: { key: DetailTab; labelKey: string; permission?: string; topLevelOnly?: boolean; resellerOnly?: boolean }[] = [
+  { key: 'summary', labelKey: 'resellerAdmin.tabSummary' },
+  { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view', topLevelOnly: true },
+  { key: 'bags', labelKey: 'cashBags.resellerTab.tab', permission: 'cash_bags.view', topLevelOnly: true },
+  { key: 'commissions', labelKey: 'reseller.tabCommissions', permission: 'reseller_commissions.view', topLevelOnly: true, resellerOnly: true },
+  { key: 'statements', labelKey: 'resellerStatements.tab', permission: 'reseller_settlements.view', topLevelOnly: true },
+  { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans', topLevelOnly: true, resellerOnly: true },
+  { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
+];
+
+function ResellerDetail({ id }: { id: number }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const [editing, setEditing] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const resellerQ = useQuery({
+    queryKey: resellerDetailKey(id),
+    queryFn: async () => (await apiFetch<{ data: Reseller }>(`/resellers/${id}`)).data,
+    retry: false,
+  });
+  const actions = useResellerActions(m => { setMsg(m); setError(null); }, setError);
+  const r = resellerQ.data;
+
+  if (resellerQ.isLoading) return <div style={styles.container}><LoadingState /></div>;
+  if (resellerQ.isError || !r) {
+    return (
+      <div style={styles.container}>
+        <p><Link to="/resellers">← {t('resellerAdmin.backToList')}</Link></p>
+        <p role="alert" style={styles.msgError}>{t('resellerAdmin.notFound')}</p>
+      </div>
+    );
+  }
+
+  const tabs = DETAIL_TABS.filter(tab => (!tab.permission || can(user, tab.permission))
+    && (!tab.topLevelOnly || isTopLevel(r))
+    && (!tab.resellerOnly || !isCollector(r)));
+  const wanted = params.get('tab') as DetailTab | null;
+  const active: DetailTab = tabs.some(tab => tab.key === wanted) ? (wanted as DetailTab) : 'summary';
+  const choose = (key: DetailTab) => setParams(p => { const next = new URLSearchParams(p); if (key === 'summary') next.delete('tab'); else next.set('tab', key); return next; }, { replace: true });
+
+  return (
+    <div style={styles.container}>
+      <p style={{ margin: '0 0 8px' }}><Link to="/resellers">← {t('resellerAdmin.backToList')}</Link></p>
+      <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ ...styles.title, margin: 0 }}>{r.name}</h1>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+            <KindChip row={r} />
+            <StatusChip value={r.status} />
+            <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}><EarningText row={r} /></span>
+            {!isTopLevel(r) && r.parent_id && (
+              <span style={{ fontSize: 13 }}>{t('resellerAdmin.underParentPrefix')} <Link to={`/resellers/${r.parent_id}`}>{r.parent_name ?? `#${r.parent_id}`}</Link></span>
+            )}
+          </div>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {can(user, 'resellers.update') && <button type="button" style={styles.btnSecondary} onClick={() => setEditing(true)}>{t('resellerAdmin.edit')}</button>}
+          {can(user, 'resellers.suspend') && (
+            <button type="button" style={styles.btnSecondary} onClick={() => void actions.suspend(r)}>
+              {r.status === 'suspended' ? t('reseller.reactivate') : t('reseller.suspend')}
+            </button>
+          )}
+          {can(user, 'resellers.delete') && (
+            <button type="button" style={styles.btnSecondary} onClick={() => void actions.remove(r).then(ok => { if (ok) navigate('/resellers'); })}>{t('reseller.delete')}</button>
+          )}
+        </div>
+      </header>
+      {isTopLevel(r) && (
+        <section aria-label={t('resellerAdmin.cashColumn')} style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end', margin: '16px 0 4px' }}>
+          <div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('resellerAdmin.cashColumn')}</div>
+            <CashMeter row={r} />
+          </div>
+          {r.in_bags !== undefined && r.in_bags !== null && (
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('cashBags.ledger.inBags')}</div>
+              <div style={{ fontSize: 15 }}>{formatMoney(r.in_bags, user?.organization_currency || 'MXN')}</div>
+            </div>
+          )}
+        </section>
+      )}
+      {!isTopLevel(r) && <p style={{ ...styles.msg, textAlign: 'left', padding: '8px 0 0' }}>{t('resellerAdmin.subAccountNote', { name: r.parent_name ?? `#${r.parent_id}` })}</p>}
+      {error && <p role="alert" style={styles.msgError}>{error}</p>}
+      {msg && <p role="status" style={{ color: 'var(--success)', margin: '8px 0 0' }}>{msg}</p>}
+
+      <div role="tablist" aria-label={r.name} style={{ display: 'flex', gap: 4, margin: '16px 0 20px', borderBottom: '2px solid var(--border)', overflowX: 'auto' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={active === tab.key}
+            onClick={() => choose(tab.key)}
+            style={{
+              padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13, borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap',
+              background: active === tab.key ? 'var(--accent)' : 'transparent',
+              color: active === tab.key ? '#fff' : 'var(--text-secondary)',
+              fontWeight: active === tab.key ? 600 : 400,
+            }}
+          >
+            {t(tab.labelKey)}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel">
+        {active === 'summary' && <SummaryTab reseller={r} />}
+        {active === 'ledger' && <ResellerLedgerTab resellerId={r.id} />}
+        {active === 'bags' && <ResellerBagsTab resellerId={r.id} resellerName={r.name} />}
+        {active === 'commissions' && <ResellerCommissionsTab resellerId={r.id} />}
+        {active === 'statements' && <ResellerStatementsTab resellerId={r.id} />}
+        {active === 'allowedPlans' && <ResellerAllowedPlansTab resellerId={r.id} />}
+        {active === 'staffAccess' && <ResellerUserBindingsTab resellerId={r.id} />}
+      </div>
+
+      {editing && (
+        <ResellerFormModal
+          mode="edit"
+          initial={r}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setMsg(t('resellerAdmin.saved')); actions.refresh(r.id); }}
+        />
       )}
     </div>
   );
@@ -316,55 +551,9 @@ function PortalTab() {
 // Main page component
 // ---------------------------------------------------------------------------
 
-const TABS: { key: Tab; labelKey: string; permission?: string }[] = [
-  { key: 'resellers', labelKey: 'reseller.tabResellers' },
-  { key: 'allowedPlans', labelKey: 'resellerAdmin.tabAllowedPlans' },
-  { key: 'ledger', labelKey: 'resellerLedger.tab', permission: 'reseller_ledger.view' },
-  { key: 'bags', labelKey: 'cashBags.resellerTab.tab', permission: 'cash_bags.view' },
-  { key: 'commissions', labelKey: 'reseller.tabCommissions', permission: 'reseller_commissions.view' },
-  { key: 'statements', labelKey: 'resellerStatements.tab', permission: 'reseller_settlements.view' },
-  { key: 'portal', labelKey: 'reseller.tabPortal' },
-  { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
-];
-
 export default function ResellerPage() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('resellers');
-  const tabs = TABS.filter(tab => !tab.permission || can(user, tab.permission));
-
-  return (
-    <div style={{ padding: 24, fontFamily: 'sans-serif' }}>
-      <h2 style={{ marginBottom: 16, color: '#2c3e50' }}>{t('reseller.pageTitle')}</h2>
-
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #dee2e6' }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13,
-              background: activeTab === tab.key ? '#3498db' : 'transparent',
-              color: activeTab === tab.key ? '#fff' : '#555',
-              borderRadius: '4px 4px 0 0',
-              fontWeight: activeTab === tab.key ? 600 : 400,
-            }}
-          >
-            {t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === 'resellers' && <ResellersTab />}
-      {activeTab === 'allowedPlans' && <ResellerAllowedPlansTab />}
-      {activeTab === 'ledger' && <ResellerLedgerTab />}
-      {activeTab === 'bags' && <ResellerBagsTab />}
-      {activeTab === 'commissions' && <ResellerCommissionsTab />}
-      {activeTab === 'statements' && <ResellerStatementsTab />}
-      {activeTab === 'portal' && <PortalTab />}
-      {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}
-    </div>
-  );
+  const { id } = useParams<{ id?: string }>();
+  const resellerId = id ? Number(id) : null;
+  if (resellerId !== null && Number.isInteger(resellerId) && resellerId > 0) return <ResellerDetail key={resellerId} id={resellerId} />;
+  return <ResellerList />;
 }

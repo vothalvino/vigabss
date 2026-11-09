@@ -480,6 +480,7 @@ export function App() {
                 <Route path="security-access-control" element={<SecurityAccessControlPage />} />
                 <Route path="automation" element={<AutomationPage />} />
                 <Route path="resellers" element={<ResellerPage />} />
+                <Route path="resellers/:id" element={<ResellerPage />} />
                 <Route path="cash-bags" element={<CashBagsPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="ai-support" element={<AiSupportPage />} />

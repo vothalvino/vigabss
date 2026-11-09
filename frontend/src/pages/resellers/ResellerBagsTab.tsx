@@ -5,35 +5,41 @@
 // account): status, what it declared and what the ISP counted, and the
 // total difference of the bags received (counted − declared: below zero the
 // bags came short). A row opens the bag's history (GET /cash-bags/:id) and
-// the actions the user may take on it.
+// the actions the user may take on it. With cash_bags.manage, "Assign bags"
+// gives bags in stock to this point, directly or with a carrier.
 // =============================================================================
 
 import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
 import { cashBagKeys, fetchResellerBags, toAmount } from '../cashBags/cashBagsApi';
 import { CashBagDetailDialog } from '../cashBags/CashBagDetailDialog';
+import { AssignBagsForm } from '../cashBags/CashBagForms';
 import { BagStatusBadge, VarianceText, formatMoment, mono } from '../cashBags/cashBagUi';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 
-export function ResellerBagsTab() {
+export function ResellerBagsTab({ resellerId, resellerName }: { resellerId: number; resellerName: string }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const currency = user?.organization_currency || 'MXN';
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
-  const resellers = useResellerOptions({ topLevel: true });
+  const [assigning, setAssigning] = useState(false);
+  const canManage = can(user, 'cash_bags.manage');
+  const qc = useQueryClient();
+  const assigned = () => {
+    setPage(1);
+    void qc.invalidateQueries({ queryKey: cashBagKeys.all });
+  };
   const bags = useQuery({
-    queryKey: cashBagKeys.resellerBags(resellerId ?? 0, page),
-    enabled: resellerId !== null,
-    queryFn: () => fetchResellerBags(resellerId ?? 0, page, PAGE_SIZE),
+    queryKey: cashBagKeys.resellerBags(resellerId, page),
+    queryFn: () => fetchResellerBags(resellerId, page, PAGE_SIZE),
     placeholderData: keepPreviousData,
   });
   const rows = bags.data?.data ?? [];
@@ -48,16 +54,18 @@ export function ResellerBagsTab() {
     <div>
       <h3>{t('cashBags.resellerTab.title')}</h3>
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('cashBags.resellerTab.help')}</p>
-      <label style={styles.filterLabel}>
-        {t('resellerLedger.reseller')}
-        <select style={styles.filterSelect} value={resellerId ?? ''} onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); }}>
-          <option value="">{t('resellerLedger.selectReseller')}</option>
-          {(resellers.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-      <ResellerListNotice list={resellers.data} />
+      {canManage && (
+        <button type="button" style={{ ...styles.btnPrimary, margin: '4px 0 8px' }} aria-expanded={assigning} onClick={() => setAssigning(a => !a)}>
+          {t('cashBags.assign.open')}
+        </button>
+      )}
+      {canManage && assigning && (
+        <div style={{ display: 'flex', margin: '0 0 12px', maxWidth: 520 }}>
+          <AssignBagsForm pointId={resellerId} pointName={resellerName} onSaved={assigned} />
+        </div>
+      )}
 
-      {resellerId !== null && (bags.isLoading ? <LoadingState /> : bags.isError ? (
+      {(bags.isLoading ? <LoadingState /> : bags.isError ? (
         <p style={styles.msgError}>{t('cashBags.resellerTab.loadError')}</p>
       ) : (
         <>

@@ -5,7 +5,26 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Each reseller and collector has its own page.** The Resellers page
+  used to put a "choose a reseller" drop-down on every tab, and forgot
+  the choice when you switched tabs. It is now a list you can search (name,
+  contact, city, email or phone) and filter by type and status. Each row
+  shows the point's cash on hand against its limit and what it earns.
+  Opening one shows its page, with a header that has its type, status,
+  cash, and Edit, Suspend and Delete buttons. Its tabs work on that point
+  with no picker: Summary (contact details, its numbers and its
+  sub-resellers), Movements, Bags, Commissions, Statements, Allowed plans
+  and Staff access. A collector has no Commissions or Allowed plans. A
+  sub-reseller shows Summary and Staff access, with a link to the
+  reseller whose account it uses. The open tab is kept in the address,
+  so a link or a refresh returns to it.
+- **Bags can be assigned straight to a reseller or collector.** A point's
+  Bags tab and the Cash bags board have an "Assign bags" form. You can
+  deliver the bags yourself (or the point picks them up at the office),
+  which needs no carrier. Or you can send them with a carrier, and only the
+  carriers that serve that point are offered. Before, bags could only be
+  handed to a carrier, and the form was only on the Cash bags page. Returning
+  a bag assigned with no carrier puts it back in stock.
 
 ## 0.1.0-alpha.18 — 2026-11-09
 

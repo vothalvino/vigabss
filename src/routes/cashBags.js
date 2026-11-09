@@ -8,11 +8,13 @@
 //  GET  /cash-bags/summary          counts per status, cash in bags, per-reseller differences
 //  GET  /cash-bags/:id              one bag with its history
 //  POST /cash-bags                  register one serial or a range
-//  POST /cash-bags/handover         hand bags in stock to a carrier
+//  POST /cash-bags/handover         hand bags in stock to a carrier for a point
+//  POST /cash-bags/assign           give bags in stock straight to a point (no carrier)
 //  POST /cash-bags/:id/receive      count a bag and post its deposit
 //  POST /cash-bags/:id/void         take a bag without money out of use
 //  POST /cash-bags/:id/lost         a bag with money in it is lost
 //  POST /cash-bags/:id/return       carrier stock back to stock, or an empty bag back to the carrier
+//                                   (or to stock, when no carrier ever had it)
 //
 // Org-level staff only: a reseller-bound user or a carrier is refused here
 // whatever its group holds (the fence refuses them first).
@@ -68,6 +70,12 @@ const handoverSchema = {
   reseller_id:     { type: 'number', required: true, min: 1 },
   serials:         { type: 'array' },
   bag_ids:         { type: 'array' },
+};
+
+const assignSchema = {
+  reseller_id: { type: 'number', required: true, min: 1 },
+  serials:     { type: 'array' },
+  bag_ids:     { type: 'array' },
 };
 
 const receiveSchema = {
@@ -131,6 +139,22 @@ router.post('/handover', requirePermission('cash_bags.manage'), validate(handove
     }
     const data = await cashBags.handOver({
       orgId: req.orgId, userId: req.user.id, carrierUserId: req.body.carrier_user_id, resellerId: req.body.reseller_id, serials, bagIds,
+    });
+    res.json({ data });
+  } catch (err) { next(err); }
+});
+
+// =============================================================================
+// POST /cash-bags/assign — straight to a point, no carrier
+// =============================================================================
+router.post('/assign', requirePermission('cash_bags.manage'), validate(assignSchema), async (req, res, next) => {
+  try {
+    const { serials, bag_ids: bagIds } = req.body;
+    if ((serials === undefined) === (bagIds === undefined)) {
+      throw new ValidationError('Send serials or bag_ids (one of them)');
+    }
+    const data = await cashBags.assignToPoint({
+      orgId: req.orgId, userId: req.user.id, resellerId: req.body.reseller_id, serials, bagIds,
     });
     res.json({ data });
   } catch (err) { next(err); }

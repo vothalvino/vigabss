@@ -22,7 +22,6 @@ import { formatDate } from '@/lib/dates';
 import { styles } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
 import { ResellerCreateLoginForm } from './resellers/ResellerCreateLoginForm';
-import { ResellerListNotice, useResellerOptions } from './resellers/resellerOptions';
 
 type Binding = {
   id: number;
@@ -39,22 +38,19 @@ type StaffUser = { id: number; first_name: string | null; last_name: string | nu
 const fullName = (u: { first_name: string | null; last_name: string | null; email: string | null }) =>
   [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || '—';
 
-export function ResellerUserBindingsTab() {
+export function ResellerUserBindingsTab({ resellerId }: { resellerId: number }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [resellerId, setResellerId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canManage = can(user, 'resellers.update') && can(user, 'users.update');
   const canCreateLogin = can(user, 'resellers.update') && (can(user, 'users.create') || can(user, 'point_logins.create'));
 
-  const resellersQ = useResellerOptions();
   const bindingsQ = useQuery({
     queryKey: ['reseller-user-bindings', resellerId],
-    enabled: resellerId !== null,
     queryFn: async () => {
-      const res = await api.GET('/resellers/{id}/users', { params: { path: { id: resellerId as number } } });
+      const res = await api.GET('/resellers/{id}/users', { params: { path: { id: resellerId } } });
       if (res.error) throw new Error('load failed');
       return (res.data as { data: Binding[] }).data;
     },
@@ -74,7 +70,7 @@ export function ResellerUserBindingsTab() {
 
   const bind = useMutation({
     mutationFn: async () => {
-      const res = await api.PUT('/resellers/{id}/users/{userId}', { params: { path: { id: resellerId as number, userId: userId as number } } });
+      const res = await api.PUT('/resellers/{id}/users/{userId}', { params: { path: { id: resellerId, userId: userId as number } } });
       if (res.error) throw new Error(parseApiError(res.error, t('resellerAccess.actionFailed')));
     },
     onSuccess: () => { setError(null); setUserId(null); refresh(); },
@@ -82,7 +78,7 @@ export function ResellerUserBindingsTab() {
   });
   const unbind = useMutation({
     mutationFn: async (target: number) => {
-      const res = await api.DELETE('/resellers/{id}/users/{userId}', { params: { path: { id: resellerId as number, userId: target } } });
+      const res = await api.DELETE('/resellers/{id}/users/{userId}', { params: { path: { id: resellerId, userId: target } } });
       if (res.error) throw new Error(parseApiError(res.error, t('resellerAccess.actionFailed')));
     },
     onSuccess: () => { setError(null); refresh(); },
@@ -90,7 +86,7 @@ export function ResellerUserBindingsTab() {
   });
 
   function onBind() {
-    if (!resellerId || !userId) return;
+    if (!userId) return;
     if (!window.confirm(t('resellerAccess.confirmBind'))) return;
     bind.mutate();
   }
@@ -108,22 +104,10 @@ export function ResellerUserBindingsTab() {
     <div>
       <h3>{t('resellerAccess.title')}</h3>
       <p style={{ ...styles.msg, textAlign: 'left', padding: 0 }}>{t('resellerAccess.description')}</p>
-      <label style={styles.filterLabel}>
-        {t('resellerAccess.reseller')}
-        <select
-          style={styles.filterSelect}
-          value={resellerId ?? ''}
-          onChange={e => { setResellerId(Number(e.target.value) || null); setError(null); }}
-        >
-          <option value="">{t('resellerAccess.selectReseller')}</option>
-          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-      <ResellerListNotice list={resellersQ.data} />
 
       {error && <p role="alert" style={styles.msgError}>{error}</p>}
 
-      {resellerId !== null && (
+      {(
         <>
           {bindingsQ.isLoading ? <LoadingState /> : bindingsQ.isError ? (
             <p style={styles.msgError}>{t('resellerAccess.loadError')}</p>

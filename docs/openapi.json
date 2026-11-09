@@ -61799,6 +61799,15 @@
                 "collector"
               ]
             }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Partial name, contact name, city, email or phone",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
           }
         ],
         "responses": {
@@ -69962,6 +69971,230 @@
         }
       }
     },
+    "/cash-bags/assign": {
+      "post": {
+        "tags": [
+          "Cash Bags"
+        ],
+        "summary": "Give bags in stock straight to one point with no carrier (in_stock -> at_reseller, reseller_id set, carrier_user_id null), by serials or bag ids, all or nothing: staff hand them over themselves or the point collects them at the office. The point is a top-level reseller or a collector (a sub-reseller seals on its parent's bags). Needs cash_bags.manage",
+        "operationId": "assignCashBagsToPoint",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The point and the bags (serials or bag_ids)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reseller_id"
+                ],
+                "properties": {
+                  "reseller_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The point the bags are for"
+                  },
+                  "serials": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "description": "Trimmed and uppercased by the server"
+                    }
+                  },
+                  "bag_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "reseller_id",
+                        "reseller_name",
+                        "bags"
+                      ],
+                      "properties": {
+                        "reseller_id": {
+                          "type": "integer"
+                        },
+                        "reseller_name": {
+                          "type": "string"
+                        },
+                        "bags": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "serial",
+                              "status"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "serial": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "at_reseller"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Reseller-bound users and carriers are refused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reseller not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BAGS_NOT_IN_STOCK (details.failed), POINT_IS_SUB_RESELLER, or validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cash-bags/{id}": {
       "get": {
         "tags": [
@@ -71507,7 +71740,7 @@
         "tags": [
           "Cash Bags"
         ],
-        "summary": "A carrier hands stock back (with_carrier -> in_stock, its point cleared), or takes an empty bag back from a reseller (at_reseller -> with_carrier, to carrier_user_id or the carrier that dropped it off). Needs cash_bags.manage",
+        "summary": "A carrier hands stock back (with_carrier -> in_stock, its point cleared), or takes an empty bag back from a reseller (at_reseller -> with_carrier, to carrier_user_id or the carrier that dropped it off; a bag assigned straight to the point with no carrier named goes back to stock, at_reseller -> in_stock). Needs cash_bags.manage",
         "operationId": "returnCashBag",
         "security": [
           {
