@@ -17,6 +17,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   You can now add a limit for a token (picked by name), change it or turn it
   off: a burst per second and limits per minute, hour and day, with the
   defaults shown for empty fields.
+- **Security & Access Control only shows what works.** The Network Security
+  and Data Security tabs and the passkey list are gone: firewall rules, DDoS
+  rules, blackhole routes, DNS blocklists, CPE scans, encryption keys, data
+  masking, the TLS text and the secure deletion log were saved and listed
+  but nothing ever applied them (the daily retention purge never wrote to
+  that log). Their stored data is kept. The page now has two tabs: User
+  security (password policy, admin IP allowlist, blocked IPs) and API
+  security (token rate limits).
 - **Every sign-in is in the audit log, and repeat offenders are blocked.**
   Staff and customer-portal sign-ins, good or bad, now appear in the audit
   log with their own action (for example "Staff sign-in failed", "Staff
