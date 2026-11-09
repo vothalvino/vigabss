@@ -264,7 +264,13 @@ router.get('/', requirePermission('wireguard.peers.view'), async (req, res, next
         ORDER BY created_at DESC`,
       [req.user.id, req.orgId],
     );
-    res.json({ data: rows.map(redactPeer) });
+    // Whether a config can be issued now, so the page can say why not (the
+    // hub off gave configs with an empty PublicKey that phones reject).
+    const problem = userTunnelService.configIssueProblem();
+    res.json({
+      data: rows.map(redactPeer),
+      hub: { ready: !problem, code: problem ? problem.code : null, message: problem ? problem.message : null },
+    });
   } catch (err) { next(err); }
 });
 
@@ -309,6 +315,7 @@ router.get('/:id/config', requirePermission('wireguard.peers.view'), async (req,
       [req.params.id, req.user.id, req.orgId],
     );
     if (!peer) return next(new NotFoundError('wg_user_peers'));
+    userTunnelService.assertCanIssueConfig();
 
     // Decrypt private key — NEVER log
     const privateKey    = decrypt(peer.private_key_encrypted);

@@ -5534,7 +5534,15 @@
     "revokeNote": "The device loses VPN access at once. Add it again to restore access.",
     "revoking": "Revoking…",
     "downloading": "Downloading…",
-    "banner": "Each device gets its own WireGuard tunnel. Install the WireGuard app, then import the .conf file or scan the QR code."
+    "banner": "Each device gets its own WireGuard tunnel. Install the WireGuard app, then import the .conf file or scan the QR code.",
+    "hubOff": {
+      "title": "WireGuard is turned off on this server",
+      "detail": "No tunnel can connect, and a tunnel created now would not work. An administrator can turn it on in Settings (WireGuard); then download your tunnel or its QR code again."
+    },
+    "hubNotReady": {
+      "title": "WireGuard is not ready on this server",
+      "detail": "The WireGuard hub is on but its key or public address is missing, so no working configuration can be issued. An administrator should check the WireGuard helper."
+    }
   },
   "adminWgTunnels": {
     "title": "WireGuard — All Tunnels",

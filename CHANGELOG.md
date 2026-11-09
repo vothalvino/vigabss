@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **A WireGuard tunnel is only issued when it can work.** With the
+  WireGuard hub turned off (Settings → WireGuard), the server's key is never
+  loaded, but tunnels could still be created: their configuration had an
+  empty server key, which phones reject when scanning the QR code ("invalid
+  peer"), and they could not connect anyway. Creating a tunnel, rotating its
+  keys and downloading its configuration or QR code are now refused while
+  the hub is off or not ready, with the reason, and the tunnels page shows a
+  warning and disables "Add tunnel". Tunnels created earlier work as soon as
+  the hub is turned on: download the configuration or QR code again.
 - **The password policy can be edited from Security & Access Control.** The
   page only showed five of its values, with no way to change them. It is now
   a form for all of them: minimum length, required uppercase, lowercase,

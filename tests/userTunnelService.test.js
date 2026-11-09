@@ -22,7 +22,7 @@ jest.mock('../src/config/database', () => ({
 jest.mock('../src/config', () => ({
   log: { level: 'silent' },
   wireguard: {
-    serverEnabled: false,
+    serverEnabled: true,
     serverInterface: 'wg-fireisp',
     serverEndpoint: 'vpn.example.com',
     serverListenPort: 51820,
@@ -34,7 +34,7 @@ jest.mock('../src/config', () => ({
     clientListenPort: 51821,
     maxPeersPerUser: 5,
     maxPeersPerOrg: 250,
-    clientPublicKey: '',
+    clientPublicKey: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=',
   },
 }));
 
@@ -864,5 +864,41 @@ describe('rehydrateUserPeers()', () => {
 
     expect(result).toEqual({ rehydrated: 0, total: 0 });
     expect(wireguardServerService.syncUserPeer).not.toHaveBeenCalled();
+  });
+});
+
+// The hub off (installation setting) never loads the client key, and a
+// config with "PublicKey = " (empty) is what phones reject as an invalid
+// [Peer] section. Nothing is issued until the hub is ready.
+describe('no config while the hub cannot take it', () => {
+  const KEY = 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=';
+  const peer = { tunnel_address: '10.99.0.2', full_tunnel: 1 };
+  afterEach(() => {
+    config.wireguard.serverEnabled = true;
+    config.wireguard.clientPublicKey = KEY;
+    config.wireguard.serverEndpoint = 'vpn.example.com';
+  });
+
+  test('a ready hub gives a [Peer] with its public key', () => {
+    expect(userTunnelService.configIssueProblem()).toBeNull();
+    expect(userTunnelService.buildConfig(peer, 'PRIV', [])).toMatch(new RegExp(`PublicKey\\s+= ${KEY.replace(/[+/=]/g, '\\$&')}`));
+  });
+
+  test('hub off: 409 WIREGUARD_HUB_OFF, and createPeer stores nothing', async () => {
+    config.wireguard.serverEnabled = false;
+    expect(() => userTunnelService.buildConfig(peer, 'PRIV', [])).toThrow(expect.objectContaining({ statusCode: 409, code: 'WIREGUARD_HUB_OFF' }));
+    db.query.mockClear();
+    await expect(userTunnelService.createPeer(1, 2, 'Phone')).rejects.toMatchObject({ code: 'WIREGUARD_HUB_OFF' });
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test.each([['an empty key', ''], ['a malformed key', 'not-a-key']])('hub on with %s: 503 WIREGUARD_NOT_READY', (_l, k) => {
+    config.wireguard.clientPublicKey = k;
+    expect(userTunnelService.configIssueProblem()).toMatchObject({ status: 503, code: 'WIREGUARD_NOT_READY' });
+  });
+
+  test('no endpoint: 503 WIREGUARD_NOT_READY', () => {
+    config.wireguard.serverEndpoint = '';
+    expect(userTunnelService.configIssueProblem()).toMatchObject({ code: 'WIREGUARD_NOT_READY' });
   });
 });

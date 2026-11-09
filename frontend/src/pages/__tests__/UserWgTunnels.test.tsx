@@ -215,3 +215,51 @@ describe('AddPeerModal — full_tunnel checkbox', () => {
     });
   });
 });
+
+// =============================================================================
+// The hub cannot take a tunnel (off, or no key): say so, offer nothing to
+// create, and show the server's reason when a QR is asked for. A config made
+// while the hub was off had an empty PublicKey that phones reject.
+// =============================================================================
+
+describe('when the WireGuard hub is not ready', () => {
+  const PEER = { ...CREATED_PEER_RESPONSE.data, server_peer_synced: 0 };
+  const HUB_OFF = { ready: false, code: 'WIREGUARD_HUB_OFF', message: 'The WireGuard hub is turned off' };
+
+  function hubOffFetch() {
+    return vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes('/config')) {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: { code: 'WIREGUARD_HUB_OFF', message: 'The WireGuard hub is turned off for this installation' } }),
+          text: () => Promise.resolve(''),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ data: [PEER], hub: HUB_OFF }), text: () => Promise.resolve('') });
+    });
+  }
+
+  it('warns and disables Add Peer', async () => {
+    renderPage(hubOffFetch());
+    expect(await screen.findByText('wgTunnels.hubOff.title')).toBeInTheDocument();
+    expect(screen.getByText('wgTunnels.hubOff.detail')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'wgTunnels.addPeer' })).toBeDisabled();
+  });
+
+  it('shows the server reason instead of a broken QR', async () => {
+    const user = userEvent.setup();
+    renderPage(hubOffFetch());
+    await screen.findByText('Laptop');
+    await user.click(screen.getByRole('button', { name: 'wgTunnels.action.showQr' }));
+    expect(await screen.findByText('The WireGuard hub is turned off for this installation')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('a ready hub shows no warning', async () => {
+    renderPage(makeFetchMock({ peers: { data: [], hub: { ready: true, code: null, message: null } } }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'wgTunnels.addPeer' })).toBeEnabled());
+    expect(screen.queryByText('wgTunnels.hubOff.title')).toBeNull();
+  });
+});
