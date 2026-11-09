@@ -384,14 +384,29 @@ describe('Cobrar', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Too many searches in a short time.');
   });
 
-  it('rejects an amount above the selected invoices', async () => {
+  it('takes more than the selected invoices: the rest is the customer\'s credit', async () => {
     const user = userEvent.setup();
     renderAt('/punto/cobrar?cliente=31');
     const amount = await screen.findByLabelText('Amount received');
     await user.clear(amount);
     await user.type(amount, '800');
+    expect(screen.getByText('$100.00 stays as the customer’s credit.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Collect $800.00 in cash' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('cannot be more than the selected invoices ($700.00)');
+    expect(screen.getByRole('heading', { name: 'Did you receive the cash?' })).toBeInTheDocument();
+    expect(screen.getByText('$100.00 stays as the customer’s credit.')).toBeInTheDocument();
+  });
+
+  it('takes a payment ahead from a customer who owes nothing', async () => {
+    override = (path) => (path === '/reseller-app/collect/client/31' ? { data: { ...OWN, amount_due: '0.00', open_invoices: [] } } : undefined);
+    const user = userEvent.setup();
+    renderAt('/punto/cobrar?cliente=31');
+    expect(await screen.findByText(/This customer owes nothing\. You can take a payment in advance/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Invoices' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Amount received'), '300');
+    await user.click(screen.getByRole('button', { name: 'Collect $300.00 in cash' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, I received $300.00' }));
+    await waitFor(() => expect(calls('POST', '/reseller-app/payments')).toHaveLength(1));
+    expect(bodyOf(calls('POST', '/reseller-app/payments')[0])).toEqual({ collect_token: 'tok-own', amount: 300 });
   });
 
   it('keeps the amount, the confirm step and the token when the app regains focus or the network', async () => {

@@ -78,9 +78,11 @@ async function fetchClientContracts(clientId: string): Promise<Contract[]> {
   return res.data.data;
 }
 
-async function generateFlexibleInvoice(clientId: number, items: FlexItem[]): Promise<void> {
+async function generateFlexibleInvoice(clientId: number, items: FlexItem[], applyCredit: boolean): Promise<void> {
+  // apply_credit (migration 012): the customer's credit (payments made ahead)
+  // pays the new invoice unless staff untick it; sent only when unticked.
   const { error } = await api.POST('/invoices/generate', {
-    body: { client_id: clientId, items },
+    body: { client_id: clientId, items, ...(applyCredit ? {} : { apply_credit: false }) },
   });
   if (error) throw new Error(extractApiError(error, 'Failed to generate invoice'));
 }
@@ -107,6 +109,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
   // (which would block submit, especially when the catalog is empty).
   const [items, setItems] = useState<InvoiceLineItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [applyCredit, setApplyCredit] = useState(true);
   const [error, setError] = useState('');
 
   // Self-fetch data. Client list only needed when the client isn't locked.
@@ -192,7 +195,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
           ...(entry?.inventory_item_id ? { inventory_item_id: entry.inventory_item_id } : {}),
         };
       });
-      await generateFlexibleInvoice(Number(clientId), flexItems);
+      await generateFlexibleInvoice(Number(clientId), flexItems, applyCredit);
       onGenerated();
       onClose();
     } catch (err) {
@@ -345,6 +348,14 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
               );
             })}
           </div>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: '1rem', fontSize: '0.9rem' }}>
+            <input type="checkbox" checked={applyCredit} onChange={e => setApplyCredit(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>
+              {t('ui.generateInvoiceModal.useCredit')}
+              <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{t('ui.generateInvoiceModal.useCreditHelp')}</span>
+            </span>
+          </label>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.generateInvoiceModal.cancel')}</button>

@@ -54,6 +54,18 @@
   "portalPayments": {
     "title": "Payments",
     "subtitle": "Payments recorded on your account.",
+    "advance": {
+      "title": "Pay ahead",
+      "help": "Pay any amount now. It pays your open invoices first; the rest stays as your credit and pays your next invoices on its own.",
+      "credit": "Your credit: {{amount}}",
+      "amount": "Amount",
+      "pay": "Pay ahead",
+      "starting": "Opening the payment…",
+      "invalid": "Write an amount from 1 to 100,000, with up to 2 decimals.",
+      "error": "We couldn’t open the payment. Try again.",
+      "thanks": "Thank you. Your payment will show here in a few moments.",
+      "cancelled": "The payment was cancelled; nothing was charged."
+    },
     "loadError": "Your payments could not be loaded.",
     "none": "No payments yet.",
     "date": "Date",
@@ -7077,7 +7089,9 @@
       "unitPrice": "Unit Price",
       "description": "Description",
       "eGInstallationFee": "e.g. Installation fee",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "useCredit": "Use the customer’s credit",
+      "useCreditHelp": "If the customer paid ahead, that credit pays this invoice now. Untick to keep it for later."
     },
     "generateQuoteModal": {
       "generateQuote": "Generate Quote",
@@ -10158,15 +10172,16 @@
       "invoices": "Invoices to pay",
       "selectedTotal": "Selected",
       "amount": "Amount received",
-      "amountHelp": "It starts as everything selected. You can collect less if the client pays only part.",
+      "amountHelp": "All the selected invoices to start with. Take less if the customer pays only part, or more: the extra stays as the customer’s credit.",
+      "advanceHelp": "This customer owes nothing. You can take a payment in advance: it stays as the customer’s credit and pays its next invoice on its own.",
+      "advanceAmountHelp": "Write how much the customer pays in advance.",
+      "creditNote": "{{amount}} stays as the customer’s credit.",
       "available": "{{available}} to go before your cash limit. Past it you can still finish the payment, then fill a bag to keep collecting.",
       "note": "Note (optional)",
       "collectCash": "Collect {{amount}} in cash",
       "searchAgain": "Look for another client",
-      "nothingDue": "This client has nothing to pay right now.",
       "pickInvoice": "Choose at least one invoice.",
       "amountInvalid": "Type an amount greater than zero, with up to two decimals.",
-      "amountTooHigh": "The amount cannot be more than the selected invoices ({{max}}).",
       "limitReachedNoAmount": "You reached your cash limit: fill a bag (or hand in the cash) to keep collecting.",
       "saveError": "The payment could not be recorded. Try again: it will not be charged twice.",
       "confirmTitle": "Did you receive the cash?",
@@ -10207,6 +10222,7 @@
         "cash": "Cash"
       },
       "remaining": "Balance left",
+      "credit": "Credit",
       "print": "Print",
       "whatsapp": "Send by WhatsApp",
       "newCollection": "New collection",
@@ -10215,7 +10231,8 @@
       "waClient": "Client #{{number}} {{name}}",
       "waPaid": "Paid in cash: {{amount}}",
       "voided": "This payment was voided.",
-      "waRemaining": "Balance left: {{amount}}"
+      "waRemaining": "Balance left: {{amount}}",
+      "waCredit": "Credit for next invoices: {{amount}}"
     },
     "cash": {
       "title": "My cash",

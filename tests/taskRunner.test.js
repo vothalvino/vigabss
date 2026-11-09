@@ -2,6 +2,12 @@
 // VigaBSS 5.0 — Task Runner Service Unit Tests
 // =============================================================================
 
+// Client credit (migration 012) has its own tests (tests/clientCredit.test.js);
+// stubbed so these sequenced db mocks only see the billing run's queries.
+jest.mock('../src/services/clientCreditService', () => ({
+  applyCreditQuietly: jest.fn(async () => ({ allocations: [], applied: 0, paid_invoice_ids: [] })),
+  sweepOrg: jest.fn(async () => ({ clients: 0, applied: 0, failed: 0 })),
+}));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),

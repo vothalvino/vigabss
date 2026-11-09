@@ -25,6 +25,7 @@ const { mapped, unmapped } = mapSchemas(tables);
 // Keys of a write schema that are not a column of its table, and what the
 // handler does with them.
 const VIRTUAL = {
+  'invoices.js:createInvoice.apply_credit': 'written as apply_client_credit ("Use the customer\'s credit", migration 012)',
   'clients.js:createContact.name': 'split into first_name and last_name',
   'contracts.js:updateContract.prorate': 'with a plan change: bill the rest of the invoiced period (planChangeProrationService)',
   'contracts.js:patchContract.prorate': 'with a plan change: bill the rest of the invoiced period (planChangeProrationService)',

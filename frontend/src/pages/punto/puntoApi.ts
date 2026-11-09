@@ -200,6 +200,8 @@ export interface PuntoCollectResult {
   payment_id: number;
   amount: number | string;
   allocated: { invoice_id: number; amount: number | string }[];
+  /** What no invoice took: the customer's credit (a payment made ahead). */
+  credit?: number | string;
   client_number: number | string;
   client_name: string;
   reconnected: boolean | null;
@@ -233,6 +235,8 @@ export interface PuntoReceipt {
   currency: string;
   payment_method: string;
   allocations: { invoice_number: string | null; amount: number | string }[];
+  /** The part on no invoice yet: the customer's credit. */
+  credit?: number | string;
   remaining_balance: number | string | null;
   legend: string;
   plain_text?: string | null;

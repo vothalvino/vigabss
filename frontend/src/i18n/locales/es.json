@@ -54,6 +54,18 @@
   "portalPayments": {
     "title": "Pagos",
     "subtitle": "Pagos registrados en tu cuenta.",
+    "advance": {
+      "title": "Pagar por adelantado",
+      "help": "Paga la cantidad que quieras. Primero paga tus facturas pendientes; el resto queda como saldo a favor y paga tus próximas facturas solo.",
+      "credit": "Tu saldo a favor: {{amount}}",
+      "amount": "Cantidad",
+      "pay": "Pagar por adelantado",
+      "starting": "Abriendo el pago…",
+      "invalid": "Escribe una cantidad de 1 a 100,000, con hasta 2 decimales.",
+      "error": "No pudimos abrir el pago. Inténtalo de nuevo.",
+      "thanks": "Gracias. Tu pago aparecerá aquí en unos momentos.",
+      "cancelled": "Se canceló el pago; no se cobró nada."
+    },
     "loadError": "No se pudieron cargar tus pagos.",
     "none": "Aún no hay pagos.",
     "date": "Fecha",
@@ -7071,7 +7083,9 @@
       "unitPrice": "Precio unitario",
       "description": "Descripción",
       "eGInstallationFee": "p. ej. Cargo de instalación",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "useCredit": "Usar el saldo a favor del cliente",
+      "useCreditHelp": "Si el cliente pagó por adelantado, ese saldo paga esta factura ahora. Desmárcalo para guardarlo para después."
     },
     "generateQuoteModal": {
       "generateQuote": "Generar cotización",
@@ -10152,15 +10166,16 @@
       "invoices": "Facturas a pagar",
       "selectedTotal": "Total seleccionado",
       "amount": "Monto que recibes",
-      "amountHelp": "De entrada es todo lo seleccionado. Puedes cobrar menos si el cliente solo abona una parte.",
+      "amountHelp": "De entrada es todo lo seleccionado. Puedes cobrar menos si el cliente solo abona una parte, o más: el excedente queda como saldo a favor.",
+      "advanceHelp": "Este cliente no debe nada. Puedes recibir un pago por adelantado: queda como saldo a favor y paga su próxima factura solo.",
+      "advanceAmountHelp": "Escribe cuánto paga el cliente por adelantado.",
+      "creditNote": "{{amount}} quedan como saldo a favor del cliente.",
       "available": "Te faltan {{available}} para tu límite de efectivo. Si lo pasas, el cobro se hace igual y luego llenas una bolsa para seguir cobrando.",
       "note": "Nota (opcional)",
       "collectCash": "Cobrar {{amount}} en efectivo",
       "searchAgain": "Buscar otro cliente",
-      "nothingDue": "Este cliente no tiene nada pendiente por pagar.",
       "pickInvoice": "Elige al menos una factura.",
       "amountInvalid": "Escribe un monto mayor a cero, con hasta dos decimales.",
-      "amountTooHigh": "El monto no puede ser mayor que las facturas seleccionadas ({{max}}).",
       "limitReachedNoAmount": "Llegaste a tu límite de efectivo: llena una bolsa (o entrega el efectivo) para seguir cobrando.",
       "saveError": "No pudimos registrar el cobro. Inténtalo de nuevo: no se cobrará dos veces.",
       "confirmTitle": "¿Ya recibiste el efectivo?",
@@ -10201,6 +10216,7 @@
         "cash": "Efectivo"
       },
       "remaining": "Saldo pendiente",
+      "credit": "Saldo a favor",
       "print": "Imprimir",
       "whatsapp": "Enviar por WhatsApp",
       "newCollection": "Nuevo cobro",
@@ -10209,7 +10225,8 @@
       "waClient": "Cliente #{{number}} {{name}}",
       "waPaid": "Pagó en efectivo: {{amount}}",
       "voided": "Este cobro fue anulado.",
-      "waRemaining": "Saldo pendiente: {{amount}}"
+      "waRemaining": "Saldo pendiente: {{amount}}",
+      "waCredit": "Saldo a favor para próximas facturas: {{amount}}"
     },
     "cash": {
       "title": "Mi caja",

@@ -14,6 +14,7 @@ const { validate } = require('../middleware/validate');
 const { createInvoice, updateInvoice, patchInvoice, addInvoiceItem, stampInvoice } = require('../middleware/schemas/invoices');
 const billingService = require('../services/billingService');
 const invoiceCfdiService = require('../services/invoiceCfdiService');
+const clientCreditService = require('../services/clientCreditService');
 const { requireMxLocale } = require('../middleware/orgLocale');
 const inventoryDrawdownService = require('../services/inventoryDrawdownService');
 const db = require('../config/database');
@@ -529,13 +530,14 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice, {
       const [ins] = await conn.execute(
         `INSERT INTO invoices
            (organization_id, client_id, contract_id, invoice_number, subtotal, tax_rate,
-            tax_amount, total, currency, tax_rate_id, due_date, status, created_by, issue_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            tax_amount, total, currency, tax_rate_id, due_date, status, created_by, issue_date, apply_client_credit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           req.orgId, req.body.client_id, req.body.contract_id ?? null, invoiceNumber,
           req.body.subtotal, taxRateFraction, taxAmount,
           req.body.total, currency, req.body.tax_rate_id ?? null,
           req.body.due_date, req.body.status ?? 'draft', req.user?.id ?? null, businessToday(),
+          req.body.apply_credit === false ? 0 : 1,
         ],
       );
       invoiceId = ins.insertId;
@@ -553,9 +555,18 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice, {
       conn.release();
     }
 
-    const [rows] = await db.query('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
+    let [rows] = await db.query('SELECT * FROM invoices WHERE id = ?', [invoiceId]);  
     await businessEvents.emitInvoiceCreated(req.orgId, rows[0]);
-    res.status(201).json({ data: rows[0] });
+    // "Use the customer's credit" (on by default, migration 012): an issued
+    // invoice is paid from the client's credit now; a draft when it is issued
+    // (the daily sweep).
+    let creditApplied = 0;
+    if (req.body.apply_credit !== false && (req.body.status ?? 'draft') !== 'draft') {
+      const credit = await clientCreditService.applyCreditQuietly({ orgId: req.orgId, clientId: req.body.client_id, actorUserId: req.user?.id ?? null });
+      creditApplied = credit.applied;
+      if (creditApplied > 0) rows = [await Invoice.findById(invoiceId, req.orgId)];
+    }
+    res.status(201).json({ data: rows[0], credit_applied: creditApplied });
   } catch (err) {
     next(err);
   }
@@ -804,6 +815,11 @@ router.post('/:id/items', requirePermission('invoices.update'), validate(addInvo
 router.post('/generate', requirePermission('invoices.create'), async (req, res, next) => {
   try {
     const { contract_id, client_id, items } = req.body;
+    // "Use the customer's credit" (migration 012): on unless staff untick it.
+    if (req.body.apply_credit !== undefined && typeof req.body.apply_credit !== 'boolean') {
+      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'apply_credit must be a boolean' } });
+    }
+    const useCredit = req.body.apply_credit !== false;
 
     // ----------------------------------------------------------------
     // LEGACY FORMAT: { contract_id }
@@ -828,8 +844,15 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
         return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Plan not found' } });
       }
       const period = await billingService.generateBillingPeriod(contract);
-      const invoice = await billingService.generateInvoice(period, contract, plans[0], req.orgId);
-      return res.status(201).json({ data: invoice });
+      let invoice = await billingService.generateInvoice(period, contract, plans[0], req.orgId);
+      let creditApplied = 0;
+      if (useCredit) {
+        creditApplied = (await clientCreditService.applyCreditQuietly({ orgId: req.orgId, clientId: invoice.client_id, actorUserId: req.user?.id ?? null })).applied;
+        if (creditApplied > 0) invoice = await Invoice.findById(invoice.id, req.orgId);
+      } else {
+        await db.query('UPDATE invoices SET apply_client_credit = 0 WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [invoice.id, req.orgId]);
+      }
+      return res.status(201).json({ data: invoice, credit_applied: creditApplied });
     }
 
     // ----------------------------------------------------------------
@@ -986,10 +1009,10 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
       const [invResult] = await conn.execute(
         `INSERT INTO invoices
            (organization_id, client_id, contract_id, invoice_number, subtotal, tax_amount, total,
-            currency, tax_rate, tax_rate_id, due_date, status, issue_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
+            currency, tax_rate, tax_rate_id, due_date, status, issue_date, apply_client_credit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?)`,
         [req.orgId, client_id, invoiceContractId, invoiceNumber, subtotal, taxAmount, total,
-          currency, taxPct, taxRate?.id || null, dueDate, businessToday()],
+          currency, taxPct, taxRate?.id || null, dueDate, businessToday(), useCredit ? 1 : 0],
       );
       const invoiceId = invResult.insertId;
 
@@ -1034,9 +1057,16 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
       );
 
       await conn.commit();
-      const invoice = await Invoice.findById(invoiceId, req.orgId);
+      let invoice = await Invoice.findById(invoiceId, req.orgId);
       await businessEvents.emitInvoiceCreated(req.orgId, invoice);
-      return res.status(201).json({ data: invoice });
+      // The client's credit pays it now, before anyone stamps it (a covered
+      // invoice is stamped PUE), unless staff unticked "Use the customer's credit".
+      let creditApplied = 0;
+      if (useCredit) {
+        creditApplied = (await clientCreditService.applyCreditQuietly({ orgId: req.orgId, clientId: client_id, actorUserId: req.user?.id ?? null })).applied;
+        if (creditApplied > 0) invoice = await Invoice.findById(invoiceId, req.orgId);
+      }
+      return res.status(201).json({ data: invoice, credit_applied: creditApplied });
     } catch (err) {
       await conn.rollback();
       throw err;

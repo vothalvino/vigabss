@@ -549,7 +549,7 @@ describe('a collection', () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toEqual({
       payment_id: 501, amount: 450,
-      allocated: [{ invoice_id: 801, amount: 300 }, { invoice_id: 802, amount: 150 }],
+      allocated: [{ invoice_id: 801, amount: 300 }, { invoice_id: 802, amount: 150 }], credit: 0,
       client_number: 21, client_name: 'Ma*** Ló***', reconnected: false,
       receipt_url: '/reseller-app/payments/501/receipt',
     });
@@ -866,6 +866,28 @@ describe('credit limit', () => {
       commission_rate: 10, commission_month: 0,
     });
     expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 200 })).status).toBe(201);
+  });
+});
+
+describe('paying ahead (credit)', () => {
+  test('a customer who owes nothing can pay ahead: the whole payment is its credit', async () => {
+    for (const inv of Object.values(state.invoices)) if (inv.client_id === 21) inv.status = 'paid';
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 500 });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ amount: 500, allocated: [], credit: 500 });
+    expect(state.allocations.filter((a) => a.payment_id === res.body.data.payment_id)).toHaveLength(0);
+    const r = await get(`/reseller-app/payments/${res.body.data.payment_id}/receipt`, asBoundReseller());
+    expect(r.body.data.credit).toBe(500);
+    expect(r.body.data.plain_text).toMatch(/Saldo a favor:\s+MXN 500\.00/);
+  });
+
+  test('paying more than what is owed: the invoices are paid and the rest is credit', async () => {
+    state.invoices[801].total = '100.00';
+    state.invoices[802].total = '100.00';
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 450 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.allocated.reduce((t, a) => t + a.amount, 0)).toBe(200);
+    expect(res.body.data.credit).toBe(250);
   });
 });
 

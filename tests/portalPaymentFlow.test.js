@@ -32,7 +32,7 @@ beforeEach(() => {
   db.query.mockImplementation(async (sql, params = []) => {
     if (/FROM invoices i WHERE i.id = \?/.test(sql)) return [[INVOICE]];
     if (/FROM payment_gateways/.test(sql)) return [[{ id: 5, provider: 'stripe', secret_key_encrypted: 'enc' }]];
-    if (/FROM payment_transactions\s+WHERE organization_id = \? AND invoice_id = \?/.test(sql)) return [txRows.slice(-1)];
+    if (/FROM payment_transactions\s+WHERE organization_id = \? AND invoice_id <=> \?/.test(sql)) return [txRows.slice(-1)];
     if (/INSERT INTO payment_transactions/.test(sql)) {
       txRows.push({ id: 100 + txRows.length, amount: params[5], currency: params[6], raw_response: null });
       return [{ insertId: txRows[txRows.length - 1].id }];

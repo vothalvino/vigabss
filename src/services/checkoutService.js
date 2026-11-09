@@ -19,6 +19,7 @@ const paymentRetryService = require('./paymentRetryService');
 const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const Organization = require('../models/Organization');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { parseJsonColumn } = require('../utils/jsonColumn');
 
@@ -48,7 +49,7 @@ function withPaymentParam(url, value) {
 async function openCheckout(organizationId, invoiceId, clientId, gatewayId, amountDue) {
   const [rows] = await db.query(
     `SELECT id, amount, currency, raw_response FROM payment_transactions
-      WHERE organization_id = ? AND invoice_id = ? AND client_id = ? AND payment_gateway_id = ?
+      WHERE organization_id = ? AND invoice_id <=> ? AND client_id = ? AND payment_gateway_id = ?
         AND gateway_status = 'pending' AND payment_id IS NULL
       ORDER BY id DESC LIMIT 1`,
     [organizationId, invoiceId, clientId, gatewayId],
@@ -99,6 +100,33 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   // fall back to the first active gateway. payment_transactions.payment_gateway_id
   // is NOT NULL, so a missing gateway is a client-fixable configuration error (422),
   // not a 500.
+  const gateway = await activeGateway(organizationId);
+  const resolvedClientId = clientId || invoice.client_id;
+
+  // Defense-in-depth: the invoice must belong to the client being charged (the
+  // portal route already scopes by req.client.id, but the staff route forwards a
+  // raw client_id). Never attribute a payment to a client who doesn't own the invoice.
+  if (clientId && Number(invoice.client_id) !== Number(clientId)) {
+    throw new ValidationError('Invoice does not belong to this client');
+  }
+
+  return startHostedCheckout({
+    organizationId,
+    clientId: resolvedClientId,
+    gateway,
+    invoiceId,
+    invoiceNumber: invoice.invoice_number,
+    amount: amountDue,
+    currency: invoice.currency,
+    label: `Invoice ${invoice.invoice_number}`,
+    note: `Checkout for invoice ${invoice.invoice_number}`,
+    returnUrl,
+    defaultPath: '/portal/invoices',
+  });
+}
+
+/** The organization's payment gateway for a hosted checkout (default first), or a 422. */
+async function activeGateway(organizationId) {
   const [gateways] = await db.query(
     `SELECT id, provider, secret_key_encrypted FROM payment_gateways
      WHERE organization_id = ? AND status = 'active' AND deleted_at IS NULL
@@ -109,30 +137,74 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   if (gateways.length === 0) {
     throw new ValidationError('No active payment gateway is configured for this organization');
   }
-  const gateway = gateways[0];
-  const resolvedClientId = clientId || invoice.client_id;
+  return gateways[0];
+}
 
-  // Defense-in-depth: the invoice must belong to the client being charged (the
-  // portal route already scopes by req.client.id, but the staff route forwards a
-  // raw client_id). Never attribute a payment to a client who doesn't own the invoice.
-  if (clientId && Number(invoice.client_id) !== Number(clientId)) {
-    throw new ValidationError('Invoice does not belong to this client');
+const ADVANCE_MIN = 1;
+const ADVANCE_MAX = 100000;
+
+/**
+ * A checkout for a payment made ahead (portal "Pagar por adelantado"): no
+ * invoice. When the gateway confirms it, paymentGatewayService.reconcilePayment
+ * pays the client's open invoices oldest first and keeps the rest as its
+ * credit, which pays its next invoices on its own (clientCreditService).
+ */
+async function createAdvanceCheckout({ organizationId, clientId, amount, returnUrl }) {
+  const value = Math.round(Number(amount) * 100) / 100;
+  if (!Number.isFinite(value) || value < ADVANCE_MIN || value > ADVANCE_MAX || Math.round(Number(amount) * 100) !== value * 100) {
+    throw new ValidationError(`amount must be between ${ADVANCE_MIN} and ${ADVANCE_MAX}, with at most 2 decimals`);
   }
+  const [clients] = await db.query(
+    'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [clientId, organizationId],
+  );
+  if (!clients[0]) throw new NotFoundError('Client');
+  const gateway = await activeGateway(organizationId);
+  const currency = await Organization.getCurrency(organizationId);
+  return startHostedCheckout({
+    organizationId,
+    clientId,
+    gateway,
+    invoiceId: null,
+    invoiceNumber: null,
+    amount: value,
+    currency,
+    label: 'Advance payment',
+    note: 'Checkout for an advance payment (credit)',
+    returnUrl,
+    defaultPath: '/portal/payments',
+  });
+}
+
+/**
+ * Open (or reuse) a hosted checkout on the gateway for one amount: the
+ * invoice's balance, or a payment made ahead (invoiceId null).
+ */
+async function startHostedCheckout({
+  organizationId, clientId, gateway, invoiceId, invoiceNumber, amount, currency, label, note, returnUrl, defaultPath,
+}) {
+  const resolvedClientId = clientId;
+  const amountDue = amount;
+  const base0 = (config.appUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  const shape = (extra) => ({
+    checkout_id: extra.checkout_id,
+    invoice_id: invoiceId,
+    invoice_number: invoiceNumber,
+    amount: amountDue,
+    currency: extra.currency || currency,
+    expires_at: extra.expires_at,
+    payment_url: extra.payment_url,
+    provider: extra.provider,
+    return_url: returnUrl || null,
+    ...(extra.reused ? { reused: true } : {}),
+  });
 
   const reusable = await openCheckout(organizationId, invoiceId, resolvedClientId, gateway.id, amountDue);
   if (reusable) {
-    return {
-      checkout_id: reusable.tx.id,
-      invoice_id: invoiceId,
-      invoice_number: invoice.invoice_number,
-      amount: amountDue,
-      currency: reusable.tx.currency,
-      expires_at: reusable.saved.expires_at,
-      payment_url: reusable.saved.payment_url,
-      provider: reusable.saved.provider || gateway.provider,
-      return_url: returnUrl || null,
-      reused: true,
-    };
+    return shape({
+      checkout_id: reusable.tx.id, currency: reusable.tx.currency, expires_at: reusable.saved.expires_at,
+      payment_url: reusable.saved.payment_url, provider: reusable.saved.provider || gateway.provider, reused: true,
+    });
   }
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
@@ -140,13 +212,13 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   // The pending transaction stores the session id (cs_...) as its gateway
   // reference so the checkout.session.completed webhook reconciles it.
   if (gateway.provider === 'stripe') {
-    const base = (config.appUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const base = base0;
     // Only honor a same-origin returnUrl as the Stripe success redirect target.
     // Both outcomes come back to the page that started the payment, which
     // reads ?payment= (FE-14).
     const back = sameOriginUrl(returnUrl, base);
-    const successUrl = back ? withPaymentParam(back, 'success') : `${base}/portal/invoices?payment=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = back ? withPaymentParam(back, 'cancelled') : `${base}/portal/invoices?payment=cancelled`;
+    const successUrl = back ? withPaymentParam(back, 'success') : `${base}${defaultPath}?payment=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = back ? withPaymentParam(back, 'cancelled') : `${base}${defaultPath}?payment=cancelled`;
 
     // Create the pending transaction FIRST (provisional reference) so a payable
     // session always has a local record — never leave an orphan paid Stripe
@@ -159,7 +231,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         amount, currency, gateway_status, gateway_response_message)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [organizationId, resolvedClientId, invoiceId, gateway.id, provisionalRef,
-        amountDue, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
+        amountDue, currency, note],
     );
     const transactionId = txResult.insertId;
 
@@ -167,8 +239,8 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     try {
       session = await paymentGatewayService.createStripeCheckoutSession(gateway, {
         amount: amountDue,
-        currency: invoice.currency,
-        description: `Invoice ${invoice.invoice_number}`,
+        currency,
+        description: label,
         successUrl,
         cancelUrl,
         // organization_id: the install-wide webhook route resolves the owning
@@ -187,17 +259,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     await db.query('UPDATE payment_transactions SET gateway_reference_id = ? WHERE id = ?', [session.id, transactionId]);
     await rememberCheckout(transactionId, session.url, expiresAt, 'stripe');
 
-    return {
-      checkout_id: transactionId,
-      invoice_id: invoiceId,
-      invoice_number: invoice.invoice_number,
-      amount: amountDue,
-      currency: invoice.currency,
-      expires_at: expiresAt.toISOString(),
-      payment_url: session.url, // Stripe-hosted checkout page
-      provider: 'stripe',
-      return_url: returnUrl || null,
-    };
+    return shape({ checkout_id: transactionId, expires_at: expiresAt.toISOString(), payment_url: session.url, provider: 'stripe' });
   }
 
   // Conekta: create a REAL order with an embedded HostedPayment checkout and
@@ -205,10 +267,10 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   // transfer). The order id (ord_...) is stored as the transaction's gateway
   // reference so the order.paid webhook reconciles it — same as chargeConekta.
   if (gateway.provider === 'conekta') {
-    const base = (config.appUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const base = base0;
     const back = sameOriginUrl(returnUrl, base);
-    const successUrl = back ? withPaymentParam(back, 'success') : `${base}/portal/invoices?payment=success`;
-    const failureUrl = back ? withPaymentParam(back, 'cancelled') : `${base}/portal/invoices?payment=cancelled`;
+    const successUrl = back ? withPaymentParam(back, 'success') : `${base}${defaultPath}?payment=success`;
+    const failureUrl = back ? withPaymentParam(back, 'cancelled') : `${base}${defaultPath}?payment=cancelled`;
 
     // Conekta customer_info (recommended; some methods like cash/bank_transfer
     // need name/email/phone — send everything we have on file).
@@ -232,7 +294,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         amount, currency, gateway_status, gateway_response_message)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [organizationId, resolvedClientId, invoiceId, gateway.id, provisionalRef,
-        amountDue, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
+        amountDue, currency, note],
     );
     const transactionId = txResult.insertId;
 
@@ -240,8 +302,8 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     try {
       session = await paymentGatewayService.createConektaCheckoutSession(gateway, {
         amount: amountDue,
-        currency: invoice.currency,
-        description: `Invoice ${invoice.invoice_number}`,
+        currency,
+        description: label,
         customerName: client.name,
         customerEmail: client.email,
         customerPhone: client.phone,
@@ -263,17 +325,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     await db.query('UPDATE payment_transactions SET gateway_reference_id = ? WHERE id = ?', [session.id, transactionId]);
     await rememberCheckout(transactionId, session.url, conektaExpiresAt, 'conekta');
 
-    return {
-      checkout_id: transactionId,
-      invoice_id: invoiceId,
-      invoice_number: invoice.invoice_number,
-      amount: amountDue,
-      currency: invoice.currency,
-      expires_at: conektaExpiresAt.toISOString(),
-      payment_url: session.url, // Conekta-hosted checkout page
-      provider: 'conekta',
-      return_url: returnUrl || null,
-    };
+    return shape({ checkout_id: transactionId, expires_at: conektaExpiresAt.toISOString(), payment_url: session.url, provider: 'conekta' });
   }
 
   // Any other provider (manual / not-yet-implemented): there is no hosted
@@ -516,4 +568,4 @@ async function processRecurringCharges(organizationId) {
   return { charged, skipped, failed, total: profiles.length };
 }
 
-module.exports = { createCheckoutSession, generatePaymentLink, chargeRecurringProfile, processRecurringCharges };
+module.exports = { createCheckoutSession, createAdvanceCheckout, generatePaymentLink, chargeRecurringProfile, processRecurringCharges, ADVANCE_MIN, ADVANCE_MAX };

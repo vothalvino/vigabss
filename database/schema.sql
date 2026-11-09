@@ -985,6 +985,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     notes           TEXT            NULL,
     status          ENUM('draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled', 'void') NOT NULL DEFAULT 'draft',
     paid_at         TIMESTAMP       NULL,
+    apply_client_credit TINYINT(1)  NOT NULL DEFAULT 1 COMMENT '1 = the client''s credit may pay this invoice automatically; 0 = only by hand (migration 012)',
     version         INT UNSIGNED    NOT NULL DEFAULT 1 COMMENT 'Optimistic locking version',
     created_by      BIGINT UNSIGNED NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

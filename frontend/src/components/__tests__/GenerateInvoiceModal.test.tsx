@@ -199,6 +199,31 @@ describe('GenerateInvoiceModal', () => {
     await waitFor(() => expect(onGenerated).toHaveBeenCalled());
   });
 
+  it("uses the customer's credit by default; unticked, it sends apply_credit: false", async () => {
+    const user = userEvent.setup();
+    renderModal();
+    const box = screen.getByRole('checkbox', { name: /Use the customer’s credit/ });
+    expect(box).toBeChecked();
+    await user.click(screen.getByTitle('Add Product'));
+    const opt = await screen.findByRole('option', { name: /Static IP/ }) as HTMLOptionElement;
+    await user.selectOptions(opt.closest('select')!, '1');
+    await user.click(screen.getByRole('button', { name: 'Generate' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledTimes(1));
+    expect((api.POST as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body).not.toHaveProperty('apply_credit');
+  });
+
+  it('sends apply_credit: false when "Use the customer\'s credit" is unticked', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(screen.getByRole('checkbox', { name: /Use the customer’s credit/ }));
+    await user.click(screen.getByTitle('Add Product'));
+    const opt = await screen.findByRole('option', { name: /Static IP/ }) as HTMLOptionElement;
+    await user.selectOptions(opt.closest('select')!, '1');
+    await user.click(screen.getByRole('button', { name: 'Generate' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledTimes(1));
+    expect((api.POST as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body).toMatchObject({ apply_credit: false });
+  });
+
   it('omits inventory_item_id for a plain (non-linked) catalog product', async () => {
     // Default setupApi() fixture: ADDONS have no inventory_item_id at all.
     const user = userEvent.setup();

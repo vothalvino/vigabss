@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Customers can pay ahead, and their credit pays the next invoices.** A
+  reseller or collector can take a payment from a customer who owes nothing,
+  or more than what is owed: the extra is the customer's credit, shown on the
+  receipt ("Saldo a favor"). Customers can also pay ahead online from the
+  portal ("Pagar por adelantado" on the Payments page). Credit is now used
+  on its own: when an invoice is created it is paid from the customer's
+  credit right away (before it is stamped, so it is stamped as paid), and a
+  daily check applies it before anyone is suspended. When staff create an
+  invoice by hand, "Use the customer's credit" is ticked; untick it to keep
+  the credit for later.
+- Migration 012 adds the invoice's "use credit" setting.
 - **Mi caja is simpler.** It opens with one figure, what the point must hand
   in to the company (or what the company owes it), the cash already in
   bags, and how far it is from its limit, with a button to fill a bag when

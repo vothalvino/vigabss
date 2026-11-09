@@ -626,6 +626,9 @@ describe('billingService', () => {
 
       await billingService.createOneOffInvoice({
         orgId: 7, clientId: 200, description: 'Installation fee', amount: 100, currency: 'GTQ',
+        // Credit is covered by tests/clientCredit.test.js; off here so the
+        // only db.query is the read-back.
+        applyCredit: false,
       });
 
       // Only ONE db.query call (Invoice.findById) — Organization.getCurrency
