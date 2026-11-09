@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Mi caja is simpler.** It opens with one figure, what the point must hand
+  in to the company (or what the company owes it), the cash already in
+  bags, and how far it is from its limit, with a button to fill a bag when
+  it gets there. Below, three tabs: **Hoy** (today's payments; tap one for
+  its receipt or to void it), **Movimientos** (every line of its account,
+  grouped by day: + adds to what it owes, − lowers it) and **Estados de
+  cuenta**. The daily "Cerrar caja" (counting the drawer) is gone from the
+  reseller app, and so is the second "should have" total that read like
+  the amount owed. In English the page is now "My cash".
 - **A change to the proxy's settings now takes effect on update.** The
   bundled nginx kept running with the settings file it started with, so an
   update that changed them (such as the signing-link masking in alpha.16)
