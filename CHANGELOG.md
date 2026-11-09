@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.16 — 2026-11-08
+
 - **Signing links stay out of the logs.** The token of a remote signing link
   is what lets the customer sign, and the app's request log and the proxy's
   access log were recording it in full. Both now mask it (in the address and
