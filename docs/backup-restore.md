@@ -1,6 +1,6 @@
 # Backup & Disaster Recovery Guide
 
-VigaBSS 0.1.0-alpha.16 includes a built-in backup script (`pnpm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
+VigaBSS 0.1.0-alpha.17 includes a built-in backup script (`pnpm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
 
 > **Updating or recreating containers?** First confirm your data is on a
 > persistent volume (not the container's ephemeral layer) with the

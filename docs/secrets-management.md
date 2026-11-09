@@ -1,6 +1,6 @@
 # Secrets Management
 
-This document explains how VigaBSS 0.1.0-alpha.16 manages production secrets, what
+This document explains how VigaBSS 0.1.0-alpha.17 manages production secrets, what
 options are available, and which approach is recommended for each deployment
 topology.
 
@@ -435,7 +435,7 @@ The health endpoints (`/health`, `/health?detail=true`, `/health/live`,
 | Field | Example | Secret? |
 |---|---|---|
 | `status` | `"ok"` | No |
-| `version` | `"0.1.0-alpha.16"` | No |
+| `version` | `"0.1.0-alpha.17"` | No |
 | `uptime` | `3600` | No |
 | `relay` | `"standalone"` | No |
 | `timestamp` | `"2026-04-23T..."` | No |

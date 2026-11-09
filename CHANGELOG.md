@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.17 — 2026-11-09
+
 - **A WireGuard tunnel is only issued when it can work.** With the
   WireGuard hub turned off (Settings → WireGuard), the server's key is never
   loaded, but tunnels could still be created: their configuration had an
