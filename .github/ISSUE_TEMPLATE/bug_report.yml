@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-description: Report a bug in VigaBSS 0.1.0-alpha.15
+description: Report a bug in VigaBSS 0.1.0-alpha.16
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -45,7 +45,7 @@ body:
     attributes:
       label: VigaBSS version
       description: Which version of VigaBSS are you running?
-      placeholder: "0.1.0-alpha.15"
+      placeholder: "0.1.0-alpha.16"
     validations:
       required: true
   - type: dropdown

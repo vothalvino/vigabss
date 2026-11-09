@@ -1,6 +1,6 @@
 {
   "name": "@vigabss/ui",
-  "version": "0.1.0-alpha.15",
+  "version": "0.1.0-alpha.16",
   "description": "VigaBSS design-system component library — design tokens + 6 core components",
   "type": "module",
   "private": true,
