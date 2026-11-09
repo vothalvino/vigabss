@@ -142,10 +142,10 @@ router.get('/tickets', requirePermission('reseller_app.tickets'), async (req, re
     ];
     const params = [req.orgId, ...ids, ...ids];
     if (req.query.client_id !== undefined && req.query.client_id !== '') {
-      const clientId = positiveId(req.query.client_id);
-      if (!clientId) throw new NotFoundError('Client');
+      // 404 for a client outside the subtree, as everywhere else in the app.
+      const client = await clientInScope(req, req.query.client_id);
       where.push('t.client_id = ?');
-      params.push(clientId);
+      params.push(Number(client.id));
     }
     const from = `FROM tickets t
        JOIN clients c ON c.id = t.client_id AND c.organization_id = t.organization_id AND c.deleted_at IS NULL

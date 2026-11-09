@@ -5,7 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **Signing links stay out of the logs.** The token of a remote signing link
+  is what lets the customer sign, and the app's request log and the proxy's
+  access log were recording it in full. Both now mask it (in the address and
+  in the referer), and the signing page tells the browser not to send its
+  address to anything it loads. Links sent before this update keep working
+  until they expire; to be safe, revoke any live ones and send new ones.
+- In the reseller app, listing the faults of a client outside the reseller's
+  customers is now refused (404) like every other client lookup, instead of
+  returning an empty list.
 
 ## 0.1.0-alpha.15 — 2026-11-08
 

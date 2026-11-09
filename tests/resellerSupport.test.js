@@ -272,6 +272,15 @@ describe('Reportar falla', () => {
     expect((await get('/reseller-app/tickets', asReseller(2))).body.data).toEqual([]);
   });
 
+  test('listing by client: its own client, a 404 for one outside the subtree', async () => {
+    expect((await post('/reseller-app/tickets', asReseller(1), { client_id: 31, subject: 'Lento', description: 'Va muy lento' })).status).toBe(201);
+    const mine = await get('/reseller-app/tickets?client_id=31', asReseller(1));
+    expect(mine.status).toBe(200);
+    expect(mine.body.data.map((t) => t.client_id)).toEqual([31]);
+    expect((await get('/reseller-app/tickets?client_id=21', asReseller(1))).status).toBe(404);
+    expect((await get('/reseller-app/tickets?client_id=abc', asReseller(1))).status).toBe(404);
+  });
+
   test('the daily budget is enforced', async () => {
     for (let i = 0; i < 30; i += 1) state.tickets.push({ id: i + 1, reseller_id: 1, client_id: 31 });
     const res = await post('/reseller-app/tickets', asReseller(1), { client_id: 31, subject: 'Otra', description: 'Otra falla' });
@@ -444,13 +453,34 @@ describe('public signing page', () => {
 });
 
 // =============================================================================
+describe('the signing page leaks no token', () => {
+  test('/firmar sends no Referer, is never cached or indexed', async () => {
+    const res = await request(app).get(`/firmar/1-${'A'.repeat(43)}`);
+    expect(res.headers['referrer-policy']).toBe('no-referrer');
+    expect(res.headers['cache-control']).toMatch(/no-store/);
+    expect(res.headers['x-robots-tag']).toMatch(/noindex/);
+  });
+
+  test('the proxy access log masks the token in the request line and the referer', () => {
+    const conf = fs.readFileSync(path.join(__dirname, '..', 'nginx', 'nginx.conf'), 'utf8');
+    expect(conf).toMatch(/map \$request \$vigabss_log_request/);
+    expect(conf).toMatch(/map \$http_referer \$vigabss_log_referer/);
+    const format = conf.slice(conf.indexOf('log_format main'), conf.indexOf(';', conf.indexOf('log_format main')));
+    expect(format).toContain('$vigabss_log_request');
+    expect(format).toContain('$vigabss_log_referer');
+    expect(format).not.toMatch(/"\$request"|\$http_referer/);
+  });
+});
+
+// =============================================================================
 describe('migration 009', () => {
   const file = path.join(__dirname, '..', 'database', 'migrations', '009_reseller_tickets_signing_links.sql');
   const sql = fs.readFileSync(file, 'utf8');
 
-  test('is the latest migration, with a rollback of the same name', () => {
-    const files = fs.readdirSync(path.dirname(file)).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe('009_reseller_tickets_signing_links.sql');
+  // Not "the latest": tests/sqlColumnCheck.test.js drops throwaway migrations
+  // into the directory while it runs, so a parallel "latest" check is flaky.
+  test('exists, with a rollback of the same name', () => {
+    expect(fs.existsSync(file)).toBe(true);
     expect(fs.existsSync(path.join(__dirname, '..', 'database', 'rollbacks', '009_reseller_tickets_signing_links.sql'))).toBe(true);
   });
 

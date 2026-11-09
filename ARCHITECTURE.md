@@ -638,6 +638,12 @@ documents and sign one through `legalDocumentService.sign` with
 on-site rule still applies: the activation contract and the service
 acknowledgment are signable only while the installation work order is in
 progress, so the page shows them as waiting for the visit until then.
+The token never reaches a log: `maskUrl` (`src/middleware/requestLogger.js`)
+masks the path segment after `/firmar/`, `/api/v1/public/signing/` and
+`/api/v1/portal/chat/`; both nginx configs log the request line and the
+referer through maps that mask the same paths; and `/firmar` is served with
+`Referrer-Policy: no-referrer` (also no-store, noindex), so the page's own
+asset and API requests carry no Referer.
 
 ### RBAC resolution
 

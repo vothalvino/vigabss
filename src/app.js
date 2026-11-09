@@ -897,6 +897,15 @@ mountApiDocs(app);
 // Hashed assets are immutable and served precompressed (FE-21).
 const { staticAssets } = require('./middleware/staticAssets');
 const frontendAssets = staticAssets(path.join(__dirname, '..', 'frontend', 'dist'));
+// The customer's signing page (/firmar/<token>): the token is a credential, so
+// the page sends no Referer (its scripts and API calls would otherwise carry
+// the full URL to the proxy's access log) and is never cached or indexed.
+app.use('/firmar', (req, res, next) => {
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', NO_STORE);
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
 app.use('/assets', frontendAssets.assets);
 app.use(frontendAssets.spa);
 
