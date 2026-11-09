@@ -50,7 +50,7 @@ vi.mock('@/api/client', () => ({
 }));
 
 const VERSION = {
-  release_version: '0.1.0-alpha.18',
+  release_version: '0.1.0-alpha.19',
   running_sha: 'abcdef1234567890',
   latest_sha: '99999992222222',
   update_available: true,
@@ -128,7 +128,7 @@ describe('what it shows', () => {
   it('reports the semantic release separately from the build commit', async () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText('0.1.0-alpha.18')).toBeInTheDocument();
+    expect(await screen.findByText('0.1.0-alpha.19')).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('abcdef1')).toBeInTheDocument();
   });

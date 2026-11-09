@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.19 — 2026-11-09
+
 - **Each reseller and collector has its own page.** The Resellers page
   used to put a "choose a reseller" drop-down on every tab, and forgot
   the choice when you switched tabs. It is now a list you can search (name,
