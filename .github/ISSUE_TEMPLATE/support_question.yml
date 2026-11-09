@@ -1,6 +1,6 @@
 ---
 name: Support Question
-description: Ask a question about installing, configuring, or using VigaBSS 0.1.0-alpha.16
+description: Ask a question about installing, configuring, or using VigaBSS 0.1.0-alpha.17
 title: "[Support]: "
 labels: ["question"]
 body:
@@ -41,7 +41,7 @@ body:
     id: version
     attributes:
       label: VigaBSS version
-      placeholder: "0.1.0-alpha.16"
+      placeholder: "0.1.0-alpha.17"
   - type: textarea
     id: additional
     attributes:
