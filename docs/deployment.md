@@ -1906,9 +1906,8 @@ Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 ### Quick Start
 
 ```bash
-# Add the chart repo (GitHub Pages — populated by chart-releaser CI)
-helm repo add vigabss https://vothalvino.github.io/vigabss
-helm repo update
+# The chart is published to GitHub Container Registry (an OCI registry):
+# no `helm repo add` is needed.
 
 # Generate the install values into a file — never pass secrets with --set
 umask 077
@@ -1927,7 +1926,7 @@ EOF
 chmod 600 values-secret.yaml
 
 # Install into the vigabss namespace (creates it automatically)
-helm install vigabss vigabss/vigabss \
+helm install vigabss oci://ghcr.io/vothalvino/charts/vigabss \
   --namespace vigabss --create-namespace \
   --version 0.1.0-alpha.19 \
   -f values-secret.yaml
@@ -2029,7 +2028,7 @@ kubectl rollout status -n vigabss deployment/vigabss --timeout=180s
 ### Upgrading
 
 ```bash
-helm upgrade vigabss vigabss/vigabss \
+helm upgrade vigabss oci://ghcr.io/vothalvino/charts/vigabss \
   --namespace vigabss \
   --version 0.1.0-alpha.19 \
   -f my-values.yaml \
@@ -2175,11 +2174,12 @@ that runs on every push of a version tag (`v*.*.*`):
 1. Builds and scans both application architectures, then publishes the
    immutable `ghcr.io/vothalvino/vigabss:X.Y.Z` image.
 2. Verifies the git tag, chart `version`, and chart `appVersion` are identical.
-3. Packages the chart and uploads it to the `gh-pages` branch via
-   [`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action).
-4. The updated `index.yaml` is served at
-   `https://vothalvino.github.io/vigabss` and is immediately available
-   to `helm repo update`.
+3. Packages the chart with its default image pinned to `X.Y.Z`, pushes it to
+   `oci://ghcr.io/vothalvino/charts/vigabss` (version `X.Y.Z`), and signs it
+   with keyless cosign like the image. There is no second git tag or GitHub
+   release for the chart: the `vX.Y.Z` release is the only one.
+4. Verify a chart before installing it:
+   `cosign verify ghcr.io/vothalvino/charts/vigabss:X.Y.Z --certificate-identity-regexp '^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com`.
 
 The chart is never released unless its default image has already been
 published successfully.

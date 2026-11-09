@@ -1159,7 +1159,7 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             # A released chart defaults to appVersion, so the matching immutable
-            # release image must exist before chart-releaser publishes it.
+            # release image must exist before the chart is published.
             PUBLISH_TAG="${GITHUB_REF_NAME#v}"
             TARGET_TAGS=(-t "${RELEASE_IMAGE}:${PUBLISH_TAG}")
           else
@@ -1322,7 +1322,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Helm chart lint + release
-  # Lint runs on every push/PR; release (chart-releaser) runs only on v* tags.
+  # Lint runs on every push/PR; release (helm push to ghcr.io) runs only on v* tags.
   # ---------------------------------------------------------------------------
   shell-scripts:
     # SUP-14: install.sh, redeploy.sh, the deploy agent and the TLS scripts
@@ -1361,9 +1361,9 @@ jobs:
         run: pnpm exec jest --ci --testPathPatterns 'tests/(installReloadCron|tlsBootstrapRecovery|tlsRenewalConfig|redeployTopology|redeployEnvSync|redeployVerifiesSignature|deployRequest|deployPullsImage|hostNginxScope|productionBootstrap|releaseChannel|setupScriptHardening|setupSecrets|secretsInArgv|shellScriptsCi)\.test\.js$'
 
   helm-lint:
-    # Lint and render run everywhere with a read-only token. Releasing needs
-    # contents: write, which this job held on every push and PR (OPS-08), so
-    # it moved to the tag-only helm-release job below.
+    # Lint and render run everywhere with a read-only token. Releasing (a push
+    # of the chart to ghcr.io) happens only in the tag-only helm-release job
+    # below (OPS-08).
     name: Helm lint
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -1454,12 +1454,12 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # chart-releaser needs to push to gh-pages
+      contents: read
+      packages: write   # push the chart to ghcr.io as an OCI artifact
+      id-token: write   # keyless cosign signing via OIDC
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0   # chart-releaser needs full history for gh-pages
 
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
@@ -1491,35 +1491,44 @@ jobs:
           sed -i '0,/^  tag: ""$/s//  tag: "'"$RELEASE_VERSION"'"/' charts/vigabss/values.yaml
           grep -qx "  tag: \"${RELEASE_VERSION}\"" charts/vigabss/values.yaml
 
-      # chart-releaser commits index.yaml to gh-pages and fails without a git
-      # identity (v0.1.0-alpha.1's index had to be committed by hand).
-      - name: Configure git for chart-releaser
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      # chart-releaser publishes packaged charts to the gh-pages branch and
-      # generates an updated Helm repo index.yaml.  Only runs on v* tags.
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@92c6b97fa9f664492a2592e0d1d80bc6bf378957 # v1.9.0
-        env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          charts_dir: charts
-          skip_existing: true
-          # The repository's latest release is the app's v* release, not the
-          # chart's vigabss-<version> release.
-          mark_as_latest: false
-
-      # chart-releaser cannot mark a release as a pre-release, so a chart for a
-      # v*-alpha/beta/rc tag would look like a stable release.
-      - name: Mark the chart release as a pre-release
-        if: contains(github.ref_name, '-')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The chart is an OCI artifact in GHCR next to the image
+      # (oci://ghcr.io/<owner>/charts/vigabss), so a release makes no second
+      # git tag or GitHub release: the v* release is the only one.
+      - name: Package the chart
+        id: package
         run: |
           set -euo pipefail
-          gh release edit "vigabss-${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          helm package charts/vigabss --destination dist
+          test -f "dist/vigabss-${RELEASE_VERSION}.tgz"
+          echo "file=dist/vigabss-${RELEASE_VERSION}.tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Push the chart to ghcr.io
+        id: push
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "$REGISTRY_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          helm push "${{ steps.package.outputs.file }}" "oci://ghcr.io/${OWNER}/charts" 2>&1 | tee push.log
+          DIGEST=$(awk '/^Digest:/ { print $2 }' push.log)
+          test -n "$DIGEST"
+          echo "ref=ghcr.io/${OWNER}/charts/vigabss@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Chart published::oci://ghcr.io/${OWNER}/charts/vigabss --version ${GITHUB_REF_NAME#v}"
+
+      - name: Install cosign
+        # Same Cosign as the image signature (see publish-manifest).
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign the published chart (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          cosign sign --yes "${{ steps.push.outputs.ref }}"
 
   # ---------------------------------------------------------------------------
   # Production compose: the Redis service actually starts, and keeps its
