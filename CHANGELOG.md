@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.15 — 2026-11-08
+
 - **Reseller program, phase 5: statements (estados de cuenta).** Staff close
   a month (or any past period) of a reseller's cash in a statement, in the new
   "Estados de cuenta" tab of the reseller page: what it owed at the start,
