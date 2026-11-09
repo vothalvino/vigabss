@@ -28,6 +28,9 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+let mockUser: { role?: string; permissions?: string[] } = { role: 'admin' };
+vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -171,6 +174,7 @@ function renderPage() {
 describe('SecurityAccessControlPage (§17)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = { role: 'admin' };
     setupMocks();
   });
 
@@ -212,9 +216,7 @@ describe('SecurityAccessControlPage (§17)', () => {
 
   it('shows password policy min length after load', async () => {
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText('12')).toBeInTheDocument(),
-    );
+    expect(await screen.findByLabelText('Minimum length')).toHaveValue(12);
   });
 
   it('shows admin IP allowlist entry after load', async () => {

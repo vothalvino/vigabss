@@ -4825,6 +4825,50 @@
       "expiredAt": "Expirou {{at}}",
       "lift": "Remover bloqueio"
     },
+    "passwordPolicyForm": {
+      "composition": "O que uma senha deve conter",
+      "reuse": "Reutilização e expiração",
+      "lockout": "Bloqueio de login da equipe",
+      "save": "Salvar política de senhas",
+      "saved": "Salvo.",
+      "appliesNext": "Vale a partir da próxima senha definida ou do próximo login; as senhas atuais continuam válidas até serem trocadas ou expirarem.",
+      "readOnly": "Você pode ver a política, mas não alterá-la (requer password_policy.update)."
+    },
+    "passwordPolicyLabels": {
+      "min_length": "Tamanho mínimo",
+      "require_uppercase": "Pelo menos uma letra maiúscula",
+      "require_lowercase": "Pelo menos uma letra minúscula",
+      "require_digits": "Pelo menos um número",
+      "require_special_chars": "Pelo menos um símbolo",
+      "max_repeated_chars": "Máximo de caracteres repetidos seguidos",
+      "history_count": "Senhas anteriores que não podem ser reutilizadas",
+      "rotation_days": "Pedir uma nova senha a cada (dias)",
+      "lockout_attempts": "Senhas erradas antes de bloquear",
+      "lockout_duration_minutes": "Bloquear por (minutos)"
+    },
+    "passwordPolicyHelp": {
+      "min_length": "De {{min}} a {{max}} caracteres.",
+      "max_repeated_chars": "0 = sem limite. Por exemplo, 3 recusa \"aaaa\".",
+      "history_count": "0 = sem verificação, até {{max}}.",
+      "rotation_days": "0 = nunca. A equipe é solicitada a trocá-la no próximo login com senha.",
+      "lockout_attempts": "De {{min}} a {{max}}. Conta senhas e códigos 2FA errados.",
+      "lockout_duration_minutes": "De {{min}} a {{max}} minutos."
+    },
+    "apiRateLimits": {
+      "explain": "Um limite vale para cada requisição feita com esse token de API: uma rajada por segundo e tetos por minuto, hora e dia. Quando um é ultrapassado, o token recebe 429 até o fim da janela. Um token sem limite próprio só tem os limites gerais.",
+      "token": "Token de API",
+      "burst_size": "Rajada (por segundo)",
+      "requests_per_minute": "Por minuto",
+      "requests_per_hour": "Por hora",
+      "requests_per_day": "Por dia",
+      "defaultValue": "{{value}} (padrão)",
+      "add": "Adicionar um limite para um token",
+      "pickToken": "Escolha um token",
+      "noTokens": "Não há tokens de API para escolher.",
+      "fieldHelp": "Vazio = padrão ({{value}}).",
+      "active": "Limite ativo",
+      "save": "Salvar limite"
+    },
     "apiSecurity": {
       "rateLimits": "Limites de Taxa por Chave API",
       "noRateLimits": "Nenhum limite de taxa configurado",

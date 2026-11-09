@@ -17,6 +17,8 @@ import { NotAppliedNotice } from '@/components/NotAppliedNotice';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 import { LoginIpBlocksSection } from './security/LoginIpBlocksSection';
+import { PasswordPolicySection } from './security/PasswordPolicySection';
+import { ApiRateLimitsSection } from './security/ApiRateLimitsSection';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,20 +32,6 @@ interface WebAuthnCredential {
   friendly_name: string | null;
   aaguid: string | null;
   created_at: string;
-}
-
-interface PasswordPolicy {
-  min_length: number | null;
-  require_uppercase: number;
-  require_lowercase: number;
-  require_digits: number;
-  require_special_chars: number;
-  max_repeated_chars: number | null;
-  rotation_days: number | null;
-  lockout_attempts: number | null;
-  lockout_duration_minutes: number | null;
-  /** false: no row is stored and the built-in defaults are in force. */
-  configured?: boolean;
 }
 
 interface AdminIpEntry {
@@ -61,14 +49,6 @@ interface AdminIpStatus {
   invalidEntries: number;
   currentIp: string | null;
   currentIpAllowed: boolean;
-}
-
-interface ApiKeyRateLimit {
-  id: number;
-  api_token_id: number;
-  requests_per_minute: number | null;
-  requests_per_hour: number | null;
-  requests_per_day: number | null;
 }
 
 interface FirewallRule {
@@ -204,7 +184,6 @@ function UserSecurityTab() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [credentials, setCredentials] = useState<WebAuthnCredential[]>([]);
-  const [policy, setPolicy] = useState<PasswordPolicy | null>(null);
   const [ipList, setIpList] = useState<AdminIpEntry[]>([]);
   const [ipStatus, setIpStatus] = useState<AdminIpStatus | null>(null);
   const [cidr, setCidr] = useState('');
@@ -219,13 +198,11 @@ function UserSecurityTab() {
     setLoading(true);
     Promise.all([
       apiFetch<{ data: WebAuthnCredential[] }>('/security-admin/webauthn'),
-      apiFetch<{ data: PasswordPolicy }>('/security-admin/password-policy').catch(() => ({ data: null })),
       apiFetch<{ data: AdminIpEntry[] }>('/security-admin/admin-ip-allowlist'),
       apiFetch<{ data: AdminIpStatus }>('/security-admin/admin-ip-allowlist/status'),
     ])
-      .then(([credRes, policyRes, ipRes, ipStatusRes]) => {
+      .then(([credRes, ipRes, ipStatusRes]) => {
         setCredentials(credRes.data);
-        setPolicy(policyRes.data);
         setIpList(ipRes.data);
         setIpStatus(ipStatusRes.data);
         setLoading(false);
@@ -328,28 +305,7 @@ function UserSecurityTab() {
         )
       }
 
-      <h2>{t('securityAccessControl.userSecurity.passwordPolicy')}</h2>
-      {policy && (
-        <p role="note">
-          {policy.configured === false
-            ? t('securityAccessControl.userSecurity.policyDefaults')
-            : t('securityAccessControl.userSecurity.policyEnforced')}
-        </p>
-      )}
-      {policy
-        ? (
-          <table style={{ borderCollapse: 'collapse', marginBottom: 24 }}>
-            <tbody>
-              <tr><td style={{ padding: '4px 12px 4px 0', fontWeight: 'bold' }}>{t('securityAccessControl.userSecurity.minLength')}</td><td style={{ padding: '4px 0' }}>{policy.min_length ?? '—'}</td></tr>
-              <tr><td style={{ padding: '4px 12px 4px 0', fontWeight: 'bold' }}>{t('securityAccessControl.userSecurity.requireSpecialChars')}</td><td style={{ padding: '4px 0' }}>{policy.require_special_chars ? t('common.yes') : t('common.no')}</td></tr>
-              <tr><td style={{ padding: '4px 12px 4px 0', fontWeight: 'bold' }}>{t('securityAccessControl.userSecurity.maxRepeatedChars')}</td><td style={{ padding: '4px 0' }}>{policy.max_repeated_chars ?? '—'}</td></tr>
-              <tr><td style={{ padding: '4px 12px 4px 0', fontWeight: 'bold' }}>{t('securityAccessControl.userSecurity.rotationDays')}</td><td style={{ padding: '4px 0' }}>{policy.rotation_days ?? '—'}</td></tr>
-              <tr><td style={{ padding: '4px 12px 4px 0', fontWeight: 'bold' }}>{t('securityAccessControl.userSecurity.lockoutAttempts')}</td><td style={{ padding: '4px 0' }}>{policy.lockout_attempts ?? '—'}</td></tr>
-            </tbody>
-          </table>
-        )
-        : <p>{t('securityAccessControl.userSecurity.noPolicyConfigured')}</p>
-      }
+      <PasswordPolicySection />
 
       <h2 id="admin-ip-allowlist">{t('securityAccessControl.userSecurity.adminIpAllowlist')}</h2>
       <div
@@ -477,50 +433,7 @@ function UserSecurityTab() {
 // ---------------------------------------------------------------------------
 
 function ApiSecurityTab() {
-  const { t } = useTranslation();
-  const [rateLimits, setRateLimits] = useState<ApiKeyRateLimit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiFetch<{ data: ApiKeyRateLimit[] }>('/security-admin/api-key-rate-limits')
-      .then(res => { setRateLimits(res.data); setLoading(false); })
-      .catch(err => { setError(err.message); setLoading(false); });
-  }, []);
-
-  if (loading) return <p>{t('common.loading')}</p>;
-  if (error) return <p style={{ color: 'red' }}>{t('common.error')}: {error}</p>;
-
-  return (
-    <div>
-      <h2>{t('securityAccessControl.apiSecurity.rateLimits')}</h2>
-      {rateLimits.length === 0
-        ? <p>{t('securityAccessControl.apiSecurity.noRateLimits')}</p>
-        : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('securityAccessControl.apiSecurity.tokenId')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('securityAccessControl.apiSecurity.perMinute')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('securityAccessControl.apiSecurity.perHour')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('securityAccessControl.apiSecurity.perDay')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rateLimits.map(r => (
-                <tr key={r.id}>
-                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.api_token_id}</td>
-                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.requests_per_minute ?? '—'}</td>
-                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.requests_per_hour ?? '—'}</td>
-                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.requests_per_day ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      }
-    </div>
-  );
+  return <ApiRateLimitsSection />;
 }
 
 // ---------------------------------------------------------------------------

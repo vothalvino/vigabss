@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The password policy can be edited from Security & Access Control.** The
+  page only showed five of its values, with no way to change them. It is now
+  a form for all of them: minimum length, required uppercase, lowercase,
+  numbers and symbols, repeated characters, how many old passwords cannot be
+  reused, how often a new one is required, and how many wrong passwords lock
+  a staff account and for how long. The API also refused nothing when a
+  whole number was expected there (it took text or 9.5); it now answers
+  "must be a whole number".
+- **API token rate limits can be edited too.** The API tab only listed them.
+  You can now add a limit for a token (picked by name), change it or turn it
+  off: a burst per second and limits per minute, hour and day, with the
+  defaults shown for empty fields.
 - **Every sign-in is in the audit log, and repeat offenders are blocked.**
   Staff and customer-portal sign-ins, good or bad, now appear in the audit
   log with their own action (for example "Staff sign-in failed", "Staff
