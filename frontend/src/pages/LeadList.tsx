@@ -24,7 +24,7 @@ import {
   cancelBtn,
 } from '@/components/ClientFormModal';
 import { queryKeys } from '@/api/queryKeys';
-import { ResellerListNotice, useResellerOptions } from './resellers/resellerOptions';
+import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellers/resellerOptions';
 
 interface Lead {
   id: number;
@@ -705,7 +705,8 @@ export function LeadList() {
     queryFn: () => fetchLeads(page, pageSize, resellerId),
   });
   const resellersQ = useResellerOptions({ enabled: canFilterByReseller });
-  const resellers = resellersQ.data?.rows;
+  // A collector never captures leads (migration 011).
+  const resellers = resellersQ.data ? resellersOnly(resellersQ.data.rows) : undefined;
   const { data: pipeline } = useQuery({ queryKey: ['leads', 'pipeline'], queryFn: fetchPipeline });
 
   const convertMutation = useMutation({

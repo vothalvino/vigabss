@@ -53,7 +53,7 @@ describe('fetchAllResellers', () => {
     const list = await fetchAllResellers();
     expect(list.rows).toHaveLength(230);
     expect(list.rows.map(r => r.id)).toEqual(Array.from({ length: 230 }, (_, i) => i + 1));
-    expect(list.rows[229]).toEqual({ id: 230, name: 'Punto 0230', parent_id: null });
+    expect(list.rows[229]).toEqual({ id: 230, name: 'Punto 0230', parent_id: null, kind: 'reseller' });
     expect(list).toMatchObject({ total: 230, truncated: false });
     expect(pagesAsked().sort()).toEqual(['1', '2', '3']);
     expect(mocks.apiFetch).toHaveBeenCalledWith('/resellers?page=2&limit=100');

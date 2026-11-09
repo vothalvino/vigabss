@@ -32,6 +32,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   one. The app says how much is left before the limit instead of "you can
   still collect".
 - Migration 010 adds the Manager group and the point login permission.
+- **Collectors ("Cobrador").** A new kind of point that only takes
+  payments, like a corner store: created on the resellers page as "Tipo:
+  Cobrador", with its own cash limit, cash box, bags and monthly statements.
+  It cannot see the ISP's customers, their counts or prospects, and finds a
+  customer only by the customer number. For each payment it keeps a fee set
+  per collector, a fixed amount or a percentage; a voided payment gives the
+  fee back. Its app has Inicio (its cash and fees), Cobrar, Mi caja and
+  Bolsas. A reseller with no customers, prospects or sub-resellers can be
+  turned into a collector.
+- Migration 011 adds collectors, their fees and the collector user group.
 
 ## 0.1.0-alpha.15 — 2026-11-08
 

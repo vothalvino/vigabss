@@ -16,16 +16,22 @@ export interface PuntoMe {
     name: string;
     level: number;
     status: string;
-    commission_rate: number | string;
+    /** Resellers only. */
+    commission_rate?: number | string;
     parent_id: number | null;
+    /** 'collector' (migration 011): a point that only takes payments. */
+    kind?: 'reseller' | 'collector';
+    collection_fee_type?: 'none' | 'fixed' | 'percent';
+    collection_fee_value?: number | string;
   };
   currency: string;
+  /** null for a collector, which sees no clients. */
   counts: {
     active_clients: number;
     suspended_clients: number;
     open_leads: number;
     overdue_clients: number;
-  };
+  } | null;
   /** Phase 2: the cash this reseller holds for the ISP and what it may still collect. */
   money?: PuntoMoney;
 }
@@ -63,6 +69,8 @@ export interface PuntoMoney {
    */
   commission_rate?: number | string;
   commission_month?: number | string;
+  /** A collector (migration 011): the collection fees it kept this month. */
+  fees_month?: number | string;
 }
 
 export interface PuntoListMeta { total: number; page: number; limit: number }
@@ -254,7 +262,7 @@ export interface PuntoCashSession {
 
 export type PuntoLedgerType =
   | 'collection' | 'collection_void' | 'deposit' | 'adjustment' | 'bag_sealed'
-  | 'commission' | 'commission_reversal' | 'payout';
+  | 'commission' | 'commission_reversal' | 'payout' | 'collection_fee' | 'collection_fee_reversal';
 
 export interface PuntoLedgerEntry {
   id: number;
@@ -566,6 +574,7 @@ export interface ResellerStatement {
 
 export const STATEMENT_TOTAL_TYPES: PuntoLedgerType[] = [
   'collection', 'collection_void', 'bag_sealed', 'deposit', 'commission', 'commission_reversal', 'payout', 'adjustment',
+  'collection_fee', 'collection_fee_reversal',
 ];
 
 export async function fetchPuntoStatements(page: number, limit: number) {

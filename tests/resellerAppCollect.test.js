@@ -173,6 +173,16 @@ function handle(sql, params = []) {
     return [[{ total: state.ledger.filter((e) => e.reseller_id === Number(params[1])).length }]];
   }
   if (/FROM reseller_ledger_entries WHERE id = \?/.test(s)) return [state.ledger.filter((e) => e.id === Number(params[0]))];
+  // collection fees (migration 011): kept on one payment, and this month
+  if (/AS kept FROM reseller_ledger_entries/.test(s)) {
+    const rows = state.ledger.filter((e) => e.reseller_id === Number(params[1]) && e.payment_id === Number(params[2])
+      && ['collection_fee', 'collection_fee_reversal'].includes(e.entry_type));
+    return [[{ kept: fromCents(rows.reduce((t, e) => t + cents(e.amount), 0)) }]];
+  }
+  if (/-SUM\(amount\), 0\) AS total\s+FROM reseller_ledger_entries/.test(s)) {
+    const rows = state.ledger.filter((e) => e.reseller_id === Number(params[1]) && ['collection_fee', 'collection_fee_reversal'].includes(e.entry_type));
+    return [[{ total: fromCents(-rows.reduce((t, e) => t + cents(e.amount), 0)) }]];
+  }
   // --- clients
   if (/FROM clients c\s+WHERE c\.organization_id = \? AND c\.deleted_at IS NULL AND \(/.test(s)) {
     let rest = params.slice(1);
@@ -856,6 +866,93 @@ describe('credit limit', () => {
       commission_rate: 10, commission_month: 0,
     });
     expect((await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 200 })).status).toBe(201);
+  });
+});
+
+describe('collector accounts (migration 011)', () => {
+  // R4, a collector that keeps $8 per payment; its login holds only the
+  // collector group's permissions. (Not R2: the lookup budget test needs R2's
+  // window empty.)
+  const COLLECTOR_GROUP = ['reseller_app.cash', 'reseller_app.collect', 'reseller_app.bags', 'reseller_app.statements'];
+  function asCollector(perms = COLLECTOR_GROUP, fee = { collection_fee_type: 'fixed', collection_fee_value: '8.00' }) {
+    state.resellers[4] = {
+      id: 4, organization_id: ORG, parent_id: null, level: 1, name: 'Cobros Centro', status: 'active',
+      commission_rate: '0.00', credit_limit: null, kind: 'collector', ...fee,
+    };
+    const token = asBoundReseller(perms, 4);
+    groupName = 'collector';
+    return token;
+  }
+  const tokenFor4 = (clientId) => tokenForClient(clientId, 4);
+
+  test('finds a customer only by its exact client number, masked, never by phone', async () => {
+    const token = asCollector();
+    const byNumber = await get('/reseller-app/collect/lookup?q=%2331', token);
+    expect(byNumber.status).toBe(200);
+    expect(byNumber.body.data).toEqual([expect.objectContaining({ own: false, client_number: 31 })]);
+    expect(byNumber.body.data[0].name).not.toBe('Ana Ruiz');
+    expect(JSON.stringify(byNumber.body)).not.toMatch(/555|@example/);
+    const byPhone = await get(`/reseller-app/collect/lookup?q=${encodeURIComponent('+52 (722) 555-0001')}`, token);
+    expect(byPhone.status).toBe(422);
+  });
+
+  test('keeps its fixed fee from the cash with the collection, and gives it back on a void', async () => {
+    const token = asCollector();
+    const res = await collect(token, { collect_token: tokenFor4(31), amount: 300 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.collection_fee).toBe(8);
+    const lines = state.ledger.filter((e) => e.payment_id === res.body.data.payment_id);
+    expect(lines.map((e) => [e.reseller_id, e.entry_type, e.amount])).toEqual([[4, 'collection', '300.00'], [4, 'collection_fee', '-8.00']]);
+    expect(ledgerSum(4)).toBe(29200);
+    const me = await get('/reseller-app/me', token);
+    expect(me.body.data.money).toMatchObject({ balance: 292, fees_month: 8, collected_today: 300 });
+    // The cash is still all in the drawer: the void takes back 300 and the fee.
+    const voided = await post(`/reseller-app/payments/${res.body.data.payment_id}/void`, token, { reason: 'me equivoqué' });
+    expect(voided.status).toBe(200);
+    expect(state.ledger.filter((e) => e.payment_id === res.body.data.payment_id).map((e) => [e.entry_type, e.amount]))
+      .toEqual([['collection', '300.00'], ['collection_fee', '-8.00'], ['collection_void', '-300.00'], ['collection_fee_reversal', '8.00']]);
+    expect(ledgerSum(4)).toBe(0);
+  });
+
+  test('a percentage fee is rounded to the cent and never more than the payment', async () => {
+    const token = asCollector(COLLECTOR_GROUP, { collection_fee_type: 'percent', collection_fee_value: '1.50' });
+    const res = await collect(token, { collect_token: tokenFor4(31), amount: 333.33 });
+    expect(res.body.data.collection_fee).toBe(5);
+    const collectorService = require('../src/services/collectorService');
+    expect(collectorService.feeFor({ kind: 'collector', collection_fee_type: 'fixed', collection_fee_value: '20.00' }, 5)).toBe(5);
+    expect(collectorService.feeFor({ kind: 'reseller', collection_fee_type: 'fixed', collection_fee_value: '20.00' }, 50)).toBe(0);
+    expect(collectorService.feeFor({ kind: 'collector', collection_fee_type: 'percent', collection_fee_value: '2.50' }, 101)).toBe(2.53);
+  });
+
+  test('a reseller keeps no fee', async () => {
+    const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 100 });
+    expect(res.status).toBe(201);
+    expect(res.body.data).not.toHaveProperty('collection_fee');
+    expect(state.ledger.filter((e) => e.entry_type === 'collection_fee')).toHaveLength(0);
+  });
+
+  test('/me shows its cash and fee, never a count of clients or prospects', async () => {
+    const res = await get('/reseller-app/me', asCollector());
+    expect(res.status).toBe(200);
+    expect(res.body.data.counts).toBeNull();
+    expect(res.body.data.reseller).toMatchObject({ id: 4, kind: 'collector', collection_fee_type: 'fixed', collection_fee_value: 8 });
+    expect(res.body.data.money).not.toHaveProperty('commission_rate');
+    expect(res.body.data.money).toMatchObject({ fees_month: 0, limit_reached: false });
+  });
+
+  test('its cash routes work with reseller_app.cash alone', async () => {
+    const token = asCollector();
+    for (const path of ['/reseller-app/payments', '/reseller-app/cash-session', '/reseller-app/ledger']) {
+      expect([path, (await get(path, token)).status]).toEqual([path, 200]);
+    }
+  });
+
+  test('every client, plan, lead and ticket route is refused to a collector, whatever its permissions', async () => {
+    const token = asCollector([...COLLECTOR_GROUP, 'reseller_app.use', 'reseller_app.signup', 'reseller_app.tickets']);
+    for (const path of ['/reseller-app/clients', '/reseller-app/clients/31', '/reseller-app/plans', '/reseller-app/leads', '/reseller-app/tickets', '/reseller-app/collect/client/31', '/reseller-app/leads/5/signing']) {
+      expect([path, (await get(path, token)).status]).toEqual([path, 403]);
+    }
+    expect((await post('/reseller-app/leads', token, { name: 'Ana', phone: '7225550000' })).status).toBe(403);
   });
 });
 

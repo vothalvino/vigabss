@@ -27,6 +27,8 @@ const TYPE_LABELS = {
   commission: 'Comisiones ganadas',
   commission_reversal: 'Comisiones revertidas',
   payout: 'Pagos de la empresa',
+  collection_fee: 'Comisiones por cobro',
+  collection_fee_reversal: 'Comisiones por cobro revertidas',
 };
 const LINE_LABELS = {
   collection: 'Cobro',
@@ -37,6 +39,8 @@ const LINE_LABELS = {
   commission: 'Comisión ganada',
   commission_reversal: 'Comisión revertida',
   payout: 'Pago de la empresa',
+  collection_fee: 'Comisión por cobro',
+  collection_fee_reversal: 'Comisión por cobro revertida',
 };
 const STATUS_LABELS = { draft: 'Borrador', approved: 'Aprobado', settled: 'Liquidado', void: 'Descartado' };
 

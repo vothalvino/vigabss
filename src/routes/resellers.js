@@ -61,7 +61,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { resellerScope, assertResellerInScope, resellerInScope } = require('../middleware/resellerScope');
 const bcrypt = require('bcryptjs');
-const { ForbiddenError, NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
+const { AppError, ForbiddenError, NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
 const { createUser: createUserSchema } = require('../middleware/schemas/users');
 const { SALT_ROUNDS: PASSWORD_SALT_ROUNDS } = require('../middleware/hashPassword');
 const { assertPasswordAllowed } = require('../services/passwordPolicyService');
@@ -75,6 +75,7 @@ const { ownedReferences } = require('../utils/ownedReferences');
 const money = require('../utils/money');
 const resellerLedgerService = require('../services/resellerLedgerService');
 const resellerCommissionService = require('../services/resellerCommissionService');
+const collectorService = require('../services/collectorService');
 const cashBagService = require('../services/cashBagService');
 const resellerSettlementService = require('../services/resellerSettlementService');
 const resellerStatementPdf = require('../services/resellerStatementPdf');
@@ -99,6 +100,10 @@ const createResellerSchema = {
   latitude:            { type: 'number', min: -90, max: 90, nullable: true },
   longitude:           { type: 'number', min: -180, max: 180, nullable: true },
   parent_id:           { type: 'number' },
+  // A point that only takes payments (migration 011).
+  kind:                { type: 'string', enum: ['reseller', 'collector'] },
+  collection_fee_type: { type: 'string', enum: ['none', 'fixed', 'percent'] },
+  collection_fee_value: { type: 'number', min: 0, max: 99999999.99 },
   commission_rate:     { type: 'number', min: 0, max: 100 },
   // Cash the reseller may hold before handing it in; null = organization default.
   credit_limit:        { type: 'number', min: 0, max: 9999999999.99, nullable: true },
@@ -121,6 +126,9 @@ const updateResellerSchema = {
   city:                { type: 'string', max: 100, nullable: true },
   latitude:            { type: 'number', min: -90, max: 90, nullable: true },
   longitude:           { type: 'number', min: -180, max: 180, nullable: true },
+  kind:                { type: 'string', enum: ['reseller', 'collector'] },
+  collection_fee_type: { type: 'string', enum: ['none', 'fixed', 'percent'] },
+  collection_fee_value: { type: 'number', min: 0, max: 99999999.99 },
   commission_rate:     { type: 'number', min: 0, max: 100 },
   // Cash the reseller may hold before handing it in; null = organization default.
   credit_limit:        { type: 'number', min: 0, max: 9999999999.99, nullable: true },
@@ -216,7 +224,7 @@ const requireIspDecision = orgLevelOnly('Only the ISP can change this for a rese
 // A reseller-bound caller may name and describe its sub-resellers, but what a
 // reseller earns, how much cash it may hold and whether it may operate are
 // the ISP's decisions.
-const ORG_LEVEL_RESELLER_FIELDS = ['commission_rate', 'status', 'credit_limit'];
+const ORG_LEVEL_RESELLER_FIELDS = ['commission_rate', 'status', 'credit_limit', 'kind', 'collection_fee_type', 'collection_fee_value'];
 function rejectResellerEscalation(req) {
   if (req.resellerScope.all) return;
   const body = req.body || {};
@@ -293,7 +301,7 @@ function locationFromBody(body) {
 // GET /resellers
 router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, status, parent_id } = req.query;
+    const { page = 1, limit = 50, status, parent_id, kind } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
@@ -305,6 +313,10 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
       params.push(...req.resellerScope.resellerIds);
     }
     if (status) { conditions.push('r.status = ?'); params.push(status); }
+    if (kind !== undefined && kind !== '') {
+      if (!collectorService.KINDS.includes(kind)) throw new ValidationError('kind must be reseller or collector');
+      conditions.push('r.kind = ?'); params.push(kind);
+    }
     if (parent_id !== undefined) {
       if (parent_id === 'null') {
         conditions.push('r.parent_id IS NULL');
@@ -341,6 +353,14 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
     rejectResellerEscalation(req);
     const creditLimit = creditLimitFromBody(req.body);
     const location = locationFromBody(req.body);
+    // A collector (migration 011) is a top-level point that only takes
+    // payments: no parent, no commission, and never the parent of another.
+    const kind = req.body.kind || 'reseller';
+    if (kind === 'collector' && parent_id) throw new ValidationError('parent_id: a collector has no parent reseller');
+    if (kind === 'collector' && Number(commission_rate) > 0) throw new ValidationError('commission_rate: a collector earns a collection fee, not a commission');
+    if (parent_id) await collectorService.assertCanOwnClients(req.orgId, parent_id, db.query.bind(db), 'parent_id');
+    const fee = collectorService.feeSettings(req.body, kind) || { type: 'none', value: 0 };
+    if (kind === 'collector' && fee.type === null) fee.type = Number(fee.value) > 0 ? 'fixed' : 'none';
     // A reseller-bound caller may only add sub-resellers inside its subtree.
     if (!req.resellerScope.all && !parent_id) {
       throw new ForbiddenError('Reseller-bound users can only create sub-resellers of their own reseller');
@@ -361,12 +381,12 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
     }
 
     const [result] = await db.query(
-      `INSERT INTO resellers (organization_id, parent_id, level, name, email, phone, contact_name,
-        commission_rate, status, brand_logo_url, brand_primary_color, brand_accent_color,
+      `INSERT INTO resellers (organization_id, parent_id, level, kind, name, email, phone, contact_name,
+        commission_rate, collection_fee_type, collection_fee_value, status, brand_logo_url, brand_primary_color, brand_accent_color,
         portal_domain, portal_name, notes, address, city, latitude, longitude, credit_limit)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.orgId, parent_id || null, level, name, email || null, phone || null,
-        contact_name || null, commission_rate, status,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.orgId, parent_id || null, level, kind, name, email || null, phone || null,
+        contact_name || null, commission_rate, fee.type, fee.value ?? 0, status,
         brand_logo_url || null, brand_primary_color || null, brand_accent_color || null,
         portal_domain || null, portal_name || null, notes || null,
         location.address.value, location.city.value, location.latitude.value, location.longitude.value,
@@ -389,11 +409,44 @@ router.get('/:id', requirePermission('resellers.view'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
+/**
+ * The new kind a PUT asks for, or null. Turning a reseller into a collector
+ * (migration 011) needs a top-level reseller with no sub-resellers, clients
+ * or leads: a collector never owns any (409 COLLECTOR_HAS_CLIENTS).
+ */
+async function kindChangeFor(req, existing) {
+  const wanted = req.body.kind;
+  if (wanted === undefined || wanted === (existing.kind || 'reseller')) return null;
+  if (wanted === 'collector') {
+    if (existing.parent_id !== null && existing.parent_id !== undefined) {
+      throw new ValidationError('kind: a sub-reseller cannot be a collector');
+    }
+    const [[owned]] = await db.query(
+      `SELECT (SELECT COUNT(*) FROM resellers WHERE organization_id = ? AND parent_id = ? AND deleted_at IS NULL)
+            + (SELECT COUNT(*) FROM clients WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL)
+            + (SELECT COUNT(*) FROM leads WHERE organization_id = ? AND reseller_id = ? AND deleted_at IS NULL) AS n`,
+      [req.orgId, existing.id, req.orgId, existing.id, req.orgId, existing.id],
+    );
+    if (Number(owned?.n) > 0) {
+      throw new AppError('A reseller with sub-resellers, clients or leads cannot become a collector', 409, 'COLLECTOR_HAS_CLIENTS');
+    }
+  }
+  return wanted;
+}
+
 // PUT /resellers/:id
 router.put('/:id', requirePermission('resellers.update'), validate(updateResellerSchema, { strip: false }), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req);
+    const existing = await getResellerOrThrow(req);
     rejectResellerEscalation(req);
+    const kindChange = await kindChangeFor(req, existing);
+    const effectiveKind = kindChange || existing.kind || 'reseller';
+    const fee = kindChange === 'reseller'
+      ? { type: 'none', value: 0 }
+      : collectorService.feeSettings(req.body, effectiveKind);
+    if (effectiveKind === 'collector' && Number(req.body.commission_rate) > 0) {
+      throw new ValidationError('commission_rate: a collector earns a collection fee, not a commission');
+    }
     // credit_limit may be set back to null (the organization default) and the
     // location fields cleared, so they are not COALESCEd like the other
     // fields: IF(sent, value, unchanged).
@@ -407,6 +460,8 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
 
     await db.query(
       `UPDATE resellers SET
+        kind = COALESCE(?, kind), collection_fee_type = COALESCE(?, collection_fee_type),
+        collection_fee_value = COALESCE(?, collection_fee_value),
         name = COALESCE(?, name), email = COALESCE(?, email), phone = COALESCE(?, phone),
         contact_name = COALESCE(?, contact_name), commission_rate = COALESCE(?, commission_rate),
         status = COALESCE(?, status), brand_logo_url = COALESCE(?, brand_logo_url),
@@ -420,8 +475,9 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
       // Coalesce each optional field to null: an omitted key is `undefined`,
       // which mysql2's execute() rejects ("Bind parameters must not contain
       // undefined"); null lets COALESCE(?, col) keep the existing value.
-      [name ?? null, email ?? null, phone ?? null, contact_name ?? null,
-        commission_rate ?? null, status ?? null, brand_logo_url ?? null,
+      [kindChange ?? null, fee ? fee.type : null, fee ? fee.value : null,
+        name ?? null, email ?? null, phone ?? null, contact_name ?? null,
+        kindChange === 'collector' ? 0 : commission_rate ?? null, status ?? null, brand_logo_url ?? null,
         brand_primary_color ?? null, brand_accent_color ?? null,
         portal_domain ?? null, portal_name ?? null, notes ?? null,
         ...['address', 'city', 'latitude', 'longitude'].flatMap((k) => [location[k].present ? 1 : 0, location[k].value]),
@@ -913,10 +969,13 @@ router.post(
       await assertPasswordAllowed(req.body.password, req.orgId);
       const passwordHash = await bcrypt.hash(req.body.password, PASSWORD_SALT_ROUNDS);
 
-      const [[group]] = await runInPrimaryContext(() => db.query(
-        "SELECT id FROM roles WHERE name = 'reseller_admin' AND is_system = 1 AND deleted_at IS NULL LIMIT 1",
-      ));
-      if (!group) throw new ValidationError('The reseller_admin user group is missing');
+      // A collector's login goes in the collector group (migration 011): the
+      // reseller app's cash routes only, never clients, leads or plans.
+      const collector = reseller.kind === 'collector';
+      const [[group]] = await runInPrimaryContext(() => db.query(collector
+        ? "SELECT id FROM roles WHERE name = 'collector' AND is_system = 1 AND deleted_at IS NULL LIMIT 1"
+        : "SELECT id FROM roles WHERE name = 'reseller_admin' AND is_system = 1 AND deleted_at IS NULL LIMIT 1"));
+      if (!group) throw new ValidationError(`The ${collector ? 'collector' : 'reseller_admin'} user group is missing`);
 
       const user = await User.create({
         organization_id: req.orgId,

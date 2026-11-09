@@ -52,6 +52,7 @@ let binding; // reseller_user_bindings row for the caller, or undefined
 let groupName; // the caller's live group name, or undefined
 let allowedPlanIds; // reseller_allowed_plans of R1
 let resellerStatus;
+let ownedCount = 0; // sub-resellers + clients + leads a reseller owns (kind change)
 
 function installDb() {
   db.query.mockImplementation(async (sql, params = []) => {
@@ -116,6 +117,8 @@ function installDb() {
     if (/COUNT\(\*\) AS total FROM leads l/.test(s)) return [[{ total: 1 }]];
     // users / bindings
     if (/FROM roles WHERE name = 'reseller_admin'/.test(s)) return [[{ id: 8 }]];
+    if (/FROM roles WHERE name = 'collector'/.test(s)) return [[{ id: 12 }]];
+    if (/AS n$/.test(s.trim()) && /FROM clients WHERE organization_id = \? AND reseller_id = \?/.test(s)) return [[{ n: ownedCount }]];
     if (/INSERT INTO reseller_user_bindings/.test(s)) return [{ affectedRows: 1, insertId: 55 }];
     if (/SELECT id FROM reseller_user_bindings WHERE organization_id = \? AND user_id = \?/.test(s)) return [[{ id: 55 }]];
     return [[]];
@@ -198,7 +201,7 @@ describe('only reseller accounts use the reseller app', () => {
   test('GET /me returns the bound reseller and its counts', async () => {
     const res = await get('/reseller-app/me', asBoundReseller());
     expect(res.status).toBe(200);
-    expect(res.body.data.reseller).toEqual({ id: 1, name: 'R1', level: 1, status: 'active', commission_rate: 10, parent_id: null });
+    expect(res.body.data.reseller).toEqual({ id: 1, name: 'R1', level: 1, status: 'active', commission_rate: 10, parent_id: null, kind: 'reseller' });
     expect(res.body.data.counts).toEqual({ active_clients: 4, suspended_clients: 1, open_leads: 2, overdue_clients: 1 });
     expect(typeof res.body.data.currency).toBe('string');
     // Every count binds the organization and the subtree (R1 and R3).
@@ -391,9 +394,9 @@ describe('reseller escalation guards', () => {
     const res = await post('/resellers', token, { name: 'Sub', parent_id: 1 });
     expect(res.status).toBe(201);
     const [[, params]] = sqlCalls(/INSERT INTO resellers/);
-    expect(params.slice(0, 4)).toEqual([ORG, 1, 2, 'Sub']);
-    expect(params[7]).toBe(0);
-    expect(params[8]).toBe('active');
+    expect(params.slice(0, 5)).toEqual([ORG, 1, 2, 'reseller', 'Sub']);
+    expect(params[8]).toBe(0);
+    expect(params.slice(9, 12)).toEqual(['none', 0, 'active']);
   });
 
   test('a bound user cannot raise a commission or change a status through PUT', async () => {
@@ -520,6 +523,82 @@ describe('create a reseller login', () => {
     const bound = asBoundReseller(['resellers.update', 'users.create']);
     expect((await post('/resellers/1/users', bound, body)).status).toBe(403);
     expect(User.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('collector accounts (migration 011)', () => {
+  afterEach(() => { delete RESELLERS[5]; ownedCount = 0; });
+
+  test('creates a top-level collector with its fee and no commission', async () => {
+    const res = await post('/resellers', asOrgAdmin(), { name: 'Cobros Centro', kind: 'collector', collection_fee_type: 'percent', collection_fee_value: 1.5 });
+    expect(res.status).toBe(201);
+    const [[sql, params]] = sqlCalls(/INSERT INTO resellers/);
+    expect(sql).toMatch(/kind, name/);
+    expect(params.slice(0, 5)).toEqual([ORG, null, 1, 'collector', 'Cobros Centro']);
+    expect(params.slice(8, 11)).toEqual([0, 'percent', 1.5]);
+  });
+
+  test('a collector has no parent and no commission, and a percentage is at most 100', async () => {
+    const token = asOrgAdmin();
+    expect((await post('/resellers', token, { name: 'X', kind: 'collector', parent_id: 1 })).status).toBe(422);
+    expect((await post('/resellers', token, { name: 'X', kind: 'collector', commission_rate: 5 })).status).toBe(422);
+    expect((await post('/resellers', token, { name: 'X', kind: 'collector', collection_fee_type: 'percent', collection_fee_value: 101 })).status).toBe(422);
+    // A reseller earns no collection fee.
+    expect((await post('/resellers', token, { name: 'X', collection_fee_type: 'fixed', collection_fee_value: 8 })).status).toBe(422);
+    expect(sqlCalls(/INSERT INTO resellers/)).toHaveLength(0);
+  });
+
+  test('a collector is never the parent of a sub-reseller', async () => {
+    RESELLERS[5] = { id: 5, organization_id: ORG, parent_id: null, level: 1, name: 'Cobros', status: 'active', commission_rate: '0.00', kind: 'collector' };
+    const res = await post('/resellers', asOrgAdmin(), { name: 'Sub', parent_id: 5 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/collector only takes payments/);
+  });
+
+  test('a reseller with clients, leads or sub-resellers cannot become a collector', async () => {
+    ownedCount = 3;
+    const res = await put('/resellers/2', asOrgAdmin(), { kind: 'collector' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('COLLECTOR_HAS_CLIENTS');
+    expect(sqlCalls(/UPDATE resellers SET/)).toHaveLength(0);
+    ownedCount = 0;
+    expect((await put('/resellers/2', asOrgAdmin(), { kind: 'collector', collection_fee_type: 'fixed', collection_fee_value: 8 })).status).toBe(200);
+    const [[, params]] = sqlCalls(/UPDATE resellers SET/);
+    expect(params.slice(0, 3)).toEqual(['collector', 'fixed', 8]);
+    // A sub-reseller never can.
+    expect((await put('/resellers/3', asOrgAdmin(), { kind: 'collector' })).status).toBe(422);
+  });
+
+  test("a bound reseller cannot set a point's kind or fee", async () => {
+    const res = await put('/resellers/3', asBoundReseller(['resellers.update']), { collection_fee_value: 5 });
+    expect(res.status).toBe(403);
+  });
+
+  test("a collector's login goes in the collector group", async () => {
+    RESELLERS[5] = { id: 5, organization_id: ORG, parent_id: null, level: 1, name: 'Cobros', status: 'active', commission_rate: '0.00', kind: 'collector' };
+    User.findByEmail.mockResolvedValue(null);
+    User.create.mockResolvedValue({ id: 44, email: 'caja@example.com' });
+    const res = await post('/resellers/5/users', asOrgAdmin(), { first_name: 'Caja', last_name: 'Uno', email: 'caja@example.com', password: 'Segura123!' });
+    expect(res.status).toBe(201);
+    expect(User.create.mock.calls[0][0]).toMatchObject({ group_id: 12 });
+  });
+
+  test('lead conversion never makes a collector the owner of a client', async () => {
+    const lifecycleService = require('../src/services/lifecycleService');
+    const c = {
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+      query: jest.fn(async (sql) => {
+        if (/FROM leads/.test(sql)) return [[{ id: 900, organization_id: ORG, name: 'Carla', reseller_id: 5, converted_client_id: null }]];
+        if (/FROM organizations/.test(sql)) return [[{ locale: 'global' }]];
+        if (/FROM resellers/.test(sql)) return [[{ id: 5, kind: 'collector' }]];
+        if (/INSERT INTO clients/.test(sql)) return [{ insertId: 500 }];
+        if (/UPDATE leads/.test(sql)) return [{ affectedRows: 1 }];
+        return [[]];
+      }),
+    };
+    db.getConnection.mockResolvedValue(c);
+    const result = await lifecycleService.convertLead(900, ORG);
+    expect(result.client.reseller_id ?? null).toBeNull();
   });
 });
 

@@ -7,7 +7,9 @@
 // a bound account. Mobile first: a bottom tab bar on narrow screens and a tab
 // row under the header from 768px (punto.css). Tabs follow the account's
 // permissions: without reseller_app.use only a no-access notice is shown,
-// "Cobrar" needs reseller_app.collect and "Nuevo" reseller_app.signup.
+// "Cobrar" needs reseller_app.collect and "Nuevo" reseller_app.signup. A
+// collector's login (reseller_app.cash without reseller_app.use, migration
+// 011) gets Inicio (its cash), Cobrar, Mi caja and Bolsas only.
 // Prospectos is not a tab: Inicio and Clientes link to it. The header gives
 // the reseller's name its own line; the language picker sits on the second
 // line so a long name is not cut to a few letters at 360px.
@@ -20,6 +22,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { LoadingState } from '@/components/FetchStates';
+import { useCollectorMode } from './puntoUi';
 import './punto.css';
 
 const ICONS = {
@@ -42,6 +45,12 @@ const ICONS = {
       <rect x="2.5" y="6" width="19" height="12" rx="2" />
       <circle cx="12" cy="12" r="2.6" />
       <path d="M6 9.5v5M18 9.5v5" />
+    </>
+  ),
+  bags: (
+    <>
+      <path d="M6 8h12l1.5 12a1 1 0 0 1-1 1.1h-13a1 1 0 0 1-1-1.1z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
   cash: (
@@ -70,6 +79,14 @@ const TABS = [
   { to: '/punto/caja', end: false, icon: 'cash', labelKey: 'punto.nav.cash', permission: null },
 ] as const;
 
+// A collector's tabs: no clients and no sign-up.
+const COLLECTOR_TABS = [
+  { to: '/punto', end: true, icon: 'home', labelKey: 'punto.nav.home', permission: null },
+  { to: '/punto/cobrar', end: false, icon: 'collect', labelKey: 'punto.nav.collect', permission: 'reseller_app.collect' },
+  { to: '/punto/caja', end: false, icon: 'cash', labelKey: 'punto.nav.cash', permission: null },
+  { to: '/punto/bolsas', end: false, icon: 'bags', labelKey: 'punto.nav.bags', permission: 'reseller_app.bags' },
+] as const;
+
 /**
  * Shown instead of the app to a bound account whose group lacks
  * reseller_app.use: every /reseller-app request would answer 403, and the
@@ -89,8 +106,9 @@ export function PuntoLayout() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const canUse = can(user, 'reseller_app.use');
-  const tabs = TABS.filter(tab => !tab.permission || can(user, tab.permission));
+  const collectorMode = useCollectorMode();
+  const canUse = can(user, 'reseller_app.use') || collectorMode;
+  const tabs = (collectorMode ? COLLECTOR_TABS : TABS).filter(tab => !tab.permission || can(user, tab.permission));
 
   async function signOut() {
     await logout();

@@ -23,7 +23,16 @@ export const MAX_PICKER_RESELLERS = 5000;
 /** Pages fetched at the same time after the first. */
 const PARALLEL_PAGES = 4;
 
-export interface ResellerOption { id: number; name: string; parent_id: number | null }
+export interface ResellerOption {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  /** 'collector' (migration 011): a point that only takes payments; it owns no clients, leads or sub-resellers. */
+  kind: 'reseller' | 'collector';
+}
+
+/** The pickers of things only a reseller has (a parent, commissions, allowed plans, leads). */
+export const resellersOnly = (rows: ResellerOption[]) => rows.filter(r => r.kind !== 'collector');
 export interface ResellerOptionList {
   rows: ResellerOption[];
   /** How many resellers the server has (meta.total), even past the cap. */
@@ -46,7 +55,7 @@ function toOption(raw: unknown): ResellerOption | null {
   const id = Number(r.id);
   if (!Number.isInteger(id) || id < 1) return null;
   const parent = r.parent_id === null || r.parent_id === undefined ? null : Number(r.parent_id);
-  return { id, name: String(r.name ?? ''), parent_id: Number.isInteger(parent) ? parent : null };
+  return { id, name: String(r.name ?? ''), parent_id: Number.isInteger(parent) ? parent : null, kind: r.kind === 'collector' ? 'collector' : 'reseller' };
 }
 
 const rowsOf = (page: ResellerPage | null | undefined): unknown[] => (Array.isArray(page?.data) ? page.data : []);

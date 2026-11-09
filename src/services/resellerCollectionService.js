@@ -59,6 +59,7 @@ const repService = require('./repService');
 const auditLog = require('./auditLog');
 const ledger = require('./resellerLedgerService');
 const commissions = require('./resellerCommissionService');
+const collectors = require('./collectorService');
 const thermal = require('./thermalReceiptService');
 const Organization = require('../models/Organization');
 
@@ -182,7 +183,13 @@ async function buildTargets(req, clients) {
 
 /** GET /reseller-app/collect/lookup: up to 5 clients of the whole organization. */
 async function lookup(req, rawQuery) {
-  const parsed = parseLookupQuery(rawQuery);
+  let parsed = parseLookupQuery(rawQuery);
+  // A collector (migration 011) finds a customer only by its exact client
+  // number: never by phone.
+  if (req.pointKind === 'collector') {
+    if (!parsed || parsed.clientId === null) throw new ValidationError('q must be the exact customer number (e.g. #123)');
+    parsed = { clientId: parsed.clientId, phones: [] };
+  }
   if (!parsed) throw new ValidationError('q must be an exact customer number (e.g. #123) or phone number');
   const conditions = [];
   const params = [req.orgId];
@@ -445,6 +452,15 @@ async function collect(req, body, idempotencyKey = null) {
       orgId, resellerId: collectorId, entryType: 'collection', amount, currency,
       paymentId, cashSessionId, note, createdBy: userId,
     });
+    // A collector keeps its fee from the cash at once (migration 011); the
+    // reseller row is already locked, so its fee settings cannot change now.
+    const fee = collectors.feeFor(await collectors.pointRow(exec, orgId, collectorId), amount);
+    const feeEntryId = fee > 0
+      ? await ledger.appendEntry(exec, {
+        orgId, resellerId: collectorId, entryType: 'collection_fee', amount: -fee, currency,
+        paymentId, cashSessionId, note: null, createdBy: userId,
+      })
+      : null;
 
     const responseBody = {
       data: {
@@ -453,6 +469,7 @@ async function collect(req, body, idempotencyKey = null) {
         allocated: allocations.map((a) => ({ invoice_id: Number(a.invoice_id), amount: toMoney(a.amount) })),
         client_number: Number(client.id),
         client_name: displayName(scope, client),
+        ...(fee > 0 ? { collection_fee: toMoney(fee) } : {}),
         reconnected: null,
         receipt_url: `/reseller-app/payments/${paymentId}/receipt`,
       },
@@ -466,7 +483,7 @@ async function collect(req, body, idempotencyKey = null) {
     }
 
     await conn.commit();
-    posted = { paymentId, client, allocations, justPaidInvoices, entryId, cashSessionId, responseBody };
+    posted = { paymentId, client, allocations, justPaidInvoices, entryId, feeEntryId, cashSessionId, responseBody };
   } catch (err) {
     try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
     throw err;
@@ -474,7 +491,7 @@ async function collect(req, body, idempotencyKey = null) {
     conn.release();
   }
 
-  const { paymentId, client, allocations, justPaidInvoices, entryId, cashSessionId, responseBody } = posted;
+  const { paymentId, client, allocations, justPaidInvoices, entryId, feeEntryId, cashSessionId, responseBody } = posted;
   logger.info({ orgId, resellerId: collectorId, paymentId, amount, allocated: allocations.length }, 'Reseller collection posted');
 
   // Post-commit, best effort: the money is already posted.
@@ -483,6 +500,7 @@ async function collect(req, body, idempotencyKey = null) {
     newValues: {
       reseller_id: collectorId, client_id: Number(client.id), amount: toMoney(amount), payment_method: 'cash',
       cash_session_id: cashSessionId, ledger_entry_id: entryId,
+      ...(feeEntryId ? { fee_ledger_entry_id: feeEntryId } : {}),
     },
   }), 'audit log');
   await afterCommit(() => require('./businessEvents').emitPaymentReceived(orgId, paymentId), 'payment.received event');
@@ -678,6 +696,20 @@ async function voidCollection(req, paymentId, reason) {
       orgId, resellerId: collectorId, entryType: 'collection_void', amount: -collected,
       currency: payment.currency, paymentId: id, cashSessionId, note: reason, createdBy: userId,
     });
+    // A collector's fee on it goes back too (migration 011).
+    const [feeRows] = await exec(
+      `SELECT COALESCE(SUM(amount), 0) AS kept FROM reseller_ledger_entries
+        WHERE organization_id = ? AND reseller_id = ? AND payment_id = ?
+          AND entry_type IN ('collection_fee', 'collection_fee_reversal')`,
+      [orgId, collectorId, id],
+    );
+    const kept = toMoney(feeRows && feeRows[0] ? feeRows[0].kept : 0);
+    if (kept < 0) {
+      await ledger.appendEntry(exec, {
+        orgId, resellerId: collectorId, entryType: 'collection_fee_reversal', amount: -kept,
+        currency: payment.currency, paymentId: id, cashSessionId, note: reason, createdBy: userId,
+      });
+    }
     await conn.commit();
     voided = { payment, entryId, cashSessionId, invoiceIds, collected };
   } catch (err) {

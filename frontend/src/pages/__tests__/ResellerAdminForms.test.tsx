@@ -54,6 +54,28 @@ describe('ResellerFormModal', () => {
     });
   });
 
+  it('creates a collector: no parent, no commission, a fee per payment', async () => {
+    const onSaved = vi.fn();
+    wrap(<ResellerFormModal mode="create" onClose={vi.fn()} onSaved={onSaved} />);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Punto Norte' });
+    await user.selectOptions(screen.getByLabelText('Type'), 'collector');
+    expect(screen.queryByLabelText('Parent reseller (optional)')).toBeNull();
+    expect(screen.queryByLabelText('Commission (%)')).toBeNull();
+    await user.type(screen.getByLabelText(/^Name/), 'Cobros Centro');
+    await user.selectOptions(screen.getByLabelText('Fee per payment'), 'percent');
+    await user.type(screen.getByLabelText('Percentage of each payment'), '120');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Write the fee');
+    await user.clear(screen.getByLabelText('Percentage of each payment'));
+    await user.type(screen.getByLabelText('Percentage of each payment'), '1.5');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(bodyOf('POST', '/resellers')).toEqual({
+      name: 'Cobros Centro', kind: 'collector', status: 'active', collection_fee_type: 'percent', collection_fee_value: 1.5,
+    });
+  });
+
   it('creates a sub-reseller with the right body', async () => {
     const onSaved = vi.fn();
     const onClose = vi.fn();
@@ -78,6 +100,7 @@ describe('ResellerFormModal', () => {
       phone: '5512340000',
       parent_id: 4,
       commission_rate: 7.5,
+      kind: 'reseller',
       status: 'active',
       notes: 'Esquina con la tienda',
     });
@@ -90,7 +113,7 @@ describe('ResellerFormModal', () => {
     await user.type(screen.getByLabelText(/^Name/), 'Punto Sur');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
-    expect(bodyOf('POST', '/resellers')).toEqual({ name: 'Punto Sur', commission_rate: 0, status: 'active' });
+    expect(bodyOf('POST', '/resellers')).toEqual({ name: 'Punto Sur', commission_rate: 0, kind: 'reseller', status: 'active' });
   });
 
   it('edits with PUT, never sends parent_id, and refuses a rate over 100', async () => {
@@ -324,7 +347,7 @@ describe('ResellerFormModal cash limit', () => {
     await user.type(limit, '1500.50');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
-    expect(bodyOf('POST', '/resellers')).toEqual({ name: 'Punto Sur', commission_rate: 0, status: 'active', credit_limit: 1500.5 });
+    expect(bodyOf('POST', '/resellers')).toEqual({ name: 'Punto Sur', commission_rate: 0, kind: 'reseller', status: 'active', credit_limit: 1500.5 });
   });
 
   it('leaves a blank limit out of a create and does not read settings without settings.view', async () => {
@@ -393,7 +416,7 @@ describe('ResellerFormModal location (for the carrier)', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(callsTo('POST', '/resellers')).toHaveLength(1));
     expect(bodyOf('POST', '/resellers')).toEqual({
-      name: 'Punto Sur', commission_rate: 0, status: 'active',
+      name: 'Punto Sur', commission_rate: 0, kind: 'reseller', status: 'active',
       address: 'Av. Juárez 10', city: 'Puebla', latitude: 19.0414398, longitude: -98.2062727,
     });
   });

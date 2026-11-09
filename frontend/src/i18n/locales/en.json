@@ -9953,7 +9953,8 @@
       "newClient": "New",
       "leads": "Prospects",
       "collect": "Collect",
-      "cash": "My cash"
+      "cash": "My cash",
+      "bags": "Bags"
     },
     "layout": {
       "title": "My point of sale",
@@ -10134,6 +10135,12 @@
       "month": "Earned this month",
       "help": "You earn {{rate}}% of each paid invoice of your clients, before taxes. You keep it from the cash you collect, so it is already taken off what you hand in."
     },
+    "fees": {
+      "title": "Your collection fees",
+      "month": "Kept this month",
+      "fixed": "You keep {{amount}} of every payment you take.",
+      "percent": "You keep {{rate}}% of every payment you take."
+    },
     "collect": {
       "title": "Collect",
       "queryLabel": "Customer number or phone",
@@ -10172,6 +10179,13 @@
       "resellerInactive": "Your point of sale cannot collect right now. Contact the company.",
       "tooManyLookups": "Too many searches in a short time. Wait a moment and try again.",
       "queryInvalid": "Type a whole customer number (e.g. 1234 or #1234) or a whole phone number.",
+      "collector": {
+        "queryLabel": "Customer number",
+        "queryHelp": "Type the whole customer number, as it appears on the customer’s invoice or receipt.",
+        "queryRequired": "Type the customer number.",
+        "noResults": "Nobody has that customer number. Check it on the customer’s invoice.",
+        "queryInvalid": "Type only the customer number (for example 123 or #123)."
+      },
       "saving": "Recording…"
     },
     "receipt": {
@@ -10267,7 +10281,9 @@
         "bag_sealed": "Bag sealed",
         "commission": "Commission earned",
         "commission_reversal": "Commission reversed",
-        "payout": "Payment from the company"
+        "payout": "Payment from the company",
+        "collection_fee": "Collection fee",
+        "collection_fee_reversal": "Collection fee reversed"
       }
     }
   },
@@ -10280,6 +10296,13 @@
     "phone": "Phone",
     "parent": "Parent reseller (optional)",
     "noParent": "— None: top-level reseller —",
+    "kind": "Type",
+    "kindHelpReseller": "A reseller signs up customers, collects from them and earns its commission on their invoices.",
+    "kindHelpCollector": "A collector only takes payments, by the customer number. It sees no customers and earns a fee per payment.",
+    "feeType": "Fee per payment",
+    "feeAmount": "Amount per payment",
+    "feePercent": "Percentage of each payment",
+    "feeInvalid": "Write the fee: an amount of more than 0 with up to 2 decimals (a percentage up to 100).",
     "parentFixed": "Sub-reseller of {{name}}",
     "commissionRate": "Commission (%)",
     "status": "Status",
@@ -10287,6 +10310,15 @@
       "active": "Active",
       "suspended": "Suspended",
       "inactive": "Inactive"
+    },
+    "kinds": {
+      "reseller": "Reseller",
+      "collector": "Collector"
+    },
+    "feeTypes": {
+      "none": "No fee",
+      "fixed": "Fixed amount",
+      "percent": "Percentage"
     },
     "notes": "Notes",
     "cancel": "Cancel",
@@ -10341,6 +10373,10 @@
     "id": "ID",
     "levelMaster": "Master",
     "levelSub": "Sub",
+    "levelCollector": "Collector",
+    "feeFixed": "{{amount}} per payment",
+    "feePercent": "{{rate}}% per payment",
+    "feeNone": "No fee",
     "statusChanged": "{{name}} is now {{status}}",
     "saved": "Reseller saved.",
     "tabAllowedPlans": "Allowed plans"
@@ -10406,7 +10442,9 @@
       "bag_sealed": "Bag sealed",
       "commission": "Commission kept",
       "commission_reversal": "Commission reversed",
-      "payout": "Payout"
+      "payout": "Payout",
+      "collection_fee": "Collection fee",
+      "collection_fee_reversal": "Collection fee reversed"
     }
   },
   "resellerStatements": {
@@ -10450,7 +10488,9 @@
       "commission": "Commissions kept",
       "commission_reversal": "Commissions reversed",
       "payout": "Paid by the company",
-      "adjustment": "Adjustments"
+      "adjustment": "Adjustments",
+      "collection_fee": "Collection fees kept",
+      "collection_fee_reversal": "Collection fees reversed"
     },
     "statuses": {
       "draft": "Draft",

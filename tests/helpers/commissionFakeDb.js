@@ -23,7 +23,7 @@
 
 const cents = (v) => Math.round(Number(v) * 100);
 const fromCents = (c) => (c / 100).toFixed(2);
-const NON_CASH = ['commission', 'commission_reversal', 'payout'];
+const NON_CASH = ['commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal'];
 
 function dup(message) {
   const err = new Error(`Duplicate entry '${message}' for key 'uq_reseller_commissions'`);

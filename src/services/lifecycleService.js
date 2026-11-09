@@ -187,14 +187,15 @@ async function convertLeadOnConnection(conn, leadId, orgId, overrides = {}, {
   }
 
   // A lead captured in the reseller app makes the client that reseller's,
-  // if the reseller is still live in this organization (migration 003).
+  // if the reseller is still live in this organization (migration 003) and
+  // not a collector, which never owns clients (migration 011).
   let resellerId = null;
   if (lead.reseller_id) {
     const [resellerRows] = await conn.query(
-      'SELECT id FROM resellers WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, kind FROM resellers WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1',
       [lead.reseller_id, lead.organization_id ?? null],
     );
-    resellerId = resellerRows[0] ? resellerRows[0].id : null;
+    resellerId = resellerRows[0] && resellerRows[0].kind !== 'collector' ? resellerRows[0].id : null;
   }
 
   const clientData = {

@@ -334,6 +334,20 @@ describe('Cobrar', () => {
     expect(item).not.toHaveTextContent(/@|\d{10}/);
   });
 
+  it('asks a collector for the customer number only, with no ownership chip', async () => {
+    mocks.user = { ...(mocks.user as object), permissions: ['reseller_app.cash', 'reseller_app.collect', 'reseller_app.bags'] };
+    const user = userEvent.setup();
+    renderAt('/punto/cobrar');
+    expect(screen.queryByLabelText('Customer number or phone')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Search' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Type the customer number.');
+    await user.type(screen.getByLabelText('Customer number'), '#58');
+    await user.click(screen.getByRole('button', { name: 'Search' }));
+    const results = await screen.findByRole('region', { name: 'Results' });
+    const item = within(results).getByRole('button', { name: /Ma\*\*\* Ló\*\*\*/ });
+    expect(within(item).queryByText('Company client')).not.toBeInTheDocument();
+  });
+
   it('says so when nobody matches, and refuses an empty search', async () => {
     const user = userEvent.setup();
     renderAt('/punto/cobrar');

@@ -112,6 +112,34 @@ describe('PuntoLayout', () => {
     for (const [path] of mocks.apiFetch.mock.calls) expect(path).toMatch(/^\/reseller-app\//);
   });
 
+  it('gives a collector Inicio, Cobrar, Mi caja and Bolsas only, and a cash-only home', async () => {
+    mocks.user = {
+      ...RESELLER_USER,
+      permissions: ['reseller_app.cash', 'reseller_app.collect', 'reseller_app.bags', 'reseller_app.statements'],
+      reseller_binding: { reseller_id: 9, reseller_name: 'Cobros Centro' },
+    };
+    mocks.apiFetch.mockImplementation(async (path: string) => {
+      if (path === '/reseller-app/me') {
+        return { data: {
+          reseller: { id: 9, name: 'Cobros Centro', level: 1, status: 'active', parent_id: null, kind: 'collector', collection_fee_type: 'fixed', collection_fee_value: 8 },
+          currency: 'MXN', counts: null,
+          money: { currency: 'MXN', balance: '292.00', in_bags: '0.00', cash_on_hand: '292.00', credit_limit: '2000.00', available_to_collect: '1708.00', limit_reached: false, collected_today: '300.00', empty_bags: 0, bags_ready_for_pickup: 0, bags_in_transit: 0, fees_month: '8.00' },
+        } };
+      }
+      if (path === '/reseller-app/bags') return { data: [], summary: {} };
+      throw new Error(`unexpected request ${path}`);
+    });
+    renderAt('/punto');
+    const nav = screen.getByRole('navigation', { name: 'Main menu' });
+    expect(within(nav).getAllByRole('link').map(l => l.getAttribute('href'))).toEqual(['/punto', '/punto/cobrar', '/punto/caja', '/punto/bolsas']);
+    const fees = await screen.findByRole('region', { name: 'Your collection fees' });
+    expect(within(fees).getByText('Kept this month').parentElement).toHaveTextContent('$8.00');
+    expect(fees).toHaveTextContent('You keep $8.00 of every payment you take.');
+    expect(screen.queryByRole('region', { name: /summary/i })).toBeNull();
+    expect(screen.queryByText('Active clients')).toBeNull();
+    for (const [path] of mocks.apiFetch.mock.calls) expect(path).not.toMatch(/clients|leads|plans/);
+  });
+
   it('labels the tabs in Spanish', async () => {
     await i18n.changeLanguage('es');
     renderAt('/punto');

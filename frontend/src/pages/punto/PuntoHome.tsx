@@ -6,6 +6,9 @@
 // earned this month (phase 4), its cash bags (with reseller_app.bags), the
 // phase-1 counts, and the main actions (collect, new sign-up).
 //
+// A collector (migration 011) sees its cash, its collection fees and its
+// bags only: no counts of clients or prospects (/me sends counts null).
+//
 // The reseller keeps its commission from the cash it collects: a paid invoice
 // of one of its clients takes the commission off what it must hand in. When
 // its commissions pass the cash it holds, the balance is negative and the
@@ -19,7 +22,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
-import { fetchPuntoMe, puntoKeys, toNumber, type PuntoMoney } from './puntoApi';
+import { fetchPuntoMe, puntoKeys, toNumber, type PuntoMe, type PuntoMoney } from './puntoApi';
 import { PuntoBagsCard } from './PuntoBagsCard';
 import { mutedText, pageTitle } from './puntoUi';
 
@@ -117,6 +120,26 @@ export function CommissionCard({ money }: { money: PuntoMoney }) {
   );
 }
 
+/** A collector's fees this month and how it earns them. */
+export function FeeCard({ me }: { me: PuntoMe }) {
+  const { t } = useTranslation();
+  const money = me.money;
+  if (!money || money.fees_month === undefined) return null;
+  const type = me.reseller.collection_fee_type ?? 'none';
+  const value = toNumber(me.reseller.collection_fee_value ?? 0);
+  return (
+    <section className="punto-card" aria-labelledby="punto-fee-title" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <h2 id="punto-fee-title" style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{t('punto.fees.title')}</h2>
+      <div className="punto-money-row">
+        <span>{t('punto.fees.month')}</span>
+        <strong style={{ fontSize: '1.15rem', color: 'var(--success)' }}>{formatMoney(money.fees_month, money.currency)}</strong>
+      </div>
+      {type === 'fixed' && value > 0 && <p style={mutedText}>{t('punto.fees.fixed', { amount: formatMoney(value, money.currency) })}</p>}
+      {type === 'percent' && value > 0 && <p style={mutedText}>{t('punto.fees.percent', { rate: rateText(value) })}</p>}
+    </section>
+  );
+}
+
 function StatCard({ label, value, to, tone }: { label: string; value: number; to: string; tone?: string }) {
   return (
     <Link to={to} className="punto-card punto-list-link" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -145,6 +168,7 @@ export function PuntoHome() {
       {me.isError && <ErrorState message={t('punto.home.loadError')} onRetry={() => { void me.refetch(); }} />}
       {me.data?.money && <MoneyCard money={me.data.money} canCollect={canCollect} canBags={canBags} />}
       {me.data?.money && <CommissionCard money={me.data.money} />}
+      {me.data && <FeeCard me={me.data} />}
       {me.data?.money && canBags && <PuntoBagsCard money={me.data.money} />}
 
       {canSignup && (
@@ -152,12 +176,12 @@ export function PuntoHome() {
           {t('punto.home.newClient')}
         </Link>
       )}
-      {me.data && (
+      {me.data?.counts && (
         <section aria-label={t('punto.home.summary')} className="punto-stats">
-          <StatCard label={t('punto.home.activeClients')} value={me.data.counts.active_clients} to="/punto/clientes?status=active" tone="var(--success)" />
-          <StatCard label={t('punto.home.suspendedClients')} value={me.data.counts.suspended_clients} to="/punto/clientes?status=suspended" tone="var(--warning)" />
-          <StatCard label={t('punto.home.overdueClients')} value={me.data.counts.overdue_clients} to="/punto/clientes?overdue=1" tone="var(--danger)" />
-          <StatCard label={t('punto.home.openLeads')} value={me.data.counts.open_leads} to="/punto/prospectos" />
+          <StatCard label={t('punto.home.activeClients')} value={me.data.counts!.active_clients} to="/punto/clientes?status=active" tone="var(--success)" />
+          <StatCard label={t('punto.home.suspendedClients')} value={me.data.counts!.suspended_clients} to="/punto/clientes?status=suspended" tone="var(--warning)" />
+          <StatCard label={t('punto.home.overdueClients')} value={me.data.counts!.overdue_clients} to="/punto/clientes?overdue=1" tone="var(--danger)" />
+          <StatCard label={t('punto.home.openLeads')} value={me.data.counts!.open_leads} to="/punto/prospectos" />
         </section>
       )}
     </div>

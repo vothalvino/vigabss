@@ -162,7 +162,7 @@ function resellerAppBagMoneySchema() {
 function ledgerEntrySchema() {
   return obj({
     id: { type: 'integer' },
-    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed'] },
+    entry_type: { type: 'string', enum: ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal'] },
     amount: { type: 'number', description: 'Signed: + increases what the reseller owes' },
     currency: { type: 'string' },
     note: nullableString(),

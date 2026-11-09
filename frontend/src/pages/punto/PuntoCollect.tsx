@@ -32,7 +32,7 @@ import {
   type PuntoCollectBody, type PuntoCollectResult, type PuntoCollectTarget, type PuntoOpenInvoice,
 } from './puntoApi';
 import { CreditLimitBagHint } from './PuntoBagsCard';
-import { Chip, StatusChip, errorText, mutedText, pageTitle, sectionTitle, useRefreshPuntoMoney, usePuntoCurrency } from './puntoUi';
+import { Chip, StatusChip, errorText, mutedText, pageTitle, sectionTitle, useCollectorMode, useRefreshPuntoMoney, usePuntoCurrency } from './puntoUi';
 
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
 const cents = (n: number) => Math.round(n * 100);
@@ -52,6 +52,8 @@ function sumBalances(invoices: PuntoOpenInvoice[], ids: Set<number>): number {
 
 function TargetHeader({ target }: { target: PuntoCollectTarget }) {
   const { t } = useTranslation();
+  // A collector owns no client: "not your client" would say nothing.
+  const collectorMode = useCollectorMode();
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
       <div style={{ minWidth: 0 }}>
@@ -59,7 +61,7 @@ function TargetHeader({ target }: { target: PuntoCollectTarget }) {
         <div style={mutedText}>{t('punto.collect.clientNumber', { number: target.client_number })}</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-        {target.own ? <Chip tone="info">{t('punto.collect.own')}</Chip> : <Chip>{t('punto.collect.notOwn')}</Chip>}
+        {target.own ? <Chip tone="info">{t('punto.collect.own')}</Chip> : !collectorMode && <Chip>{t('punto.collect.notOwn')}</Chip>}
         <StatusChip status={target.status} />
       </div>
     </div>
@@ -69,6 +71,9 @@ function TargetHeader({ target }: { target: PuntoCollectTarget }) {
 /** Step 1: find the subscriber. */
 function Search({ onPick }: { onPick: (target: PuntoCollectTarget) => void }) {
   const { t } = useTranslation();
+  // A collector finds a customer by its client number only (migration 011).
+  const byNumber = useCollectorMode();
+  const k = (key: string) => (byNumber ? `punto.collect.collector.${key}` : `punto.collect.${key}`);
   const currency = usePuntoCurrency();
   const [q, setQ] = useState('');
   const [error, setError] = useState('');
@@ -76,7 +81,7 @@ function Search({ onPick }: { onPick: (target: PuntoCollectTarget) => void }) {
     mutationFn: (query: string) => lookupPuntoCollect(query),
     onError: (err: unknown) => {
       if (err instanceof ApiRequestError && err.status === 429) setError(t('punto.collect.tooManyLookups'));
-      else if (err instanceof ApiRequestError && err.status === 422) setError(t('punto.collect.queryInvalid'));
+      else if (err instanceof ApiRequestError && err.status === 422) setError(t(k('queryInvalid')));
       else setError(err instanceof ApiRequestError && err.status < 500 ? err.message : t('punto.collect.lookupError'));
     },
   });
@@ -85,7 +90,7 @@ function Search({ onPick }: { onPick: (target: PuntoCollectTarget) => void }) {
     e.preventDefault();
     setError('');
     const query = q.trim();
-    if (!/\d/.test(query)) { setError(t('punto.collect.queryRequired')); return; }
+    if (!/\d/.test(query)) { setError(t(k('queryRequired'))); return; }
     lookup.mutate(query);
   }
 
@@ -93,7 +98,7 @@ function Search({ onPick }: { onPick: (target: PuntoCollectTarget) => void }) {
     <>
       <form onSubmit={submit} noValidate className="punto-card" role="search">
         <div className="punto-field">
-          <label htmlFor="punto-collect-q">{t('punto.collect.queryLabel')}</label>
+          <label htmlFor="punto-collect-q">{t(k('queryLabel'))}</label>
           <input
             id="punto-collect-q"
             type="search"
@@ -105,14 +110,14 @@ function Search({ onPick }: { onPick: (target: PuntoCollectTarget) => void }) {
             onChange={e => setQ(e.target.value)}
           />
         </div>
-        <p style={{ ...mutedText, marginBottom: 12 }}>{t('punto.collect.queryHelp')}</p>
+        <p style={{ ...mutedText, marginBottom: 12 }}>{t(k('queryHelp'))}</p>
         {error && <p role="alert" style={errorText}>{error}</p>}
         <button type="submit" className="punto-btn-primary" disabled={lookup.isPending}>
           {lookup.isPending ? t('punto.collect.searching') : t('punto.collect.search')}
         </button>
       </form>
 
-      {lookup.data && lookup.data.length === 0 && <EmptyState message={t('punto.collect.noResults')} />}
+      {lookup.data && lookup.data.length === 0 && <EmptyState message={t(k('noResults'))} />}
       {lookup.data && lookup.data.length > 0 && (
         <section aria-label={t('punto.collect.results')}>
           <ul className="punto-list">

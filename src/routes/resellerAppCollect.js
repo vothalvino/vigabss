@@ -110,7 +110,7 @@ router.post('/payments', requirePermission('reseller_app.collect'), validate(col
 // =============================================================================
 // GET /reseller-app/payments
 // =============================================================================
-router.get('/payments', requirePermission('reseller_app.use'), async (req, res, next) => {
+router.get('/payments', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
   try {
     const { page, limit, offset } = pagination(req.query);
     const date = typeof req.query.date === 'string' && req.query.date !== '' ? req.query.date : null;
@@ -122,7 +122,7 @@ router.get('/payments', requirePermission('reseller_app.use'), async (req, res, 
 // =============================================================================
 // GET /reseller-app/payments/:id/receipt
 // =============================================================================
-router.get('/payments/:id/receipt', requirePermission('reseller_app.use'), async (req, res, next) => {
+router.get('/payments/:id/receipt', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
   try {
     const width = req.query.width === '80' ? 48 : 32;
     res.json({ data: await collection.receipt(req, req.params.id, { width }) });
@@ -145,7 +145,7 @@ router.post('/payments/:id/void', requirePermission('reseller_app.collect'), val
 // =============================================================================
 // GET /reseller-app/cash-session
 // =============================================================================
-router.get('/cash-session', requirePermission('reseller_app.use'), async (req, res, next) => {
+router.get('/cash-session', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
   try {
     res.json({ data: await collection.cashSession(req) });
   } catch (err) { next(err); }
@@ -163,7 +163,7 @@ router.post('/cash-session/close', requirePermission('reseller_app.collect'), va
 // =============================================================================
 // GET /reseller-app/ledger
 // =============================================================================
-router.get('/ledger', requirePermission('reseller_app.use'), async (req, res, next) => {
+router.get('/ledger', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
   try {
     const { page, limit, offset } = pagination(req.query);
     const collectorId = await ledger.collectingResellerId(req);

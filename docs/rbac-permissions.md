@@ -177,6 +177,21 @@ holds: suspend or reactivate (`POST /resellers/:id/suspend`), plan prices,
 IP pools, OLT ports, bandwidth quota and the billing entity. A bound user may still create sub-resellers of its own reseller,
 without a commission rate or status.
 
+### Collector accounts (migration 011)
+
+| Permission Slug | Granted to | Description |
+|----------------|-----------|-------------|
+| `reseller_app.cash` | `collector`, `reseller_admin`, `admin`, `manager` | The reseller app's cash routes: `GET /reseller-app/me`, `/payments`, `/payments/:id/receipt`, `/cash-session`, `/ledger` (each also accepts `reseller_app.use`) |
+
+The seeded system group `collector` holds `reseller_app.cash`,
+`reseller_app.collect`, `reseller_app.bags`, `reseller_app.statements` and
+`webauthn.*`, never `reseller_app.use`. A login created for a collector point
+(`POST /resellers/:id/users` on a `kind = 'collector'` reseller) is put in it.
+Bound to a collector, a user is refused (403) every client, plan, lead, ticket
+and own-client Cobrar route of the reseller app whatever its group holds, and
+the lookup accepts only an exact client number. Staff set a point's `kind`
+and fee with `resellers.create` / `resellers.update`; a bound reseller cannot.
+
 ### Reseller cash (migration 004)
 
 | Permission Slug | Granted to | Description |
