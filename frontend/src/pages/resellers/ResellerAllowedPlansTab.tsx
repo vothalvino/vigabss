@@ -17,7 +17,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
+import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellerOptions';
 
 interface PlanRow { id: number; name: string; price: string | number; currency?: string | null; status?: string }
 interface AllowedRow { plan_id: number; name: string; price: string | number }
@@ -97,7 +97,7 @@ export function ResellerAllowedPlansTab() {
           onChange={e => { setResellerId(Number(e.target.value) || null); setMsg(null); }}
         >
           <option value="">{t('resellerPlans.selectReseller')}</option>
-          {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {resellersOnly(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
       <ResellerListNotice list={resellersQ.data} />

@@ -6,7 +6,7 @@
 // =============================================================================
 
 const STATEMENT_STATUSES = ['draft', 'approved', 'settled', 'void'];
-const ENTRY_TYPES = ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout'];
+const ENTRY_TYPES = ['collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal'];
 
 const nullableString = (format) => (format ? { type: ['string', 'null'], format } : { type: ['string', 'null'] });
 const nullableInteger = () => ({ type: ['integer', 'null'] });

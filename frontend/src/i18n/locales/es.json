@@ -9947,7 +9947,8 @@
       "newClient": "Nuevo",
       "leads": "Prospectos",
       "collect": "Cobrar",
-      "cash": "Mi caja"
+      "cash": "Mi caja",
+      "bags": "Bolsas"
     },
     "layout": {
       "title": "Mi punto de venta",
@@ -10128,6 +10129,12 @@
       "month": "Ganada este mes",
       "help": "Ganas el {{rate}}% de cada factura pagada de tus clientes, sin IVA. La tomas del efectivo que cobras, así que ya está descontada de lo que debes entregar."
     },
+    "fees": {
+      "title": "Tus comisiones por cobro",
+      "month": "Ganadas este mes",
+      "fixed": "Te quedas con {{amount}} de cada cobro que haces.",
+      "percent": "Te quedas con el {{rate}}% de cada cobro que haces."
+    },
     "collect": {
       "title": "Cobrar",
       "queryLabel": "Número de cliente o teléfono",
@@ -10166,6 +10173,13 @@
       "resellerInactive": "Tu punto de venta no puede cobrar por ahora. Comunícate con la empresa.",
       "tooManyLookups": "Hiciste demasiadas búsquedas seguidas. Espera un momento y vuelve a intentar.",
       "queryInvalid": "Escribe el número de cliente completo (por ejemplo 1234 o #1234) o el teléfono completo.",
+      "collector": {
+        "queryLabel": "Número de cliente",
+        "queryHelp": "Escribe el número de cliente completo, como aparece en el recibo o la factura del cliente.",
+        "queryRequired": "Escribe el número de cliente.",
+        "noResults": "Nadie tiene ese número de cliente. Revísalo en la factura del cliente.",
+        "queryInvalid": "Escribe solo el número de cliente (por ejemplo 123 o #123)."
+      },
       "saving": "Registrando…"
     },
     "receipt": {
@@ -10261,7 +10275,9 @@
         "bag_sealed": "Bolsa sellada",
         "commission": "Comisión ganada",
         "commission_reversal": "Comisión revertida",
-        "payout": "Pago de la empresa"
+        "payout": "Pago de la empresa",
+        "collection_fee": "Comisión por cobro",
+        "collection_fee_reversal": "Comisión por cobro revertida"
       }
     }
   },
@@ -10274,6 +10290,13 @@
     "phone": "Teléfono",
     "parent": "Revendedor padre (opcional)",
     "noParent": "— Ninguno: revendedor principal —",
+    "kind": "Tipo",
+    "kindHelpReseller": "Un revendedor da de alta clientes, les cobra y gana su comisión sobre sus facturas.",
+    "kindHelpCollector": "Un cobrador solo recibe pagos, con el número de cliente. No ve clientes y gana una comisión por cada cobro.",
+    "feeType": "Comisión por cobro",
+    "feeAmount": "Monto por cobro",
+    "feePercent": "Porcentaje de cada cobro",
+    "feeInvalid": "Escribe la comisión: un monto mayor a 0 con hasta 2 decimales (un porcentaje hasta 100).",
     "parentFixed": "Sub-revendedor de {{name}}",
     "commissionRate": "Comisión (%)",
     "status": "Estado",
@@ -10281,6 +10304,15 @@
       "active": "Activo",
       "suspended": "Suspendido",
       "inactive": "Inactivo"
+    },
+    "kinds": {
+      "reseller": "Revendedor",
+      "collector": "Cobrador"
+    },
+    "feeTypes": {
+      "none": "Sin comisión",
+      "fixed": "Monto fijo",
+      "percent": "Porcentaje"
     },
     "notes": "Notas",
     "cancel": "Cancelar",
@@ -10335,6 +10367,10 @@
     "id": "ID",
     "levelMaster": "Principal",
     "levelSub": "Sub",
+    "levelCollector": "Cobrador",
+    "feeFixed": "{{amount}} por cobro",
+    "feePercent": "{{rate}}% por cobro",
+    "feeNone": "Sin comisión",
     "statusChanged": "{{name}} ahora está {{status}}",
     "saved": "Revendedor guardado.",
     "tabAllowedPlans": "Planes permitidos"
@@ -10400,7 +10436,9 @@
       "bag_sealed": "Bolsa sellada",
       "commission": "Comisión",
       "commission_reversal": "Comisión revertida",
-      "payout": "Pago al revendedor"
+      "payout": "Pago al revendedor",
+      "collection_fee": "Comisión por cobro",
+      "collection_fee_reversal": "Comisión por cobro revertida"
     }
   },
   "resellerStatements": {
@@ -10444,7 +10482,9 @@
       "commission": "Comisiones ganadas",
       "commission_reversal": "Comisiones revertidas",
       "payout": "Pagado por la empresa",
-      "adjustment": "Ajustes"
+      "adjustment": "Ajustes",
+      "collection_fee": "Comisiones por cobro",
+      "collection_fee_reversal": "Comisiones por cobro revertidas"
     },
     "statuses": {
       "draft": "Borrador",

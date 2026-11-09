@@ -94,7 +94,8 @@ describe('migration 007', () => {
     expect(rc).toMatch(/KEY idx_reseller_commissions_org_reseller_earned \(organization_id, reseller_id, earned_at\)/);
     expect(rc).toMatch(/CONSTRAINT fk_rc_organization FOREIGN KEY \(organization_id\)\s+REFERENCES organizations \(id\) ON DELETE RESTRICT/);
     const le = tableOf('reseller_ledger_entries');
-    expect(le).toMatch(/entry_type\s+ENUM\('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout'\) NOT NULL/);
+    // Migration 011 appended the collection fee types after payout.
+    expect(le).toMatch(/entry_type\s+ENUM\('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout'(?:, 'collection_fee', 'collection_fee_reversal')?\) NOT NULL/);
     expect(le).toMatch(/created_by\s+BIGINT UNSIGNED NULL\s+DEFAULT NULL/);
     expect(le).toMatch(/invoice_id\s+BIGINT UNSIGNED NULL/);
     expect(le).toMatch(/commission_id\s+BIGINT UNSIGNED NULL/);

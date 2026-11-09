@@ -305,7 +305,7 @@ describe('figures, rebuilt from the ledger', () => {
     expect(f.opening_balance).toBe(500);
     expect(f.totals).toEqual({
       collection: 1000, collection_void: -50, deposit: -300, adjustment: 10, bag_sealed: -600,
-      commission: -95.5, commission_reversal: 20, payout: 15.5,
+      commission: -95.5, commission_reversal: 20, payout: 15.5, collection_fee: 0, collection_fee_reversal: 0,
     });
     expect(f.entry_count).toBe(8);
     expect(f.closing_balance).toBe(500 + 1000 - 50 - 600 + 10 - 95.5 + 20 - 300 + 15.5);
@@ -316,8 +316,10 @@ describe('figures, rebuilt from the ledger', () => {
     expect(cents(nov.closing_balance)).toBe(ledgerCents(state, 1));
   });
 
-  test('every ledger entry type has a statement total and a column in the migration', () => {
-    const migration = fs.readFileSync(path.join(__dirname, '..', 'database', 'migrations', '008_reseller_settlements.sql'), 'utf8');
+  test('every ledger entry type has a statement total and a column in a migration', () => {
+    // 008 created the table; 011 added the collection fee totals.
+    const migration = ['008_reseller_settlements.sql', '011_collector_accounts.sql']
+      .map((f) => fs.readFileSync(path.join(__dirname, '..', 'database', 'migrations', f), 'utf8')).join('\n');
     for (const type of require('../src/services/resellerLedgerService').ENTRY_TYPES) {
       expect(settlements.TOTAL_TYPES).toContain(type);
       expect(migration).toMatch(new RegExp(`\\btotal_${type}\\b`));
@@ -632,7 +634,10 @@ describe('migration 008', () => {
     const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
     const columns = (text) => [...text.slice(text.indexOf('CREATE TABLE IF NOT EXISTS reseller_settlements'))
       .split(') ENGINE=')[0].matchAll(/^\s+([a-z_]+)\s+(?:BIGINT|DATE|CHAR|DECIMAL|INT|ENUM|TIMESTAMP|VARCHAR)/gm)].map((m) => m[1]);
-    expect(columns(schema)).toEqual(columns(sql));
+    // Migration 011 adds the collection fee totals after total_payout.
+    const expected = columns(sql);
+    expected.splice(expected.indexOf('total_payout') + 1, 0, 'total_collection_fee', 'total_collection_fee_reversal');
+    expect(columns(schema)).toEqual(expected);
     expect(columns(sql).length).toBeGreaterThan(25);
   });
 });

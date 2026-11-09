@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { formatDate } from '@/lib/dates';
 import { PUNTO_MONEY_QUERIES, fetchPuntoMe, puntoKeys } from './puntoApi';
 
@@ -47,6 +48,16 @@ export function StatusChip({ status }: { status: string }) {
 }
 
 /** The org currency: from /reseller-app/me, else the session's. */
+/**
+ * A collector's login (migration 011): the reseller app's cash routes
+ * (reseller_app.cash) without its clients, leads and plans (reseller_app.use).
+ * It collects by client number only and sees no client or prospect.
+ */
+export function useCollectorMode(): boolean {
+  const { user } = useAuth();
+  return !can(user, 'reseller_app.use') && can(user, 'reseller_app.cash');
+}
+
 export function usePuntoCurrency(): string {
   const { user } = useAuth();
   const me = useQuery({ queryKey: puntoKeys.me, queryFn: fetchPuntoMe });

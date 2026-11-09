@@ -231,7 +231,8 @@ function StatementDetailView({ resellerId, statementId, onChanged }: { resellerI
       <table style={{ ...styles.table, maxWidth: 520, marginTop: 8 }}>
         <tbody>
           <tr style={styles.tr}><td style={styles.td}>{t('resellerStatements.opening')}</td><td style={styles.tdNum}>{fmt(st.opening_balance)}</td></tr>
-          {STATEMENT_TOTAL_TYPES.map(type => (
+          {/* A collector's fees (migration 011) only when there are any. */}
+          {STATEMENT_TOTAL_TYPES.filter(type => !type.startsWith('collection_fee') || toNumber(st.totals[type]) !== 0).map(type => (
             <tr key={type} style={styles.tr}>
               <td style={{ ...styles.td, paddingLeft: 24 }}>{t(`resellerStatements.totals.${type}`)}</td>
               <td style={{ ...styles.tdNum, color: toNumber(st.totals[type]) === 0 ? 'var(--text-secondary)' : undefined }}>{fmt(st.totals[type])}</td>

@@ -7,6 +7,10 @@
 // percentage, the cash limit (how much collected cash it may hold before
 // handing it in; blank = the organization default, sent as null on an edit),
 // status and notes. Branding and portal fields are not edited here.
+// A collector (migration 011, "Tipo: Cobrador") is a top-level point that only
+// takes payments: no parent and no commission, but a fee per payment it takes
+// (a fixed amount or a percentage). An existing reseller becomes a collector
+// only if it owns no clients, leads or sub-resellers (the server says 409).
 // =============================================================================
 
 import { useEffect, useState, type FormEvent } from 'react';
@@ -19,7 +23,7 @@ import { formatMoney } from '@/lib/money';
 import {
   cancelBtn, errorBox, extractApiError, inputStyle, labelStyle, modalBox, overlay, submitBtn, twoCol,
 } from '@/components/ClientFormModal';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
+import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellerOptions';
 
 export interface ResellerFormInitial {
   id: number;
@@ -40,6 +44,9 @@ export interface ResellerFormInitial {
   city?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  kind?: 'reseller' | 'collector';
+  collection_fee_type?: 'none' | 'fixed' | 'percent';
+  collection_fee_value?: number | string;
 }
 
 export interface ResellerBody {
@@ -48,7 +55,10 @@ export interface ResellerBody {
   email?: string;
   phone?: string;
   parent_id?: number;
-  commission_rate: number;
+  commission_rate?: number;
+  kind?: 'reseller' | 'collector';
+  collection_fee_type?: 'none' | 'fixed' | 'percent';
+  collection_fee_value?: number;
   status: string;
   notes?: string;
   credit_limit?: number | null;
@@ -64,6 +74,7 @@ const COORD = /^-?\d{1,3}(\.\d{1,7})?$/;
 const coordText = (v: number | string | null | undefined) => (v === null || v === undefined || v === '' ? '' : String(Number(v)));
 
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
+const FEE_TYPES = ['none', 'fixed', 'percent'] as const;
 
 interface Props {
   mode: 'create' | 'edit';
@@ -90,10 +101,15 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
     city: initial?.city ?? '',
     latitude: coordText(initial?.latitude),
     longitude: coordText(initial?.longitude),
+    kind: (initial?.kind ?? 'reseller') as 'reseller' | 'collector',
+    fee_type: (initial?.collection_fee_type ?? 'none') as 'none' | 'fixed' | 'percent',
+    fee_value: initial?.collection_fee_value !== undefined && initial?.collection_fee_value !== null ? String(Number(initial.collection_fee_value)) : '',
   });
+  const collector = form.kind === 'collector';
   // A new reseller's parent: any top-level reseller, every one of them.
   const parentsQ = useResellerOptions({ topLevel: true, enabled: mode === 'create' });
-  const parents = parentsQ.data?.rows ?? [];
+  // A collector is never a parent.
+  const parents = resellersOnly(parentsQ.data?.rows ?? []);
   // The organization default, for the placeholder of a blank cash limit. A
   // reseller already on the default shows it as its effective limit; else it
   // comes from GET /settings when the caller may read settings.
@@ -128,9 +144,15 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
     setError('');
     const name = form.name.trim();
     if (!name) { setError(t('resellerForm.nameRequired')); return; }
-    const rate = Number(form.commission_rate);
-    if (form.commission_rate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 100) {
+    const rate = collector ? 0 : Number(form.commission_rate);
+    if (!collector && (form.commission_rate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 100)) {
       setError(t('resellerForm.rateInvalid'));
+      return;
+    }
+    const feeValue = form.fee_value.trim() === '' ? 0 : Number(form.fee_value);
+    if (collector && form.fee_type !== 'none'
+      && (!MONEY.test(form.fee_value.trim()) || !(feeValue > 0) || (form.fee_type === 'percent' && feeValue > 100))) {
+      setError(t('resellerForm.feeInvalid'));
       return;
     }
     const limit = form.credit_limit.trim();
@@ -145,7 +167,13 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       setError(t('resellerForm.coordinatesInvalid'));
       return;
     }
-    const body: ResellerBody = { name, commission_rate: rate, status: form.status };
+    const body: ResellerBody = { name, status: form.status };
+    if (!collector) body.commission_rate = rate;
+    if (mode === 'create' || form.kind !== (initial?.kind ?? 'reseller')) body.kind = form.kind;
+    if (collector) {
+      body.collection_fee_type = form.fee_type;
+      body.collection_fee_value = form.fee_type === 'none' ? 0 : feeValue;
+    }
     // An edit sends a cleared location as null so the server clears it (the
     // carrier is no longer sent there); a create leaves blanks out.
     if (lat !== '') { body.latitude = Number(lat); body.longitude = Number(lng); }
@@ -164,7 +192,7 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       // An edit sends a cleared field as '' so it is cleared; a create leaves it out.
       if (value || (mode === 'edit' && (initial?.[key] ?? '') !== '')) body[key] = value;
     }
-    if (mode === 'create' && form.parent_id) body.parent_id = Number(form.parent_id);
+    if (mode === 'create' && form.parent_id && !collector) body.parent_id = Number(form.parent_id);
     save.mutate(body);
   }
 
@@ -174,6 +202,13 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
       <form onSubmit={handleSubmit} noValidate style={{ ...modalBox, width: 520, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 id="reseller-form-title" style={{ margin: '0 0 0.75rem' }}>{title}</h3>
         {error && <div role="alert" style={errorBox}>{error}</div>}
+
+        <label style={labelStyle} htmlFor="rf-kind">{t('resellerForm.kind')}</label>
+        <select id="rf-kind" style={inputStyle} value={form.kind} onChange={set('kind')} aria-describedby="rf-kind-help">
+          <option value="reseller">{t('resellerForm.kinds.reseller')}</option>
+          <option value="collector">{t('resellerForm.kinds.collector')}</option>
+        </select>
+        <p id="rf-kind-help" style={{ ...labelStyle, fontWeight: 400, marginTop: 4 }}>{t(collector ? 'resellerForm.kindHelpCollector' : 'resellerForm.kindHelpReseller')}</p>
 
         <label style={labelStyle} htmlFor="rf-name">{t('resellerForm.name')} *</label>
         <input id="rf-name" style={inputStyle} maxLength={255} value={form.name} onChange={set('name')} />
@@ -192,7 +227,7 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
           </div>
         </div>
 
-        {mode === 'create' ? (
+        {collector ? null : mode === 'create' ? (
           <>
             <label style={labelStyle} htmlFor="rf-parent">{t('resellerForm.parent')}</label>
             <select id="rf-parent" style={inputStyle} value={form.parent_id} onChange={set('parent_id')}>
@@ -206,10 +241,19 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
         ) : null}
 
         <div style={twoCol}>
-          <div>
-            <label style={labelStyle} htmlFor="rf-rate">{t('resellerForm.commissionRate')}</label>
-            <input id="rf-rate" type="number" min={0} max={100} step="0.01" style={inputStyle} value={form.commission_rate} onChange={set('commission_rate')} />
-          </div>
+          {collector ? (
+            <div>
+              <label style={labelStyle} htmlFor="rf-fee-type">{t('resellerForm.feeType')}</label>
+              <select id="rf-fee-type" style={inputStyle} value={form.fee_type} onChange={set('fee_type')}>
+                {FEE_TYPES.map(f => <option key={f} value={f}>{t(`resellerForm.feeTypes.${f}`)}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label style={labelStyle} htmlFor="rf-rate">{t('resellerForm.commissionRate')}</label>
+              <input id="rf-rate" type="number" min={0} max={100} step="0.01" style={inputStyle} value={form.commission_rate} onChange={set('commission_rate')} />
+            </div>
+          )}
           <div>
             <label style={labelStyle} htmlFor="rf-status">{t('resellerForm.status')}</label>
             <select id="rf-status" style={inputStyle} value={form.status} onChange={set('status')}>
@@ -217,6 +261,13 @@ export function ResellerFormModal({ mode, initial, onClose, onSaved }: Props) {
             </select>
           </div>
         </div>
+
+        {collector && form.fee_type !== 'none' && (
+          <>
+            <label style={labelStyle} htmlFor="rf-fee-value">{t(form.fee_type === 'percent' ? 'resellerForm.feePercent' : 'resellerForm.feeAmount')}</label>
+            <input id="rf-fee-value" inputMode="decimal" style={inputStyle} value={form.fee_value} onChange={set('fee_value')} />
+          </>
+        )}
 
         <label style={labelStyle} htmlFor="rf-credit-limit">{t('resellerForm.creditLimit')}</label>
         <input

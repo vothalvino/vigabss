@@ -617,6 +617,31 @@ approved and settled statements of its collecting reseller
 sees its parent's), never a draft; the PDF is
 `src/services/resellerStatementPdf.js`.
 
+#### Collector accounts (migration 011)
+
+A collector ("Cobrador") is a top-level row of `resellers` with
+`kind = 'collector'`: a point that only takes payments, with its own cash
+limit, ledger, cash box, cash bags and statements, so every money path of a
+reseller applies to it unchanged (`src/services/collectorService.js`). It
+never owns clients, leads or sub-resellers: `POST /resellers` refuses a
+collector with a parent or a commission and a collector as a parent
+(`COLLECTOR_CANNOT_OWN`), `PUT` turns a reseller into one only when it owns
+none (`COLLECTOR_HAS_CLIENTS`), and lead conversion never copies a collector
+as a client's owner. In the reseller app `resellerApp.js` loads the bound
+point's kind (`req.pointKind`) and a collector fence answers 403 to every
+client, plan, lead, ticket and own-client Cobrar route whatever the group
+holds; its lookup takes an exact client number only (never a phone), and
+`/me` sends its cash and fees with `counts: null`. Its login is in the system
+group `collector` (`reseller_app.cash`, `.collect`, `.bags`, `.statements`,
+its passkeys); `reseller_app.cash` opens `/me`, the day's payments and
+receipts, the cash box and the ledger. For each payment it earns its
+`collection_fee_type` (`fixed` amount or `percent` of the amount, 2 decimals,
+at most the amount): a `collection_fee` ledger line of −fee posted in the
+collection's transaction after the reseller lock, reversed by a
+`collection_fee_reversal` when the collection is voided. Both are non-cash
+lines (`cashHeld` leaves them out, like commissions) and have statement
+totals.
+
 #### Reportar falla and the remote signing link (phase 5b, migration 009)
 
 `src/routes/resellerAppSupport.js` (behind the reseller app's binding and

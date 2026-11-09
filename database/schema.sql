@@ -14921,6 +14921,7 @@ CREATE TABLE IF NOT EXISTS resellers (
     organization_id     BIGINT UNSIGNED NULL     COMMENT 'Tenant organization; NULL = single-tenant',
     parent_id           BIGINT UNSIGNED NULL     COMMENT 'NULL = top-level; non-null = sub-reseller',
     level               TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1=Master Reseller, 2=Sub-Reseller',
+    kind                ENUM('reseller', 'collector') NOT NULL DEFAULT 'reseller' COMMENT 'reseller: signs up and owns clients; collector: only takes payments (migration 011)',
     name                VARCHAR(255)    NOT NULL,
     email               VARCHAR(255)    NULL,
     phone               VARCHAR(30)     NULL,
@@ -14931,6 +14932,8 @@ CREATE TABLE IF NOT EXISTS resellers (
     longitude           DECIMAL(10, 7)  NULL     DEFAULT NULL COMMENT 'Point of sale longitude (migration 005)',
     status              ENUM('active', 'suspended', 'inactive') NOT NULL DEFAULT 'active',
     commission_rate     DECIMAL(5, 2)  NOT NULL DEFAULT 0.00,
+    collection_fee_type ENUM('none', 'fixed', 'percent') NOT NULL DEFAULT 'none' COMMENT 'What a collector earns per payment it takes (migration 011)',
+    collection_fee_value DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'The fixed amount, or the percentage of each payment (migration 011)',
     credit_limit        DECIMAL(12, 2)  NULL     DEFAULT NULL COMMENT 'Collected cash the reseller may hold before handing it in; NULL = organization default (migration 004)',
     brand_logo_url      VARCHAR(500)    NULL,
     brand_primary_color VARCHAR(7)      NULL,
@@ -14946,6 +14949,7 @@ CREATE TABLE IF NOT EXISTS resellers (
     KEY idx_resellers_parent_id (parent_id),
     KEY idx_resellers_status (status),
     KEY idx_resellers_deleted_at (deleted_at),
+    KEY idx_resellers_org_kind (organization_id, kind),
     CONSTRAINT fk_resellers_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_resellers_parent FOREIGN KEY (parent_id)
@@ -15291,7 +15295,7 @@ CREATE TABLE IF NOT EXISTS reseller_ledger_entries (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization of the reseller',
     reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Collecting (top-level) reseller',
-    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout') NOT NULL
+    entry_type      ENUM('collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed', 'commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal') NOT NULL
                       COMMENT 'collection +, collection_void -, deposit -, adjustment +/-, bag_sealed - (006), commission -, commission_reversal +, payout + (007)',
     amount          DECIMAL(12, 2)  NOT NULL COMMENT 'Signed: positive increases what the reseller owes the ISP',
     currency        CHAR(3)         NOT NULL COMMENT 'ISO 4217; the organization currency',
@@ -15355,6 +15359,8 @@ CREATE TABLE IF NOT EXISTS reseller_settlements (
     total_commission          DECIMAL(14, 2)  NOT NULL DEFAULT 0,
     total_commission_reversal DECIMAL(14, 2)  NOT NULL DEFAULT 0,
     total_payout              DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_collection_fee      DECIMAL(14, 2)  NOT NULL DEFAULT 0,
+    total_collection_fee_reversal DECIMAL(14, 2) NOT NULL DEFAULT 0,
     closing_balance           DECIMAL(14, 2)  NOT NULL DEFAULT 0 COMMENT 'opening_balance + every total; positive: the reseller owes the ISP',
     entry_count               INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Ledger entries in the period',
     sweep_earned              INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT 'Missing commissions the gap sweep booked before generating',

@@ -18,6 +18,10 @@
 //   payout            +amount   the ISP paid it what the ISP owed (phase 4,
 //                               migration 007; resellerCommissionService
 //                               alone posts the two commission lines)
+//   collection_fee    -fee      what a collector earns for a payment it
+//                               took, kept from the cash (migration 011;
+//                               posted with the collection)
+//   collection_fee_reversal +fee that collection voided
 //
 // A negative balance is what the ISP owes the reseller ("Te debemos"): its
 // commissions passed the cash it holds for the ISP; staff record a payout.
@@ -63,15 +67,16 @@ const { ORG_SETTING_DEFS } = require('./settingsCatalog');
 
 const ENTRY_TYPES = [
   'collection', 'collection_void', 'deposit', 'adjustment', 'bag_sealed',
-  'commission', 'commission_reversal', 'payout',
+  'commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal',
 ];
 // What staff may post by hand (POST /resellers/:id/ledger); every other type
 // is written by the flow it records (a collection, its void, a sealed bag, a
 // paid or un-paid invoice).
 const MANUAL_ENTRY_TYPES = ['deposit', 'adjustment', 'payout'];
 // The lines that move what the reseller owes without moving the cash it holds:
-// the commission it keeps, its reversal and a payout (cashHeld leaves them out).
-const NON_CASH_ENTRY_TYPES = ['commission', 'commission_reversal', 'payout'];
+// the commission or collection fee it keeps, their reversals and a payout
+// (cashHeld leaves them out).
+const NON_CASH_ENTRY_TYPES = ['commission', 'commission_reversal', 'payout', 'collection_fee', 'collection_fee_reversal'];
 const DEFAULT_LIMIT_KEY = 'reseller_default_credit_limit';
 
 const defaultExec = () => db.query.bind(db);
@@ -228,7 +233,7 @@ async function ledgerBalance(orgId, resellerId, exec = defaultExec()) {
 
 /**
  * The collected cash the reseller physically holds: the balance without its
- * commission, commission_reversal and payout lines. A void gives a
+ * commission, collection fee, their reversals and payout lines. A void gives a
  * collection's cash back from the drawer, so it is checked against this, not
  * against the balance, which the commissions it kept lower.
  */

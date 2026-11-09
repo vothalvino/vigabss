@@ -20,6 +20,11 @@
 //  routes/resellerAppStatements.js and the phase-5b support routes of
 //  routes/resellerAppSupport.js, mounted below with the same guards.
 //
+// A collector (resellers.kind = 'collector', migration 011) uses the same app
+// for its cash only: Cobrar by client number, Mi caja, Mis bolsas and its
+// statements. Whatever permissions its group is given, every client, plan,
+// lead and ticket route answers 403 to it (collectorFence below).
+//
 // Every route needs a binding: org-level staff get 403 (they use the staff
 // pages). The subtree is the bound reseller and its sub-resellers
 // (middleware/resellerScope.js). Every query binds organization_id and skips
@@ -45,6 +50,7 @@ const auditLog = require('../services/auditLog');
 const resellerLedgerService = require('../services/resellerLedgerService');
 const resellerCollectionService = require('../services/resellerCollectionService');
 const resellerCommissionService = require('../services/resellerCommissionService');
+const collectorService = require('../services/collectorService');
 const Organization = require('../models/Organization');
 const db = require('../config/database');
 
@@ -62,6 +68,26 @@ const requireBoundReseller = tagGuard((req, _res, next) => {
   next();
 }, { reseller: 'bound' });
 router.use(requireBoundReseller);
+
+// The bound point's kind, for the collector fence and the collector's lookup.
+async function loadPointKind(req, _res, next) {
+  try {
+    req.pointKind = await collectorService.kindOf(req.orgId, req.resellerScope.rootId);
+    next();
+  } catch (err) { next(err); }
+}
+router.use(loadPointKind);
+
+// A collector only takes payments: no client, plan, lead or ticket route, and
+// not the own-client Cobrar shortcut, whatever its group holds.
+const COLLECTOR_REFUSED = /^\/(?:clients|plans|leads|tickets|collect\/client)(?:\/|$)/;
+const collectorFence = tagGuard((req, _res, next) => {
+  if (req.pointKind === 'collector' && COLLECTOR_REFUSED.test(req.path)) {
+    return next(new ForbiddenError('A collector account only takes payments'));
+  }
+  next();
+}, { reseller: 'collector-fence' });
+router.use(collectorFence);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -257,10 +283,55 @@ function resellerFeasibilitySummary(result) {
   };
 }
 
+/**
+ * /me of a collector (migration 011): its cash only, never a count of
+ * clients, overdue clients or prospects.
+ */
+async function collectorMe(req, point) {
+  const currency = await Organization.getCurrency(req.orgId);
+  const id = Number(point.id);
+  const [summary, collectedToday, bags, settings, feesMonth] = await Promise.all([
+    resellerLedgerService.summaryFor(req.orgId, id),
+    resellerCollectionService.collectedToday(req.orgId, id),
+    resellerLedgerService.bagCounts(req.orgId, id),
+    collectorService.pointRow(db.query.bind(db), req.orgId, id),
+    collectorService.feesThisMonth(req.orgId, id),
+  ]);
+  return {
+    reseller: {
+      id,
+      name: point.name,
+      level: Number(point.level),
+      status: point.status,
+      kind: 'collector',
+      parent_id: null,
+      collection_fee_type: settings?.collection_fee_type ?? 'none',
+      collection_fee_value: Number(settings?.collection_fee_value) || 0,
+    },
+    currency,
+    counts: null,
+    money: {
+      currency,
+      balance: summary.balance,
+      in_bags: summary.in_bags,
+      cash_on_hand: summary.cash_on_hand,
+      credit_limit: summary.credit_limit,
+      available_to_collect: summary.available_to_collect,
+      limit_reached: summary.limit_reached,
+      collected_today: collectedToday,
+      empty_bags: bags.empty,
+      bags_on_the_way: bags.on_the_way,
+      bags_ready_for_pickup: bags.ready_for_pickup,
+      bags_in_transit: bags.in_transit,
+      fees_month: feesMonth,
+    },
+  };
+}
+
 // =============================================================================
 // GET /reseller-app/me
 // =============================================================================
-router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) => {
+router.get('/me', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
   try {
     const ids = subtree(req);
     const idsIn = inPlaceholders(ids);
@@ -270,6 +341,7 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
       [req.resellerScope.rootId, req.orgId],
     );
     if (!reseller) throw new NotFoundError('Reseller');
+    if (req.pointKind === 'collector') return res.json({ data: await collectorMe(req, reseller) });
 
     const [[clientCounts]] = await db.query(
       `SELECT COALESCE(SUM(c.status = 'active'), 0) AS active_clients,
@@ -319,6 +391,7 @@ router.get('/me', requirePermission('reseller_app.use'), async (req, res, next) 
           status: reseller.status,
           commission_rate: Number(reseller.commission_rate),
           parent_id: reseller.parent_id === null ? null : Number(reseller.parent_id),
+          kind: 'reseller',
         },
         currency,
         counts: {

@@ -25,7 +25,7 @@ import { LoadingState } from '@/components/FetchStates';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { styles } from '../crudStyles';
-import { ResellerListNotice, useResellerOptions } from './resellerOptions';
+import { ResellerListNotice, resellersOnly, useResellerOptions } from './resellerOptions';
 
 const PAGE_SIZE = 25;
 const DATETIME: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -100,7 +100,7 @@ export function ResellerCommissionsTab() {
             onChange={e => { setResellerId(Number(e.target.value) || null); setPage(1); }}
           >
             <option value="">{t('resellerCommissions.selectReseller')}</option>
-            {(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {resellersOnly(resellersQ.data?.rows ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </label>
         <label style={styles.filterLabel}>

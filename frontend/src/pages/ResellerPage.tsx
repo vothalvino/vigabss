@@ -60,6 +60,20 @@ interface Reseller {
   city?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  /** 'collector' (migration 011): only takes payments, earns a fee per payment. */
+  kind?: 'reseller' | 'collector';
+  collection_fee_type?: 'none' | 'fixed' | 'percent';
+  collection_fee_value?: number | string;
+}
+
+/** A collector's fee per payment, in the list's commission column. */
+function CollectorFee({ row }: { row: Reseller }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const value = Number(row.collection_fee_value ?? 0);
+  if (row.collection_fee_type === 'fixed' && value > 0) return <>{t('resellerAdmin.feeFixed', { amount: formatMoney(value, user?.organization_currency || 'MXN') })}</>;
+  if (row.collection_fee_type === 'percent' && value > 0) return <>{t('resellerAdmin.feePercent', { rate: value })}</>;
+  return <>{t('resellerAdmin.feeNone')}</>;
 }
 
 interface ResellerDashboard {
@@ -200,9 +214,9 @@ function ResellersTab() {
               <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.id}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.name}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.level === 1 ? t('resellerAdmin.levelMaster') : t('resellerAdmin.levelSub')}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.kind === 'collector' ? t('resellerAdmin.levelCollector') : r.level === 1 ? t('resellerAdmin.levelMaster') : t('resellerAdmin.levelSub')}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.parent_name ?? '—'}</td>
-                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{Number(r.commission_rate)}%</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{r.kind === 'collector' ? <CollectorFee row={r} /> : `${Number(r.commission_rate)}%`}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}><StatusBadge value={r.status} /></td>
                 {hasActions && (
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd', display: 'flex', gap: 4 }}>

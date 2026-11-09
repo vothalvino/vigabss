@@ -60986,6 +60986,17 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "reseller",
+                "collector"
+              ]
+            }
           }
         ],
         "responses": {
@@ -61005,7 +61016,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "Create reseller",
+        "summary": "Create reseller, or a collector (kind collector, migration 011: top level, no commission; collection_fee_type none, fixed or percent with collection_fee_value)",
         "operationId": "createReseller",
         "security": [
           {
@@ -61075,7 +61086,7 @@
         "tags": [
           "Resellers"
         ],
-        "summary": "Update reseller (absent fields are kept; address or city sent null or empty, both latitude and longitude sent null, or credit_limit sent null (back to the organization default) are cleared)",
+        "summary": "Update reseller (absent fields are kept; kind collector needs a top-level reseller with no sub-resellers, clients or leads, 409 COLLECTOR_HAS_CLIENTS; address or city sent null or empty, both latitude and longitude sent null, or credit_limit sent null (back to the organization default) are cleared)",
         "operationId": "updateReseller",
         "security": [
           {
@@ -62817,12 +62828,14 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +, collection_fee -, collection_fee_reversal +)"
                           },
                           "note": {
                             "type": [
@@ -63112,12 +63125,14 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ]
                         },
                         "amount": {
                           "type": "number",
-                          "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                          "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +, collection_fee -, collection_fee_reversal +)"
                         },
                         "note": {
                           "type": [
@@ -63686,7 +63701,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "The bound reseller, the organization currency, the subtree counts and the cash position of the collecting (top-level) reseller",
+        "summary": "The bound reseller, the organization currency, the subtree counts and the cash position of the collecting (top-level) reseller. For a collector (migration 011): its cash and fees, no counts. Needs reseller_app.use or reseller_app.cash",
         "operationId": "getResellerAppMe",
         "security": [
           {
@@ -63725,9 +63740,7 @@
                             "collected_today",
                             "empty_bags",
                             "bags_ready_for_pickup",
-                            "bags_in_transit",
-                            "commission_rate",
-                            "commission_month"
+                            "bags_in_transit"
                           ],
                           "properties": {
                             "currency": {
@@ -63763,7 +63776,11 @@
                             },
                             "empty_bags": {
                               "type": "integer",
-                              "description": "Empty cash bags at the reseller it may fill (at_reseller)"
+                              "description": "Empty cash bags it may fill: at the point (at_reseller) or on their way to it (with_carrier)"
+                            },
+                            "bags_on_the_way": {
+                              "type": "integer",
+                              "description": "Empty bags a carrier is bringing it (with_carrier, migration 010)"
                             },
                             "bags_ready_for_pickup": {
                               "type": "integer",
@@ -63779,7 +63796,11 @@
                             },
                             "commission_month": {
                               "type": "number",
-                              "description": "Commission earned this business month and still standing (reversed ones excluded); already kept from the cash, so balance is net of it"
+                              "description": "Resellers: commission earned this business month and still standing (reversed ones excluded); already kept from the cash, so balance is net of it"
+                            },
+                            "fees_month": {
+                              "type": "number",
+                              "description": "Collectors (migration 011): collection fees kept this business month, voided ones excluded"
                             }
                           }
                         },
@@ -63790,8 +63811,8 @@
                             "name",
                             "level",
                             "status",
-                            "commission_rate",
-                            "parent_id"
+                            "parent_id",
+                            "kind"
                           ],
                           "properties": {
                             "id": {
@@ -63811,14 +63832,36 @@
                                 "inactive"
                               ]
                             },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "reseller",
+                                "collector"
+                              ],
+                              "description": "collector (migration 011): a point that only takes payments; its /me has no counts and no commission"
+                            },
                             "commission_rate": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Resellers only"
                             },
                             "parent_id": {
                               "type": [
                                 "integer",
                                 "null"
                               ]
+                            },
+                            "collection_fee_type": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "fixed",
+                                "percent"
+                              ],
+                              "description": "Collectors only"
+                            },
+                            "collection_fee_value": {
+                              "type": "number",
+                              "description": "Collectors only: the fixed amount or the percentage"
                             }
                           }
                         },
@@ -63826,7 +63869,11 @@
                           "type": "string"
                         },
                         "counts": {
-                          "type": "object",
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "description": "null for a collector, which sees no clients",
                           "required": [
                             "active_clients",
                             "suspended_clients",
@@ -65019,7 +65066,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "Find a subscriber of the organization to collect from, by exact customer number (123 or #123) or exact phone; at most 5. A client outside the reseller subtree has a masked name and no contact data. Needs reseller_app.collect; rate-limited per collecting reseller, per window and per day (RATE_LIMIT_RESELLER_LOOKUP, RATE_LIMIT_RESELLER_LOOKUP_DAILY)",
+        "summary": "Find a subscriber of the organization to collect from, by exact customer number (123 or #123) or exact phone (a collector, migration 011: by customer number only); at most 5. A client outside the reseller subtree has a masked name and no contact data. Needs reseller_app.collect; rate-limited per collecting reseller, per window and per day (RATE_LIMIT_RESELLER_LOOKUP, RATE_LIMIT_RESELLER_LOOKUP_DAILY)",
         "operationId": "lookupResellerAppCollectTarget",
         "security": [
           {
@@ -65706,6 +65753,10 @@
                         },
                         "client_name": {
                           "type": "string"
+                        },
+                        "collection_fee": {
+                          "type": "number",
+                          "description": "A collector only (migration 011): the fee it kept from this payment"
                         },
                         "reconnected": {
                           "type": [
@@ -66753,12 +66804,14 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +, collection_fee -, collection_fee_reversal +)"
                           },
                           "note": {
                             "type": [
@@ -69694,7 +69747,12 @@
                                   "collection_void",
                                   "deposit",
                                   "adjustment",
-                                  "bag_sealed"
+                                  "bag_sealed",
+                                  "commission",
+                                  "commission_reversal",
+                                  "payout",
+                                  "collection_fee",
+                                  "collection_fee_reversal"
                                 ]
                               },
                               "amount": {
@@ -72409,7 +72467,9 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ],
                             "properties": {
                               "collection": {
@@ -72434,6 +72494,12 @@
                                 "type": "number"
                               },
                               "payout": {
+                                "type": "number"
+                              },
+                              "collection_fee": {
+                                "type": "number"
+                              },
+                              "collection_fee_reversal": {
                                 "type": "number"
                               }
                             }
@@ -72810,7 +72876,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -72835,6 +72903,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -73245,7 +73319,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -73270,6 +73346,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -73399,12 +73481,14 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +, collection_fee -, collection_fee_reversal +)"
                           },
                           "note": {
                             "type": [
@@ -73803,7 +73887,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -73828,6 +73914,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -74183,7 +74275,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -74208,6 +74302,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -74531,7 +74631,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -74556,6 +74658,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -74907,7 +75015,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -74932,6 +75042,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -75527,7 +75643,9 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ],
                             "properties": {
                               "collection": {
@@ -75552,6 +75670,12 @@
                                 "type": "number"
                               },
                               "payout": {
+                                "type": "number"
+                              },
+                              "collection_fee": {
+                                "type": "number"
+                              },
+                              "collection_fee_reversal": {
                                 "type": "number"
                               }
                             }
@@ -75830,7 +75954,9 @@
                             "bag_sealed",
                             "commission",
                             "commission_reversal",
-                            "payout"
+                            "payout",
+                            "collection_fee",
+                            "collection_fee_reversal"
                           ],
                           "properties": {
                             "collection": {
@@ -75855,6 +75981,12 @@
                               "type": "number"
                             },
                             "payout": {
+                              "type": "number"
+                            },
+                            "collection_fee": {
+                              "type": "number"
+                            },
+                            "collection_fee_reversal": {
                               "type": "number"
                             }
                           }
@@ -75978,12 +76110,14 @@
                               "bag_sealed",
                               "commission",
                               "commission_reversal",
-                              "payout"
+                              "payout",
+                              "collection_fee",
+                              "collection_fee_reversal"
                             ]
                           },
                           "amount": {
                             "type": "number",
-                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +)"
+                            "description": "Signed: + increases what the reseller owes (commission -, commission_reversal +, payout +, collection_fee -, collection_fee_reversal +)"
                           },
                           "note": {
                             "type": [
