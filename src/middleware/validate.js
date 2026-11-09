@@ -45,6 +45,10 @@ function validate(schema, options = {}) {
         errors.push({ field, message: `${field} must be a string` });
       } else if (rules.type === 'number' && typeof value !== 'number') {
         errors.push({ field, message: `${field} must be a number` });
+      } else if (rules.type === 'integer' && !(typeof value === 'number' && Number.isInteger(value))) {
+        // 'integer' used to be an unknown type and checked nothing: "abc" or
+        // 9.5 reached the column, and min/max measured a string's length.
+        errors.push({ field, message: `${field} must be a whole number` });
       } else if (rules.type === 'boolean' && typeof value !== 'boolean') {
         // Boolean columns are stored as MySQL tinyint and serialized back as the
         // numbers 0/1. A value read from a GET and re-submitted in an edit form

@@ -53,3 +53,24 @@ describe('a type failure suppresses the range message', () => {
     expect(errors).toEqual([]);
   });
 });
+
+// 'integer' was not a type validate() knew, so it checked nothing: the
+// password policy took "abc" or 9.5, and min/max measured a string's length.
+describe("type: 'integer'", () => {
+  const schema = { min_length: { type: 'integer', min: 8, max: 128 } };
+
+  it('accepts a whole number in range', () => {
+    expect(run(schema, { min_length: 12 }).nexted).toBe(true);
+  });
+
+  it.each([['a string', 'abc'], ['a numeric string', '12'], ['a fraction', 9.5], ['a boolean', true]])('refuses %s', (_label, value) => {
+    const { nexted, errors } = run(schema, { min_length: value });
+    expect(nexted).toBe(false);
+    expect(errors.map(e => e.message)).toEqual(['min_length must be a whole number']);
+  });
+
+  it('applies the numeric range, not a string length', () => {
+    const { errors } = run(schema, { min_length: 4 });
+    expect(errors.map(e => e.message)).toEqual(['min_length must be at least 8']);
+  });
+});

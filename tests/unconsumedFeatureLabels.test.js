@@ -36,10 +36,17 @@ function consumers(table, ownFiles) {
 
 test.each([
   ['config_backup_schedules', ['src/routes/configBackupSchedules.js'], 'frontend/src/pages/ConfigBackupScheduleList.tsx', 'notApplied.backupSchedules'],
-  ['data_masking_rules', ['src/routes/dataSecurity.js', 'src/models/DataMaskingRule.js'], 'frontend/src/pages/SecurityAccessControlPage.tsx', 'notApplied.dataMasking'],
 ])('%s has no consumer, and its page says it is not applied', (table, own, page, key) => {
   expect(consumers(table, own)).toEqual([]);
   expect(read(page)).toContain(`<NotAppliedNotice detail={t('${key}')} />`);
+});
+
+// Data masking rules are applied by nothing, so Security & Access Control no
+// longer shows them at all (2026-11) instead of listing them with a notice.
+test('data_masking_rules has no consumer, and the security page does not show it', () => {
+  expect(consumers('data_masking_rules', ['src/routes/dataSecurity.js', 'src/models/DataMaskingRule.js'])).toEqual([]);
+  const page = read('frontend/src/pages/SecurityAccessControlPage.tsx');
+  expect(page).not.toMatch(/data-masking|dataMasking/);
 });
 
 test('billing adjustments change no balance, and the page says they are notes', () => {
