@@ -3603,11 +3603,11 @@ function generateSpec() {
 
       // ---- WireGuard Peers — self-service (owner-scoped) ----
       '/wg-peers': {
-        get:  { tags: ['WireGuard Peers'], summary: 'List own WireGuard peers (key columns redacted)', operationId: 'listWgPeers', security: [{ bearerAuth: [] }], responses: r200('WgUserPeer[]') },
-        post: { tags: ['WireGuard Peers'], summary: 'Create a WireGuard peer — keypair is server-generated; private key and QR SVG returned only here (never again)', operationId: 'createWgPeer', security: [{ bearerAuth: [] }], requestBody: jsonBody('wgPeers_createPeer'), responses: r201('WgUserPeer (redacted) + config + config_base64 + qr_svg') },
+        get:  { tags: ['WireGuard Peers'], summary: 'List own WireGuard peers (key columns redacted)', description: '`hub` says whether a config can be issued now: `{ ready, code, message }`, code WIREGUARD_HUB_OFF or WIREGUARD_NOT_READY when not.', operationId: 'listWgPeers', security: [{ bearerAuth: [] }], responses: r200('WgUserPeer[] + hub') },
+        post: { tags: ['WireGuard Peers'], summary: 'Create a WireGuard peer — keypair is server-generated; private key and QR SVG returned only here (never again)', operationId: 'createWgPeer', security: [{ bearerAuth: [] }], requestBody: jsonBody('wgPeers_createPeer'), description: 'Refused before anything is stored while the hub cannot take a tunnel.', responses: { ...r201('WgUserPeer (redacted) + config + config_base64 + qr_svg'), ...{ 409: errorResponse('WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)'), 503: errorResponse('WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing') } } },
       },
       '/wg-peers/{id}/config': {
-        get: { tags: ['WireGuard Peers'], summary: 'Persistent profile re-download: return .conf text (default) or SVG QR for the owning user', operationId: 'getWgPeerConfig', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'format', in: 'query', required: false, schema: { type: 'string', enum: ['conf', 'qr'] }, description: 'conf (default) or qr' }, { name: 'download', in: 'query', required: false, schema: { type: 'string', enum: ['1'] }, description: 'If 1, sets Content-Disposition: attachment' }], responses: r200('.conf text or SVG QR') },
+        get: { tags: ['WireGuard Peers'], summary: 'Persistent profile re-download: return .conf text (default) or SVG QR for the owning user', operationId: 'getWgPeerConfig', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'format', in: 'query', required: false, schema: { type: 'string', enum: ['conf', 'qr'] }, description: 'conf (default) or qr' }, { name: 'download', in: 'query', required: false, schema: { type: 'string', enum: ['1'] }, description: 'If 1, sets Content-Disposition: attachment' }], responses: { ...r200('.conf text or SVG QR'), 409: errorResponse('WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)'), 503: errorResponse('WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing') } },
       },
       '/wg-peers/{id}': {
         delete: { tags: ['WireGuard Peers'], summary: 'Revoke own WireGuard peer (owner only) — removes kernel peer immediately on next packet', operationId: 'deleteWgPeer', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
@@ -3621,7 +3621,7 @@ function generateSpec() {
         delete: { tags: ['WireGuard Peers'], summary: 'Admin revoke any WireGuard peer by id', operationId: 'adminDeleteWgPeer', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/wg-peers/admin/{id}/rotate': {
-        post: { tags: ['WireGuard Peers'], summary: 'Rotate keypair for any peer — owner must re-download /config; admin never receives the key', operationId: 'adminRotateWgPeer', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('WgUserPeer (redacted, new public_key)') },
+        post: { tags: ['WireGuard Peers'], summary: 'Rotate keypair for any peer — owner must re-download /config; admin never receives the key', operationId: 'adminRotateWgPeer', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('WgUserPeer (redacted, new public_key)'), ...{ 409: errorResponse('WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)'), 503: errorResponse('WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing') } } },
       },
 
       // ---- WireGuard Peers — assignment management (admin) ----

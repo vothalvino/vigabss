@@ -80732,6 +80732,7 @@
           "WireGuard Peers"
         ],
         "summary": "List own WireGuard peers (key columns redacted)",
+        "description": "`hub` says whether a config can be issued now: `{ ready, code, message }`, code WIREGUARD_HUB_OFF or WIREGUARD_NOT_READY when not.",
         "operationId": "listWgPeers",
         "security": [
           {
@@ -80740,7 +80741,7 @@
         ],
         "responses": {
           "200": {
-            "description": "WgUserPeer[]",
+            "description": "WgUserPeer[] + hub",
             "content": {
               "application/json": {
                 "schema": {
@@ -80772,6 +80773,7 @@
             }
           }
         },
+        "description": "Refused before anything is stored while the hub cannot take a tunnel.",
         "responses": {
           "201": {
             "description": "WgUserPeer (redacted) + config + config_base64 + qr_svg",
@@ -80779,6 +80781,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -80840,6 +80896,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -80998,6 +81108,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WIREGUARD_HUB_OFF: the hub is turned off for the installation (Settings → WireGuard)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WIREGUARD_NOT_READY: the hub is on but its client key or endpoint is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

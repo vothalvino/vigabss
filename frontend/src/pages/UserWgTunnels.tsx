@@ -32,6 +32,8 @@ interface WgPeer {
 
 interface PeersResponse {
   data: WgPeer[];
+  /** Whether a config can be issued now (the hub is on and has its key). */
+  hub?: { ready: boolean; code: string | null; message: string | null };
 }
 
 interface CreatePeerResponse {
@@ -93,7 +95,8 @@ async function fetchPeerConfig(id: number, format: 'conf' | 'qr'): Promise<strin
   const res = await authedFetch(`${API_BASE}/wg-peers/${id}/config?${params}`, {
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error('Failed to fetch config');
+  // The server says why (for example the hub is off); show that, not a guess.
+  if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), 'Failed to fetch config'));
   return res.text();
 }
 
@@ -255,6 +258,7 @@ function QrModal({ peer, onClose }: QrModalProps) {
   const { data: svgText, isLoading, error } = useQuery({
     queryKey: ['wg-peer-qr', peer.id],
     queryFn: () => fetchPeerConfig(peer.id, 'qr'),
+    retry: false,
   });
 
   const svgDataUrl = svgText
@@ -269,7 +273,11 @@ function QrModal({ peer, onClose }: QrModalProps) {
           {peer.tunnel_address}
         </p>
         {isLoading && <p style={{ color: '#888' }}>{t('wgTunnels.loadingQr')}</p>}
-        {error && <p style={{ color: '#e00' }}>{t('wgTunnels.error.showQr')}</p>}
+        {error && (
+          <p role="alert" style={{ color: '#e00' }}>
+            {error instanceof Error && error.message !== 'Failed to fetch config' ? error.message : t('wgTunnels.error.showQr')}
+          </p>
+        )}
         {svgDataUrl && (
           <img
             src={svgDataUrl}
@@ -378,6 +386,7 @@ export function UserWgTunnels() {
   const [qrPeer, setQrPeer] = useState<WgPeer | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<WgPeer | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['wg-peers-mine'],
@@ -385,6 +394,9 @@ export function UserWgTunnels() {
   });
 
   const peers = data?.data ?? [];
+  // A peer made or downloaded while the hub cannot take it gets a config no
+  // client accepts, so the page says so and offers nothing to create.
+  const hubProblem = data?.hub && !data.hub.ready ? data.hub : null;
 
   const revokeMutation = useMutation({
     mutationFn: (id: number) => deletePeer(id),
@@ -396,11 +408,12 @@ export function UserWgTunnels() {
 
   async function handleDownload(peer: WgPeer) {
     setDownloadingId(peer.id);
+    setDownloadError(null);
     try {
       const conf = await fetchPeerConfig(peer.id, 'conf');
       triggerDownload(conf, `${peer.name}.conf`);
-    } catch {
-      // silently ignore; user can retry
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
       setDownloadingId(null);
     }
@@ -420,7 +433,7 @@ export function UserWgTunnels() {
         justifyContent: 'space-between', marginBottom: '1rem',
       }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('wgTunnels.title')}</h1>
-        <button style={btnPrimary} onClick={() => setShowAdd(true)}>
+        <button style={btnPrimary} onClick={() => setShowAdd(true)} disabled={Boolean(hubProblem)}>
           {t('wgTunnels.addPeer')}
         </button>
       </div>
@@ -434,8 +447,19 @@ export function UserWgTunnels() {
         {t('wgTunnels.banner')}
       </div>
 
+      {hubProblem && (
+        <div role="alert" style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6,
+          padding: '8px 12px', marginBottom: '1rem', fontSize: '0.85rem', color: '#991b1b', lineHeight: 1.5,
+        }}>
+          <strong>{t(hubProblem.code === 'WIREGUARD_HUB_OFF' ? 'wgTunnels.hubOff.title' : 'wgTunnels.hubNotReady.title')}</strong>
+          <div>{t(hubProblem.code === 'WIREGUARD_HUB_OFF' ? 'wgTunnels.hubOff.detail' : 'wgTunnels.hubNotReady.detail')}</div>
+        </div>
+      )}
+      {downloadError && <p role="alert" style={{ color: '#e00' }}>{downloadError}</p>}
+
       {isLoading && <p style={{ color: '#888' }}>{t('wgTunnels.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('wgTunnels.error')}</p>}
+      {error && <p style={{ color: '#e00' }}>{t('wgTunnels.errorLoad')}</p>}
 
       {!isLoading && !error && (
         <div style={{ overflowX: 'auto' }}>

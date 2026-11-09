@@ -5490,7 +5490,15 @@
     "revokeNote": "O dispositivo perde o acesso à VPN imediatamente. Adicione-o novamente para restaurar o acesso.",
     "revoking": "Revogando…",
     "downloading": "Baixando…",
-    "banner": "Cada dispositivo tem seu próprio túnel WireGuard. Instale o app do WireGuard e importe o arquivo .conf ou escaneie o QR code."
+    "banner": "Cada dispositivo tem seu próprio túnel WireGuard. Instale o app do WireGuard e importe o arquivo .conf ou escaneie o QR code.",
+    "hubOff": {
+      "title": "O WireGuard está desligado neste servidor",
+      "detail": "Nenhum túnel consegue conectar, e um túnel criado agora não funcionaria. Um administrador pode ligá-lo em Configurações (WireGuard); depois baixe de novo seu túnel ou o código QR."
+    },
+    "hubNotReady": {
+      "title": "O WireGuard não está pronto neste servidor",
+      "detail": "O concentrador WireGuard está ligado, mas falta a chave ou o endereço público, então nenhuma configuração funcional pode ser emitida. Um administrador deve verificar o auxiliar do WireGuard."
+    }
   },
   "adminWgTunnels": {
     "title": "WireGuard — Todos os Túneis",

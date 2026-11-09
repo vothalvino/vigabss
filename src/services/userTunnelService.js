@@ -25,7 +25,7 @@ const QRCode = require('qrcode');
 const db = require('../config/database');
 const config = require('../config');
 const { encrypt } = require('../utils/encryption');
-const { NotFoundError, ConflictError } = require('../utils/errors');
+const { AppError, NotFoundError, ConflictError } = require('../utils/errors');
 const auditLog = require('./auditLog');
 const userTunnelScopeService = require('./userTunnelScopeService');
 const wireguardServerService = require('./wireguardServerService');
@@ -48,7 +48,44 @@ const logger = require('../utils/logger').child({ service: 'userTunnelService' }
  * @param {string|null} [presharedKey]  plaintext PSK (never log!)
  * @returns {string}
  */
+// A WireGuard public key: 32 bytes, base64 (44 characters ending in '=').
+const WG_KEY = /^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw480]=$/;
+
+/**
+ * Can a client config be issued now? The hub must be on (installation
+ * setting) and its client-interface key and the endpoint known. With the hub
+ * off the key is never loaded, and a config with "PublicKey = " (empty) is
+ * what phones reject as an invalid [Peer] section; it could not connect
+ * anyway. Returns null when ready, or { status, code, message }.
+ */
+function configIssueProblem() {
+  const wg = config.wireguard;
+  if (!wg.serverEnabled) {
+    return {
+      status: 409,
+      code: 'WIREGUARD_HUB_OFF',
+      message: 'The WireGuard hub is turned off for this installation, so no tunnel can connect. Turn it on in Settings (WireGuard), then create or download the tunnel again.',
+    };
+  }
+  if (!WG_KEY.test(String(wg.clientPublicKey || '')) || !wg.serverEndpoint) {
+    return {
+      status: 503,
+      code: 'WIREGUARD_NOT_READY',
+      message: 'The WireGuard hub is on but not ready (its key or public address is missing). Check the WireGuard helper, then try again.',
+    };
+  }
+  return null;
+}
+
+/** Throw the configIssueProblem() as an error the API answers with. */
+function assertCanIssueConfig() {
+  const problem = configIssueProblem();
+  if (problem) throw new AppError(problem.message, problem.status, problem.code);
+}
+
 function buildConfig(peer, privateKey, subnets, presharedKey = null) {
+  // Never hand out a config a WireGuard client cannot parse or use.
+  assertCanIssueConfig();
   const lines = [
     '[Interface]',
     `PrivateKey = ${privateKey}`,
@@ -135,6 +172,9 @@ async function assertPeerCapacity(userId, orgId) {
 }
 
 async function createPeer(userId, orgId, name, fullTunnel = true) {
+  // Before anything is stored: a peer created while the hub is off got a
+  // config no phone accepts (empty PublicKey) and could never connect.
+  assertCanIssueConfig();
   await assertPeerCapacity(userId, orgId);
   // 1. Compute the scope this user is allowed to reach in this organization
   const subnets = await userTunnelScopeService.getScopedSubnets(userId, orgId);
@@ -234,6 +274,7 @@ async function createPeer(userId, orgId, name, fullTunnel = true) {
  * @returns {Promise<object>} updated peer row (no key fields)
  */
 async function rotatePeer(peerId, orgId, rotatedByUserId) {
+  assertCanIssueConfig();
   const [[peer]] = await db.query(
     'SELECT * FROM wg_user_peers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL AND revoked_at IS NULL',
     [peerId, orgId],
@@ -615,6 +656,8 @@ async function rehydrateUserPeers() {
 }
 
 module.exports = {
+  configIssueProblem,
+  assertCanIssueConfig,
   buildConfig,
   buildQr,
   createPeer,
