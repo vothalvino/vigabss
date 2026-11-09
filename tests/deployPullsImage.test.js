@@ -738,8 +738,15 @@ describe('k8s and Helm point at the image that is actually published', () => {
     expect(pin.run).toContain(
       'grep -qx "  tag: \\"${RELEASE_VERSION}\\"" charts/vigabss/values.yaml',
     );
-    const release = helm.steps.find(s => s.name === 'Run chart-releaser');
-    expect(release).toBeDefined();
+    // The chart goes to GHCR as an OCI artifact and is signed like the image:
+    // no chart-releaser, so a release makes no second git tag or GitHub release.
+    const chartPush = helm.steps.find(s => s.name === 'Push the chart to ghcr.io');
+    expect(chartPush.run).toContain('helm push');
+    expect(chartPush.run).toContain('oci://ghcr.io/${OWNER}/charts');
+    expect(helm.permissions).toMatchObject({ contents: 'read', packages: 'write', 'id-token': 'write' });
+    const sign = helm.steps.find(s => s.name === 'Sign the published chart (keyless)');
+    expect(sign.run).toContain('cosign sign --yes "${{ steps.push.outputs.ref }}"');
+    expect(JSON.stringify(helm.steps)).not.toMatch(/chart-releaser|gh-pages|gh release/);
   });
 
   it('the cosign policies verify that same path', () => {

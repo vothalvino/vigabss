@@ -5,7 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-Nothing yet.
+- **The Helm chart is published to GitHub Container Registry.** Each version
+  now has one tag and one GitHub release (`vX.Y.Z`). Before, the chart
+  publisher also made a `vigabss-X.Y.Z` tag and release that held only the
+  chart file. Install or upgrade with
+  `helm install vigabss oci://ghcr.io/vothalvino/charts/vigabss --version X.Y.Z`
+  (no `helm repo add`). The chart is signed with cosign like the image.
 
 ## 0.1.0-alpha.19 — 2026-11-09
 
