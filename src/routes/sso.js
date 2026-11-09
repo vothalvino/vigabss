@@ -67,12 +67,13 @@ function parseOrgId(req, res) {
 // second-factor challenge (bound to this org) instead of a session; the SPA
 // login page completes it via POST /auth/login/2fa.
 // ---------------------------------------------------------------------------
-async function finishSsoLogin(res, user, orgId, spaBase) {
+async function finishSsoLogin(req, res, user, orgId, spaBase) {
   if (authService.requiresSecondFactor(user)) {
     const challenge = authService.createSsoMfaChallenge(user, orgId);
     return res.redirect(`${config.appUrl}/login#mfa_token=${encodeURIComponent(challenge.mfaToken)}`);
   }
-  const tokens = await ssoService.mintTokens(user, orgId);
+  const ctx = require('../services/loginSecurityService').requestContext(req);
+  const tokens = await ssoService.mintTokens(user, orgId, ctx);
   // SEC-28: the tokens travelled in the redirect's URL fragment, readable by
   // page scripts and kept in browser history (and the SPA never read them).
   // The session is now the same httpOnly cookies a password login sets; the
@@ -138,7 +139,7 @@ router.post('/:orgId/saml/acs', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    await finishSsoLogin(res, user, orgId, `${config.appUrl}/`);
+    await finishSsoLogin(req, res, user, orgId, `${config.appUrl}/`);
   } catch (err) {
     next(err);
   }
@@ -174,7 +175,7 @@ router.get('/:orgId/oidc/callback', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    await finishSsoLogin(res, user, orgId, redirectTo || `${config.appUrl}/`);
+    await finishSsoLogin(req, res, user, orgId, redirectTo || `${config.appUrl}/`);
   } catch (err) {
     next(err);
   }

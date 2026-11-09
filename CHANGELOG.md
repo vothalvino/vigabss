@@ -5,6 +5,26 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Every sign-in is in the audit log, and repeat offenders are blocked.**
+  Staff and customer-portal sign-ins, good or bad, now appear in the audit
+  log with their own action (for example "Staff sign-in failed", "Staff
+  account locked", "Portal sign-in"), the IP and the browser, so you can
+  filter them. Staff sessions keep the IP they signed in from. An IP with 20
+  failed sign-ins within an hour is blocked from every sign-in page for 24
+  hours; if it comes back, for 7 days, then 30. Office, private and server
+  addresses are never blocked. The install operator can see the blocked
+  IPs, block one by hand or lift a block under Security & Access Control →
+  User security. The limits are set with `LOGIN_IP_BLOCK_*` in the
+  environment.
+- **The audit log's action filter lists every action.** It used to offer
+  only a few fixed actions, so most entries (cash bags, CFDI, reseller
+  statements and more) could not be picked and showed as a grey code. The
+  filter now lists the actions that actually occur, grouped by category
+  (Sign-in, Billing and SAT, Cash bags...), with readable names, and you
+  can pick a whole category. The IP column shows the address where one
+  was recorded.
+- Migration 013 adds the blocked-IP list, its two permissions (admin) and
+  an index for the audit log's action filter.
 - **Customers can pay ahead, and their credit pays the next invoices.** A
   reseller or collector can take a payment from a customer who owes nothing,
   or more than what is owed: the extra is the customer's credit, shown on the

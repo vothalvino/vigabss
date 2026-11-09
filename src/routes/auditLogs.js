@@ -9,6 +9,7 @@ const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
 const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 const { verifyAuditChain } = require('../services/auditChainService');
+const { CATEGORIES, categoryOf } = require('../utils/auditActions');
 
 const router = Router();
 
@@ -38,11 +39,45 @@ router.use(orgScope);
 // connection/flow export routes append.
 router.use((_req, _res, next) => db.withPrimaryContext(() => next()));
 
+// The actions that occur in a scope, with counts (one index range scan on
+// idx_audit_logs_org_action).
+async function scopeActions(scope) {
+  const [rows] = await db.query(
+    `SELECT action, COUNT(*) AS n, MAX(created_at) AS last_at
+       FROM audit_logs WHERE ${scope.clause}
+      GROUP BY action ORDER BY action LIMIT 1000`,
+    scope.params,
+  );
+  return rows || [];
+}
+
+// GET /audit-logs/actions — the actions in this scope, each with its category
+// (utils/auditActions.js), for the audit page's filter. A verb nobody has
+// catalogued yet still appears, under 'other'.
+router.get('/actions', requirePermission('audit_logs.view'), async (req, res, next) => {
+  try {
+    const scope = await auditScope(req, res);
+    if (!scope) return;
+    const rows = await scopeActions(scope);
+    res.json({
+      data: rows.map((r) => ({
+        action: r.action,
+        category: categoryOf(r.action),
+        count: Number(r.n) || 0,
+        last_at: r.last_at || null,
+      })),
+      categories: CATEGORIES,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // List audit logs with filters
 router.get('/', requirePermission('audit_logs.view'), async (req, res, next) => {
   try {
     const {
-      user_id, action, table_name, entity_type, date_from, date_to,
+      user_id, action, category, table_name, entity_type, date_from, date_to,
       page = 1, limit = 50,
     } = req.query;
 
@@ -57,6 +92,15 @@ router.get('/', requirePermission('audit_logs.view'), async (req, res, next) => 
 
     if (user_id) { conditions.push('user_id = ?'); params.push(user_id); }
     if (action) { conditions.push('action = ?'); params.push(action); }
+    if (category && !action) {
+      // Every action of the scope in that category; none at all matches nothing.
+      if (!CATEGORIES.includes(category)) {
+        return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: `category must be one of ${CATEGORIES.join(', ')}` } });
+      }
+      const inCategory = (await scopeActions(scope)).map((r) => r.action).filter((a) => categoryOf(a) === category);
+      if (inCategory.length === 0) conditions.push('1 = 0');
+      else { conditions.push(`action IN (${inCategory.map(() => '?').join(', ')})`); params.push(...inCategory); }
+    }
     if (entityFilter) { conditions.push('entity_type = ?'); params.push(entityFilter); }
     if (date_from) { conditions.push('created_at >= ?'); params.push(date_from); }
     if (date_to) { conditions.push('created_at <= ?'); params.push(date_to); }

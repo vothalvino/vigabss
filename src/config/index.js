@@ -70,6 +70,20 @@ const config = {
   // Example: "10.0.0.0/8,203.0.113.5"
   adminIpAllowlist: process.env.ADMIN_IP_ALLOWLIST || '',
 
+  // Sign-in IP blocking (migration 013, services/loginSecurityService.js):
+  // an IP with LOGIN_IP_BLOCK_THRESHOLD failed sign-ins within
+  // LOGIN_IP_BLOCK_WINDOW_MINUTES is refused at every sign-in route for
+  // LOGIN_IP_BLOCK_HOURS; an IP blocked before in the last 30 days gets 7
+  // days, then 30. Private, loopback and CGNAT addresses are never blocked
+  // on their own; LOGIN_IP_BLOCK_EXEMPT adds exact IPs to that list.
+  loginIpBlock: {
+    enabled: parseBoolEnv('LOGIN_IP_BLOCK_ENABLED', true),
+    threshold: parseIntEnv('LOGIN_IP_BLOCK_THRESHOLD', 20),
+    windowMinutes: parseIntEnv('LOGIN_IP_BLOCK_WINDOW_MINUTES', 60),
+    hours: parseIntEnv('LOGIN_IP_BLOCK_HOURS', 24),
+    exempt: (process.env.LOGIN_IP_BLOCK_EXEMPT || '').split(',').map((v) => v.trim()).filter(Boolean),
+  },
+
   // Rate limit overrides (requests per window)
   rateLimit: {
     windowMs: parseIntEnv('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),

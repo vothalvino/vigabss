@@ -78,6 +78,14 @@ const createAdminIpAllowlist = {
   is_active: { type: 'boolean' },
 };
 
+// POST /security-admin/login-ip-blocks (migration 013). hours omitted or
+// null blocks until lifted.
+const createLoginIpBlock = {
+  ip: { required: true, type: 'string', max: 45 },
+  hours: { type: 'number', min: 1, max: 8760 },
+  note: { type: 'string', max: 255 },
+};
+
 const triggerCpeScan = {
   scan_type: { required: true, enum: ['default_credentials', 'open_ports', 'firmware_cve', 'configuration_audit', 'full'] },
   device_id: { type: 'number' },
@@ -92,5 +100,6 @@ module.exports = {
   createWebAuthn,
   updatePasswordPolicy,
   createAdminIpAllowlist,
+  createLoginIpBlock,
   triggerCpeScan,
 };

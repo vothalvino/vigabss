@@ -21,6 +21,13 @@ const log1 = {
   summary: 'Updated client email', ip_address: '10.0.0.1', created_at: '2026-05-31T10:00:00Z',
 };
 
+const ACTIONS = [
+  { action: 'update', category: 'records', count: 7, last_at: null },
+  { action: 'login_failed', category: 'sign_in', count: 3, last_at: null },
+  { action: 'portal_login_success', category: 'sign_in', count: 2, last_at: null },
+  { action: 'brand_new_thing', category: 'other', count: 1, last_at: null },
+];
+
 function renderList() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -39,6 +46,7 @@ describe('AuditLogList page', () => {
     mockApiGet.mockImplementation((path: string) => {
       if (path === '/audit-logs')
         return Promise.resolve({ data: { data: [log1], meta: { total: 1, page: 1, limit: 50 } }, error: undefined });
+      if (path === '/audit-logs/actions') return Promise.resolve({ data: { data: ACTIONS, categories: [] }, error: undefined });
       return Promise.resolve({ data: { data: [] }, error: undefined });
     });
   });
@@ -108,5 +116,39 @@ describe('AuditLogList page', () => {
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/audit-logs', {
       params: { query: expect.objectContaining({ scope: 'install', page: 1 }) },
     }));
+  });
+
+  // Migration 013: the filter lists the actions that occur, grouped by
+  // category, with readable labels, and a whole category can be picked.
+  it('offers the actions that occur, grouped by category, with labels', async () => {
+    renderList();
+    const select = screen.getAllByRole('combobox')[0];
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Staff sign-in failed (3)' })).toBeInTheDocument());
+    expect(screen.getByRole('option', { name: 'All Sign-in' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Brand new thing (1)' })).toBeInTheDocument();
+    expect(select.querySelector('optgroup[label="Sign-in"]')).not.toBeNull();
+  });
+
+  it('filters by a whole category or by one action', async () => {
+    renderList();
+    const select = screen.getAllByRole('combobox')[0];
+    await screen.findByRole('option', { name: 'All Sign-in' });
+    fireEvent.change(select, { target: { value: 'category:sign_in' } });
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/audit-logs', { params: { query: expect.objectContaining({ category: 'sign_in' }) } }));
+    fireEvent.change(select, { target: { value: 'login_failed' } });
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/audit-logs', { params: { query: expect.objectContaining({ action: 'login_failed' }) } }));
+  });
+
+  it('shows a sign-in event with its label and the IP from the event', async () => {
+    mockApiGet.mockImplementation((path: string) => {
+      if (path === '/audit-logs') {
+        return Promise.resolve({ data: { data: [{ ...log1, id: 2, action: 'login_failed', ip_address: null, new_values: { ip: '203.0.113.7' } }], meta: { total: 1, page: 1, limit: 50 } }, error: undefined });
+      }
+      if (path === '/audit-logs/actions') return Promise.resolve({ data: { data: ACTIONS, categories: [] }, error: undefined });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    renderList();
+    expect(await screen.findByTitle('login_failed')).toHaveTextContent('Staff sign-in failed');
+    expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
   });
 });

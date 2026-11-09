@@ -2,7 +2,11 @@
 // VigaBSS 5.0 — Audit Log Viewer
 // =============================================================================
 // Standalone read-only page at /audit-logs. Lists audit trail entries with
-// filters (action, user, date range) and pagination. Data is fetched through
+// filters (action or category, user, date range) and pagination. The action
+// filter lists the actions that actually occur in the scope (GET
+// /audit-logs/actions), grouped by category (src/utils/auditActions.js on the
+// server); a label comes from auditLogs.actions.<action>, or is built from the
+// action itself when nobody translated it yet. Data is fetched through
 // the typed `api` client + React Query. Audit logs are immutable, so there are
 // no create/edit/delete actions.
 // =============================================================================
@@ -13,7 +17,7 @@ import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { styles, capitalize, fmtDate } from './crudStyles';
+import { styles, fmtDate } from './crudStyles';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,7 +31,14 @@ interface AuditLog {
   entity_id: number | null;
   summary: string | null;
   ip_address: string | null;
+  new_values?: Record<string, unknown> | string | null;
   created_at: string;
+}
+
+interface ActionEntry {
+  action: string;
+  category: string;
+  count: number;
 }
 
 interface AuditLogsResponse {
@@ -36,6 +47,7 @@ interface AuditLogsResponse {
 }
 
 interface Filters {
+  /** An action, or `category:<name>` for every action of a category. */
   action: string;
   user_id: string;
   date_from: string;
@@ -47,7 +59,44 @@ interface Filters {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_PAGE_SIZE = 50;
-const ACTIONS = ['create', 'update', 'delete', 'login', 'logout', 'export', 'other'];
+const CATEGORY_PREFIX = 'category:';
+
+// Badge colours by category (the server decides the category).
+const CATEGORY_STYLE: Record<string, { bg: string; color: string }> = {
+  records: { bg: '#dbeafe', color: '#1e40af' },
+  sign_in: { bg: '#ede9fe', color: '#5b21b6' },
+  security: { bg: '#fee2e2', color: '#991b1b' },
+  billing: { bg: '#d1fae5', color: '#065f46' },
+  resellers: { bg: '#fef3c7', color: '#92400e' },
+  cash_bags: { bg: '#ffedd5', color: '#9a3412' },
+  service: { bg: '#cffafe', color: '#155e75' },
+  network: { bg: '#e0e7ff', color: '#3730a3' },
+  compliance: { bg: '#fce7f3', color: '#9d174d' },
+  data: { bg: '#fef9c3', color: '#854d0e' },
+  other: { bg: '#f3f4f6', color: '#374151' },
+};
+// Failures stand out whatever their category.
+const ALERT_ACTIONS = new Set([
+  'login_failed', 'login_mfa_failed', 'account_locked', 'portal_login_failed', 'portal_account_locked',
+  'login_ip_auto_blocked', 'login_ip_blocked',
+]);
+
+/** "cash_bag_seal" -> "Cash bag seal", "transition:done" -> "Transition: done". */
+export function humanizeAction(action: string): string {
+  const text = action.replace(/:/g, ': ').replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : action;
+}
+
+/** The IP of an entry: the column, or a sign-in event's new_values.ip. */
+function entryIp(l: AuditLog): string | null {
+  if (l.ip_address) return l.ip_address;
+  let values = l.new_values;
+  if (typeof values === 'string') {
+    try { values = JSON.parse(values) as Record<string, unknown>; } catch { values = null; }
+  }
+  const ip = values && typeof values === 'object' ? values.ip : null;
+  return typeof ip === 'string' && ip ? ip : null;
+}
 
 // ---------------------------------------------------------------------------
 // Fetch helper
@@ -66,13 +115,20 @@ interface ChainVerification {
 async function fetchAuditLogs(page: number, filters: Filters, scope: Scope): Promise<AuditLogsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (scope === 'install') query.scope = 'install';
-  if (filters.action) query.action = filters.action;
+  if (filters.action.startsWith(CATEGORY_PREFIX)) query.category = filters.action.slice(CATEGORY_PREFIX.length);
+  else if (filters.action) query.action = filters.action;
   if (filters.user_id) query.user_id = filters.user_id;
   if (filters.date_from) query.date_from = filters.date_from;
   if (filters.date_to) query.date_to = filters.date_to;
   const res = await api.GET('/audit-logs', { params: { query: query } });
   if (res.error) throw new Error('Failed to load audit logs');
   return res.data as unknown as AuditLogsResponse;
+}
+
+async function fetchActions(scope: Scope): Promise<ActionEntry[]> {
+  const res = await api.GET('/audit-logs/actions', { params: { query: { scope } } });
+  if (res.error || !res.data) throw new Error('Failed to load audit actions');
+  return res.data.data;
 }
 
 // ASY-38: recompute the hash chain the database keeps over the audit rows.
@@ -86,18 +142,12 @@ async function verifyChain(scope: Scope): Promise<ChainVerification> {
 // Action badge
 // ---------------------------------------------------------------------------
 
-function ActionBadge({ action }: { action: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    create: { bg: '#d1fae5', color: '#065f46' },
-    update: { bg: '#dbeafe', color: '#1e40af' },
-    delete: { bg: '#fee2e2', color: '#991b1b' },
-    login: { bg: '#ede9fe', color: '#5b21b6' },
-    logout: { bg: '#f3f4f6', color: '#374151' },
-    export: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[action] ?? { bg: '#f3f4f6', color: '#374151' };
+function ActionBadge({ action, category, label }: { action: string; category: string; label: string }) {
+  const s = ALERT_ACTIONS.has(action) ? CATEGORY_STYLE.security : (CATEGORY_STYLE[category] ?? CATEGORY_STYLE.other);
   return (
     <span
+      title={action}
+      data-category={category}
       style={{
         background: s.bg,
         color: s.color,
@@ -105,10 +155,10 @@ function ActionBadge({ action }: { action: string }) {
         borderRadius: 12,
         fontSize: '0.72rem',
         fontWeight: 600,
-        textTransform: 'capitalize',
+        whiteSpace: 'nowrap',
       }}
     >
-      {action}
+      {label}
     </span>
   );
 }
@@ -133,11 +183,35 @@ export function AuditLogList() {
     queryKey: ['audit-logs', page, filters, scope],
     queryFn: () => fetchAuditLogs(page, filters, scope),
   });
+  const actionsQ = useQuery({
+    queryKey: ['audit-log-actions', scope],
+    queryFn: () => fetchActions(scope),
+    staleTime: 60_000,
+  });
   const verify = useMutation({ mutationFn: () => verifyChain(scope) });
+
+  // ':' and '.' would split an i18next key (transition:done), so they become '_'.
+  const actionLabel = (action: string) => t(`auditLogs.actions.${action.replace(/[:.]/g, '_')}`, { defaultValue: humanizeAction(action) });
+  const categoryLabel = (category: string) => t(`auditLogs.categories.${category}`, { defaultValue: humanizeAction(category) });
+  const actionEntries = (actionsQ.data ?? [])
+    .filter(a => typeof a?.action === 'string' && a.action !== '')
+    .map(a => ({ ...a, category: a.category || 'other' }));
+  const categoryOfAction = new Map(actionEntries.map(a => [a.action, a.category]));
+  // Category order as the server lists them; actions by label within each.
+  const grouped: { category: string; actions: ActionEntry[] }[] = [];
+  for (const entry of actionEntries) {
+    let group = grouped.find(g => g.category === entry.category);
+    if (!group) { group = { category: entry.category, actions: [] }; grouped.push(group); }
+    group.actions.push(entry);
+  }
+  for (const g of grouped) g.actions.sort((a, b) => actionLabel(a.action).localeCompare(actionLabel(b.action)));
+  grouped.sort((a, b) => categoryLabel(a.category).localeCompare(categoryLabel(b.category)));
 
   function changeScope(next: Scope) {
     setScope(next);
     setPage(1);
+    // The other scope has its own actions.
+    setFilters(prev => ({ ...prev, action: '' }));
     verify.reset();
   }
 
@@ -204,7 +278,16 @@ export function AuditLogList() {
           onChange={e => setFilter('action', e.target.value)}
         >
           <option value="">{t('ui.auditLogList.all')}</option>
-          {ACTIONS.map(a => <option key={a} value={a}>{capitalize(a)}</option>)}
+          {grouped.map(g => (
+            <optgroup key={g.category} label={categoryLabel(g.category)}>
+              <option value={`${CATEGORY_PREFIX}${g.category}`}>
+                {t('auditLogs.allInCategory', { category: categoryLabel(g.category) })}
+              </option>
+              {g.actions.map(a => (
+                <option key={a.action} value={a.action}>{`${actionLabel(a.action)} (${a.count})`}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
 
         <label style={styles.filterLabel}>{t('ui.auditLogList.userId')}</label>
@@ -263,11 +346,13 @@ export function AuditLogList() {
                     <tr key={l.id} style={styles.tr}>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>{fmtDate(l.created_at)}</td>
                       <td style={styles.td}>{l.user_id != null ? `#${l.user_id}` : 'System'}</td>
-                      <td style={styles.td}><ActionBadge action={l.action} /></td>
+                      <td style={styles.td}>
+                        <ActionBadge action={l.action} category={categoryOfAction.get(l.action) ?? 'other'} label={actionLabel(l.action)} />
+                      </td>
                       <td style={styles.td}>{l.entity_type}</td>
                       <td style={styles.td}>{l.entity_id != null ? `#${l.entity_id}` : '—'}</td>
                       <td style={{ ...styles.td, maxWidth: 320, overflowWrap: 'anywhere' }}>{l.summary ?? '—'}</td>
-                      <td style={styles.td}>{l.ip_address ?? '—'}</td>
+                      <td style={styles.td}>{entryIp(l) ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>

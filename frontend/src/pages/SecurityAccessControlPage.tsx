@@ -2,7 +2,8 @@
 // VigaBSS 5.0 — Security & Access Control Page (Section 17)
 // =============================================================================
 // Multi-tab page covering security management:
-//   1. User Security    — WebAuthn credentials, password policy, admin IP allowlist
+//   1. User Security    — WebAuthn credentials, password policy, admin IP allowlist,
+//                         IPs blocked at sign-in (install operator)
 //   2. API Security     — API key rate limits
 //   3. Network Security — Firewall rules, DDoS protection, blackhole routes,
 //                         DNS blocklists, CPE security scans
@@ -15,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { NotAppliedNotice } from '@/components/NotAppliedNotice';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
+import { LoginIpBlocksSection } from './security/LoginIpBlocksSection';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -464,6 +466,8 @@ function UserSecurityTab() {
           </table>
         )
       }
+
+      <LoginIpBlocksSection />
     </div>
   );
 }

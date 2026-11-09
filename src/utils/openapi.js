@@ -215,8 +215,8 @@ function generateSpec() {
     ],
     paths: {
       // ---- Auth ----
-      '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: r200('Token + User, or a two-factor challenge') } },
-      '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 24 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
+      '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies. Every attempt is written to the audit log (login_success, login_failed, account_locked); an IP blocked for repeated failures gets 429 LOGIN_IP_BLOCKED with Retry-After.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: { ...r200('Token + User, or a two-factor challenge'), 429: errorResponse('Too many attempts, or the IP is blocked at sign-in (LOGIN_IP_BLOCKED)') } } },
+      '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout and are audited as login_mfa_failed. Returns the same body and cookies as a one-step login. A blocked IP gets 429 LOGIN_IP_BLOCKED.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 24 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account'), 429: errorResponse('The IP is blocked at sign-in (LOGIN_IP_BLOCKED)') } } },
       '/auth/logout': { post: { tags: ['Auth'], summary: 'Logout — revokes the presented refresh token (cookie or body) and clears auth cookies; no bearer required, so it still works after the access token expires', operationId: 'logout', requestBody: jsonBody('auth_refreshToken'), responses: r200('Message') } },
       '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile (reseller_binding: {reseller_id, reseller_name} when the user is bound to a reseller in the active organization, else null; carrier: true when the user is in the carrier group and may use only the carrier app)', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
       '/auth/password-reset/request': { post: { tags: ['Auth'], summary: 'Request password reset email', operationId: 'requestPasswordReset', requestBody: jsonBody('email'), responses: r200('Message') } },
@@ -1256,7 +1256,7 @@ function generateSpec() {
       '/signed-documents/generate': { post: { tags: ['Settings'], summary: 'Generate missing MX reviewed-template instances or the global neutral acknowledgment for a service order', operationId: 'generateSignedDocuments', security: [{ bearerAuth: [] }], requestBody: jsonBody('legalDocuments_generateDocuments'), responses: r201('Generation result') } },
 
       // ---- Audit Logs ----
-      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', description: 'scope=install lists install-wide events (no organization) and requires the install operator.', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], parameters: [auditScopeParam()], responses: r200('AuditLog[]') } },
+      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', description: 'scope=install lists install-wide events (no organization) and requires the install operator. category filters by every action of that category (GET /audit-logs/actions); action wins when both are sent.', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], parameters: [auditScopeParam(), { name: 'action', in: 'query', required: false, schema: { type: 'string' } }, { name: 'category', in: 'query', required: false, schema: { type: 'string', enum: AUDIT_ACTION_CATEGORIES } }], responses: r200('AuditLog[]') } },
 
       // ---- DSAR ----
       '/dsar/clients/{id}': { get: { tags: ['DSAR'], summary: 'Export all personal data held for a client', operationId: 'exportClientDsar', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DSAR export document') } },
@@ -2482,7 +2482,7 @@ function generateSpec() {
 
       // ---- Portal Auth §11 ----
       '/portal/auth/login': {
-        post: { tags: ['Portal Auth'], summary: 'Client portal login', operationId: 'portalLogin', requestBody: jsonBody('email + password'), responses: r200('AccessToken + RefreshToken') },
+        post: { tags: ['Portal Auth'], summary: 'Client portal login', description: 'Audited as portal_login_success / portal_login_failed / portal_account_locked; an IP blocked for repeated failures gets 429 LOGIN_IP_BLOCKED.', operationId: 'portalLogin', requestBody: jsonBody('email + password'), responses: { ...r200('AccessToken + RefreshToken'), 429: errorResponse('Too many attempts, or the IP is blocked at sign-in (LOGIN_IP_BLOCKED)') } },
       },
       '/portal/auth/refresh': {
         post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', description: 'Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.', operationId: 'portalRefreshToken', requestBody: typedJsonBody({ type: 'object', properties: { refreshToken: { type: 'string' } } }, 'refreshToken (API clients only)', false), responses: { ...r200('Token pair'), 401: errorResponse('No or invalid refresh token') } },
@@ -3003,6 +3003,28 @@ function generateSpec() {
           },
         },
       },
+      '/audit-logs/actions': {
+        get: {
+          tags: ['Audit Logs'],
+          summary: 'The audit actions that occur in a scope, with their category',
+          description: 'For the audit page filter. Every action written in the organization (or, with scope=install, the install-wide events) with its count and category (src/utils/auditActions.js); an uncatalogued action is in the other category.',
+          operationId: 'listAuditLogActions',
+          security: [{ bearerAuth: [] }],
+          parameters: [auditScopeParam()],
+          responses: {
+            200: { description: 'Actions in the scope', content: { 'application/json': { schema: { type: 'object', additionalProperties: false, required: ['data', 'categories'], properties: {
+              data: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['action', 'category', 'count', 'last_at'], properties: {
+                action: { type: 'string' },
+                category: { type: 'string', enum: AUDIT_ACTION_CATEGORIES },
+                count: { type: 'integer' },
+                last_at: { type: ['string', 'null'], format: 'date-time' },
+              } } },
+              categories: { type: 'array', items: { type: 'string', enum: AUDIT_ACTION_CATEGORIES } },
+            } } } } },
+            403: { description: 'scope=install without the install operator' },
+          },
+        },
+      },
       '/audit-logs/export': {
         get: { tags: ['Audit Logs'], summary: 'Export audit logs for regulatory inspection', operationId: 'exportAuditLogs', security: [{ bearerAuth: [] }], responses: r200('Audit export') },
       },
@@ -3086,6 +3108,53 @@ function generateSpec() {
       '/security-admin/admin-ip-allowlist/{id}': {
         put: { tags: ['Security'], summary: 'Update admin IP allowlist entry', operationId: 'updateAdminIpAllowlist', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('AdminIpAllowlist'), responses: r200('Success') },
         delete: { tags: ['Security'], summary: 'Delete admin IP allowlist entry', operationId: 'deleteAdminIpAllowlist', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Success') },
+      },
+      '/security-admin/login-ip-blocks': {
+        get: {
+          tags: ['Security'],
+          summary: 'List the IPs blocked at sign-in, active first',
+          description: 'Install-wide (migration 013): login_ip_blocks.view and the install operator. A block refuses staff /auth/login, /auth/login/2fa and portal /portal/auth/login with 429 LOGIN_IP_BLOCKED.',
+          operationId: 'listLoginIpBlocks',
+          security: [{ bearerAuth: [] }],
+          parameters: [pageParam(), { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 200 } }, { name: 'active', in: 'query', required: false, schema: { type: 'string', enum: ['true', 'false'] } }],
+          responses: {
+            200: { description: 'Blocked IPs', content: { 'application/json': { schema: { type: 'object', additionalProperties: false, required: ['data', 'pagination', 'settings', 'your_ip'], properties: {
+              data: { type: 'array', items: LOGIN_IP_BLOCK_SCHEMA },
+              pagination: { type: 'object', additionalProperties: false, required: ['page', 'limit', 'total', 'pages'], properties: { page: { type: 'integer' }, limit: { type: 'integer' }, total: { type: 'integer' }, pages: { type: 'integer' } } },
+              settings: { type: 'object', additionalProperties: false, required: ['enabled', 'threshold', 'window_minutes', 'hours'], properties: { enabled: { type: 'boolean' }, threshold: { type: ['integer', 'null'] }, window_minutes: { type: ['integer', 'null'] }, hours: { type: ['integer', 'null'] } } },
+              your_ip: { type: ['string', 'null'] },
+            } } } } },
+            403: { description: 'Not the install operator, or no permission' },
+          },
+        },
+        post: {
+          tags: ['Security'],
+          summary: 'Block an IP at sign-in by hand',
+          description: 'login_ip_blocks.manage and the install operator. hours omitted or null blocks until lifted. Private, loopback and CGNAT addresses, and your own IP, are refused (422); an IP already blocked is 409 ALREADY_BLOCKED.',
+          operationId: 'createLoginIpBlock',
+          security: [{ bearerAuth: [] }],
+          requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['ip'], properties: { ip: { type: 'string', maxLength: 45 }, hours: { type: ['integer', 'null'], minimum: 1, maximum: 8760 }, note: { type: 'string', maxLength: 255 } } }, 'The IP to block'),
+          responses: {
+            201: { description: 'Blocked', content: { 'application/json': { schema: { type: 'object', additionalProperties: false, required: ['data'], properties: { data: LOGIN_IP_BLOCK_SCHEMA } } } } },
+            403: { description: 'Not the install operator, or no permission' },
+            409: { description: 'Already blocked' },
+            422: { description: 'Not an IP, a private address, or your own IP' },
+          },
+        },
+      },
+      '/security-admin/login-ip-blocks/{id}/lift': {
+        post: {
+          tags: ['Security'],
+          summary: 'Lift a sign-in IP block now',
+          operationId: 'liftLoginIpBlock',
+          security: [{ bearerAuth: [] }],
+          parameters: [idParam()],
+          responses: {
+            200: { description: 'The block (lifted: false when it was already lifted)', content: { 'application/json': { schema: { type: 'object', additionalProperties: false, required: ['data', 'lifted'], properties: { data: LOGIN_IP_BLOCK_SCHEMA, lifted: { type: 'boolean' } } } } } },
+            403: { description: 'Not the install operator, or no permission' },
+            404: { description: 'No such block' },
+          },
+        },
       },
       '/security-admin/password-policy': {
         get: { tags: ['Security'], summary: 'Get the password policy in force (configured: false means the built-in defaults)', operationId: 'getPasswordPolicy', security: [{ bearerAuth: [] }], responses: r200('PasswordPolicy') },
@@ -5563,6 +5632,26 @@ function webhookErrorResponses() {
     503: { description: 'Signature verification not configured (WEBHOOK_NOT_CONFIGURED)' },
   };
 }
+const AUDIT_ACTION_CATEGORIES = require('./auditActions').CATEGORIES.slice();
+const LOGIN_IP_BLOCK_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'ip_address', 'source', 'failures', 'refused_count', 'blocked_until', 'note', 'created_by', 'lifted_at', 'lifted_by', 'created_at', 'active'],
+  properties: {
+    id: { type: 'integer' },
+    ip_address: { type: 'string' },
+    source: { type: 'string', enum: ['auto', 'manual'] },
+    failures: { type: 'integer' },
+    refused_count: { type: 'integer' },
+    blocked_until: { type: ['string', 'null'], format: 'date-time', description: 'null: until lifted' },
+    note: { type: ['string', 'null'] },
+    created_by: { type: ['integer', 'null'] },
+    lifted_at: { type: ['string', 'null'], format: 'date-time' },
+    lifted_by: { type: ['integer', 'null'] },
+    created_at: { type: 'string', format: 'date-time' },
+    active: { type: 'boolean' },
+  },
+};
 function idParam() {
   return { name: 'id', in: 'path', required: true, schema: { type: 'integer' } };
 }

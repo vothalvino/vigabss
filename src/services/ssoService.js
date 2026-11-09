@@ -826,7 +826,7 @@ async function findOrCreateSsoUser(orgId, profile, cfg, mappings) {
  * @param {number} orgId   Organization the user is signing into
  * @returns {{ accessToken, refreshToken, expiresIn, user, organizations }}
  */
-async function mintTokens(user, orgId) {
+async function mintTokens(user, orgId, ctx = {}) {
   const accessToken = signStaffAccessToken({
     sub:   user.id,
     email: user.email,
@@ -842,7 +842,7 @@ async function mintTokens(user, orgId) {
   await db.query(
     `INSERT INTO user_sessions (user_id, token_hash, token_family, ip_address, user_agent, expires_at)
      VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
-    [user.id, refreshHash, family, null, null, REFRESH_SECONDS],
+    [user.id, refreshHash, family, ctx.ip || null, ctx.userAgent || null, REFRESH_SECONDS],
   );
 
   // Update last_login_at
@@ -854,6 +854,16 @@ async function mintTokens(user, orgId) {
     JOIN organizations o ON o.id = ou.organization_id
     WHERE ou.user_id = ? AND ou.deleted_at IS NULL AND o.deleted_at IS NULL
   `, [user.id]);
+
+  await require('./loginSecurityService').record({
+    action: 'login_success',
+    organizationId: orgId,
+    userId: user.id,
+    entityId: user.id,
+    email: user.email,
+    ctx,
+    extra: { method: 'sso' },
+  });
 
   const { password_hash: _pw, ...safeUser } = user;
   return {

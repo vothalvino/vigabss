@@ -13,9 +13,14 @@ const { validate } = require('../middleware/validate');
 const {
   updatePasswordPolicy,
   createAdminIpAllowlist,
+  createLoginIpBlock,
 } = require('../middleware/schemas/security');
 const { AppError, ValidationError, NotFoundError, ForbiddenError } = require('../utils/errors');
 const passwordPolicyService = require('../services/passwordPolicyService');
+const net = require('net');
+const config = require('../config');
+const loginSecurity = require('../services/loginSecurityService');
+const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 const { parseEntry, isAllowed } = require('../middleware/ipAllowlist');
 const {
   clientIp,
@@ -200,6 +205,128 @@ router.delete('/admin-ip-allowlist/:id', requirePermission('admin_ip_allowlist.d
     );
     if (result.affectedRows === 0) throw new NotFoundError('Admin IP allowlist entry');
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Blocked IPs at sign-in (migration 013)
+// ---------------------------------------------------------------------------
+// A block covers every sign-in route of the install (staff, 2FA, portal), not
+// one organization, so besides the permission it is for the install operator
+// only: a tenant admin must not lock another tenant's users out, or lift a
+// block an attack on another tenant earned. Automatic blocks come from
+// services/loginSecurityService.js.
+
+async function requireInstallOperator(req, _res, next) {
+  try {
+    if (!(await isInstallOperator(req))) return next(new ForbiddenError(OPERATOR_ONLY_MESSAGE));
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
+
+function blockView(row) {
+  return {
+    id: Number(row.id),
+    ip_address: row.ip_address,
+    source: row.source,
+    failures: Number(row.failures) || 0,
+    refused_count: Number(row.refused_count) || 0,
+    blocked_until: row.blocked_until || null,
+    note: row.note || null,
+    created_by: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
+    lifted_at: row.lifted_at || null,
+    lifted_by: row.lifted_by === null || row.lifted_by === undefined ? null : Number(row.lifted_by),
+    created_at: row.created_at,
+    active: row.active !== undefined ? Boolean(row.active)
+      : (!row.lifted_at && (!row.blocked_until || new Date(row.blocked_until) > new Date())),
+  };
+}
+
+// GET /login-ip-blocks — the blocks, active first. ?active=true for active only.
+router.get('/login-ip-blocks', requirePermission('login_ip_blocks.view'), requireInstallOperator, async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const activeOnly = req.query.active === 'true';
+    const { rows, total } = await loginSecurity.listBlocks({ limit, offset: (page - 1) * limit, activeOnly });
+    res.json({
+      data: rows.map(blockView),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      settings: {
+        enabled: Boolean(config.loginIpBlock?.enabled),
+        threshold: config.loginIpBlock?.threshold ?? null,
+        window_minutes: config.loginIpBlock?.windowMinutes ?? null,
+        hours: config.loginIpBlock?.hours ?? null,
+      },
+      your_ip: loginSecurity.clientIp(req) || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /login-ip-blocks — block an IP by hand ({ ip, hours?, note? }).
+router.post('/login-ip-blocks', requirePermission('login_ip_blocks.manage'), requireInstallOperator,
+  validate(createLoginIpBlock, { strip: false }), async (req, res, next) => {
+    try {
+      const raw = String(req.body.ip).trim();
+      const ip = raw.startsWith('::ffff:') && net.isIPv4(raw.slice(7)) ? raw.slice(7) : raw;
+      if (!net.isIP(ip)) {
+        throw new ValidationError('Not an IP address', [{ field: 'ip', message: 'Enter one IPv4 or IPv6 address' }]);
+      }
+      if (loginSecurity.isPrivateAddress(ip)) {
+        // A private address is the office, the server or a proxy in front of
+        // it: blocking it could lock everyone out at once.
+        throw new ValidationError('Private addresses cannot be blocked', [{ field: 'ip', message: 'This is a private, loopback or shared address; blocking it could lock everyone out' }]);
+      }
+      if (ip === loginSecurity.clientIp(req)) {
+        throw new ValidationError('That is your own IP', [{ field: 'ip', message: 'You would lock yourself out' }]);
+      }
+      if (await loginSecurity.activeBlock(ip)) {
+        throw new AppError('This IP is already blocked', 409, 'ALREADY_BLOCKED');
+      }
+      const hours = req.body.hours === null || req.body.hours === undefined ? null : Math.round(Number(req.body.hours));
+      const row = await loginSecurity.blockIp({
+        ip, source: 'manual', hours, note: req.body.note ? String(req.body.note).slice(0, 255) : null, createdBy: req.user.id,
+      });
+      await loginSecurity.record({
+        action: 'login_ip_blocked',
+        organizationId: req.orgId,
+        userId: req.user.id,
+        entityType: 'login_ip_blocks',
+        entityId: Number(row.id),
+        ctx: { ip },
+        extra: { hours, note: row.note || null, by_ip: loginSecurity.clientIp(req) || null },
+      });
+      res.status(201).json({ data: blockView(row) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+// POST /login-ip-blocks/:id/lift — lift a block now.
+router.post('/login-ip-blocks/:id/lift', requirePermission('login_ip_blocks.manage'), requireInstallOperator, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id || id < 1) throw new NotFoundError('Blocked IP');
+    const { lifted, row } = await loginSecurity.liftBlock(id, req.user.id);
+    if (!row) throw new NotFoundError('Blocked IP');
+    if (lifted) {
+      await loginSecurity.record({
+        action: 'login_ip_unblocked',
+        organizationId: req.orgId,
+        userId: req.user.id,
+        entityType: 'login_ip_blocks',
+        entityId: id,
+        ctx: { ip: row.ip_address },
+        extra: { source: row.source },
+      });
+    }
+    res.json({ data: blockView(row), lifted });
   } catch (err) {
     next(err);
   }

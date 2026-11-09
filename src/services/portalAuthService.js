@@ -74,7 +74,34 @@ async function burnPasswordCheck(password) {
   await bcrypt.compare(String(password ?? ''), dummyHash);
 }
 
-async function login({ email, password }) {
+// Portal sign-ins go to the audit log as portal_login_success /
+// portal_login_failed / portal_account_locked, under the client's
+// organization (an unknown email: the install scope), and every failure
+// counts against its IP (services/loginSecurityService.js).
+function loginSecurity() {
+  return require('./loginSecurityService');
+}
+
+function portalFailureReason(c) {
+  if (c.status === 'inactive') return 'inactive_client';
+  if (!c.portal_password_hash) return 'no_portal_access';
+  if (c.portal_locked_until && new Date(c.portal_locked_until) > new Date()) return 'account_locked';
+  return 'wrong_password';
+}
+
+async function auditPortal(action, client, email, ctx, extra) {
+  await loginSecurity().record({
+    action,
+    organizationId: client ? (client.organization_id ?? null) : null,
+    entityType: 'clients',
+    entityId: client ? client.id : null,
+    email,
+    ctx,
+    extra,
+  });
+}
+
+async function login({ email, password }, ctx = {}) {
   if (!email || !password) {
     throw new ValidationError('email and password are required');
   }
@@ -106,6 +133,11 @@ async function login({ email, password }) {
     : [];
   if (!candidates.length) {
     await burnPasswordCheck(password);
+    if (!rows.length) await auditPortal('portal_login_failed', null, email, ctx, { reason: 'unknown_account' });
+    for (const row of rows.slice(0, MAX_SHARED_EMAIL_ACCOUNTS)) {
+      await auditPortal('portal_login_failed', row, email, ctx, { reason: rows.length > MAX_SHARED_EMAIL_ACCOUNTS ? 'too_many_accounts' : portalFailureReason(row) });
+    }
+    await loginSecurity().noteFailure(ctx.ip);
     throw invalidCreds();
   }
 
@@ -113,7 +145,10 @@ async function login({ email, password }) {
   for (const candidate of candidates) {
     if (await bcrypt.compare(password, candidate.portal_password_hash)) matches.push(candidate);
   }
-  if (matches.length > 1) throw invalidCreds();
+  if (matches.length > 1) {
+    for (const m of matches) await auditPortal('portal_login_failed', m, email, ctx, { reason: 'ambiguous_account' });
+    throw invalidCreds();
+  }
 
   if (!matches.length) {
     // Atomic, and an expired lock restarts the count (see authService). Every
@@ -129,11 +164,21 @@ async function login({ email, password }) {
          WHERE id = ?`,
         [MAX_ATTEMPTS, LOCKOUT_MINUTES, candidate.id],
       ));
+      await auditPortal('portal_login_failed', candidate, email, ctx, { reason: 'wrong_password' });
+      // The UPDATE above, on the row read before it: does this failure lock it?
+      const expired = candidate.portal_locked_until && new Date(candidate.portal_locked_until) <= new Date();
+      const count = expired ? 1 : (Number(candidate.portal_login_attempts) || 0) + 1;
+      if (count >= MAX_ATTEMPTS) {
+        await auditPortal('portal_account_locked', candidate, email, ctx, { minutes: LOCKOUT_MINUTES });
+      }
     }
+    await loginSecurity().noteFailure(ctx.ip);
     throw invalidCreds();
   }
   const [client] = matches;
-  return inScope(client.scopeOrgId, () => issueLoginTokens(client));
+  const session = await inScope(client.scopeOrgId, () => issueLoginTokens(client));
+  await auditPortal('portal_login_success', client, email, ctx);
+  return session;
 }
 
 async function issueLoginTokens(client) {

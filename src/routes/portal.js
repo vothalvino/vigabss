@@ -72,6 +72,8 @@ const { validate } = require('../middleware/validate');
 // merge their budgets since express-rate-limit's default store keys by IP.
 const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter } = require('../middleware/rateLimit');
 const portalAuthService = require('../services/portalAuthService');
+const loginSecurity = require('../services/loginSecurityService');
+const { loginIpGuard } = require('../middleware/loginIpGuard');
 const checkoutService = require('../services/checkoutService');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
@@ -186,9 +188,9 @@ const kbRateSchema = {
 // ---------------------------------------------------------------------------
 
 // POST /portal/auth/login
-router.post('/auth/login', authLimiter, validate(portalLoginSchema, { strip: false }), async (req, res, next) => {
+router.post('/auth/login', authLimiter, loginIpGuard, validate(portalLoginSchema, { strip: false }), async (req, res, next) => {
   try {
-    const result = await portalAuthService.login(req.body);
+    const result = await portalAuthService.login(req.body, loginSecurity.requestContext(req));
     setPortalRefreshCookie(res, result.refreshToken);
     res.json({ data: tokenResponseBody(req, result) });
   } catch (err) {
