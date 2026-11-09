@@ -5,7 +5,7 @@
 
 ## Audience
 
-Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into VigaBSS 0.1.0-alpha.17.
+Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into VigaBSS 0.1.0-alpha.18.
 
 ## Key message
 
@@ -21,7 +21,7 @@ Narration:
 
 On-screen checklist:
 
-- VigaBSS 0.1.0-alpha.17 installed
+- VigaBSS 0.1.0-alpha.18 installed
 - Database migrations applied
 - Organization and admin user created
 - Plans and sites prepared

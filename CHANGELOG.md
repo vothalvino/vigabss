@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0-alpha.18 — 2026-11-09
+
 - **WireGuard tunnels connect and reach the internet.** The hub's firewall
   named ICMPv6 by a name the server image cannot look up, so the whole
   firewall was rejected: full-tunnel traffic had no route or address

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// VigaBSS 0.1.0-alpha.17 — redeploy.sh introduces new settings into a live .env.prod
+// VigaBSS 0.1.0-alpha.18 — redeploy.sh introduces new settings into a live .env.prod
 // =============================================================================
 // An upgrade that requires hand-editing a secrets file is an upgrade most
 // operators will not perform, so new options arrive on the next deploy already
