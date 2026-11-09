@@ -163,4 +163,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 
   Confirm with `… exec wireguard-helper nft list table inet fireisp_wg`: `policy drop`
   on `forward`, and a `chain input`.
+- **DNS on a full tunnel.** Because private destinations are dropped, a phone that kept
+  its own network's resolver (a Wi-Fi router or a carrier DNS on a private address)
+  could not resolve names through the tunnel. Full-tunnel configurations therefore name
+  public resolvers: `WG_CLIENT_DNS`, a comma-separated list of IP addresses, default
+  `1.1.1.1, 9.9.9.9`; set it empty to leave the line out. Split tunnels keep the
+  device's own resolver.
 

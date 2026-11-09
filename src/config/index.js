@@ -198,6 +198,10 @@ const config = {
     serverPublicKey:  process.env.WG_SERVER_PUBLIC_KEY  || '',   // wg-fireisp public key (auto-generated on boot; pin only for an external key)
     serverSubnet:     process.env.WG_SERVER_SUBNET      || '10.255.0.0/16', // NAS peer pool
     keepalive:        parseIntEnv('WG_KEEPALIVE',           25),
+    // DNS servers written into full-tunnel client configs. Without them a phone
+    // keeps its network's resolver, often a private address the hub refuses to
+    // forward to, so names stop resolving. Empty disables the line.
+    clientDns:        process.env.WG_CLIENT_DNS ?? '1.1.1.1, 9.9.9.9',
     clientInterface:  process.env.WG_CLIENT_INTERFACE   || 'wg-clients',
     clientSubnet:     process.env.WG_CLIENT_SUBNET      || '10.99.0.0/16',  // user peer pool
     // Active self-service peers per user and per organization (RTE-12).

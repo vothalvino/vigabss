@@ -531,7 +531,10 @@ function hubFilterRules(clientIface, serverIface) {
     ],
     input: [
       `iifname { "${clientIface}", "${serverIface}" } ct state established,related accept`,
-      `iifname { "${clientIface}", "${serverIface}" } meta l4proto { icmp, ipv6-icmp } accept`,
+      // ICMP (1) and ICMPv6 (58) by number: a protocol name is looked up in
+      // /etc/protocols, which the slim image does not ship, and one failed
+      // lookup rejects the whole ruleset (no forwarding, no NAT).
+      `iifname { "${clientIface}", "${serverIface}" } meta l4proto { 1, 58 } accept`,
       '# NAS peers send RADIUS and SNMP traps to the hub address',
       `iifname "${serverIface}" udp dport { ${udpPorts} } accept`,
       '# Nothing else on this host is for tunnel peers, in particular not the app HTTP port',

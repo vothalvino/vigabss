@@ -326,6 +326,23 @@ describe('ensureBaseFirewall()', () => {
     expect(nftContent).toMatch(/iifname "wg-clients".*oifname "wg-clients".*drop/s);
   });
 
+  test('names no protocol that needs /etc/protocols (the slim image has none)', async () => {
+    // One unresolvable name (e.g. ipv6-icmp) makes nft reject the whole
+    // ruleset, which leaves full-tunnel clients with no forwarding or NAT.
+    const { writeFileSync } = require('fs');
+    failOnce('table not found');
+    okOnce();
+
+    await service.ensureBaseFirewall();
+
+    const [, nftContent] = writeFileSync.mock.calls[0];
+    expect(nftContent).toContain('meta l4proto { 1, 58 } accept');
+    expect(nftContent).not.toMatch(/ipv6-icmp|icmpv6/);
+    for (const [, set] of nftContent.matchAll(/l4proto \{([^}]*)\}/g)) {
+      expect(set.split(',').map((s) => s.trim()).every((p) => /^\d+$/.test(p))).toBe(true);
+    }
+  });
+
   test('is idempotent — returns {applied:false} and runs nothing when the table already exists', async () => {
     okOnce('table inet fireisp_wg {}');
 
