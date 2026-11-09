@@ -444,25 +444,44 @@ describe('Receipt', () => {
 });
 
 describe('Mi caja', () => {
-  it('shows the open cash box, today, previous boxes and the movements', async () => {
+  const openRow = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    const button = await screen.findByRole('button', { name: new RegExp(name.replace(/[*.]/g, (c) => `\\${c}`)) });
+    await user.click(button);
+    return button.closest('li')!;
+  };
+
+  it('shows one figure, what is owed, then today in a tab', async () => {
     renderAt('/punto/caja');
-    const open = await screen.findByRole('region', { name: 'Your cash box' });
-    expect(open).toHaveTextContent('Open');
-    expect(open).toHaveTextContent('$700.00');
-    expect(open).toHaveTextContent('2 payments since');
-    const today = screen.getByRole('region', { name: "Today's payments" });
-    expect(await within(today).findByText('Ana López')).toBeInTheDocument();
-    const voided = within(today).getByText('Ma*** Ló***').closest('li')!;
+    const summary = await screen.findByRole('region', { name: 'You must hand in to the company' });
+    expect(summary).toHaveTextContent('$800.00');
+    expect(summary).toHaveTextContent('$1,200.00 to go before your limit of $2,000.00.');
+    // No second "should hold" total, no cash box, no close form.
+    expect(screen.queryByText(/cash box/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('form')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'true');
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveTextContent('Collected today');
+    expect(await within(panel).findByText('Ana López')).toBeInTheDocument();
+    const voided = within(panel).getByText('Ma*** Ló***').closest('li')!;
     expect(within(voided).getByText('Voided')).toBeInTheDocument();
-    expect(within(voided).queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Previous cash boxes' })).toHaveTextContent('$10.00 short');
-    const ledger = screen.getByRole('region', { name: 'Movements' });
-    expect(await within(ledger).findByText('Cash handed in')).toBeInTheDocument();
-    expect(within(ledger).getByText('+$350.00')).toBeInTheDocument();
-    expect(within(ledger).getByText('-$500.00')).toBeInTheDocument();
+    expect(calls('GET', '/reseller-app/cash-session')).toHaveLength(0);
   });
 
-  it('labels the commission lines with their invoice and a negative balance as owed to the reseller', async () => {
+  it('lists the movements by day with + and −, and keeps the tab in the address', async () => {
+    const user = userEvent.setup();
+    renderAt('/punto/caja');
+    await user.click(await screen.findByRole('tab', { name: 'Movements' }));
+    const panel = screen.getByRole('tabpanel');
+    expect(await within(panel).findByText('Cash handed in')).toBeInTheDocument();
+    expect(panel).toHaveTextContent('+ adds to what you must hand in · − lowers it');
+    expect(within(panel).getByText('Payment collected').closest('li')).toHaveTextContent('+ $350.00');
+    expect(within(panel).getByText('Cash handed in').closest('li')).toHaveTextContent('− $500.00');
+    // Two days, two groups.
+    expect(within(panel).getAllByRole('heading', { level: 3 })).toHaveLength(2);
+  });
+
+  it('opens on the movements from the address, and labels commissions and money owed to the reseller', async () => {
+    money = { ...MONEY, balance: '-12.00', cash_on_hand: '-12.00', available_to_collect: '2012.00' };
     override = (path) => (path.startsWith('/reseller-app/ledger?') ? {
       data: [
         { id: 6, entry_type: 'payout', amount: '20.00', note: null, created_at: '2026-11-07T19:00:00Z', payment_id: null, invoice_number: null },
@@ -472,35 +491,33 @@ describe('Mi caja', () => {
       summary: { balance: '-12.00', cash_on_hand: '-12.00', credit_limit: '2000.00', available_to_collect: '2012.00' },
       meta: { total: 3, page: 1, limit: 20 },
     } : undefined);
-    renderAt('/punto/caja');
-    const ledger = await screen.findByRole('region', { name: 'Movements' });
-    const earned = (await within(ledger).findByText('Commission earned')).closest('li')!;
+    renderAt('/punto/caja?vista=movimientos');
+    expect(await screen.findByRole('region', { name: 'The company owes you' })).toHaveTextContent('$12.00');
+    const panel = screen.getByRole('tabpanel');
+    const earned = (await within(panel).findByText('Commission earned')).closest('li')!;
     expect(earned).toHaveTextContent('Invoice F-0811');
-    expect(earned).toHaveTextContent('-$38.79');
-    expect(within(ledger).getByText('Commission reversed').closest('li')).toHaveTextContent('+$38.79');
-    expect(within(ledger).getByText('Payment from the company').closest('li')).toHaveTextContent('+$20.00');
-    expect(within(ledger).getByText('We owe you').nextElementSibling).toHaveTextContent('$12.00');
-    expect(within(ledger).queryByText('You must hand in')).not.toBeInTheDocument();
+    expect(earned).toHaveTextContent('− $38.79');
+    expect(within(panel).getByText('Commission reversed').closest('li')).toHaveTextContent('+ $38.79');
+    expect(within(panel).getByText('Payment from the company').closest('li')).toHaveTextContent('+ $20.00');
+    money = MONEY;
   });
 
-  it('voids a collection with a reason', async () => {
+  it('voids a payment with a reason, from its row', async () => {
     const user = userEvent.setup();
     renderAt('/punto/caja');
-    const today = await screen.findByRole('region', { name: "Today's payments" });
-    const row = (await within(today).findByText('Ana López')).closest('li')!;
+    const row = await openRow(user, 'Ana López');
+    expect(within(row).getByRole('link', { name: 'Receipt' })).toHaveAttribute('href', '/punto/recibo/101');
     await user.click(within(row).getByRole('button', { name: 'Void' }));
     await user.type(within(row).getByLabelText('Why are you voiding it?'), 'no');
     await user.click(within(row).getByRole('button', { name: 'Void payment' }));
     expect(within(row).getByRole('alert')).toHaveTextContent('3 to 200 characters');
     expect(calls('POST', '/reseller-app/payments/101/void')).toHaveLength(0);
-
     await user.type(within(row).getByLabelText('Why are you voiding it?'), ' era otro cliente');
-    const sessionReads = calls('GET', '/reseller-app/cash-session').length;
+    const meReads = calls('GET', '/reseller-app/me').length;
     await user.click(within(row).getByRole('button', { name: 'Void payment' }));
     await waitFor(() => expect(calls('POST', '/reseller-app/payments/101/void')).toHaveLength(1));
     expect(bodyOf(calls('POST', '/reseller-app/payments/101/void')[0])).toEqual({ reason: 'no era otro cliente' });
-    // The box, the list, the ledger and /me are read again.
-    await waitFor(() => expect(calls('GET', '/reseller-app/cash-session').length).toBeGreaterThan(sessionReads));
+    await waitFor(() => expect(calls('GET', '/reseller-app/me').length).toBeGreaterThan(meReads));
   });
 
   it('shows the server refusal of a void', async () => {
@@ -512,7 +529,7 @@ describe('Mi caja', () => {
     };
     const user = userEvent.setup();
     renderAt('/punto/caja');
-    const row = (await screen.findByText('Ana López')).closest('li')!;
+    const row = await openRow(user, 'Ana López');
     await user.click(within(row).getByRole('button', { name: 'Void' }));
     await user.type(within(row).getByLabelText('Why are you voiding it?'), 'error de captura');
     await user.click(within(row).getByRole('button', { name: 'Void payment' }));
@@ -521,7 +538,6 @@ describe('Mi caja', () => {
 
   it.each([
     ['VOID_WINDOW_CLOSED', "Only today's payments can be voided. Ask the company to correct it."],
-    ['CASH_SESSION_CLOSED', 'The cash box of this payment is already closed. Ask the company to correct it.'],
     ['PAYMENT_HAS_REP', 'This payment is already reported to SAT with a payment complement. Ask the company to cancel it.'],
     ['ALREADY_VOIDED', 'This payment was already voided.'],
     ['NOT_YOUR_COLLECTION', 'Only the person who took this cash can void it.'],
@@ -536,56 +552,44 @@ describe('Mi caja', () => {
     };
     const user = userEvent.setup();
     renderAt('/punto/caja');
-    const row = (await screen.findByText('Ana López')).closest('li')!;
+    const row = await openRow(user, 'Ana López');
     await user.click(within(row).getByRole('button', { name: 'Void' }));
     await user.type(within(row).getByLabelText('Why are you voiding it?'), 'error de captura');
-    const sessionReads = calls('GET', '/reseller-app/cash-session').length;
+    const listReads = calls('GET', '/reseller-app/payments?').length;
     await user.click(within(row).getByRole('button', { name: 'Void payment' }));
     expect(await within(row).findByRole('alert')).toHaveTextContent(text);
-    // The row was out of date: the box and the list are read again.
-    await waitFor(() => expect(calls('GET', '/reseller-app/cash-session').length).toBeGreaterThan(sessionReads));
+    // The row was out of date: the list is read again.
+    await waitFor(() => expect(mocks.apiFetch.mock.calls.filter(([p]) => String(p).startsWith('/reseller-app/payments?')).length).toBeGreaterThan(listReads));
   });
 
-  it('follows the server on which collections may be voided', async () => {
+  it('follows the server on which payments may be voided', async () => {
     override = (path) => (path.startsWith('/reseller-app/payments?')
       ? { data: [{ ...COLLECTIONS[0], voidable: false }], meta: { total: 1, page: 1, limit: 20 } }
       : undefined);
-    renderAt('/punto/caja');
-    expect(await screen.findByText('Ana López')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
-  });
-
-  it('closes the cash box with the counted total, showing the difference first', async () => {
     const user = userEvent.setup();
     renderAt('/punto/caja');
-    const form = await screen.findByRole('form', { name: 'Close cash box' });
-    await user.type(within(form).getByLabelText('Cash counted'), '690');
-    expect(form).toHaveTextContent('$10.00 short');
-    await user.click(within(form).getByRole('button', { name: 'Close cash box' }));
-    expect(form).toHaveTextContent('Close the cash box with $690.00 counted?');
-    expect(calls('POST', '/reseller-app/cash-session/close')).toHaveLength(0);
-    await user.click(within(form).getByRole('button', { name: 'Yes, close the cash box' }));
-    expect(await screen.findByText('Cash box closed.')).toBeInTheDocument();
-    expect(bodyOf(calls('POST', '/reseller-app/cash-session/close')[0])).toEqual({ counted_total: 690 });
+    const row = await openRow(user, 'Ana López');
+    expect(within(row).queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
   });
 
-  it('offers neither void nor close without reseller_app.collect', async () => {
+  it('offers no void without reseller_app.collect', async () => {
     mocks.user = { ...RESELLER_USER, permissions: ['reseller_app.use'] };
+    const user = userEvent.setup();
     renderAt('/punto/caja');
-    expect(await screen.findByText('Ana López')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('form', { name: 'Close cash box' })).not.toBeInTheDocument();
+    const row = await openRow(user, 'Ana López');
+    expect(within(row).queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
   });
 
-  it('says when no cash box is open', async () => {
-    override = (path) => (path === '/reseller-app/cash-session' ? { data: { current: null, recent: [] } } : undefined);
+  it('moves between the tabs with the arrow keys', async () => {
+    const user = userEvent.setup();
     renderAt('/punto/caja');
-    expect(await screen.findByText('No cash box is open. It opens by itself with your first payment.')).toBeInTheDocument();
-    // The card is not titled "open" when no cash box is open.
-    const box = screen.getByRole('region', { name: 'Your cash box' });
-    expect(box).toHaveTextContent('Closed');
-    expect(box).not.toHaveTextContent('Open cash box');
-    expect(screen.queryByRole('form', { name: 'Close cash box' })).not.toBeInTheDocument();
+    const today = await screen.findByRole('tab', { name: 'Today' });
+    today.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'Movements' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Movements' })).toHaveFocus();
+    // Without reseller_app.statements there is no third tab.
+    expect(screen.queryByRole('tab', { name: 'Statements' })).not.toBeInTheDocument();
   });
 });
 
@@ -603,8 +607,10 @@ describe('accessibility', () => {
     receipt.unmount();
 
     const cash = renderAt('/punto/caja');
-    const row = (await screen.findByText('Ana López')).closest('li')!;
-    await user.click(within(row).getByRole('button', { name: 'Void' }));
+    await user.click(await screen.findByRole('button', { name: /Ana López/ }));
+    await user.click(screen.getByRole('button', { name: 'Void' }));
+    expect(await axe(cash.container)).toHaveNoViolations();
+    await user.click(screen.getByRole('tab', { name: 'Movements' }));
     await screen.findByText('Cash handed in');
     expect(await axe(cash.container)).toHaveNoViolations();
   });
