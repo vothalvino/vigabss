@@ -28,6 +28,9 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+let mockUser: { role?: string; permissions?: string[] } = { role: 'admin' };
+vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -171,6 +174,7 @@ function renderPage() {
 describe('SecurityAccessControlPage (§17)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = { role: 'admin' };
     setupMocks();
   });
 
@@ -179,42 +183,37 @@ describe('SecurityAccessControlPage (§17)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
-  it('renders 4 tabs', () => {
+  it('has only the two tabs that apply settings', () => {
     renderPage();
-    const buttons = screen.getAllByRole('button');
-    // At least 4 tab buttons should be present
-    expect(buttons.length).toBeGreaterThanOrEqual(4);
+    const tabs = ['User Security', 'API Security'];
+    for (const name of tabs) expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /network security/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /data security/i })).toBeNull();
   });
 
   it('shows User Security tab content on mount', async () => {
     renderPage();
-    // WebAuthn section heading
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /webauthn/i })).toBeInTheDocument(),
-    );
+    expect(await screen.findByRole('heading', { name: /password policy/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /webauthn/i })).toBeNull();
   });
 
-  // SEC-17: WebAuthn has no sign-in ceremony, so the page must not present
-  // stored credentials as protection.
-  it('says WebAuthn is not enforced', async () => {
+  // Firewall, DDoS, blackhole, DNS, CPE scans, encryption keys, data masking,
+  // WebAuthn, the TLS text and the deletion log were stored but never applied,
+  // so the page no longer loads or shows them.
+  it('never loads the sections nothing applies', async () => {
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText(/not enforced/i)).toBeInTheDocument(),
-    );
-  });
-
-  it('shows WebAuthn credential friendly name after load', async () => {
-    renderPage();
-    await waitFor(() =>
-      expect(screen.getByText('YubiKey 5C')).toBeInTheDocument(),
-    );
+    await screen.findByLabelText('Minimum length');
+    await userEvent.click(screen.getByRole('button', { name: /api security/i }));
+    await screen.findByText('60');
+    const urls = mockFetch.mock.calls.map(([u]) => String(u));
+    for (const dead of ['/network-security/', '/data-security/', '/security-admin/webauthn']) {
+      expect(urls.filter(u => u.includes(dead))).toEqual([]);
+    }
   });
 
   it('shows password policy min length after load', async () => {
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText('12')).toBeInTheDocument(),
-    );
+    expect(await screen.findByLabelText('Minimum length')).toHaveValue(12);
   });
 
   it('shows admin IP allowlist entry after load', async () => {
@@ -248,57 +247,6 @@ describe('SecurityAccessControlPage (§17)', () => {
     await userEvent.click(apiTab!);
     await waitFor(() =>
       expect(screen.getByText('60')).toBeInTheDocument(),
-    );
-  });
-
-  it('switches to Network Security tab and shows firewall rules', async () => {
-    renderPage();
-    const tabs = screen.getAllByRole('button');
-    const netTab = tabs.find(b => /network/i.test(b.textContent ?? ''));
-    expect(netTab).toBeDefined();
-    await userEvent.click(netTab!);
-    await waitFor(() =>
-      expect(screen.getByText('deny')).toBeInTheDocument(),
-    );
-  });
-
-  // RTE-07: ddos_protection_rules carries a status ENUM, not is_active, so
-  // every rule rendered as Inactive.
-  it('shows a DDoS rule as active from its status', async () => {
-    mockFetch.mockImplementation((url: string) => (String(url).endsWith('/network-security/ddos-protection')
-      ? Promise.resolve(makeJsonResponse({ data: [
-        { id: 1, name: 'edge', rule_type: 'rtbh', target_prefix: '203.0.113.0/24', action: 'blackhole', status: 'active', triggered_at: null },
-        { id: 2, name: 'old', rule_type: 'flowspec', target_prefix: '198.51.100.0/24', action: 'flowspec_drop', status: 'expired', triggered_at: null },
-      ] }))
-      : Promise.resolve(makeJsonResponse({ data: [] }))));
-    renderPage();
-    const netTab = screen.getAllByRole('button').find(b => /network/i.test(b.textContent ?? ''));
-    await userEvent.click(netTab!);
-    const activeRow = (await screen.findByText('203.0.113.0/24')).closest('tr')!;
-    const expiredRow = screen.getByText('198.51.100.0/24').closest('tr')!;
-    expect(activeRow.textContent).toMatch(/Active/);
-    expect(activeRow.textContent).not.toMatch(/Inactive/);
-    expect(expiredRow.textContent).toMatch(/Inactive/);
-  });
-
-  it('switches to Data Security tab and shows TLS info', async () => {
-    renderPage();
-    const tabs = screen.getAllByRole('button');
-    const dataTab = tabs.find(b => /data/i.test(b.textContent ?? ''));
-    expect(dataTab).toBeDefined();
-    await userEvent.click(dataTab!);
-    await waitFor(() =>
-      expect(screen.getByText(/TLSv1\.3/i)).toBeInTheDocument(),
-    );
-  });
-
-  it('shows encryption key alias on Data Security tab', async () => {
-    renderPage();
-    const tabs = screen.getAllByRole('button');
-    const dataTab = tabs.find(b => /data/i.test(b.textContent ?? ''));
-    await userEvent.click(dataTab!);
-    await waitFor(() =>
-      expect(screen.getByText('primary-aes-key')).toBeInTheDocument(),
     );
   });
 

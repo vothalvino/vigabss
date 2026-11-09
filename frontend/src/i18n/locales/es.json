@@ -4825,6 +4825,50 @@
       "expiredAt": "Venció {{at}}",
       "lift": "Levantar bloqueo"
     },
+    "passwordPolicyForm": {
+      "composition": "Qué debe contener una contraseña",
+      "reuse": "Reutilización y vencimiento",
+      "lockout": "Bloqueo de inicio de sesión del personal",
+      "save": "Guardar política de contraseñas",
+      "saved": "Guardado.",
+      "appliesNext": "Aplica desde la próxima contraseña que se establezca o el próximo inicio de sesión; las contraseñas actuales siguen siendo válidas hasta que se cambien o venzan.",
+      "readOnly": "Puedes ver la política pero no cambiarla (requiere password_policy.update)."
+    },
+    "passwordPolicyLabels": {
+      "min_length": "Longitud mínima",
+      "require_uppercase": "Al menos una mayúscula",
+      "require_lowercase": "Al menos una minúscula",
+      "require_digits": "Al menos un número",
+      "require_special_chars": "Al menos un símbolo",
+      "max_repeated_chars": "Máximo de caracteres repetidos seguidos",
+      "history_count": "Contraseñas anteriores que no se pueden reutilizar",
+      "rotation_days": "Pedir una contraseña nueva cada (días)",
+      "lockout_attempts": "Contraseñas incorrectas antes de bloquear",
+      "lockout_duration_minutes": "Bloquear durante (minutos)"
+    },
+    "passwordPolicyHelp": {
+      "min_length": "De {{min}} a {{max}} caracteres.",
+      "max_repeated_chars": "0 = sin límite. Por ejemplo, 3 rechaza \"aaaa\".",
+      "history_count": "0 = no se revisa, hasta {{max}}.",
+      "rotation_days": "0 = nunca. Al personal se le pide cambiarla en su próximo inicio de sesión con contraseña.",
+      "lockout_attempts": "De {{min}} a {{max}}. Cuenta contraseñas y códigos 2FA incorrectos.",
+      "lockout_duration_minutes": "De {{min}} a {{max}} minutos."
+    },
+    "apiRateLimits": {
+      "explain": "Un límite aplica a cada petición hecha con ese token de API: una ráfaga por segundo y topes por minuto, hora y día. Cuando se supera uno, el token recibe 429 hasta que termine el periodo. Un token sin límite propio solo tiene los límites generales.",
+      "token": "Token de API",
+      "burst_size": "Ráfaga (por segundo)",
+      "requests_per_minute": "Por minuto",
+      "requests_per_hour": "Por hora",
+      "requests_per_day": "Por día",
+      "defaultValue": "{{value}} (predeterminado)",
+      "add": "Agregar un límite para un token",
+      "pickToken": "Elige un token",
+      "noTokens": "No hay tokens de API para elegir.",
+      "fieldHelp": "Vacío = predeterminado ({{value}}).",
+      "active": "Límite activo",
+      "save": "Guardar límite"
+    },
     "apiSecurity": {
       "rateLimits": "Limites de Tasa por Clave API",
       "noRateLimits": "No hay limites de tasa configurados",

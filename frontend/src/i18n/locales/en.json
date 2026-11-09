@@ -4825,6 +4825,50 @@
       "expiredAt": "Expired {{at}}",
       "lift": "Lift block"
     },
+    "passwordPolicyForm": {
+      "composition": "What a password must contain",
+      "reuse": "Reuse and expiry",
+      "lockout": "Staff sign-in lockout",
+      "save": "Save password policy",
+      "saved": "Saved.",
+      "appliesNext": "Applies from the next password set or sign-in; existing passwords stay valid until they are changed or expire.",
+      "readOnly": "You can see the policy but not change it (needs password_policy.update)."
+    },
+    "passwordPolicyLabels": {
+      "min_length": "Minimum length",
+      "require_uppercase": "At least one uppercase letter",
+      "require_lowercase": "At least one lowercase letter",
+      "require_digits": "At least one number",
+      "require_special_chars": "At least one symbol",
+      "max_repeated_chars": "Maximum repeated characters in a row",
+      "history_count": "Previous passwords that cannot be reused",
+      "rotation_days": "Ask for a new password every (days)",
+      "lockout_attempts": "Wrong passwords before locking",
+      "lockout_duration_minutes": "Lock for (minutes)"
+    },
+    "passwordPolicyHelp": {
+      "min_length": "{{min}} to {{max}} characters.",
+      "max_repeated_chars": "0 = no limit. For example 3 refuses \"aaaa\".",
+      "history_count": "0 = no check, up to {{max}}.",
+      "rotation_days": "0 = never. Staff are asked to change it at their next password sign-in.",
+      "lockout_attempts": "{{min}} to {{max}}. Counts wrong passwords and wrong 2FA codes.",
+      "lockout_duration_minutes": "{{min}} to {{max}} minutes."
+    },
+    "apiRateLimits": {
+      "explain": "A limit applies to every request made with that API token: a burst per second and ceilings per minute, hour and day. When one is exceeded the token gets 429 until the window ends. A token without a limit row only has the general limits.",
+      "token": "API token",
+      "burst_size": "Burst (per second)",
+      "requests_per_minute": "Per minute",
+      "requests_per_hour": "Per hour",
+      "requests_per_day": "Per day",
+      "defaultValue": "{{value}} (default)",
+      "add": "Add a limit for a token",
+      "pickToken": "Choose a token",
+      "noTokens": "No API tokens to choose from.",
+      "fieldHelp": "Empty = default ({{value}}).",
+      "active": "Limit is on",
+      "save": "Save limit"
+    },
     "apiSecurity": {
       "rateLimits": "API Key Rate Limits",
       "noRateLimits": "No per-key rate limits configured",
