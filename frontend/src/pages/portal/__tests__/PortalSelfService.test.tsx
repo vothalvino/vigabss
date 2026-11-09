@@ -2,7 +2,7 @@
 // history, or data packs and the allowance, though the API had all of them;
 // and the chat page was routed but not linked.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -66,15 +66,37 @@ describe('portal self-service pages', () => {
   });
 
   it('Payments lists the payment history', async () => {
-    mocks.fetch.mockResolvedValue(json({
-      data: [{ id: 1, amount: '500', currency: 'MXN', payment_method: 'spei', payment_date: '2026-10-05T00:00:00Z', reference_number: 'REF-1', status: 'completed' }],
-      meta: { page: 1, limit: 20, total: 1, pages: 1 },
-    }));
+    mocks.fetch.mockImplementation(async (url: string) => (url.endsWith('/dashboard')
+      ? json({ data: { balance: -150, balance_currency: 'MXN' } })
+      : json({
+        data: [{ id: 1, amount: '500', currency: 'MXN', payment_method: 'spei', payment_date: '2026-10-05T00:00:00Z', reference_number: 'REF-1', status: 'completed' }],
+        meta: { page: 1, limit: 20, total: 1, pages: 1 },
+      })));
     renderPage(<PortalPayments />);
     expect(await screen.findByText('500.00 MXN')).toBeInTheDocument();
     expect(screen.getByText('SPEI')).toBeInTheDocument();
     expect(screen.getByText('REF-1')).toBeInTheDocument();
-    expect(calls()[0].url).toBe('/api/v1/portal/payments?page=1&limit=20');
+    expect(calls().some(c => c.url === '/api/v1/portal/payments?page=1&limit=20')).toBe(true);
+    // The credit it already holds shows on the pay-ahead card.
+    expect(await screen.findByText('Your credit: 150.00 MXN')).toBeInTheDocument();
+  });
+
+  it('Payments opens a pay-ahead checkout for the amount the customer chooses', async () => {
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/payments/advance')) return json({ data: { payment_url: 'https://pay.example.com/c/1' } }, 201);
+      if (url.endsWith('/dashboard')) return json({ data: { balance: 0, balance_currency: 'MXN' } });
+      return json({ data: [], meta: { page: 1, limit: 20, total: 0, pages: 1 } });
+    });
+    const user = userEvent.setup();
+    renderPage(<PortalPayments />);
+    const card = await screen.findByRole('region', { name: 'Pay ahead' });
+    await user.click(within(card).getByRole('button', { name: 'Pay ahead' }));
+    expect(within(card).getByRole('alert')).toHaveTextContent('Write an amount from 1 to 100,000');
+    await user.type(within(card).getByLabelText('Amount'), '250');
+    await user.click(within(card).getByRole('button', { name: 'Pay ahead' }));
+    await waitFor(() => expect(calls().some(c => c.url === '/api/v1/portal/payments/advance')).toBe(true));
+    const post = calls().find(c => c.url === '/api/v1/portal/payments/advance')!;
+    expect(JSON.parse(String(post.body))).toMatchObject({ amount: 250 });
   });
 
   it('Data packs shows the allowance and buys a pack only after confirmation', async () => {

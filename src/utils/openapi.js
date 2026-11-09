@@ -524,7 +524,7 @@ function generateSpec() {
           },
         },
       },
-      '/invoices/generate': { post: { tags: ['Invoices'], summary: 'Generate invoice from contract', operationId: 'generateContractInvoice', security: [{ bearerAuth: [] }], requestBody: jsonBody('contract_id (legacy) OR client_id + items[] — product/custom items take unit_price (or amount, from which unit_price is derived; one of the two is required, and both together must agree with quantity × unit_price); items[].inventory_item_id is optional on type:"product" lines and draws down stock in the same transaction as the invoice'), responses: r201('Invoice') } },
+      '/invoices/generate': { post: { tags: ['Invoices'], summary: 'Generate invoice from contract', operationId: 'generateContractInvoice', security: [{ bearerAuth: [] }], requestBody: jsonBody('contract_id (legacy) OR client_id + items[]; apply_credit (default true, migration 012): false keeps the client\'s credit off this invoice (stored as apply_client_credit = 0), otherwise the credit pays it at once — product/custom items take unit_price (or amount, from which unit_price is derived; one of the two is required, and both together must agree with quantity × unit_price); items[].inventory_item_id is optional on type:"product" lines and draws down stock in the same transaction as the invoice'), responses: r201('Invoice') } },
       '/invoices/{id}/payments': { get: { tags: ['Invoices'], summary: 'List invoice payments', operationId: 'listInvoicePayments', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: arrayDataResponse('PaymentAllocation') } } },
       '/invoices/{id}/stamp': { post: { tags: ['Invoices'], summary: 'Convert an MX-org invoice into a CFDI 4.0 and stamp it via the org PAC (stamp-later); 200 with stamped:false + stamp_error on retryable PAC failure', operationId: 'stampInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoices_stampInvoice (optional uso_cfdi, forma_pago)'), responses: r200('{ cfdi_document_id, serie, uuid, sat_status, stamped }') } },
       '/invoices/{id}/receipt': {
@@ -2558,6 +2558,9 @@ function generateSpec() {
       '/portal/invoices/{id}/pay': {
         post: { tags: ['Portal Billing'], summary: 'Create a checkout session for online payment', operationId: 'portalPayInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('return_url'), responses: r201('CheckoutSession') },
       },
+      '/portal/payments/advance': {
+        post: { tags: ['Portal Billing'], summary: "Pay ahead online (migration 012): a checkout for an amount the customer chooses (1 to 100000, 2 decimals), with no invoice. When the gateway confirms it, the payment pays the customer's open invoices oldest first and the rest stays as credit, which pays its next invoices on its own", operationId: 'portalPayAdvance', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['amount'], properties: { amount: { type: 'number', minimum: 1, maximum: 100000 }, return_url: { type: 'string' } } } } } }, responses: { ...r201('CheckoutSession'), 422: errorResponse('Invalid amount, no active payment gateway, or a gateway without hosted checkout') } },
+      },
       '/portal/payments': {
         get: { tags: ['Portal Billing'], summary: 'Payment history (paginated)', operationId: 'portalListPayments', security: [{ bearerAuth: [] }], responses: r200('Payment[]') },
       },
@@ -3879,6 +3882,7 @@ function resellerAppCollectResultSchema() {
       allocated: { type: 'array', items: { type: 'object', required: ['invoice_id', 'amount'], properties: { invoice_id: { type: 'integer' }, amount: { type: 'number' } } } },
       client_number: { type: 'integer' },
       client_name: { type: 'string' },
+      credit: { type: 'number', description: "What no invoice took: the customer's credit (a payment made ahead, even by a customer who owes nothing). It pays its next invoices on its own" },
       collection_fee: { type: 'number', description: 'A collector only (migration 011): the fee it kept from this payment' },
       reconnected: { type: ['boolean', 'null'], description: 'true: a suspended contract was reconnected; false: none needed; null: a reconnect attempt failed (the ISP sees it)' },
       receipt_url: { type: 'string' },
@@ -3919,6 +3923,7 @@ function resellerAppReceiptSchema() {
       currency: { type: 'string' },
       payment_method: { type: 'string', enum: ['cash'] },
       allocations: { type: 'array', items: { type: 'object', required: ['invoice_number', 'amount'], properties: { invoice_number: nullableString(), amount: { type: 'number' } } } },
+      credit: { type: 'number', description: "The part of the payment on no invoice yet: the customer's credit (a payment made ahead, migration 012); 0 when voided" },
       remaining_balance: { type: 'number', description: 'What the client still owes on open invoices now' },
       legend: { type: 'string' },
       language: { type: 'string', enum: ['es', 'en'], description: 'es for an MX organization' },

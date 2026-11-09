@@ -24,6 +24,7 @@
 //   GET    /portal/invoices/:id/pdf     download invoice PDF
 //   GET    /portal/invoices/:id/cfdi    download CFDI XML for invoice
 //   POST   /portal/invoices/:id/pay     create a checkout session
+//   POST   /portal/payments/advance     pay ahead online (credit)
 //   GET    /portal/payments             payment history
 //
 //   --- §11.3 Self-Service Actions ---
@@ -625,6 +626,27 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
       returnUrl: req.body.return_url || null,
     });
 
+    res.status(201).json({ data: session });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /portal/payments/advance — pay ahead online (credit, migration 012)
+// The customer chooses the amount; the gateway's confirmation pays its open
+// invoices oldest first and keeps the rest as credit, which pays its next
+// invoices on its own (services/clientCreditService.js).
+router.post('/payments/advance', async (req, res, next) => {
+  try {
+    if (req.body?.amount === undefined || typeof req.body.amount !== 'number') {
+      throw new ValidationError('amount is required (a number)');
+    }
+    const session = await checkoutService.createAdvanceCheckout({
+      organizationId: req.client.organizationId,
+      clientId: req.client.id,
+      amount: req.body.amount,
+      returnUrl: req.body.return_url || null,
+    });
     res.status(201).json({ data: session });
   } catch (err) {
     next(err);

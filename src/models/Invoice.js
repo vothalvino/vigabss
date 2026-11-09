@@ -14,7 +14,7 @@ class Invoice extends BaseModel {
     return [
       'organization_id', 'client_id', 'contract_id', 'invoice_number',
       'subtotal', 'tax_amount', 'total', 'currency', 'tax_rate',
-      'tax_rate_id', 'due_date', 'paid_at', 'status', 'notes',
+      'tax_rate_id', 'due_date', 'paid_at', 'status', 'notes', 'apply_client_credit',
     ];
   }
 

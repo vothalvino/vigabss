@@ -917,6 +917,25 @@ writer). It refuses an invoice of another organization, of another client
 `ALLOCATION_EXISTS`. Waterfalls without a selection pre-filter invoices with
 `allocationRefusal`, so another currency stays unallocated credit.
 
+A payment's unallocated remainder is the client's credit, and since migration
+012 it pays the client's payable invoices on its own
+(`src/services/clientCreditService.applyCredit`): its payments with a
+remainder, oldest first, each run the allocate-auto waterfall in the
+payment's currency, in one transaction that locks the payments (ascending id)
+and then the client's invoices; reconnect and REP run after commit. It runs
+right after the monthly run creates an invoice and before that invoice is
+emailed or stamped (`invoiceCfdiService` stamps a covered invoice PUE, so no
+REP), after `POST /invoices` (issued) and `POST /invoices/generate`, after a
+one-off invoice on its own transaction, and in `sweepOrg` at the start of
+`runAutoSuspend`. `invoices.apply_client_credit = 0` (staff unticked "Use the
+customer's credit", `apply_credit: false`) keeps an invoice out of every
+automatic step. A payment can be made ahead with no invoice: a reseller or
+collector collection larger than what is owed (or for a client who owes
+nothing) returns and prints the `credit`, and
+`checkoutService.createAdvanceCheckout` (`POST /portal/payments/advance`)
+opens a gateway checkout with `invoice_id` NULL, which `reconcilePayment`
+allocates FIFO and leaves the rest as credit.
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in

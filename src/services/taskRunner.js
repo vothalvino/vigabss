@@ -495,6 +495,10 @@ async function runAutoInvoice(organizationId) {
         generated++;
         noteInvoiceRun('generated');
 
+        // The client's credit (payments made ahead) pays it now, before it is
+        // emailed or stamped: a covered invoice is stamped PUE (no REP).
+        await require('./clientCreditService').applyCreditQuietly({ orgId: contract.organization_id, clientId: invoice.client_id });
+
         // Send invoice notification email to client
         try {
           const [clientRows] = await db.query(
@@ -708,6 +712,12 @@ async function runAutoSuspend(organizationId) {
 
   let suspended = 0;
   for (const org of orgs) {
+    // Credit first: nobody holding credit is suspended for an invoice it covers.
+    try {
+      await require('./clientCreditService').sweepOrg(org.id);
+    } catch (err) {
+      logger.error({ err, orgId: org.id }, 'Client credit sweep failed');
+    }
     const results = await suspensionService.evaluateRules(org.id);
     for (const { rule, contract } of results) {
       if (rule.action === 'soft_suspend') {

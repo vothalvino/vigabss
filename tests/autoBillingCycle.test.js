@@ -9,6 +9,12 @@
 // =============================================================================
 
 // Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+// Client credit (migration 012) has its own tests (tests/clientCredit.test.js);
+// stubbed so these sequenced db mocks only see the billing run's queries.
+jest.mock('../src/services/clientCreditService', () => ({
+  applyCreditQuietly: jest.fn(async () => ({ allocations: [], applied: 0, paid_invoice_ids: [] })),
+  sweepOrg: jest.fn(async () => ({ clients: 0, applied: 0, failed: 0 })),
+}));
 jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),

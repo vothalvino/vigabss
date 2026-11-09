@@ -16,7 +16,7 @@ import type { TFunction } from 'i18next';
 import { ApiRequestError } from '@/api/apiFetch';
 import { EmptyState, ErrorState, LoadingState } from '@/components/FetchStates';
 import { formatMoney } from '@/lib/money';
-import { fetchPuntoReceipt, puntoKeys, type PuntoCollectResult, type PuntoReceipt as Receipt } from './puntoApi';
+import { fetchPuntoReceipt, puntoKeys, toNumber, type PuntoCollectResult, type PuntoReceipt as Receipt } from './puntoApi';
 import { formatDateTime } from './puntoUi';
 
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -38,6 +38,7 @@ function whatsappText(r: Receipt, t: TFunction): string {
     t('punto.receipt.waClient', { number: r.client.number, name: r.client.name }),
     t('punto.receipt.waPaid', { amount: fmt(r.amount) }),
   ];
+  if (toNumber(r.credit ?? 0) > 0) lines.push(t('punto.receipt.waCredit', { amount: fmt(r.credit ?? 0) }));
   if (r.remaining_balance !== null && r.remaining_balance !== undefined) {
     lines.push(t('punto.receipt.waRemaining', { amount: fmt(r.remaining_balance) }));
   }
@@ -104,6 +105,7 @@ export function PuntoReceipt() {
         {r.allocations.length > 0 && <hr />}
         <Line label={t('punto.receipt.total')} value={fmt(r.amount)} strong />
         <Line label={t('punto.receipt.method')} value={method} />
+        {toNumber(r.credit ?? 0) > 0 && <Line label={t('punto.receipt.credit')} value={fmt(r.credit ?? 0)} />}
         {r.remaining_balance !== null && r.remaining_balance !== undefined && (
           <Line label={t('punto.receipt.remaining')} value={fmt(r.remaining_balance)} />
         )}

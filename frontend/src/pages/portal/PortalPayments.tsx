@@ -2,13 +2,77 @@
 // VigaBSS 5.0 — Portal Payments: payment history (FE-26)
 // =============================================================================
 // GET /portal/payments existed with no page calling it.
+// "Pagar por adelantado" (migration 012): the customer pays any amount online
+// (POST /portal/payments/advance opens the gateway's checkout); what no open
+// invoice takes stays as its credit and pays its next invoices on its own.
+// The gateway brings it back here with ?payment=success|cancelled.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { ApiRequestError } from '@/api/apiFetch';
 import { portalApiFetch } from '@/api/portalApiFetch';
 import { portalPageStyles as styles } from './portalPageStyles';
+
+const AMOUNT = /^\d+(\.\d{1,2})?$/;
+
+interface Dashboard { data?: { balance?: number | string | null; balance_currency?: string | null } }
+
+/** Pay ahead online; shows the credit the customer already holds. */
+function PayAhead() {
+  const { t } = useTranslation();
+  const [params] = useSearchParams();
+  const back = params.get('payment');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
+  const dashboard = useQuery({ queryKey: ['portal-dashboard'], queryFn: () => portalApiFetch<Dashboard>('/dashboard') });
+  const balance = Number(dashboard.data?.data?.balance ?? 0);
+  const currency = dashboard.data?.data?.balance_currency ?? '';
+  const start = useMutation({
+    mutationFn: (value: number) => portalApiFetch<{ data: { payment_url: string } }>('/payments/advance', {
+      method: 'POST',
+      body: JSON.stringify({ amount: value, return_url: `${window.location.origin}/portal/payments` }),
+    }),
+    onSuccess: (res) => { window.location.href = res.data.payment_url; },
+    onError: (err: unknown) => setError(err instanceof ApiRequestError && err.status < 500 && err.message ? err.message : t('portalPayments.advance.error')),
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    const raw = amount.trim();
+    const value = Number(raw);
+    if (!AMOUNT.test(raw) || value < 1 || value > 100000) { setError(t('portalPayments.advance.invalid')); return; }
+    start.mutate(value);
+  }
+
+  return (
+    <section style={{ ...styles.card, marginBottom: 16 }} aria-labelledby="portal-pay-ahead">
+      <h2 id="portal-pay-ahead" style={{ margin: '0 0 6px', fontSize: '1.05rem' }}>{t('portalPayments.advance.title')}</h2>
+      <p style={{ ...styles.muted, margin: '0 0 10px' }}>{t('portalPayments.advance.help')}</p>
+      {balance < 0 && (
+        <p style={{ margin: '0 0 10px', fontWeight: 600 }}>{t('portalPayments.advance.credit', { amount: `${(-balance).toFixed(2)} ${currency}`.trim() })}</p>
+      )}
+      {back === 'success' && <p role="status" style={{ margin: '0 0 10px', color: '#047857' }}>{t('portalPayments.advance.thanks')}</p>}
+      {back === 'cancelled' && <p role="status" style={{ ...styles.muted, margin: '0 0 10px' }}>{t('portalPayments.advance.cancelled')}</p>}
+      <form onSubmit={submit} noValidate style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.9rem' }}>
+          {t('portalPayments.advance.amount')}
+          <input inputMode="decimal" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '1rem', width: 160 }} />
+        </label>
+        <button type="submit" disabled={start.isPending}
+          style={{ padding: '9px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+          {start.isPending ? t('portalPayments.advance.starting') : t('portalPayments.advance.pay')}
+        </button>
+      </form>
+      {error && <p role="alert" style={{ ...styles.error, marginTop: 8 }}>{error}</p>}
+    </section>
+  );
+}
 
 interface Payment {
   id: number;
@@ -39,6 +103,7 @@ export function PortalPayments() {
     <div>
       <h1 style={styles.heading}>{t('portalPayments.title')}</h1>
       <p style={styles.sub}>{t('portalPayments.subtitle')}</p>
+      <PayAhead />
       <section style={styles.card}>
         {isLoading && <p style={styles.muted}>{t('portalCommon.loading')}</p>}
         {error && <p role="alert" style={styles.error}>{t('portalPayments.loadError')}</p>}

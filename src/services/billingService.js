@@ -872,7 +872,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
  */
 async function createOneOffInvoice({
   orgId, clientId, contractId = null, description, amount, currency: currencyOverride = null,
-  conn: externalConn = null, inventoryItemId = null, performedBy = null,
+  conn: externalConn = null, inventoryItemId = null, performedBy = null, applyCredit = true,
 }) {
   logger.info({ orgId, clientId, contractId, amount }, 'Creating one-off invoice');
 
@@ -938,6 +938,12 @@ async function createOneOffInvoice({
       await conn.commit();
       invoice = await Invoice.findById(invoiceId, orgId);
       await require('./businessEvents').emitInvoiceCreated(orgId, invoice);
+      // The client's credit (payments made ahead) pays it now. An invoice
+      // created on a caller's transaction is left to the daily sweep.
+      if (applyCredit) {
+        const credit = await require('./clientCreditService').applyCreditQuietly({ orgId, clientId, actorUserId: performedBy });
+        if (credit.applied > 0) invoice = await Invoice.findById(invoiceId, orgId);
+      }
     } else {
       // The caller emits invoice.created once its transaction commits.
       // The caller owns the transaction and hasn't committed yet — read back

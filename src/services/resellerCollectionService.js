@@ -443,7 +443,9 @@ async function collect(req, body, idempotencyKey = null) {
     await billingService.recordPaymentCredit(
       { id: paymentId, client_id: client.id, amount, currency, reference_number: null }, orgId, exec,
     );
-    const { allocations, justPaidInvoices } = await paymentAllocationService.allocateAcrossInvoices(
+    // Whatever no invoice takes stays on the payment as the customer's
+    // credit: a payment made ahead, even by a customer who owes nothing.
+    const { allocations, justPaidInvoices, remainder } = await paymentAllocationService.allocateAcrossInvoices(
       exec, { payment: { ...payer, id: paymentId }, amount, invoices },
     );
 
@@ -467,6 +469,7 @@ async function collect(req, body, idempotencyKey = null) {
         payment_id: paymentId,
         amount: toMoney(amount),
         allocated: allocations.map((a) => ({ invoice_id: Number(a.invoice_id), amount: toMoney(a.amount) })),
+        credit: toMoney(remainder),
         client_number: Number(client.id),
         client_name: displayName(scope, client),
         ...(fee > 0 ? { collection_fee: toMoney(fee) } : {}),
@@ -833,12 +836,12 @@ async function listCollections(req, { date, limit, offset }) {
 const RECEIPT_TEXT = {
   es: {
     title: 'RECIBO DE PAGO', number: 'Recibo:', date: 'Fecha:', client: 'Cliente:', method: 'Forma de pago:',
-    cash: 'Efectivo', applied: 'Aplicado a:', total: 'TOTAL:', remaining: 'Saldo pendiente:', voided: 'ANULADO',
+    cash: 'Efectivo', applied: 'Aplicado a:', total: 'TOTAL:', remaining: 'Saldo pendiente:', voided: 'ANULADO', credit: 'Saldo a favor:',
     legend: (reseller, isp) => `Cobrado por ${reseller} a nombre de ${isp}. El pago queda registrado con ${isp}.`,
   },
   en: {
     title: 'PAYMENT RECEIPT', number: 'Receipt:', date: 'Date:', client: 'Customer:', method: 'Payment method:',
-    cash: 'Cash', applied: 'Applied to:', total: 'TOTAL:', remaining: 'Balance due:', voided: 'VOIDED',
+    cash: 'Cash', applied: 'Applied to:', total: 'TOTAL:', remaining: 'Balance due:', voided: 'VOIDED', credit: 'Credit:',
     legend: (reseller, isp) => `Collected by ${reseller} on behalf of ${isp}. The payment is recorded with ${isp}.`,
   },
 };
@@ -872,6 +875,9 @@ function receiptPlainText(r, width, lang) {
   lines.push(D2);
   lines.push(labelValue(t.total, fmt(r.amount), width));
   lines.push(D2);
+  // A payment made ahead: what is left of it is the customer's credit, which
+  // pays its next invoices on its own (services/clientCreditService.js).
+  if (r.credit > 0) lines.push(labelValue(t.credit, fmt(r.credit), width));
   if (r.remaining_balance !== null) lines.push(labelValue(t.remaining, fmt(r.remaining_balance), width));
   lines.push(...wrap(r.legend, width));
   lines.push('');
@@ -966,6 +972,8 @@ async function receipt(req, paymentId, { width = 32 } = {}) {
     currency: p.currency,
     payment_method: 'cash',
     allocations: (allocs || []).map((a) => ({ invoice_number: a.invoice_number ?? null, amount: toMoney(a.amount) })),
+    // What is not on an invoice yet: the customer's credit (a payment made ahead).
+    credit: voided ? 0 : Math.max(0, money.sub(toMoney(p.amount), (allocs || []).reduce((t, a) => money.add(t, toMoney(a.amount)), 0))),
     remaining_balance: toMoney(due?.remaining),
     legend: RECEIPT_TEXT[lang].legend(resellerName, ispName),
     language: lang,

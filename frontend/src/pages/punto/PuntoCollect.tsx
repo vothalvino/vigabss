@@ -170,7 +170,10 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
   const me = useQuery({ queryKey: puntoKeys.me, queryFn: fetchPuntoMe });
   const invoices = useMemo(() => oldestFirst(target.open_invoices ?? []), [target]);
   const [selected, setSelected] = useState<Set<number>>(() => new Set(invoices.map(i => i.id)));
-  const [amount, setAmount] = useState(() => sumBalances(invoices, new Set(invoices.map(i => i.id))).toFixed(2));
+  // A customer who owes nothing can pay ahead: the whole payment is its
+  // credit, which pays its next invoices on its own (migration 012).
+  const advanceOnly = invoices.length === 0;
+  const [amount, setAmount] = useState(() => (advanceOnly ? '' : sumBalances(invoices, new Set(invoices.map(i => i.id))).toFixed(2)));
   const [amountEdited, setAmountEdited] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
@@ -219,9 +222,9 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
     setLimitBags(undefined);
     const raw = amount.trim();
     const value = Number(raw);
-    if (selected.size === 0) { setError(t('punto.collect.pickInvoice')); return; }
+    if (!advanceOnly && selected.size === 0) { setError(t('punto.collect.pickInvoice')); return; }
     if (!AMOUNT.test(raw) || !(value > 0)) { setError(t('punto.collect.amountInvalid')); return; }
-    if (cents(value) > cents(selectedTotal)) { setError(t('punto.collect.amountTooHigh', { max: fmt(selectedTotal) })); return; }
+    // More than the invoices chosen is fine: the rest is the customer's credit.
     // The limit is where a bag must be filled, not a cap on this payment:
     // only a reseller already at its limit is stopped.
     if (me.data?.money && limitReached(me.data.money)) {
@@ -233,16 +236,8 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
     const ids = invoices.filter(i => selected.has(i.id)).map(i => i.id);
     setDraft({ amount: value, invoiceIds: ids.length === invoices.length ? undefined : ids, note: note.trim(), key: newIdempotencyKey() });
   }
-
-  if (invoices.length === 0) {
-    return (
-      <div className="punto-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <TargetHeader target={target} />
-        <p style={{ margin: 0 }}>{t('punto.collect.nothingDue')}</p>
-        <button type="button" className="punto-btn-secondary" onClick={onBack}>{t('punto.collect.searchAgain')}</button>
-      </div>
-    );
-  }
+  // The part of the amount the chosen invoices do not take: credit.
+  const creditPart = (v: number) => Math.max(0, (cents(v) - cents(advanceOnly ? 0 : selectedTotal)) / 100);
 
   if (draft) {
     return (
@@ -250,6 +245,7 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
         <h2 id="punto-collect-confirm" style={{ ...sectionTitle, margin: 0 }}>{t('punto.collect.confirmTitle')}</h2>
         <div className="punto-amount-big">{fmt(draft.amount)}</div>
         <p style={{ margin: 0 }}>{t('punto.collect.confirmBody', { name: target.name, number: target.client_number })}</p>
+        {creditPart(draft.amount) > 0 && <p style={{ margin: 0, fontWeight: 600 }}>{t('punto.collect.creditNote', { amount: fmt(creditPart(draft.amount)) })}</p>}
         {error && <p role="alert" style={{ ...errorText, textAlign: 'left' }}>{error}</p>}
         {error && limitBags !== undefined && <CreditLimitBagHint emptyBags={limitBags} />}
         <button type="button" className="punto-btn-primary" disabled={pay.isPending} onClick={() => { setError(''); pay.mutate(draft); }}>
@@ -271,9 +267,10 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
           <span>{t('punto.collect.amountDue')}</span>
           <strong style={{ fontSize: '1.2rem' }}>{fmt(target.amount_due)}</strong>
         </div>
+        {advanceOnly && <p style={{ margin: '8px 0 0' }}>{t('punto.collect.advanceHelp')}</p>}
       </div>
 
-      <fieldset className="punto-card" style={{ margin: 0 }}>
+      {!advanceOnly && <fieldset className="punto-card" style={{ margin: 0 }}>
         <legend style={{ ...sectionTitle, padding: '0 4px' }}>{t('punto.collect.invoices')}</legend>
         {invoices.map(inv => (
           <label key={inv.id} className="punto-check">
@@ -289,7 +286,7 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
           <span>{t('punto.collect.selectedTotal')}</span>
           <strong>{fmt(selectedTotal)}</strong>
         </div>
-      </fieldset>
+      </fieldset>}
 
       <div className="punto-card">
         <div className="punto-field">
@@ -302,7 +299,10 @@ function Collect({ target, onBack }: { target: PuntoCollectTarget; onBack: () =>
             onChange={e => { setAmount(e.target.value); setAmountEdited(true); }}
           />
         </div>
-        <p style={{ ...mutedText, marginBottom: 12 }}>{t('punto.collect.amountHelp')}</p>
+        <p style={{ ...mutedText, marginBottom: 12 }}>{t(advanceOnly ? 'punto.collect.advanceAmountHelp' : 'punto.collect.amountHelp')}</p>
+        {Number.isFinite(value) && creditPart(value) > 0 && (
+          <p aria-live="polite" style={{ margin: '0 0 12px', fontWeight: 600 }}>{t('punto.collect.creditNote', { amount: fmt(creditPart(value)) })}</p>
+        )}
         {available !== null && <p style={{ ...mutedText, marginBottom: 12 }}>{t('punto.collect.available', { available: fmt(available) })}</p>}
         <div className="punto-field" style={{ marginBottom: 0 }}>
           <label htmlFor="punto-collect-note">{t('punto.collect.note')}</label>

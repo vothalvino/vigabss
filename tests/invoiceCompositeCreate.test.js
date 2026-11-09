@@ -51,6 +51,8 @@ jest.mock('../src/models/Organization', () => ({
   findById: jest.fn(),
 }));
 
+jest.mock('../src/services/clientCreditService', () => ({ applyCreditQuietly: jest.fn(async () => ({ applied: 0, allocations: [], paid_invoice_ids: [] })) }));
+const clientCreditService = require('../src/services/clientCreditService');
 const db = require('../src/config/database');
 const billingService = require('../src/services/billingService');
 const app = require('../src/app');
@@ -278,5 +280,33 @@ describe('GET /api/v1/invoices?status=overdue (derived, not a stored status)', (
     expect(res.status).toBe(200);
     const anyDerived = db.query.mock.calls.some(c => /status IN \('issued', 'sent', 'overdue'\)/.test(c[0]));
     expect(anyDerived).toBe(false);
+  });
+
+  describe("Use the customer's credit (migration 012)", () => {
+    test('on by default: stored on the invoice and applied when the invoice is issued', async () => {
+      const res = await request(app).post('/api/v1/invoices').send({ ...BASE, status: 'issued' });
+      expect(res.status).toBe(201);
+      const invIns = lastConn.execute.mock.calls.find(c => /INSERT INTO invoices/.test(c[0]));
+      expect(invIns[0]).toMatch(/apply_client_credit\)/);
+      expect(invIns[1][invIns[1].length - 1]).toBe(1);
+      expect(clientCreditService.applyCreditQuietly).toHaveBeenCalledWith(expect.objectContaining({ orgId: 5, clientId: BASE.client_id }));
+      expect(res.body).toHaveProperty('credit_applied', 0);
+    });
+
+    test('unticked: stored as 0 and never applied', async () => {
+      clientCreditService.applyCreditQuietly.mockClear();
+      const res = await request(app).post('/api/v1/invoices').send({ ...BASE, status: 'issued', apply_credit: false });
+      expect(res.status).toBe(201);
+      const invIns = lastConn.execute.mock.calls.find(c => /INSERT INTO invoices/.test(c[0]));
+      expect(invIns[1][invIns[1].length - 1]).toBe(0);
+      expect(clientCreditService.applyCreditQuietly).not.toHaveBeenCalled();
+    });
+
+    test('a draft is not paid from credit yet (the sweep applies it once issued)', async () => {
+      clientCreditService.applyCreditQuietly.mockClear();
+      const res = await request(app).post('/api/v1/invoices').send({ ...BASE, status: 'draft' });
+      expect(res.status).toBe(201);
+      expect(clientCreditService.applyCreditQuietly).not.toHaveBeenCalled();
+    });
   });
 });

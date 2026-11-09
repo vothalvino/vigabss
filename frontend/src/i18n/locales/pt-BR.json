@@ -54,6 +54,18 @@
   "portalPayments": {
     "title": "Pagamentos",
     "subtitle": "Pagamentos registrados na sua conta.",
+    "advance": {
+      "title": "Pagar adiantado",
+      "help": "Pague o valor que quiser. Primeiro ele paga suas faturas em aberto; o resto fica como seu crédito e paga suas próximas faturas sozinho.",
+      "credit": "Seu crédito: {{amount}}",
+      "amount": "Valor",
+      "pay": "Pagar adiantado",
+      "starting": "Abrindo o pagamento…",
+      "invalid": "Digite um valor de 1 a 100.000, com até 2 casas decimais.",
+      "error": "Não foi possível abrir o pagamento. Tente de novo.",
+      "thanks": "Obrigado. Seu pagamento aparecerá aqui em alguns instantes.",
+      "cancelled": "O pagamento foi cancelado; nada foi cobrado."
+    },
     "loadError": "Não foi possível carregar seus pagamentos.",
     "none": "Nenhum pagamento ainda.",
     "date": "Data",
@@ -7071,7 +7083,9 @@
       "unitPrice": "Preço unitário",
       "description": "Descrição",
       "eGInstallationFee": "ex.: Taxa de instalação",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "useCredit": "Usar o crédito do cliente",
+      "useCreditHelp": "Se o cliente pagou adiantado, esse crédito paga esta fatura agora. Desmarque para guardá-lo para depois."
     },
     "generateQuoteModal": {
       "generateQuote": "Gerar orçamento",
@@ -10152,15 +10166,16 @@
       "invoices": "Faturas a pagar",
       "selectedTotal": "Total selecionado",
       "amount": "Valor recebido",
-      "amountHelp": "Começa com tudo o que foi selecionado. Você pode receber menos se o cliente pagar só uma parte.",
+      "amountHelp": "No início é tudo o que foi selecionado. Você pode receber menos se o cliente pagar só uma parte, ou mais: o excedente fica como crédito do cliente.",
+      "advanceHelp": "Este cliente não deve nada. Você pode receber um pagamento adiantado: fica como crédito do cliente e paga a próxima fatura sozinho.",
+      "advanceAmountHelp": "Digite quanto o cliente paga adiantado.",
+      "creditNote": "{{amount}} ficam como crédito do cliente.",
       "available": "Faltam {{available}} para o seu limite de dinheiro. Se passar, o recebimento é feito mesmo assim e depois você enche um malote para continuar recebendo.",
       "note": "Observação (opcional)",
       "collectCash": "Receber {{amount}} em dinheiro",
       "searchAgain": "Buscar outro cliente",
-      "nothingDue": "Este cliente não tem nada a pagar agora.",
       "pickInvoice": "Escolha pelo menos uma fatura.",
       "amountInvalid": "Digite um valor maior que zero, com até duas casas decimais.",
-      "amountTooHigh": "O valor não pode ser maior que as faturas selecionadas ({{max}}).",
       "limitReachedNoAmount": "Você chegou ao seu limite de dinheiro: encha um malote (ou entregue o dinheiro) para continuar recebendo.",
       "saveError": "Não foi possível registrar o recebimento. Tente novamente: ele não será cobrado duas vezes.",
       "confirmTitle": "Você já recebeu o dinheiro?",
@@ -10201,6 +10216,7 @@
         "cash": "Dinheiro"
       },
       "remaining": "Saldo restante",
+      "credit": "Crédito",
       "print": "Imprimir",
       "whatsapp": "Enviar pelo WhatsApp",
       "newCollection": "Novo recebimento",
@@ -10209,7 +10225,8 @@
       "waClient": "Cliente nº {{number}} {{name}}",
       "waPaid": "Pago em dinheiro: {{amount}}",
       "voided": "Este recebimento foi anulado.",
-      "waRemaining": "Saldo restante: {{amount}}"
+      "waRemaining": "Saldo restante: {{amount}}",
+      "waCredit": "Crédito para as próximas faturas: {{amount}}"
     },
     "cash": {
       "title": "Meu caixa",

@@ -19,9 +19,12 @@ const createInvoice = {
   // allocation, 'overdue' is derived from due_date, and 'cancelled'/'void'
   // follow a SAT cancellation or a void of an existing invoice (BIL-27).
   status: { type: 'string', enum: ['draft', 'issued'] },
+  // "Use the customer's credit" (migration 012): on unless staff untick it.
+  apply_credit: { type: 'boolean' },
 };
 
 const updateInvoice = {
+  apply_client_credit: { type: 'boolean' },
   invoice_number: { type: 'string', max: 50 },
   subtotal: { type: 'number', min: 0 },
   tax_amount: { type: 'number', min: 0 },
