@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.21 — 2026-11-10
+
 - **WireGuard full tunnels can carry IPv6.** With `WG_IPV6=true` in
   `.env.prod`, each full tunnel gets an IPv6 address next to its IPv4 one
   and reaches the IPv6 internet through the server. It is off by default.

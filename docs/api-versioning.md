@@ -1,6 +1,6 @@
 # API Versioning Strategy
 
-VigaBSS 0.1.0-alpha.20 uses URL-based API versioning. All endpoints are mounted under the `/api/v1/` prefix.
+VigaBSS 0.1.0-alpha.21 uses URL-based API versioning. All endpoints are mounted under the `/api/v1/` prefix.
 
 ---
 
