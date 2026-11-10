@@ -86,6 +86,12 @@ async function run(sql, params = []) {
   // --- payment_transactions ------------------------------------------------
   // The pre-read invoice lock (DAL-04): a pure locking read, nothing to return.
   if (/^SELECT id FROM invoices WHERE organization_id <=> \? AND \(/.test(s)) return [[]];
+  // fetchStripePaymentMethod: only a Stripe gateway that has a secret key.
+  if (/^SELECT pt\.gateway_reference_id, pg\.secret_key_encrypted FROM payment_transactions pt/.test(s)) {
+    const t = state.transactions.find((x) => x.id === Number(p[0]) && !x.payment_id && x.gateway_status === 'succeeded');
+    const g = t && state.gateways.find((x) => x.id === t.payment_gateway_id && x.provider === 'stripe');
+    return [g ? [{ gateway_reference_id: t.gateway_reference_id, secret_key_encrypted: g.secret_key_encrypted || null }] : []];
+  }
   if (/^SELECT \* FROM payment_transactions WHERE id = \? FOR UPDATE/.test(s)) {
     return [state.transactions.filter((t) => t.id === Number(p[0])).map(clone)];
   }
@@ -458,6 +464,68 @@ describe('reconcilePayment() posts a real payment', () => {
       await paymentGatewayService.reconcilePayment(id);
       expect(paymentsFor(id)[0]).toMatchObject({ payment_method: method, sat_forma_pago: forma });
     }
+  });
+
+  describe('Stripe: the method comes from the charge, not from what was offered', () => {
+    const https = require('https');
+    const EventEmitter = require('events');
+    // Both methods offered at checkout: the payload alone cannot tell them apart.
+    const offered = JSON.stringify({ data: { object: { id: 'cs_1', payment_method_types: ['card', 'oxxo'] } } });
+    let spy;
+
+    function stripeAnswers(statusCode, body) {
+      spy = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+        const req = new EventEmitter(); req.write = jest.fn(); req.end = jest.fn(); req.destroy = jest.fn();
+        const res = new EventEmitter(); res.statusCode = statusCode;
+        process.nextTick(() => { cb(res); res.emit('data', JSON.stringify(body)); res.emit('end'); });
+        return req;
+      });
+    }
+
+    beforeEach(() => { state.gateways[0].secret_key_encrypted = 'sk_test_fake'; });
+    afterEach(() => { if (spy) spy.mockRestore(); spy = null; });
+
+    test.each([
+      [{ type: 'oxxo', oxxo: {} }, 'oxxo_pay', '01'],
+      [{ type: 'card', card: { funding: 'debit' } }, 'debit_card', '28'],
+      [{ type: 'card', card: { funding: 'credit' } }, 'credit_card', '04'],
+      [{ type: 'card', card: { funding: 'prepaid' } }, 'card', '04'],
+      [{ type: 'customer_balance' }, 'spei', '03'],
+    ])('%j is recorded as %s (forma de pago %s)', async (details, method, forma) => {
+      stripeAnswers(200, { id: 'pi_31', latest_charge: { id: 'ch_1', payment_method_details: details } });
+      addTx({ id: 31, webhook_payload: offered });
+
+      await paymentGatewayService.reconcilePayment(31);
+
+      expect(paymentsFor(31)[0]).toMatchObject({ payment_method: method, sat_forma_pago: forma });
+      const opts = spy.mock.calls[0][0];
+      expect(opts.path).toBe('/v1/payment_intents/pi_31?expand[]=latest_charge');
+      expect(opts.headers['Stripe-Version']).toBe(paymentGatewayService.STRIPE_API_VERSION);
+    });
+
+    test('Stripe refusing the lookup still records the payment, as a card payment', async () => {
+      stripeAnswers(500, { error: { message: 'down' } });
+      addTx({ id: 32, webhook_payload: offered });
+      await paymentGatewayService.reconcilePayment(32);
+      expect(paymentsFor(32)[0]).toMatchObject({ payment_method: 'card', sat_forma_pago: '04' });
+    });
+
+    test('a reference that is not a PaymentIntent is never sent to Stripe', async () => {
+      stripeAnswers(200, {});
+      addTx({ id: 33, gateway_reference_id: 'cs_test_33', webhook_payload: JSON.stringify({ data: { object: { payment_method_types: ['oxxo'] } } }) });
+      await paymentGatewayService.reconcilePayment(33);
+      expect(spy).not.toHaveBeenCalled();
+      expect(paymentsFor(33)[0]).toMatchObject({ payment_method: 'oxxo_pay' });
+    });
+
+    test('an already reconciled transaction makes no Stripe call', async () => {
+      stripeAnswers(200, { latest_charge: { payment_method_details: { type: 'oxxo' } } });
+      addTx({ id: 34, webhook_payload: offered });
+      await paymentGatewayService.reconcilePayment(34);
+      spy.mockClear();
+      await paymentGatewayService.reconcilePayment(34);
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   test('is idempotent: a second reconcile of the same transaction posts nothing', async () => {
