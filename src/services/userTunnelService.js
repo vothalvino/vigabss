@@ -88,11 +88,14 @@ function buildConfig(peer, privateKey, subnets, presharedKey = null) {
   // Never hand out a config a WireGuard client cannot parse or use.
   assertCanIssueConfig();
   // A full tunnel carries DNS too, so name a resolver the hub forwards to.
-  const dns = peer.full_tunnel ? clientDnsServers() : [];
+  // IPv6 (WG_IPV6) is for the internet through a full tunnel; a split tunnel
+  // only reaches IPv4 device subnets, so it gets no IPv6 address.
+  const ip6 = peer.full_tunnel ? wireguardServerService.userTunnelIp6(peer.tunnel_address) : null;
+  const dns = peer.full_tunnel ? clientDnsServers(Boolean(ip6)) : [];
   const lines = [
     '[Interface]',
     `PrivateKey = ${privateKey}`,
-    `Address    = ${peer.tunnel_address}/32`,
+    `Address    = ${peer.tunnel_address}/32${ip6 ? `, ${ip6}/128` : ''}`,
     ...(dns.length ? [`DNS        = ${dns.join(', ')}`] : []),
     '',
     '[Peer]',
@@ -123,12 +126,18 @@ function buildConfig(peer, privateKey, subnets, presharedKey = null) {
   return lines.join('\n');
 }
 
-/** WG_CLIENT_DNS as a list of IP addresses; anything that is not an IP is dropped. */
-function clientDnsServers() {
-  return String(config.wireguard.clientDns || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => net.isIP(s) !== 0);
+/**
+ * WG_CLIENT_DNS as a list of IP addresses; anything that is not an IP is
+ * dropped. With IPv6 the WG_CLIENT_DNS_V6 resolvers follow, but only when the
+ * tunnel has DNS at all (an empty WG_CLIENT_DNS still means no DNS line).
+ */
+function clientDnsServers(withIpv6 = false) {
+  const list = (value) => String(value || '').split(',').map((s) => s.trim()).filter((s) => net.isIP(s) !== 0);
+  const servers = list(config.wireguard.clientDns);
+  if (withIpv6 && servers.length) {
+    for (const s of list(config.wireguard.clientDnsV6)) if (net.isIP(s) === 6 && !servers.includes(s)) servers.push(s);
+  }
+  return servers;
 }
 
 /**

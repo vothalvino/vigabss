@@ -202,6 +202,13 @@ const config = {
     // keeps its network's resolver, often a private address the hub refuses to
     // forward to, so names stop resolving. Empty disables the line.
     clientDns:        process.env.WG_CLIENT_DNS ?? '1.1.1.1, 9.9.9.9',
+    // IPv6 for full-tunnel clients (off by default). Each tunnel gets an address
+    // in clientSubnetV6 derived from its IPv4 one, and the hub NATs it out. The
+    // hub's Docker network must have IPv6 too: docker-compose.prod.yml turns
+    // that on from the same WG_IPV6 switch.
+    ipv6Enabled:      parseBoolEnv('WG_IPV6', false),
+    clientSubnetV6:   process.env.WG_CLIENT_SUBNET_V6 || 'fd99:7669:6761::/64',
+    clientDnsV6:      process.env.WG_CLIENT_DNS_V6 ?? '2606:4700:4700::1111, 2620:fe::fe',
     clientInterface:  process.env.WG_CLIENT_INTERFACE   || 'wg-clients',
     clientSubnet:     process.env.WG_CLIENT_SUBNET      || '10.99.0.0/16',  // user peer pool
     // Active self-service peers per user and per organization (RTE-12).

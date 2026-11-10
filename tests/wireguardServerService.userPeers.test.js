@@ -192,6 +192,59 @@ describe('syncUserPeer()', () => {
 // readPeerHandshakes()
 // =============================================================================
 
+describe('IPv6 for full-tunnel clients (WG_IPV6)', () => {
+  const PUB = 'dXNlclB1YmxpY0tleUJhc2U2NEVuY29kZWRBQUE=';
+  const on = (subnet = 'fd99:7669:6761::/64') => { config.wireguard.ipv6Enabled = true; config.wireguard.clientSubnetV6 = subnet; };
+  afterEach(() => { delete config.wireguard.ipv6Enabled; delete config.wireguard.clientSubnetV6; });
+
+  test('off by default: no IPv6 address, the peer keeps its /32 only', async () => {
+    expect(service.userTunnelIp6('10.99.0.2')).toBeNull();
+    expect(service.clientSubnetV6()).toBeNull();
+  });
+
+  test('the IPv6 address is the prefix plus the IPv4 address as two hex groups', () => {
+    on();
+    expect(service.userTunnelIp6('10.99.0.2')).toBe('fd99:7669:6761:0::a63:2');
+    expect(service.userTunnelIp6('10.99.255.254')).toBe('fd99:7669:6761:0::a63:fffe');
+    expect(service.clientSubnetV6()).toBe('fd99:7669:6761:0::/64');
+    // Distinct IPv4 addresses can never share an IPv6 one.
+    expect(service.userTunnelIp6('10.99.1.0')).not.toBe(service.userTunnelIp6('10.99.0.1'));
+    expect(service.userTunnelIp6('not-an-ip')).toBeNull();
+  });
+
+  test.each(['fd99::/48', 'fd99:1:2:3:4::/64', 'fd99:zz::/64', '10.0.0.0/8', '', 'fd99::1/64; drop'])(
+    'a pool that is not "prefix::/64" (%s) turns IPv6 off instead of reaching a command', (bad) => {
+      on(bad);
+      expect(service.userTunnelIp6('10.99.0.2')).toBeNull();
+      expect(service.clientSubnetV6()).toBeNull();
+    });
+
+  test('the hub lets the peer send from its IPv4 /32 and its IPv6 /128', async () => {
+    on();
+    await service.syncUserPeer({ publicKey: PUB, tunnelIp: '10.99.0.7' });
+    expect(execFile).toHaveBeenCalledWith(
+      'wg',
+      ['set', 'wg-clients', 'peer', PUB, 'allowed-ips', '10.99.0.7/32,fd99:7669:6761:0::a63:7/128'],
+      { encoding: 'utf8' },
+      expect.any(Function),
+    );
+  });
+
+  test('the firewall NATs client IPv6 out, never towards a NAS, and only when IPv6 is on', async () => {
+    const { writeFileSync } = require('fs');
+    failOnce('table not found'); okOnce();
+    await service.ensureBaseFirewall();
+    expect(writeFileSync.mock.calls[0][1]).not.toMatch(/ip6 saddr/);
+
+    writeFileSync.mockClear();
+    on();
+    failOnce('table not found'); okOnce();
+    await service.ensureBaseFirewall();
+    expect(writeFileSync.mock.calls[0][1])
+      .toContain('ip6 saddr fd99:7669:6761:0::/64 oifname != { "wg-clients", "wg-fireisp" } masquerade');
+  });
+});
+
 describe('readPeerHandshakes()', () => {
   const IFACE = 'wg-clients';
   const PEER1 = 'UGVlcjFQdWJsaWNLZXlCYXNlNjQ=';

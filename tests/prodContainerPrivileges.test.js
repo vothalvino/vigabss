@@ -18,7 +18,11 @@ describe('production container least privilege', () => {
     const app = base.services.app;
     expect(app).not.toHaveProperty('user');
     expect(app).not.toHaveProperty('cap_add');
-    expect(app.sysctls).toEqual({ 'net.ipv4.ip_forward': '1' });
+    // Both are namespaced sysctls of the app's own network namespace: the
+    // WireGuard hub forwards there (IPv6 only when WG_IPV6 is on).
+    expect(app.sysctls).toEqual({ 'net.ipv4.ip_forward': '1', 'net.ipv6.conf.all.forwarding': '1' });
+    // IPv6 on the hub's network is opt-in.
+    expect(base.networks.frontend.enable_ipv6).toBe('${WG_IPV6:-false}');
     expect(app.environment.WG_SERVER_ENABLED).toBe('false');
     expect(app.volumes).not.toContain('wg_keys:/etc/wireguard');
     expect(app.volumes).toContain('wg_runtime:/run/fireisp-wireguard:ro');

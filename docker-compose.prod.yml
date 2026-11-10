@@ -39,6 +39,11 @@ x-logging: &default-logging
 networks:
   frontend:        # nginx ↔ app
     driver: bridge
+    # WG_IPV6=true gives the WireGuard hub (it shares the app's network) an
+    # IPv6 route out, so full-tunnel clients get IPv6 as well as IPv4. Docker
+    # picks a private IPv6 subnet and NATs it through the host's address.
+    # Changing this recreates the network on the next deploy.
+    enable_ipv6: ${WG_IPV6:-false}
   backend:         # app ↔ db-primary, db-replica, redis
     driver: bridge
     internal: true # db and redis are not reachable from outside the host
@@ -259,6 +264,9 @@ services:
     # does not grant the app process permission to alter routes or interfaces.
     sysctls:
       net.ipv4.ip_forward: '1'
+      # The WireGuard hub forwards client IPv6 when WG_IPV6=true; harmless
+      # otherwise (nothing sends IPv6 through this container).
+      net.ipv6.conf.all.forwarding: '1'
     networks:
       - frontend
       - backend
@@ -302,6 +310,8 @@ services:
       # new DB setting, then the GUI becomes authoritative.
       WG_LEGACY_SERVER_ENABLED: ${WG_SERVER_ENABLED-__unset__}
       WG_HELPER_SOCKET:      /run/fireisp-wireguard/helper.sock
+      WG_IPV6:               ${WG_IPV6:-false}
+      WG_CLIENT_SUBNET_V6:   ${WG_CLIENT_SUBNET_V6:-fd99:7669:6761::/64}
       # "A newer build is available" banner for the install operator. ON by
       # default so a fresh install works with no configuration. This is the only
       # outbound request VigaBSS makes on its own behalf: an unauthenticated
@@ -384,6 +394,8 @@ services:
       WG_CLIENT_INTERFACE: ${WG_CLIENT_INTERFACE:-wg-clients}
       WG_CLIENT_SUBNET: ${WG_CLIENT_SUBNET:-10.99.0.0/16}
       WG_CLIENT_LISTEN_PORT: ${WG_CLIENT_LISTEN_PORT:-51821}
+      WG_IPV6: ${WG_IPV6:-false}
+      WG_CLIENT_SUBNET_V6: ${WG_CLIENT_SUBNET_V6:-fd99:7669:6761::/64}
       WG_HELPER_SOCKET: /run/fireisp-wireguard/helper.sock
     volumes:
       - wg_keys:/etc/wireguard
