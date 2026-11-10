@@ -114,6 +114,17 @@ Settlement is idempotent per transaction (the second delivery answers
    **Webhook Secret** field in Settings and save.
 5. Send a test event from Stripe; it should return `200 {received:true}`.
 
+VigaBSS sends a fixed `Stripe-Version` with every Stripe API call (override it
+with `STRIPE_API_VERSION` only if Stripe retires the built-in one), so the
+account's default API version does not matter. Webhook events use the version
+of the webhook endpoint; any current version works.
+
+When a Stripe payment settles, VigaBSS reads the charge to learn how it was
+really paid (credit card, debit card, OXXO or bank transfer) and records that
+method, which sets the SAT forma de pago on the payment receipt (REP). If
+Stripe cannot be reached at that moment the payment is still recorded, as a
+card payment unless OXXO was the only method offered.
+
 **Conekta setup.** Conekta does not use a shared secret. Create a webhook key
 once with `POST https://api.conekta.io/webhook_keys` (body `{"active": true}`,
 authenticated with your private API key). The response contains `public_key`, a

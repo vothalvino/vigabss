@@ -167,6 +167,8 @@ describe('paymentGatewayService', () => {
       });
 
       expect(spy.mock.calls[0][0].headers['Idempotency-Key']).toBe('recurring:1:50:20261030');
+      // Every Stripe call names its API version instead of using the account default.
+      expect(spy.mock.calls[0][0].headers['Stripe-Version']).toMatch(/^\d{4}-\d{2}-\d{2}\.[a-z]+$/);
       spy.mockRestore();
     });
 

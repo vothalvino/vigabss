@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Stripe calls name their API version.** Every Stripe request now sends a
+  fixed `Stripe-Version`, so a new Stripe account or a dashboard upgrade
+  cannot change how the integration behaves. `STRIPE_API_VERSION` overrides
+  it.
+- **A Stripe payment is recorded with the method really used.** With cards
+  and OXXO both offered at checkout, an OXXO payment used to be saved as a
+  card payment, which put the wrong SAT forma de pago on the payment receipt
+  (REP). The method is now read from the Stripe charge: credit card, debit
+  card, OXXO or bank transfer.
 - **The Helm chart is published to GitHub Container Registry.** Each version
   now has one tag and one GitHub release (`vX.Y.Z`). Before, the chart
   publisher also made a `vigabss-X.Y.Z` tag and release that held only the

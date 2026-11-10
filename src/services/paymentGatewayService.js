@@ -19,6 +19,13 @@ const { PaymentGatewayError, ValidationError, AppError } = require('../utils/err
 // Default idempotency key TTL: 24 hours
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Every Stripe call names its API version, so the behaviour is the one this
+// code was written against and not whatever the Stripe account's default
+// happens to be (a new account or a dashboard upgrade changes that default).
+// Webhook events are rendered in the version of the webhook endpoint instead;
+// the handlers only read fields that are stable across versions.
+const STRIPE_API_VERSION = process.env.STRIPE_API_VERSION || '2025-09-30.clover';
+
 // Circuit breaker for external payment gateway calls (Stripe, Conekta)
 const paymentCircuitBreaker = createCircuitBreaker({
   name: 'PaymentGateway',
@@ -306,6 +313,7 @@ async function chargeStripe(gateway, amount, currency, description, paymentMetho
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secretKey}`,
+        'Stripe-Version': STRIPE_API_VERSION,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body),
         // Stripe dedupes a repeated request with the same key, so a second
@@ -373,6 +381,7 @@ async function createStripeCheckoutSession(gateway, { amount, currency, descript
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secretKey}`,
+        'Stripe-Version': STRIPE_API_VERSION,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body),
       },
@@ -478,15 +487,15 @@ async function createConektaCheckoutSession(gateway, { amount, currency, descrip
 }
 
 // --- Stripe REST helper (shared by the autopay-enrollment calls) ---
-function stripeRequest(secretKey, method, path, body) {
+function stripeRequest(secretKey, method, path, body, timeout = 30000) {
   const https = require('https');
   return new Promise((resolve, reject) => {
-    const headers = { Authorization: `Bearer ${secretKey}` };
+    const headers = { Authorization: `Bearer ${secretKey}`, 'Stripe-Version': STRIPE_API_VERSION };
     if (body) {
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
       headers['Content-Length'] = Buffer.byteLength(body);
     }
-    const req = https.request({ hostname: 'api.stripe.com', path, method, headers, timeout: 30000 }, (res) => {
+    const req = https.request({ hostname: 'api.stripe.com', path, method, headers, timeout }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {
@@ -651,6 +660,7 @@ async function refundStripe(gateway, tx, amountMinor) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secretKey}`,
+        'Stripe-Version': STRIPE_API_VERSION,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body),
       },
@@ -1350,12 +1360,14 @@ function parseJsonColumn(value) {
 /**
  * Map a captured gateway transaction to a payments.payment_method value (ENUM
  * in database/schema.sql). The method drives the SAT forma de pago stamped on
- * the REP, so prefer what the provider actually reports in the success payload:
- * Conekta's charge payment_method (card credit/debit, OXXO cash, SPEI) and a
- * Stripe session/intent restricted to OXXO. Everything else captured by a card
- * processor is a card payment.
+ * the REP, so prefer what the provider actually reports: Conekta's charge
+ * payment_method in the success payload (card credit/debit, OXXO cash, SPEI),
+ * and for Stripe the method read from the charge itself (`stripeMethod`, see
+ * fetchStripePaymentMethod). Without that, a Stripe payload only says which
+ * methods were OFFERED, so it counts as OXXO only when OXXO was the one method
+ * offered; everything else captured by a card processor is a card payment.
  */
-function resolveGatewayPaymentMethod(provider, webhookPayload) {
+function resolveGatewayPaymentMethod(provider, webhookPayload, stripeMethod = null) {
   const obj = parseJsonColumn(webhookPayload)?.data?.object || {};
   if (provider === 'conekta') {
     const pm = obj.charges?.data?.[0]?.payment_method || obj.payment_method || {};
@@ -1367,12 +1379,68 @@ function resolveGatewayPaymentMethod(provider, webhookPayload) {
     return 'card';
   }
   if (provider === 'stripe') {
+    if (stripeMethod) return stripeMethod;
     const types = Array.isArray(obj.payment_method_types) ? obj.payment_method_types : [];
     if (types.length === 1 && types[0] === 'oxxo') return 'oxxo_pay';
     return 'card';
   }
   if (provider === 'manual') return 'other';
   return 'online';
+}
+
+/**
+ * Map the payment_method_details of a Stripe charge to a payments.payment_method
+ * value, or null when the type is not one we tell apart.
+ */
+function stripeMethodFromDetails(details) {
+  if (!details || typeof details !== 'object') return null;
+  if (details.type === 'oxxo') return 'oxxo_pay';
+  // A bank transfer (SPEI in Mexico) settles through the customer balance.
+  if (details.type === 'customer_balance') return 'spei';
+  if (details.type === 'card') {
+    const funding = details.card?.funding;
+    if (funding === 'credit') return 'credit_card';
+    if (funding === 'debit') return 'debit_card';
+    return 'card';
+  }
+  return null;
+}
+
+/**
+ * Ask Stripe how a succeeded transaction was actually paid. A Checkout Session
+ * or PaymentIntent payload lists every method that was offered (card and OXXO,
+ * say), not the one the customer used; only the charge says that. Best effort:
+ * any problem (not a Stripe transaction, no pi_ reference yet, Stripe
+ * unreachable) returns null and the caller falls back to the payload.
+ *
+ * Runs BEFORE reconcilePayment opens its transaction, so no row lock is held
+ * across the network call.
+ */
+async function fetchStripePaymentMethod(transactionId) {
+  try {
+    const [rows] = await db.query(
+      `SELECT pt.gateway_reference_id, pg.secret_key_encrypted
+         FROM payment_transactions pt
+         JOIN payment_gateways pg ON pg.id = pt.payment_gateway_id AND pg.organization_id = pt.organization_id
+                                 AND pg.deleted_at IS NULL
+        WHERE pt.id = ? AND pt.payment_id IS NULL AND pt.gateway_status = 'succeeded' AND pg.provider = 'stripe'
+        LIMIT 1`,
+      [transactionId],
+    );
+    const row = rows?.[0];
+    if (!row || !row.secret_key_encrypted) return null;
+    const ref = String(row.gateway_reference_id || '');
+    if (!/^pi_[A-Za-z0-9_]+$/.test(ref)) return null;
+    const data = await stripeRequest(
+      decrypt(row.secret_key_encrypted), 'GET',
+      `/v1/payment_intents/${encodeURIComponent(ref)}?expand[]=latest_charge`, null, 10000,
+    );
+    const charge = data.latest_charge;
+    return stripeMethodFromDetails(charge && typeof charge === 'object' ? charge.payment_method_details : null);
+  } catch (err) {
+    logger.warn({ transactionId, err: err.message }, 'Could not read the payment method from Stripe; using the webhook payload');
+    return null;
+  }
 }
 
 /**
@@ -1409,6 +1477,8 @@ async function reconcilePayment(transactionId) {
   const paymentAllocationService = require('./paymentAllocationService');
   const billingService = require('./billingService');
 
+  const stripeMethod = await fetchStripePaymentMethod(transactionId);
+
   const conn = await db.getConnection();
   let posted;
   try {
@@ -1440,7 +1510,7 @@ async function reconcilePayment(transactionId) {
       [tx.payment_gateway_id, orgId],
     );
     const provider = gwRows[0]?.provider || null;
-    const paymentMethod = resolveGatewayPaymentMethod(provider, tx.webhook_payload);
+    const paymentMethod = resolveGatewayPaymentMethod(provider, tx.webhook_payload, stripeMethod);
     const { FORMA_PAGO_BY_METHOD } = require('./repService');
 
     // Target invoices, locked: the linked invoice only (still payable, same
@@ -1814,6 +1884,8 @@ module.exports = {
   listRefundedPaymentsWithLiveRep,
   isAllowedGatewayTransition,
   resolveGatewayPaymentMethod,
+  stripeMethodFromDetails,
+  STRIPE_API_VERSION,
   reconcilePayment,
   reverseRefund,
   reconcileOutstandingTransactions,
