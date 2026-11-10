@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Change your own password.** A signed-in user had no place to change
+  their password; only the forced change at first login and the reset link
+  existed. There is now a **Change password** link under your name in the
+  staff sidebar and in the header of the reseller, collector and carrier
+  apps. It asks for the current password and the new one, then signs you out
+  everywhere so you sign in again.
 - **Stripe calls name their API version.** Every Stripe request now sends a
   fixed `Stripe-Version`, so a new Stripe account or a dashboard upgrade
   cannot change how the integration behaves. `STRIPE_API_VERSION` overrides

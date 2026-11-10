@@ -22,6 +22,7 @@ import { PortalRoute } from '@/auth/PortalRoute';
 import { PortalLayout } from '@/components/PortalLayout';
 import { PuntoRoute } from '@/auth/PuntoRoute';
 import { RutaRoute } from '@/auth/RutaRoute';
+import { ChangePasswordRoute } from '@/auth/ChangePasswordRoute';
 import { NotFound } from '@/pages/NotFound';
 import { LoadingState } from '@/components/FetchStates';
 import { DarkModeProvider } from '@/auth/DarkModeContext';
@@ -242,6 +243,8 @@ export function App() {
             <Routes>
               {/* Public */}
               <Route path="/login" element={<Login />} />
+              {/* Any signed-in account changes its own password here. */}
+              <Route path="/change-password" element={<ChangePasswordRoute />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />

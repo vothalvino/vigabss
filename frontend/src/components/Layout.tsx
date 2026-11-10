@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, type ChangeEvent, Suspense } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/auth/AuthContext';
@@ -443,6 +443,9 @@ export function Layout() {
             </button>
             <span className="sidebar-changelog"><ChangelogPanel /></span>
           </div>
+          <Link to="/change-password" className="sidebar-change-password">
+            {t('changePassword.link')}
+          </Link>
           <button onClick={handleLogout} className="sidebar-signout">
             {t('common.signOut')}
           </button>

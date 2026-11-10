@@ -11,7 +11,7 @@
 // =============================================================================
 
 import { Suspense, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
@@ -95,6 +95,7 @@ export function RutaLayout() {
         </div>
         <div className="punto-header-row">
           <span className="punto-header-sub">{t('ruta.layout.subtitle')}</span>
+          <Link to="/change-password" className="punto-header-link">{t('changePassword.link')}</Link>
           <LanguageSwitcher style={{ maxWidth: 120, fontSize: '0.78rem', padding: '2px 4px' }} />
         </div>
       </header>
