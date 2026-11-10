@@ -2120,6 +2120,12 @@
     "sameAsCurrent": "Escolha uma senha diferente da atual.",
     "failed": "Não foi possível alterar a senha."
   },
+  "changePassword": {
+    "title": "Altere sua senha",
+    "intro": "Altere a senha de {{email}}. Sua sessão será encerrada em todos os dispositivos e você entrará de novo com a nova senha.",
+    "cancel": "Cancelar",
+    "link": "Alterar senha"
+  },
   "refundRequests": {
     "title": "Solicitações de Reembolso",
     "newRequest": "Nova Solicitação de Reembolso",

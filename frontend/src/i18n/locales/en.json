@@ -2120,6 +2120,12 @@
     "sameAsCurrent": "Choose a password different from the current one.",
     "failed": "The password could not be changed."
   },
+  "changePassword": {
+    "title": "Change your password",
+    "intro": "Change the password for {{email}}. You will be signed out on every device and sign in again with the new one.",
+    "cancel": "Cancel",
+    "link": "Change password"
+  },
   "refundRequests": {
     "title": "Refund Requests",
     "newRequest": "New Refund Request",

@@ -6,6 +6,10 @@
 // (403 PASSWORD_CHANGE_REQUIRED, migration 480), so PrivateRoute renders this
 // screen instead of the app. Changing the password revokes every session, so
 // the user signs in again with the new one.
+//
+// The same form serves a user who chooses to change their password: the
+// /change-password page (ChangePasswordRoute) renders it with `voluntary`,
+// which only changes the heading and offers Cancel in place of Log out.
 // =============================================================================
 
 import { useState, type FormEvent } from 'react';
@@ -14,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
 import { useAuth } from './AuthContext';
 
-export function ForcePasswordChange() {
+export function ForcePasswordChange({ voluntary = false }: { voluntary?: boolean } = {}) {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -54,9 +58,9 @@ export function ForcePasswordChange() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 16 }}>
       <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 400, background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 10, padding: 24 }}>
-        <h1 style={{ fontSize: 20, margin: '0 0 8px' }}>{t('forcePasswordChange.title')}</h1>
+        <h1 style={{ fontSize: 20, margin: '0 0 8px' }}>{t(voluntary ? 'changePassword.title' : 'forcePasswordChange.title')}</h1>
         <p style={{ fontSize: 14, color: 'var(--text-muted, #6b7280)', margin: '0 0 16px' }}>
-          {t('forcePasswordChange.intro', { email: user?.email ?? '' })}
+          {t(voluntary ? 'changePassword.intro' : 'forcePasswordChange.intro', { email: user?.email ?? '' })}
         </p>
         {error && <div role="alert" style={{ background: '#fee2e2', color: '#991b1b', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14 }}>{error}</div>}
         <label htmlFor="fpc-current" style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{t('forcePasswordChange.current')}</label>
@@ -66,8 +70,8 @@ export function ForcePasswordChange() {
         <label htmlFor="fpc-confirm" style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{t('forcePasswordChange.confirm')}</label>
         <input id="fpc-confirm" type="password" autoComplete="new-password" required style={input} value={confirm} onChange={e => setConfirm(e.target.value)} />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <button type="button" onClick={() => { void logout(); }} style={{ background: 'none', border: 'none', color: 'var(--accent, #2563eb)', cursor: 'pointer', padding: 0 }}>
-            {t('forcePasswordChange.logout')}
+          <button type="button" onClick={() => { if (voluntary) navigate(-1); else void logout(); }} style={{ background: 'none', border: 'none', color: 'var(--accent, #2563eb)', cursor: 'pointer', padding: 0 }}>
+            {t(voluntary ? 'changePassword.cancel' : 'forcePasswordChange.logout')}
           </button>
           <button type="submit" disabled={saving} style={{ padding: '9px 20px', background: '#1a5276', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>
             {saving ? t('common.saving') : t('forcePasswordChange.submit')}

@@ -54,6 +54,14 @@
   color: var(--text-secondary);
 }
 
+.punto-header-link {
+  margin-left: auto;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
 .punto-main {
   flex: 1;
   width: 100%;

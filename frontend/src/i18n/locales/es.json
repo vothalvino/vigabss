@@ -2120,6 +2120,12 @@
     "sameAsCurrent": "Elige una contraseña distinta de la actual.",
     "failed": "No se pudo cambiar la contraseña."
   },
+  "changePassword": {
+    "title": "Cambia tu contraseña",
+    "intro": "Cambia la contraseña de {{email}}. Se cerrará tu sesión en todos los dispositivos y entrarás de nuevo con la nueva.",
+    "cancel": "Cancelar",
+    "link": "Cambiar contraseña"
+  },
   "refundRequests": {
     "title": "Solicitudes de Reembolso",
     "newRequest": "Nueva Solicitud de Reembolso",
