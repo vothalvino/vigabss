@@ -12,7 +12,7 @@ describe('VigaBSS release identity', () => {
   it('uses the first alpha SemVer selected for the pre-launch release', () => {
     expect(product).toMatchObject({
       name: 'VigaBSS',
-      version: '0.1.0-alpha.20',
+      version: '0.1.0-alpha.21',
       releaseChannel: 'alpha',
     });
   });

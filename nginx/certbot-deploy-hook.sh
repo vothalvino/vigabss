@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # =============================================================================
-# VigaBSS 0.1.0-alpha.20 — Certbot deploy hook
+# VigaBSS 0.1.0-alpha.21 — Certbot deploy hook
 #
 # Automatically called by `certbot renew` when a certificate is successfully
 # renewed.  Copies the renewed certificate and private key into the

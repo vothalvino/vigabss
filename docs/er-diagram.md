@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.20 — Entity-Relationship Diagram
+# VigaBSS 0.1.0-alpha.21 — Entity-Relationship Diagram
 
 > Auto-generated from `database/schema.sql` (101 tables, MySQL 8.4+ / MariaDB 10.6+).
 >
