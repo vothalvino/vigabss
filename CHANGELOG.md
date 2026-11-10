@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.20 — 2026-11-10
+
 - **Change your own password.** A signed-in user had no place to change
   their password; only the forced change at first login and the reset link
   existed. There is now a **Change password** link under your name in the

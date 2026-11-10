@@ -1,6 +1,6 @@
 # TLS Setup Guide
 
-VigaBSS 0.1.0-alpha.19 ships with a production-ready Nginx reverse proxy that enforces
+VigaBSS 0.1.0-alpha.20 ships with a production-ready Nginx reverse proxy that enforces
 HTTPS.  This guide covers four ways to provision TLS certificates:
 
 | Method | Use case |
