@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **WireGuard full tunnels can carry IPv6.** With `WG_IPV6=true` in
+  `.env.prod`, each full tunnel gets an IPv6 address next to its IPv4 one
+  and reaches the IPv6 internet through the server. It is off by default.
+  The server needs working IPv6 and Docker 27 or newer, and the first deploy
+  after turning it on recreates the app's Docker network. A tunnel created
+  before keeps working on IPv4 until its owner downloads the configuration
+  or scans the QR code again. See docs/wireguard-setup.md.
 ## 0.1.0-alpha.20 — 2026-11-10
 
 - **Change your own password.** A signed-in user had no place to change

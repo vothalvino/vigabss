@@ -252,6 +252,38 @@ describe('buildConfig()', () => {
     expect(iface).toContain('DNS        = 1.1.1.1, 9.9.9.9');
   });
 
+  describe('IPv6 (WG_IPV6)', () => {
+    afterEach(() => { wireguardServerService.userTunnelIp6.mockReset(); });
+
+    test('a full tunnel gets the IPv6 address next to the IPv4 one, and IPv6 resolvers', () => {
+      wireguardServerService.userTunnelIp6.mockReturnValue('fd99:7669:6761:0::a63:5');
+      const saved = config.wireguard.clientDnsV6;
+      try {
+        config.wireguard.clientDnsV6 = '2606:4700:4700::1111, 9.9.9.9, nonsense';
+        const iface = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 1 }, 'KEY==', []).split('[Peer]')[0];
+        expect(iface).toContain('Address    = 10.99.0.5/32, fd99:7669:6761:0::a63:5/128');
+        // Only real IPv6 addresses are added, after the IPv4 resolvers.
+        expect(iface).toContain('DNS        = 1.1.1.1, 9.9.9.9, 2606:4700:4700::1111');
+        expect(wireguardServerService.userTunnelIp6).toHaveBeenCalledWith('10.99.0.5');
+      } finally {
+        config.wireguard.clientDnsV6 = saved;
+      }
+    });
+
+    test('a split tunnel stays IPv4 only', () => {
+      wireguardServerService.userTunnelIp6.mockReturnValue('fd99:7669:6761:0::a63:5');
+      const conf = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 0 }, 'KEY==', ['10.1.0.0/16']);
+      expect(conf).toContain('Address    = 10.99.0.5/32\n');
+      expect(conf).not.toContain('fd99');
+    });
+
+    test('IPv6 off: the config is the IPv4 one', () => {
+      const iface = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 1 }, 'KEY==', []).split('[Peer]')[0];
+      expect(iface).toContain('Address    = 10.99.0.5/32\n');
+      expect(iface).toContain('DNS        = 1.1.1.1, 9.9.9.9\n');
+    });
+  });
+
   test('split tunnel keeps the device resolver (no DNS line)', () => {
     const conf = userTunnelService.buildConfig({ ...mockPeer, full_tunnel: 0 }, 'KEY==', ['10.1.0.0/16']);
     expect(conf).not.toMatch(/^DNS/m);

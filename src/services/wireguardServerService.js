@@ -46,6 +46,7 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const net = require('net');
 
 const config = require('../config');
 const db = require('../config/database');
@@ -338,6 +339,43 @@ async function removePeer({ publicKey, subnets = [] }) {
 // =============================================================================
 
 /**
+ * The first four groups of WG_CLIENT_SUBNET_V6 (a /64 written as
+ * "fdxx:…::/64"), or null when IPv6 is off or the value is not such a prefix.
+ * A bad value turns IPv6 off instead of handing out unusable addresses.
+ */
+function clientPrefixV6() {
+  if (!config.wireguard.ipv6Enabled) return null;
+  const m = /^([0-9a-f:]+)::\/64$/i.exec(String(config.wireguard.clientSubnetV6 || '').trim());
+  if (!m) return null;
+  const groups = m[1].split(':');
+  if (groups.length > 4 || !groups.every((g) => /^[0-9a-f]{1,4}$/i.test(g))) return null;
+  while (groups.length < 4) groups.push('0');
+  return groups.join(':').toLowerCase();
+}
+
+/**
+ * The IPv6 address that goes with a user tunnel's IPv4 address, or null when
+ * IPv6 is off. It is the IPv6 prefix followed by the IPv4 address as two hex
+ * groups (10.99.0.2 -> <prefix>::a63:2), so it needs no column and no
+ * allocation of its own: unique IPv4 addresses give unique IPv6 ones.
+ *
+ * @param {string} tunnelIp dotted-quad IPv4
+ * @returns {string|null}
+ */
+function userTunnelIp6(tunnelIp) {
+  const prefix = clientPrefixV6();
+  if (!prefix || net.isIP(String(tunnelIp)) !== 4) return null;
+  const n = ipToInt(tunnelIp);
+  return `${prefix}::${((n >>> 16) & 0xffff).toString(16)}:${(n & 0xffff).toString(16)}`;
+}
+
+/** The IPv6 pool as a CIDR for firewall rules, or null when IPv6 is off. */
+function clientSubnetV6() {
+  const prefix = clientPrefixV6();
+  return prefix ? `${prefix}::/64` : null;
+}
+
+/**
  * Allocate the lowest free host address in the user client tunnel pool.
  *
  * Reads all currently-live `tunnel_address` values from `wg_user_peers` and
@@ -387,6 +425,9 @@ async function syncUserPeer({ publicKey, tunnelIp, presharedKey = null }) {
 
   const iface = config.wireguard.clientInterface;
   logger.info({ iface, tunnelIp }, 'wg syncUserPeer');
+  // With IPv6 on, the peer may also send from its one IPv6 address (/128).
+  const ip6 = userTunnelIp6(tunnelIp);
+  const allowedIps = ip6 ? `${tunnelIp}/32,${ip6}/128` : `${tunnelIp}/32`;
 
   let pskFile = null;
   try {
@@ -396,12 +437,12 @@ async function syncUserPeer({ publicKey, tunnelIp, presharedKey = null }) {
       await execFileAsync('wg', [
         'set', iface, 'peer', publicKey,
         'preshared-key', pskFile,
-        'allowed-ips', `${tunnelIp}/32`,
+        'allowed-ips', allowedIps,
       ]);
     } else {
       await execFileAsync('wg', [
         'set', iface, 'peer', publicKey,
-        'allowed-ips', `${tunnelIp}/32`,
+        'allowed-ips', allowedIps,
       ]);
     }
   } finally {
@@ -586,6 +627,11 @@ async function ensureBaseFirewall() {
     `    ip saddr ${clientSubnet} oifname "${serverIface}" masquerade`,
     '    # MASQUERADE full-tunnel clients internet traffic out the WAN',
     `    ip saddr ${clientSubnet} oifname != { "${clientIface}", "${serverIface}" } masquerade`,
+    // IPv6 (WG_IPV6): the clients use private addresses, so they leave through
+    // the hub's own IPv6 address like IPv4 does. Never towards a NAS.
+    ...(clientSubnetV6()
+      ? [`    ip6 saddr ${clientSubnetV6()} oifname != { "${clientIface}", "${serverIface}" } masquerade`]
+      : []),
     '  }',
     '}',
   ].join('\n');
@@ -976,6 +1022,22 @@ async function bootstrapHost() {
     logger.warn({ err: err.message }, 'wireguardServerService: enable ip_forward failed (non-fatal)');
   }
 
+  // IPv6 for full-tunnel clients (WG_IPV6): the hub takes the pool's first
+  // address, the one that goes with its IPv4 address. This fails when the
+  // container has no IPv6 (its Docker network was created without it), which
+  // only means IPv6 traffic from clients goes nowhere; IPv4 is unaffected.
+  const hubIp6 = clientPub ? userTunnelIp6(intToIp(subnetToRange(config.wireguard.clientSubnet).network + 1)) : null;
+  if (hubIp6) {
+    await runBestEffort('ip', ['-6', 'address', 'add', `${hubIp6}/64`, 'dev', config.wireguard.clientInterface], 'IPv6 address wg-clients');
+    try {
+      fs.writeFileSync('/proc/sys/net/ipv6/conf/all/forwarding', '1');
+    } catch (err) {
+      // Normal in the container: /proc/sys is read-only there and the compose
+      // file sets the sysctl instead.
+      logger.debug({ err: err.message }, 'wireguardServerService: enable IPv6 forwarding by /proc failed');
+    }
+  }
+
   // Install the base nftables ruleset (idempotent; no-op when already present).
   try {
     await ensureBaseFirewall();
@@ -1045,4 +1107,6 @@ module.exports = {
 
   // Derived addressing
   serverTunnelIp,
+  userTunnelIp6,
+  clientSubnetV6,
 };

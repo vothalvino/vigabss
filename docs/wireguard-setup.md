@@ -169,4 +169,20 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
   public resolvers: `WG_CLIENT_DNS`, a comma-separated list of IP addresses, default
   `1.1.1.1, 9.9.9.9`; set it empty to leave the line out. Split tunnels keep the
   device's own resolver.
+- **IPv6 on a full tunnel (optional).** By default a tunnel carries IPv4 only. A
+  full-tunnel configuration still routes `::/0` into the tunnel so the device's real
+  IPv6 address cannot leak around it, which means IPv6 does not work while connected.
+  Set `WG_IPV6=true` in `.env.prod` and redeploy to give full tunnels IPv6 as well:
+
+  - each tunnel gets one IPv6 address from `WG_CLIENT_SUBNET_V6` (a private `/64`,
+    default `fd99:7669:6761::/64`), derived from its IPv4 address;
+  - the hub NATs that traffic out through the server's IPv6 address, as it does for
+    IPv4. The same switch gives the app's Docker network IPv6, so the first deploy
+    after changing it recreates that network;
+  - `WG_CLIENT_DNS_V6` (default `2606:4700:4700::1111, 2620:fe::fe`) is added to the
+    configuration's DNS line.
+
+  The server itself needs working IPv6, and Docker 27 or newer. A tunnel created
+  before the switch keeps working on IPv4; its owner gets IPv6 by downloading the
+  configuration, or scanning its QR code, again. Split tunnels stay IPv4 only.
 
