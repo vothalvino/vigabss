@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Sorting works on the Overdue invoice filter.** Clicking a column header
+  while the Invoices list was filtered to Overdue did nothing; the list now
+  sorts by the chosen column. The default is still longest overdue first.
+
 ## 0.1.0-alpha.21 — 2026-11-10
 
 - **WireGuard full tunnels can carry IPv6.** With `WG_IPV6=true` in

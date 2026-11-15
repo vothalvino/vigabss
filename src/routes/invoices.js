@@ -361,8 +361,12 @@ router.get('/', requirePermission('invoices.view'), async (req, res, next) => {
     const offset = (page - 1) * limit;
     const WHERE = `WHERE organization_id = ? AND deleted_at IS NULL
         AND status IN ('issued', 'sent', 'overdue') AND due_date < ${sqlBusinessToday()}`;
+    // Honour the list's sort like the generic path does; the column is checked
+    // against the model's allow-list. Default: longest overdue first.
+    const sortCol = Invoice.sortable.includes(req.query.order_by) ? req.query.order_by : 'due_date';
+    const sortDir = String(req.query.order || '').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
     const [rows] = await db.query(
-      `SELECT * FROM invoices ${WHERE} ORDER BY due_date ASC LIMIT ${limit} OFFSET ${offset}`,
+      `SELECT * FROM invoices ${WHERE} ORDER BY \`${sortCol}\` ${sortDir}, id ${sortDir} LIMIT ${limit} OFFSET ${offset}`,
       [req.orgId],
     );
     const [[{ total }]] = await db.query(
