@@ -92,12 +92,16 @@ const PRICE_TABLE = {
   'gpt-4-turbo':      0.01,
   'gpt-4':            0.03,
   'gpt-3.5-turbo':    0.0005,
-  // Anthropic
-  'claude-3-5-sonnet-20241022': 0.003,
-  'claude-3-5-haiku-20241022':  0.0008,
-  'claude-3-opus-20240229':     0.015,
-  'claude-3-sonnet-20240229':   0.003,
-  'claude-3-haiku-20240307':    0.00025,
+  // Anthropic — input and output are priced apart (USD per 1 000 tokens).
+  // A reply is mostly output and a classification mostly input, so one blended
+  // figure misstated both; the budget cap reads these numbers.
+  'claude-haiku-5-5':  { input: 0.0001, output: 0.0005 },
+  'claude-sonnet-5-5': { input: 0.002,  output: 0.01 },
+  'claude-opus-5-5':   { input: 0.004,  output: 0.02 },
+  'claude-fable-5-2':  { input: 0.008,  output: 0.04 },
+  'claude-sonnet-5':   { input: 0.002,  output: 0.01 },
+  'claude-opus-5':     { input: 0.005,  output: 0.025 },
+  'claude-haiku-4-5':  { input: 0.001,  output: 0.005 },
   // Google
   'gemini-1.5-pro':   0.00125,
   'gemini-1.5-flash': 0.000075,
@@ -129,8 +133,10 @@ function _computeCost(kind, model, promptTokens, completionTokens) {
     return 0;
   }
 
-  const totalTokens = (promptTokens || 0) + (completionTokens || 0);
-  return Math.round((totalTokens / 1000) * pricePerK * COST_PRECISION_MULTIPLIER) / COST_PRECISION_MULTIPLIER;
+  const usd = typeof pricePerK === 'object'
+    ? ((promptTokens || 0) / 1000) * pricePerK.input + ((completionTokens || 0) / 1000) * pricePerK.output
+    : (((promptTokens || 0) + (completionTokens || 0)) / 1000) * pricePerK;
+  return Math.round(usd * COST_PRECISION_MULTIPLIER) / COST_PRECISION_MULTIPLIER;
 }
 
 /**
@@ -150,7 +156,16 @@ function _parseJson(text) {
   try {
     return JSON.parse(stripped);
   } catch {
-    return null;
+    // A model sometimes wraps the object in a sentence. Take the outermost
+    // {...} rather than discarding an answer that is there.
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    if (start === -1 || end <= start) return null;
+    try {
+      return JSON.parse(stripped.slice(start, end + 1));
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -229,6 +244,14 @@ async function _callOpenAI(provider, apiKey, messages, jsonSchema, signal) {
   };
 }
 
+// Claude models from 4.6 on think before they answer, and that thinking is
+// billed and counted against max_tokens together with the reply. The provider
+// row's max_tokens (default 800) was sized for the reply alone, so it is kept
+// as the reply allowance and this much is added for the thinking; `effort: low`
+// keeps the thinking short, which suits support replies and classification.
+const ANTHROPIC_THINKING_HEADROOM = 4096;
+const ANTHROPIC_EFFORT_MODELS = /^claude-(?:(?:fable|mythos|opus|sonnet|haiku)-5(?:-\d+)?|opus-4-[678]|sonnet-4-6)$/;
+
 /**
  * Call Anthropic using the official SDK.
  */
@@ -248,11 +271,14 @@ async function _callAnthropic(provider, apiKey, messages, jsonSchema, signal) {
     }
   }
 
+  const replyTokens = provider.max_tokens || 800;
+  const thinks = ANTHROPIC_EFFORT_MODELS.test(String(provider.model || '').toLowerCase());
   const params = {
     model:      provider.model,
-    max_tokens: provider.max_tokens || 800,
+    max_tokens: thinks ? replyTokens + ANTHROPIC_THINKING_HEADROOM : replyTokens,
     messages:   userMessages,
   };
+  if (thinks) params.output_config = { effort: 'low' };
   if (systemPrompt) params.system = systemPrompt;
 
   const response = await client.messages.create(params, { signal });
@@ -261,6 +287,20 @@ async function _callAnthropic(provider, apiKey, messages, jsonSchema, signal) {
     .filter(b => b.type === 'text')
     .map(b => b.text)
     .join('');
+
+  // Both of these arrive as HTTP 200. Passing them on as a reply would send a
+  // customer a refusal notice or half a sentence; failing lets the caller's
+  // own fallback (another provider, or a person) take over.
+  if (response.stop_reason === 'refusal') {
+    const category = response.stop_details?.category || 'unspecified';
+    throw new AppError(`The model declined this request (${category})`, 422, 'LLM_REFUSED');
+  }
+  if (response.stop_reason === 'max_tokens') {
+    throw new AppError(
+      'The model ran out of output tokens before finishing; raise the provider\'s max tokens',
+      502, 'LLM_TRUNCATED',
+    );
+  }
 
   const inputTokens  = response.usage?.input_tokens  || 0;
   const outputTokens = response.usage?.output_tokens || 0;
@@ -557,6 +597,10 @@ async function _callWithRetry(provider, messages, jsonSchema, timeoutMs, callerS
       // Don't retry on abort/timeout from the caller
       if (callerSignal?.aborted) break;
 
+      // A refusal or an answer cut off at the token limit comes back the same
+      // on a retry; go straight to the fallback chain.
+      if (err?.code === 'LLM_REFUSED' || err?.code === 'LLM_TRUNCATED') break;
+
       if (attempt < MAX_RETRIES - 1) {
         const delay = RETRY_BASE_MS * Math.pow(2, attempt);
         logger.warn(
@@ -837,7 +881,13 @@ async function verify(providerId, { orgId } = {}) {
     const cheapProvider = { ...provider, max_tokens: 5 };
     // Fire the probe call purely to detect connectivity/auth errors; the response
     // content is intentionally discarded — we only care whether it throws.
-    await _callProviderOnce(cheapProvider, apiKey, probe, null, signal);
+    try {
+      await _callProviderOnce(cheapProvider, apiKey, probe, null, signal);
+    } catch (err) {
+      // The probe allows five tokens on purpose. An answer cut off at that
+      // limit still proves the key, the model and the connection work.
+      if (err?.code !== 'LLM_TRUNCATED') throw err;
+    }
     clearTimer();
 
     return { ok: true, model: provider.model, latency_ms: Date.now() - start };

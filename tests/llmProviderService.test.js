@@ -270,6 +270,91 @@ describe('llmProviderService.chat — anthropic', () => {
     // System content passed via `system` field
     expect(callArgs.system).toContain('You are a helpful assistant.');
   });
+
+  describe('current Claude models', () => {
+    const haiku = { ...BASE_PROVIDER, kind: 'anthropic', model: 'claude-haiku-5-5', max_tokens: 800 };
+    const ok = (extra = {}) => ({
+      content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: 'Hola' }],
+      stop_reason: 'end_turn',
+      usage: { input_tokens: 1000, output_tokens: 2000 },
+      ...extra,
+    });
+
+    it('leaves room for thinking on top of the reply allowance and asks for low effort', async () => {
+      // These models think before answering and the thinking counts against
+      // max_tokens. With the row's 800 alone a reply came back cut off or empty.
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok());
+      const res = await svc.chat({ providerId: 1, messages: MESSAGES });
+      const params = mockAnthropicCreate.mock.calls[0][0];
+      expect(params.max_tokens).toBe(800 + 4096);
+      expect(params.output_config).toEqual({ effort: 'low' });
+      expect(params).not.toHaveProperty('temperature');
+      expect(params).not.toHaveProperty('thinking');
+      expect(res.text).toBe('Hola'); // thinking blocks are not part of the reply
+    });
+
+    it.each(['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-2', 'claude-opus-4-8'])('%s gets the same treatment', async (model) => {
+      mockProviderFindById.mockResolvedValue({ ...haiku, model });
+      mockAnthropicCreate.mockResolvedValue(ok());
+      await svc.chat({ providerId: 1, messages: MESSAGES });
+      expect(mockAnthropicCreate.mock.calls[0][0].output_config).toEqual({ effort: 'low' });
+    });
+
+    it.each(['claude-3-5-haiku-20241022', 'claude-haiku-4-5'])('%s is sent no effort setting, which it would reject', async (model) => {
+      mockProviderFindById.mockResolvedValue({ ...haiku, model });
+      mockAnthropicCreate.mockResolvedValue(ok());
+      await svc.chat({ providerId: 1, messages: MESSAGES });
+      const params = mockAnthropicCreate.mock.calls[0][0];
+      expect(params).not.toHaveProperty('output_config');
+      expect(params.max_tokens).toBe(800);
+    });
+
+    it('prices input and output apart', async () => {
+      // 1 000 input at $0.10/M + 2 000 output at $0.50/M. The table only knew
+      // Claude 3 models, so every current model was recorded as $0.
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok());
+      const res = await svc.chat({ providerId: 1, messages: MESSAGES });
+      expect(res.cost_usd).toBeCloseTo(0.0001 + 0.001, 6);
+    });
+
+    it('a refusal is an error, not a reply, and is not retried', async () => {
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok({
+        content: [{ type: 'text', text: 'I cannot help with that.' }],
+        stop_reason: 'refusal', stop_details: { type: 'refusal', category: 'cyber' },
+      }));
+      await expect(svc.chat({ providerId: 1, messages: MESSAGES })).rejects.toThrow();
+      expect(mockAnthropicCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('an answer cut off at the token limit is an error, not a reply, and is not retried', async () => {
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok({ content: [{ type: 'text', text: 'Estimado cli' }], stop_reason: 'max_tokens' }));
+      await expect(svc.chat({ providerId: 1, messages: MESSAGES })).rejects.toThrow();
+      expect(mockAnthropicCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('Test connection passes when its five-token probe is cut off at the limit', async () => {
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok({ content: [], stop_reason: 'max_tokens' }));
+      await expect(svc.verify(1)).resolves.toMatchObject({ ok: true, model: 'claude-haiku-5-5' });
+    });
+
+    it('Test connection still fails on a real error', async () => {
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockRejectedValue(new Error('401 invalid x-api-key'));
+      await expect(svc.verify(1)).rejects.toThrow(/verification failed/i);
+    });
+
+    it('reads a JSON answer even when the model wraps it in a sentence', async () => {
+      mockProviderFindById.mockResolvedValue(haiku);
+      mockAnthropicCreate.mockResolvedValue(ok({ content: [{ type: 'text', text: 'Here it is: {"category":"billing","confidence":0.9} Hope that helps.' }] }));
+      const res = await svc.chat({ providerId: 1, messages: MESSAGES, jsonSchema: { type: 'object' } });
+      expect(res.json).toEqual({ category: 'billing', confidence: 0.9 });
+    });
+  });
 });
 
 // =============================================================================

@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The Anthropic connection works with current Claude models.** The model
+  list in AI Reply Assistant → Providers offers Claude Haiku 5.5, Sonnet 5.5
+  and Opus 5.5 (any model id can still be typed). Replies are no longer cut
+  off by the token limit on models that think before answering, a refusal or
+  a cut-off answer is treated as a failure instead of being sent as a reply,
+  and cost is recorded with the real input and output prices; it was recorded
+  as $0 for every current model.
+
 - **An escalated AI chat's ticket shows the conversation.** The ticket said
   only which conversation it came from, so the agent could not see what the
   customer had written without finding the chat on another page. The ticket
