@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AiSupportPage } from '../AiSupportPage';
+import { NocInsightsPage } from '../NocInsightsPage';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -140,6 +141,19 @@ function renderPage() {
   );
 }
 
+// NOC Insights left the AI Support tabs for its own page under Network.
+function renderNoc() {
+  setupFetch();
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <NocInsightsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -155,15 +169,34 @@ describe('AiSupportPage', () => {
 
   it('renders the page title', () => {
     renderPage();
-    expect(screen.getByText('AI Customer Support')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI Support' })).toBeInTheDocument();
   });
 
-  it('renders all 4 tabs', () => {
+  it('renders the four tabs of the single AI Support page', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: 'Chat' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Conversations' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Knowledge Base' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Metrics' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'NOC Insights' })).toBeInTheDocument();
+    // NOC Insights is network tooling and has its own page now.
+    expect(screen.queryByRole('button', { name: 'NOC Insights' })).not.toBeInTheDocument();
+  });
+
+  it('the Settings tab holds the reply assistant settings, without a second page title or audit tab', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('button', { name: /Providers/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Phrase Library/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Audit & Metrics/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI Assistant Settings/)).not.toBeInTheDocument();
+  });
+
+  it('the Metrics tab also shows the reply assistant activity', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Metrics' }));
+    expect(await screen.findByRole('heading', { name: 'Reply assistant activity' })).toBeInTheDocument();
   });
 
   // ---- Chat tab -------------------------------------------------------------
@@ -322,27 +355,21 @@ describe('AiSupportPage', () => {
   // ---- NOC Insights tab -----------------------------------------------------
 
   it('clicking NOC Insights tab shows NOC content', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Shift Summary' })).toBeInTheDocument(),
     );
   });
 
   it('NOC tab shows Capacity Warning action button', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Capacity Warning' })).toBeInTheDocument(),
     );
   });
 
   it('NOC tab shows Interference Detection and Alignment Drift buttons', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Interference Detection' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Alignment Drift' })).toBeInTheDocument();
@@ -350,9 +377,7 @@ describe('AiSupportPage', () => {
   });
 
   it('NOC tab shows Alert ID input and Explain Alert button', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Alert ID')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Explain Alert' })).toBeInTheDocument();
@@ -360,9 +385,7 @@ describe('AiSupportPage', () => {
   });
 
   it('NOC tab shows loaded insights in table', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() =>
       expect(screen.getByText('Network stable during last shift.')).toBeInTheDocument(),
     );
@@ -370,8 +393,7 @@ describe('AiSupportPage', () => {
 
   it('clicking Shift Summary calls POST /noc-ai/insights/shift-summary', async () => {
     const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: 'NOC Insights' }));
+    renderNoc();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Shift Summary' })).toBeInTheDocument(),
     );

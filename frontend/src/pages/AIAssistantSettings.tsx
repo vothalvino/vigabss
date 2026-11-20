@@ -1262,7 +1262,7 @@ function ForbiddenTermsTab() {
 // Audit & Metrics tab
 // ---------------------------------------------------------------------------
 
-function AuditTab() {
+export function AuditTab() {
   const { t } = useTranslation();
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const [month, setMonth] = useState(currentMonth);
@@ -1395,21 +1395,26 @@ function actionBadge(action: string): React.CSSProperties {
 // Main page
 // ---------------------------------------------------------------------------
 
-export function AIAssistantSettings() {
+/**
+ * `embedded`: rendered as the Settings tab of the AI Support page — no page
+ * title, and no Audit tab (AI Support shows that under Metrics).
+ */
+export function AIAssistantSettings({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AiTab>('general');
 
-  const tabs: { id: AiTab; label: string }[] = [
+  const allTabs: { id: AiTab; label: string }[] = [
     { id: 'general',        label: t('aiAssistantSettings.tabs.general') },
     { id: 'providers',      label: t('aiAssistantSettings.tabs.providers') },
     { id: 'phrases',        label: t('aiAssistantSettings.tabs.phrases') },
     { id: 'forbiddenTerms', label: t('aiAssistantSettings.tabs.forbiddenTerms') },
     { id: 'audit',          label: t('aiAssistantSettings.tabs.audit') },
   ];
+  const tabs = embedded ? allTabs.filter(x => x.id !== 'audit') : allTabs;
 
   return (
-    <div style={sty.page}>
-      <h2 style={sty.pageTitle}>{t('aiAssistantSettings.title')}</h2>
+    <div style={embedded ? undefined : sty.page}>
+      {!embedded && <h2 style={sty.pageTitle}>{t('aiAssistantSettings.title')}</h2>}
 
       <div style={sty.tabs}>
         {tabs.map(tab_ => (

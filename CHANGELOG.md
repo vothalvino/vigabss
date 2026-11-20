@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **One AI Support page.** The two AI menu items are now one, "AI Support",
+  with four tabs: Conversations, Knowledge Base, Settings (general, providers,
+  phrase library, forbidden terms) and Metrics, which also shows the reply
+  assistant's activity. The old settings address opens the Settings tab.
+  NOC AI Insights moved to its own page under Network.
+
 ## 0.1.0-alpha.23 — 2026-11-20
 
 - **The Anthropic connection works with current Claude models.** The model

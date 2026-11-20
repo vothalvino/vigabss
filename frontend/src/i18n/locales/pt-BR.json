@@ -351,7 +351,6 @@
     "paymentReminderSettings": "Lembretes de Pagamento",
     "settings": "Configurações",
     "profecoComplaints": "PROFECO",
-    "aiAssistant": "Assistente de respostas IA",
     "subscriberCertificates": "Certificados de Assinante",
     "csdCertificates": "Certificados CSD",
     "pacProviders": "Provedores PAC",
@@ -372,7 +371,8 @@
     "resellers": "Revendedores",
     "cashBags": "Malotes de dinheiro",
     "integrations": "Integracoes",
-    "aiSupport": "Chat de clientes IA",
+    "aiSupport": "Suporte IA",
+    "nocInsights": "Análises de IA do NOC",
     "myWgTunnels": "Meus Túneis VPN",
     "adminUserTunnels": "Túneis de Usuário",
     "sections": {
@@ -5380,12 +5380,13 @@
     }
   },
   "aiSupport": {
-    "title": "Suporte IA ao Cliente",
+    "title": "Suporte IA",
+    "replyActivity": "Atividade do assistente de respostas",
     "tabs": {
-      "chat": "Chat",
+      "chat": "Conversas",
       "kb": "Base de Conhecimento",
       "metrics": "Métricas",
-      "noc": "Perspectivas NOC"
+      "settings": "Configurações"
     },
     "chat": {
       "newConversation": "Nova Conversa",

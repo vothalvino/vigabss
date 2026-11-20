@@ -23,7 +23,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appSrc = fs.readFileSync(path.resolve(__dirname, '../App.tsx'), 'utf8');
 
 // Public/portal paths and the fallbacks are not staff nav destinations.
-const IGNORED = new Set(['login', 'forgot-password', 'reset-password', 'verify-email', '404', '*']);
+// 'ai-assistant' is a redirect to the Settings tab of /ai-support (the two AI
+// pages became one); it has no page and so no nav home of its own.
+const IGNORED = new Set(['login', 'forgot-password', 'reset-password', 'verify-email', '404', '*', 'ai-assistant']);
 
 /** Parse App.tsx into (path → guard) using the PrivateRoute wrapper structure. */
 function routedPaths(): Map<string, Guard> {
