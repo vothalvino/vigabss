@@ -1,5 +1,5 @@
 # ── Stage 1: build the React frontend ─────────────────────────────────────────
-FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS frontend-build
+FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS frontend-build
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN NODE_OPTIONS="--max-old-space-size=${FRONTEND_BUILD_HEAP_MB}" \
 # ── Test stage (docker-compose.test.yml only) ─────────────────────────────────
 # Development dependencies plus a MySQL client for the SQL suites. Only the
 # test compose builds this target; the default build is the last stage below.
-FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS test
+FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS test
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends default-mysql-client \
@@ -46,7 +46,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # ── Stage 2: production API server ────────────────────────────────────────────
-FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
+FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 
 # default-mysql-client provides mysqldump/mysql (MariaDB client — dumps and
 # restores MySQL 8.x fine, and unlike Oracle's mysqldump needs no GTID
