@@ -12,6 +12,9 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   answer stays the only source of facts, and it is what the customer gets
   whenever the assistant is off, over budget or fails. A hand-off to a person
   and a request to confirm an action are never reworded.
+  The "mask personal data" switch applies here as it does to ticket replies:
+  emails, phone numbers, IP and MAC addresses are sent as placeholders and
+  restored in the reply.
 - **WhatsApp can be connected from the app.** AI Support → Settings →
   WhatsApp holds the Meta Cloud API connection (phone number ID, access
   token, app secret, verify token), shows the webhook URL to give Meta and

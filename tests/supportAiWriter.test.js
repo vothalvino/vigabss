@@ -110,3 +110,53 @@ test('the staff Conversations tab ("web") follows the portal switch', () => {
   expect(enabledFor(POLICY, 'constructor')).toBe(false);
   expect(enabledFor(null, 'web')).toBe(false);
 });
+
+describe('with "mask personal data" on', () => {
+  const MASKED = { ...POLICY, redact_pii_before_llm: 1 };
+  const PRIVATE = ['ana@example.com', '+52 55 1234 5678', '10.20.30.40', 'AA:BB:CC:DD:EE:FF'];
+
+  beforeEach(() => {
+    mockPolicy.mockResolvedValue(MASKED);
+    db.query.mockResolvedValue([[
+      { role: 'customer', content: 'mi correo es ana@example.com y mi numero +52 55 1234 5678' },
+    ]]);
+  });
+
+  const args = {
+    ...ARGS,
+    customerMessage: 'mi correo es ana@example.com y mi numero +52 55 1234 5678',
+    ruleReply: 'Tu equipo AA:BB:CC:DD:EE:FF tiene la IP 10.20.30.40. Contacto: ana@example.com.',
+  };
+
+  test('nothing private is sent to the provider, in the facts or the conversation', async () => {
+    mockChat.mockResolvedValue({ text: 'Listo.' });
+    await writeReply(args);
+    const sent = JSON.stringify(mockChat.mock.calls[0][0].messages);
+    for (const value of PRIVATE) expect(sent).not.toContain(value);
+    expect(sent).toMatch(/\[EMAIL_\d+\]/);
+    expect(sent).toMatch(/\[MAC_\d+\]/);
+    expect(sent).toMatch(/\[IP_\d+\]/);
+    expect(mockChat.mock.calls[0][0].messages[0].content).toMatch(/Placeholders such as \[PHONE_1\]/);
+  });
+
+  test('the same value gets the same placeholder everywhere, and the reply gets the real value back', async () => {
+    mockChat.mockImplementation(async ({ messages }) => {
+      const token = /\[EMAIL_\d+\]/.exec(messages[0].content)[0];
+      // The address appears in the facts and in the customer's message.
+      expect(messages[messages.length - 1].content).toContain(token);
+      return { text: `Te escribimos a ${token}.` };
+    });
+    expect(await writeReply(args)).toBe('Te escribimos a ana@example.com.');
+  });
+
+  test('a placeholder the model made up is not sent to the customer', async () => {
+    mockChat.mockResolvedValue({ text: 'Llama al [PHONE_99].' });
+    expect(await writeReply(args)).toBeNull();
+  });
+});
+
+test('with masking off, the text is sent as written', async () => {
+  await writeReply({ ...ARGS, ruleReply: 'Contacto: ana@example.com.' });
+  expect(mockChat.mock.calls[0][0].messages[0].content).toContain('ana@example.com');
+  expect(mockChat.mock.calls[0][0].messages[0].content).not.toMatch(/Placeholders such as/);
+});
