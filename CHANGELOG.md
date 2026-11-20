@@ -5,6 +5,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **One unreachable device no longer slows SNMP polling for the rest.**
+  Devices were polled in groups of ten, and each group waited for its slowest
+  device, so a device that did not answer held up the nine beside it and
+  every group behind them for its whole timeout: about thirty unreachable
+  devices were enough to make a full cycle take five minutes. Every device
+  now runs in its own slot (`SNMP_POLL_CONCURRENCY`, default 10) and its
+  result is recorded as soon as it is known. In a local simulation of 200
+  devices with 10 not answering, a cycle went from 100 seconds to 10.
+- **A device's SNMP timeout and retry settings are applied.** The values in a
+  device or device-type polling config were stored but never used; every
+  device got 5 seconds and one retry.
+- The default SNMPv3 user name for a v3 device with none set is `vigabssv3`.
+
 - **Every internal name now uses the product name.** Cookies and browser
   storage keys, the default database name and user, the WireGuard hub
   interface (`wg-vigabss`) and firewall table (`vigabss_wg`), the names and

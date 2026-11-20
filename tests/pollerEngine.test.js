@@ -205,7 +205,7 @@ describe('pollerEngine', () => {
       const result = await pollerEngine.pollWithConfig();
       expect(result).toEqual({ polled: 1, skipped: 1, errors: 0, total: 2 });
       expect(pollDevice).toHaveBeenCalledTimes(1);
-      expect(pollDevice).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+      expect(pollDevice).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), { timeout: 5000, retries: 1 });
       expect(deviceStatusService.recordPollResult).toHaveBeenCalledWith(1, true);
     });
 
@@ -219,6 +219,64 @@ describe('pollerEngine', () => {
       const result = await pollerEngine.pollWithConfig();
       expect(result).toEqual({ polled: 0, skipped: 0, errors: 1, total: 1 });
       expect(deviceStatusService.recordPollResult).toHaveBeenCalledWith(1, false, expect.stringContaining('snmp timeout'));
+    });
+
+    test("polls each device with its own config's timeout and retries", async () => {
+      // device_polling_configs.timeout_ms / retries were stored and returned by
+      // getPollingConfig, but the poll never used them: every device got
+      // 5000 ms and one retry whatever its config said.
+      pollDevice.mockResolvedValue({});
+      deviceStatusService.recordPollResult.mockResolvedValue();
+      db.query
+        .mockResolvedValueOnce([[dueDevice]])
+        .mockResolvedValueOnce([[{ ...cfgRow, timeout_ms: 1500, retries: 0 }]]);
+
+      await pollerEngine.pollWithConfig();
+      expect(pollDevice).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), { timeout: 1500, retries: 0 });
+    });
+
+    test.each([
+      [{ timeout_ms: 0, retries: 1 }, { retries: 1 }],                 // below the API minimum: poller default
+      [{ timeout_ms: 999999, retries: 99 }, { timeout: 60000, retries: 10 }], // capped at the API maximum
+      [{ timeout_ms: null, retries: null }, {}],
+      [{ timeout_ms: 'abc', retries: -1 }, {}],
+    ])('keeps unusable timeout/retry settings %j within limits', async (settings, expected) => {
+      pollDevice.mockResolvedValue({});
+      deviceStatusService.recordPollResult.mockResolvedValue();
+      db.query
+        .mockResolvedValueOnce([[dueDevice]])
+        .mockResolvedValueOnce([[{ ...cfgRow, ...settings }]]);
+
+      await pollerEngine.pollWithConfig();
+      expect(pollDevice).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), expected);
+    });
+
+    test('a device that does not answer does not hold up the devices beside it or queued behind it', async () => {
+      // Same weakness as snmpPoller.poll(): batches of ten ended only when
+      // their slowest device did.
+      const devices = Array.from({ length: 13 }, (_, i) => ({ ...dueDevice, id: i + 1, ip_address: `10.0.0.${i + 1}` }));
+      db.query.mockImplementation(async (sql) => {
+        if (/FROM devices d\s+WHERE d\.snmp_enabled/.test(sql)) return [devices];
+        if (/FROM device_polling_configs dpc/.test(sql)) return [[cfgRow]];
+        return [[]];
+      });
+      let failSilent;
+      const silent = new Promise((_resolve, reject) => { failSilent = reject; });
+      pollDevice.mockImplementation(device => (device.id === 1 ? silent : Promise.resolve({})));
+      deviceStatusService.recordPollResult.mockResolvedValue();
+
+      const cycle = pollerEngine.pollWithConfig();
+      for (let i = 0; i < 50; i += 1) await new Promise(resolve => setImmediate(resolve));
+
+      // Twelve results are already recorded while device 1 is still waiting,
+      // including the three that would have sat in the next batch.
+      expect(pollDevice).toHaveBeenCalledTimes(13);
+      const recorded = deviceStatusService.recordPollResult.mock.calls.map(([id]) => id).sort((a, b) => a - b);
+      expect(recorded).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+
+      failSilent(new Error('Request timed out'));
+      expect(await cycle).toEqual({ polled: 12, skipped: 0, errors: 1, total: 13 });
+      expect(deviceStatusService.recordPollResult).toHaveBeenCalledWith(1, false, expect.stringContaining('timed out'));
     });
 
     test('refuses to stack a second cycle while one is still in flight', async () => {

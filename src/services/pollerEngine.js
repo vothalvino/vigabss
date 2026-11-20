@@ -16,6 +16,7 @@ const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'pollerEngine' });
 const { pollDevice } = require('./snmpPoller');
 const deviceStatusService = require('./deviceStatusService');
+const { runWithConcurrency } = require('../utils/concurrency');
 
 // In-memory map: deviceId => { adaptive: true, minIntervalSec: N }
 // Set by adaptivePollCheck(), cleared when outage resolves.
@@ -120,7 +121,21 @@ async function getPollingConfig(deviceId) {
 // Like snmpPoller.poll() but respects per-device polling intervals.
 // Skips devices whose next poll is not yet due (based on devices.last_polled_at).
 // ---------------------------------------------------------------------------
-const POLL_CONCURRENCY = parseInt(process.env.SNMP_POLL_CONCURRENCY || '10', 10);
+const POLL_CONCURRENCY = Math.max(1, parseInt(process.env.SNMP_POLL_CONCURRENCY, 10) || 10);
+
+// The SNMP timeout and retry count a device's polling config asks for, within
+// the limits the config API accepts. Anything missing or unusable is left out,
+// so the poller's own defaults (5000 ms, one retry) apply.
+function sessionOptions(cfg) {
+  const opts = {};
+  const timeout = Number(cfg?.timeout_ms);
+  if (Number.isFinite(timeout) && timeout >= 100) opts.timeout = Math.min(Math.floor(timeout), 60000);
+  const retries = Number(cfg?.retries);
+  if (cfg?.retries !== null && cfg?.retries !== undefined && Number.isInteger(retries) && retries >= 0) {
+    opts.retries = Math.min(retries, 10);
+  }
+  return opts;
+}
 
 // The scheduler ticks this every minute (migration 402) and its per-task lock
 // does not cover a prior cycle still mid-flight in this process — a slow SNMP
@@ -160,31 +175,29 @@ async function pollWithConfig() {
         skipped++;
         continue;
       }
-      due.push(device);
+      due.push({ device, cfg });
     }
 
-    // Poll due devices in batches, mirroring snmpPoller.poll().
+    // Poll the due devices, each in its own slot, recording every result as
+    // soon as it is known. A device that does not answer costs one slot for
+    // its timeout; it no longer holds up the devices polled beside it. The
+    // device's own timeout and retry settings apply to its session.
     let polled = 0;
     let errors = 0;
-    for (let i = 0; i < due.length; i += POLL_CONCURRENCY) {
-      const batch = due.slice(i, i + POLL_CONCURRENCY);
-      const results = await Promise.allSettled(batch.map(device => pollDevice(device)));
-
-      for (let j = 0; j < results.length; j++) {
-        const result = results[j];
-        const device = batch[j];
-        if (result.status === 'fulfilled') {
-          polled++;
-          await deviceStatusService.recordPollResult(device.id, true)
-            .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (success) failed'));
-        } else {
-          errors++;
-          logger.error({ err: result.reason, deviceId: device.id }, 'pollWithConfig: device poll failed');
-          await deviceStatusService.recordPollResult(device.id, false, String(result.reason?.message || result.reason))
-            .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (failure) failed'));
-        }
+    await runWithConcurrency(due, POLL_CONCURRENCY, async ({ device, cfg }) => {
+      try {
+        await pollDevice(device, sessionOptions(cfg));
+      } catch (err) {
+        errors++;
+        logger.error({ err, deviceId: device.id }, 'pollWithConfig: device poll failed');
+        await deviceStatusService.recordPollResult(device.id, false, String(err?.message || err))
+          .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (failure) failed'));
+        return;
       }
-    }
+      polled++;
+      await deviceStatusService.recordPollResult(device.id, true)
+        .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (success) failed'));
+    });
 
     return { polled, skipped, errors, total: devices.length };
   } finally {

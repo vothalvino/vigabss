@@ -127,6 +127,53 @@ describe('snmpPoller', () => {
     });
   });
 
+  describe('poll() — a device that does not answer', () => {
+    // Devices used to be polled in batches of SNMP_POLL_CONCURRENCY, and a
+    // batch ended only when its slowest device did. One device that never
+    // answered held up the nine beside it, and every batch behind them, for
+    // its whole timeout: thirty such devices stretched a cycle to five minutes.
+    test('does not hold up the devices beside it or queued behind it', async () => {
+      const devices = Array.from({ length: 13 }, (_, i) => ({
+        id: i + 1, ip_address: `10.0.0.${i + 1}`, snmp_community: 'public',
+        snmp_version: 'v2c', snmp_port: 161, snmp_profile_id: 10,
+      }));
+      const SILENT_IP = '10.0.0.1';
+      let silentCallback;
+
+      db.query.mockImplementation(async (sql) => {
+        if (/FROM devices d/.test(sql)) return [devices];
+        if (/FROM snmp_profile_oids/.test(sql)) {
+          return [[{ id: 1, oid: '1.3.6.1.2.1.1.3.0', metric_column: 'uptime_ticks', is_per_interface: false }]];
+        }
+        return [{ affectedRows: 1 }]; // metric INSERT and device status UPDATEs
+      });
+      const answered = [];
+      snmp.createSession.mockImplementation(ip => ({
+        get: (oids, cb) => {
+          if (ip === SILENT_IP) { silentCallback = cb; return; }
+          answered.push(ip);
+          cb(null, [{ oid: '1.3.6.1.2.1.1.3.0', value: 100 }]);
+        },
+        subtree: jest.fn(),
+        close: jest.fn(),
+      }));
+
+      const cycle = snmpPoller.poll();
+      for (let i = 0; i < 50; i += 1) await new Promise(resolve => setImmediate(resolve));
+
+      // The silent device is still waiting, and all twelve others are done —
+      // including the three that would have sat in the next batch.
+      expect(silentCallback).toBeInstanceOf(Function);
+      expect(answered).toHaveLength(12);
+      expect(answered).toEqual(expect.arrayContaining(['10.0.0.11', '10.0.0.12', '10.0.0.13']));
+      const statusUpdates = db.query.mock.calls.filter(([sql]) => /UPDATE devices/.test(sql));
+      expect(statusUpdates.length).toBeGreaterThanOrEqual(12);
+
+      silentCallback(new Error('Request timed out'));
+      expect(await cycle).toEqual({ polled: 12, errors: 1, total: 13 });
+    });
+  });
+
   // =========================================================================
   // pollDevice
   // =========================================================================
@@ -772,6 +819,41 @@ describe('snmpPoller', () => {
         expect.objectContaining({ level: snmp.SecurityLevel.noAuthNoPriv }),
         expect.anything(),
       );
+    });
+
+    test('pollDevice hands its session options (timeout, retries) to the session', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, oid: '1.3.6.1.2.1.1.3.0', metric_column: 'uptime_ticks', is_per_interface: false }]])
+        .mockResolvedValueOnce([]);
+      mockSession.get.mockImplementation((oids, cb) => cb(null, [{ oid: '1.3.6.1.2.1.1.3.0', value: 5 }]));
+
+      await snmpPoller.pollDevice(
+        { id: 9, ip_address: '10.9.9.9', snmp_community: 'public', snmp_version: 'v2c', snmp_profile_id: 1 },
+        { timeout: 1500, retries: 0 },
+      );
+
+      expect(snmp.createSession).toHaveBeenCalledWith('10.9.9.9', 'public',
+        expect.objectContaining({ timeout: 1500, retries: 0 }));
+    });
+
+    test('pollDevice keeps the default timeout and one retry when given no options', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, oid: '1.3.6.1.2.1.1.3.0', metric_column: 'uptime_ticks', is_per_interface: false }]])
+        .mockResolvedValueOnce([]);
+      mockSession.get.mockImplementation((oids, cb) => cb(null, [{ oid: '1.3.6.1.2.1.1.3.0', value: 5 }]));
+
+      await snmpPoller.pollDevice(
+        { id: 9, ip_address: '10.9.9.9', snmp_community: 'public', snmp_version: 'v2c', snmp_profile_id: 1 },
+      );
+
+      expect(snmp.createSession).toHaveBeenCalledWith('10.9.9.9', 'public',
+        expect.objectContaining({ timeout: 5000, retries: 1 }));
+    });
+
+    test('a v3 device with no security name uses the product default user', () => {
+      snmpPoller.createSnmpSession({ ip_address: '10.9.9.8', snmp_version: 'v3' });
+      expect(snmp.createV3Session).toHaveBeenCalledWith('10.9.9.8',
+        expect.objectContaining({ name: 'vigabssv3' }), expect.any(Object));
     });
 
     test('falls back to createSession for v2c', () => {
