@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.24 — 2026-11-20
+
 - **One AI Support page.** The two AI menu items are now one, "AI Support",
   with four tabs: Conversations, Knowledge Base, Settings (general, providers,
   phrase library, forbidden terms) and Metrics, which also shows the reply
