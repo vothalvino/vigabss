@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fireisp-config
-  namespace: fireisp
+  name: vigabss-config
+  namespace: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: config
 data:
   NODE_ENV: "production"

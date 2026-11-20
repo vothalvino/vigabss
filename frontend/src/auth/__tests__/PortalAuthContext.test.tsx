@@ -95,7 +95,7 @@ describe('PortalAuthContext', () => {
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/v1/portal/auth/refresh');
     expect(init).toMatchObject({ method: 'POST', credentials: 'same-origin', body: '{}' });
-    expect(Object.keys(localStorage)).toEqual(['fireisp_portal_session']);
+    expect(Object.keys(localStorage)).toEqual(['vigabss_portal_session']);
   });
 
   it('login remembers the session but not the token, even if the server sends one', async () => {

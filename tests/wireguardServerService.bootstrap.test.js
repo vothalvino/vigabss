@@ -28,7 +28,7 @@ jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/config', () => ({
   wireguard: {
     serverEnabled: true,
-    serverInterface: 'wg-fireisp',
+    serverInterface: 'wg-vigabss',
     serverEndpoint: 'vpn.example.com',
     serverListenPort: 51820,
     serverPublicKey: '',
@@ -77,7 +77,7 @@ function routeExec({ ifaceUp = false, tableExists = false, linkAddError = null }
     }
     if (cmd === 'nft' && args[0] === 'list' && args[1] === 'table') {
       return tableExists
-        ? cb(null, { stdout: 'table inet fireisp_wg {}', stderr: '' })
+        ? cb(null, { stdout: 'table inet vigabss_wg {}', stderr: '' })
         : cb(new Error('No such file or directory'));
     }
     return cb(null, { stdout: '', stderr: '' });
@@ -118,7 +118,7 @@ describe('bootstrapHost() — first run (nothing provisioned yet)', () => {
   test('generates + persists both server keypairs with 0600 perms', async () => {
     await service.bootstrapHost();
 
-    for (const iface of ['wg-fireisp', 'wg-clients']) {
+    for (const iface of ['wg-vigabss', 'wg-clients']) {
       const keyCall = writeCallFor(`/etc/wireguard/${iface}.key`);
       expect(keyCall).toBeTruthy();
       expect(typeof keyCall[1]).toBe('string');
@@ -134,11 +134,11 @@ describe('bootstrapHost() — first run (nothing provisioned yet)', () => {
   test('creates, keys (by file path), addresses, and brings up both interfaces', async () => {
     await service.bootstrapHost();
 
-    // wg-fireisp on 10.255.0.1, port 51820
-    expect(execCalledWith('ip', ['link', 'add', 'dev', 'wg-fireisp', 'type', 'wireguard'])).toBe(true);
-    expect(execCalledWith('wg', ['set', 'wg-fireisp', 'private-key', '/etc/wireguard/wg-fireisp.key', 'listen-port', '51820'])).toBe(true);
-    expect(execCalledWith('ip', ['address', 'add', '10.255.0.1/16', 'dev', 'wg-fireisp'])).toBe(true);
-    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-fireisp'])).toBe(true);
+    // wg-vigabss on 10.255.0.1, port 51820
+    expect(execCalledWith('ip', ['link', 'add', 'dev', 'wg-vigabss', 'type', 'wireguard'])).toBe(true);
+    expect(execCalledWith('wg', ['set', 'wg-vigabss', 'private-key', '/etc/wireguard/wg-vigabss.key', 'listen-port', '51820'])).toBe(true);
+    expect(execCalledWith('ip', ['address', 'add', '10.255.0.1/16', 'dev', 'wg-vigabss'])).toBe(true);
+    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-vigabss'])).toBe(true);
 
     // wg-clients on 10.99.0.1, port 51821
     expect(execCalledWith('wg', ['set', 'wg-clients', 'private-key', '/etc/wireguard/wg-clients.key', 'listen-port', '51821'])).toBe(true);
@@ -147,7 +147,7 @@ describe('bootstrapHost() — first run (nothing provisioned yet)', () => {
 
   test('never passes a raw private key in argv (only the key file path)', async () => {
     await service.bootstrapHost();
-    const keyFileArg = '/etc/wireguard/wg-fireisp.key';
+    const keyFileArg = '/etc/wireguard/wg-vigabss.key';
     for (const [, args] of execFile.mock.calls) {
       // The only key reference allowed in argv is the file PATH, not the key bytes.
       for (const a of args) {
@@ -156,7 +156,7 @@ describe('bootstrapHost() — first run (nothing provisioned yet)', () => {
         }
       }
     }
-    expect(execCalledWith('wg', ['set', 'wg-fireisp', 'private-key', keyFileArg])).toBe(true);
+    expect(execCalledWith('wg', ['set', 'wg-vigabss', 'private-key', keyFileArg])).toBe(true);
   });
 
   test('enables ip_forward (via /proc) and installs the nftables base', async () => {
@@ -210,7 +210,7 @@ describe('bootstrapHost() — second run (already provisioned)', () => {
   test('still re-asserts keys/up idempotently and reads pubkeys from disk', async () => {
     const result = await service.bootstrapHost();
     expect(result).toMatchObject({ applied: true });
-    expect(execCalledWith('wg', ['set', 'wg-fireisp', 'private-key', '/etc/wireguard/wg-fireisp.key', 'listen-port', '51820'])).toBe(true);
+    expect(execCalledWith('wg', ['set', 'wg-vigabss', 'private-key', '/etc/wireguard/wg-vigabss.key', 'listen-port', '51820'])).toBe(true);
     expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-clients'])).toBe(true);
     expect(config.wireguard.serverPublicKey).toBe(PERSISTED_PUB);
     expect(config.wireguard.clientPublicKey).toBe(PERSISTED_PUB);
@@ -237,7 +237,7 @@ describe('bootstrapHost() — recovers a lost public-key file', () => {
     expect(config.wireguard.clientPublicKey).toBe(kp.publicKey);
 
     // …and be rewritten to the .pub file with 0644 perms (never the .key).
-    const pubWrite = writeCallFor('/etc/wireguard/wg-fireisp.pub');
+    const pubWrite = writeCallFor('/etc/wireguard/wg-vigabss.pub');
     expect(pubWrite).toBeTruthy();
     expect(pubWrite[1]).toBe(kp.publicKey);
     expect(pubWrite[2]).toEqual({ mode: 0o644 });
@@ -266,7 +266,7 @@ describe('bootstrapHost() — dormant + resilience', () => {
 
     expect(result).toMatchObject({ applied: true });
     // bring-up continued past the (tolerated) create error
-    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-fireisp'])).toBe(true);
+    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-vigabss'])).toBe(true);
   });
 
   test('on "Operation not permitted" creating the interface, does not cascade and still resolves', async () => {
@@ -279,7 +279,7 @@ describe('bootstrapHost() — dormant + resilience', () => {
     expect(result).toMatchObject({ applied: false });
     // …but a failed create rethrows, so we must NOT try to bring the dead interface
     // up (avoids the misleading "No such device" cascade).
-    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-fireisp'])).toBe(false);
+    expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-vigabss'])).toBe(false);
     expect(execCalledWith('ip', ['link', 'set', 'up', 'dev', 'wg-clients'])).toBe(false);
   });
 });

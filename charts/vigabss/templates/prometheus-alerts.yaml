@@ -242,7 +242,7 @@ spec:
 
         - alert: VigaBSS_BackupMissing
           expr: |
-            (time() - fireisp_last_backup_timestamp_seconds) > 90000
+            (time() - vigabss_last_backup_timestamp_seconds) > 90000
           for: 5m
           labels:
             severity: warning

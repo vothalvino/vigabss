@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — NasWgTunnel Model
 // =============================================================================
 // Represents a WireGuard tunnel record for a NAS device (1:1 with nas).
-// The VigaBSS host is the hub (wg-fireisp); the NAS dials out as a peer.
+// The VigaBSS host is the hub (wg-vigabss); the NAS dials out as a peer.
 // Private key is stored AES-256-GCM encrypted via src/utils/encryption.js.
 // =============================================================================
 

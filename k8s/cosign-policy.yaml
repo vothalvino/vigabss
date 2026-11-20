@@ -6,10 +6,10 @@
 #      helm upgrade --install policy-controller sigstore/policy-controller \
 #        -n cosign-system --create-namespace
 #
-#   2. Label the fireisp namespace to enable enforcement:
-#      kubectl label namespace fireisp policy.sigstore.dev/include=true
+#   2. Label the vigabss namespace to enable enforcement:
+#      kubectl label namespace vigabss policy.sigstore.dev/include=true
 #
-# This policy requires every image in the fireisp/* path to carry a valid
+# This policy requires every image in the vigabss/* path to carry a valid
 # keyless (Fulcio-issued) signature issued by the GitHub Actions OIDC identity
 # for the vothalvino/vigabss repository. The Rekor transparency log entry
 # is also verified automatically by the policy controller.
@@ -20,7 +20,7 @@
 apiVersion: policy.sigstore.dev/v1beta1
 kind: ClusterImagePolicy
 metadata:
-  name: fireisp-image-policy
+  name: vigabss-image-policy
 spec:
   images:
     # Restrict to images published from this repository's registry path.

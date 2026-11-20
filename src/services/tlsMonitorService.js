@@ -356,7 +356,7 @@ async function notifyTlsExpiry({ hostname, validTo, daysLeft, threshold, organiz
   const title = expiryAlertTitle({ hostname, validTo, threshold });
 
   // Remediation is deliberately service-scoped rather than naming a container:
-  // `fireisp-certbot` only exists if the compose project happens to be named
+  // `vigabss-certbot` only exists if the compose project happens to be named
   // that, and it does not exist at all on k8s.
   const remedy = 'Check the renewal service — `docker compose -f docker-compose.prod.yml logs certbot` '
     + '(or `kubectl logs` for the cert-manager pod on k8s) — and see docs/runbook.md.';

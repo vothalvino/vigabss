@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — User Tunnel Scope Service (§6a)
 // =============================================================================
 // Single source of truth for which device subnets a given user is allowed to
-// reach through the wg-clients→wg-fireisp FORWARD chain.
+// reach through the wg-clients→wg-vigabss FORWARD chain.
 //
 // Role logic:
 //   admin / owner  → all live routed_subnets in the org's nas_wg_tunnels

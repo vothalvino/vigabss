@@ -15,7 +15,7 @@ const crypto = require('crypto');
 const LOCK_TIMEOUT_SECONDS = 300;
 
 function migrationLockName(databaseName) {
-  return `fireisp:migrate:${crypto.createHash('sha256').update(String(databaseName)).digest('hex').slice(0, 40)}`;
+  return `vigabss:migrate:${crypto.createHash('sha256').update(String(databaseName)).digest('hex').slice(0, 40)}`;
 }
 
 /**

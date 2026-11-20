@@ -12,7 +12,7 @@ const os = require('os');
 const path = require('path');
 
 jest.mock('../src/config/database', () => ({
-  baseConnectionConfig: { database: 'fireisp_test' },
+  baseConnectionConfig: { database: 'vigabss_test' },
   close: jest.fn(),
 }));
 jest.mock('../src/utils/logger', () => {
@@ -64,7 +64,7 @@ describe('checksums', () => {
   function connection(appliedRows) {
     return {
       execute: jest.fn(async (sql) => {
-        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
+        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'vigabss_test' }]];
         if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
         if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
         if (/SELECT filename, checksum FROM schema_migrations/.test(sql)) return [appliedRows];
@@ -86,7 +86,7 @@ describe('checksums', () => {
     ];
     const conn = connection(applied);
 
-    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE });
+    await applyMigrations({ getConnection: async () => conn }, 'primary:vigabss_test', { migrationsDir: FIXTURE });
 
     const calls = conn.execute.mock.calls;
     expect(calls).toContainEqual(['UPDATE schema_migrations SET checksum = ? WHERE filename = ?', [checksumOf(first), first]]);
@@ -105,10 +105,10 @@ describe('checksums', () => {
       if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[]];
       if (/SELECT filename, checksum/.test(sql)) return [fixtureFiles.map(filename => ({ filename, checksum: checksumOf(filename) }))];
       if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
-      return [[{ database_name: 'fireisp_test' }]];
+      return [[{ database_name: 'vigabss_test' }]];
     });
 
-    await applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE });
+    await applyMigrations({ getConnection: async () => conn }, 'primary:vigabss_test', { migrationsDir: FIXTURE });
 
     expect(conn.query).toHaveBeenCalledWith(expect.stringMatching(/ALTER TABLE schema_migrations ADD COLUMN checksum CHAR\(64\)/));
   });
@@ -118,7 +118,7 @@ describe('a database from the pre-release history', () => {
   test('is refused with an explanation before anything runs', async () => {
     const conn = {
       execute: jest.fn(async (sql) => {
-        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
+        if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'vigabss_test' }]];
         if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
         if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
         if (/SELECT filename, checksum FROM schema_migrations/.test(sql)) {
@@ -132,7 +132,7 @@ describe('a database from the pre-release history', () => {
       release: jest.fn(),
     };
 
-    await expect(applyMigrations({ getConnection: async () => conn }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+    await expect(applyMigrations({ getConnection: async () => conn }, 'primary:vigabss_test', { migrationsDir: FIXTURE }))
       .rejects.toThrow(/pre-release migration history \(2 migrations, none of them 001_baseline\.sql\)\. Nothing was changed/);
     expect(conn.query).not.toHaveBeenCalledWith(expect.stringMatching(/CREATE TABLE IF NOT EXISTS t0/));
     expect(conn.execute.mock.calls.some(([sql]) => /^INSERT INTO schema_migrations/.test(sql))).toBe(false);
@@ -145,12 +145,12 @@ describe('a database from the pre-release history', () => {
         if (/INFORMATION_SCHEMA\.COLUMNS/.test(sql)) return [[{ 1: 1 }]];
         if (/SELECT filename, checksum/.test(sql)) return [[]];
         if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
-        return [[{ database_name: 'fireisp_test' }]];
+        return [[{ database_name: 'vigabss_test' }]];
       }),
       query: jest.fn().mockResolvedValue([{}]),
       release: jest.fn(),
     };
-    await expect(applyMigrations({ getConnection: async () => fresh }, 'primary:fireisp_test', { migrationsDir: FIXTURE }))
+    await expect(applyMigrations({ getConnection: async () => fresh }, 'primary:vigabss_test', { migrationsDir: FIXTURE }))
       .resolves.not.toThrow();
   });
 });

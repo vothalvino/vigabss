@@ -30,7 +30,7 @@ const { attachmentStorage, resolveStoredPath, STORAGE_ROOT,
 // Multer — ticket attachments (disk storage, 20 MB limit)
 // ---------------------------------------------------------------------------
 // Under STORAGE_ROOT, which is the ONLY directory any deployment mounts:
-// `storage:/app/storage` in docker-compose.prod.yml and the fireisp-storage PVC
+// `storage:/app/storage` in docker-compose.prod.yml and the vigabss-storage PVC
 // in k8s/deployment.yaml. The previous ../../uploads/tickets was mounted by
 // nothing, so attachments lived in the container's writable layer and were
 // destroyed by every redeploy.
@@ -516,7 +516,7 @@ router.post('/:id/attachments', requireOwnedTicket('ticket_attachments.create'),
       'INSERT INTO ticket_attachments (ticket_id, filename, original_filename, mime_type, file_size, storage_path, uploaded_by, organization_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       // Relative to STORAGE_ROOT, matching clients.js and files.js. An absolute
       // path would break the moment the install root differs from the one that
-      // wrote it — /app under Docker, /opt/fireisp from install.sh, or a backup
+      // wrote it — /app under Docker, /opt/vigabss from install.sh, or a backup
       // restored onto another host.
       [req.params.id, req.file.filename, req.file.originalname, attachmentMimeType(req.file.originalname), req.file.size,
         path.relative(STORAGE_ROOT, req.file.path), req.user.id, req.orgId],

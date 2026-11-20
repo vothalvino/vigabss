@@ -120,8 +120,8 @@ describe('P3.4 — httpOnly cookie auth', () => {
       expect(authService.completeMfaLogin).toHaveBeenCalledWith({ mfaToken: 'challenge-jwt', code: '123456' }, expect.objectContaining({ ip: expect.any(String) }));
       expect(res.body.data.accessToken).toBe('access-jwt');
       const cookies = res.headers['set-cookie'];
-      expect(cookies.find(c => c.startsWith('fireisp_access=access-jwt'))).toBeDefined();
-      expect(cookies.find(c => c.startsWith('fireisp_refresh=opaque-refresh-token'))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('vigabss_access=access-jwt'))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('vigabss_refresh=opaque-refresh-token'))).toBeDefined();
     });
 
     test('POST /login/2fa rejects a missing code before reaching the service', async () => {
@@ -143,7 +143,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
       user: { id: 1, email: 'admin@example.com', role: 'admin' },
     };
 
-    test('sets fireisp_access httpOnly cookie', async () => {
+    test('sets vigabss_access httpOnly cookie', async () => {
       authService.login.mockResolvedValueOnce(loginResult);
 
       const res = await request(app)
@@ -154,7 +154,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const cookies = res.headers['set-cookie'];
       expect(cookies).toBeDefined();
-      const accessCookie = cookies.find(c => c.startsWith('fireisp_access='));
+      const accessCookie = cookies.find(c => c.startsWith('vigabss_access='));
       expect(accessCookie).toBeDefined();
       expect(accessCookie).toContain('access-jwt');
       expect(accessCookie).toMatch(/HttpOnly/i);
@@ -162,7 +162,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
       expect(accessCookie).toMatch(/Path=\/api/);
     });
 
-    test('sets fireisp_refresh httpOnly cookie scoped to /api/v1/auth', async () => {
+    test('sets vigabss_refresh httpOnly cookie scoped to /api/v1/auth', async () => {
       authService.login.mockResolvedValueOnce(loginResult);
 
       const res = await request(app)
@@ -170,7 +170,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
         .send(loginPayload);
 
       const cookies = res.headers['set-cookie'];
-      const refreshCookie = cookies.find(c => c.startsWith('fireisp_refresh='));
+      const refreshCookie = cookies.find(c => c.startsWith('vigabss_refresh='));
       expect(refreshCookie).toBeDefined();
       expect(refreshCookie).toContain('opaque-refresh-token');
       expect(refreshCookie).toMatch(/HttpOnly/i);
@@ -189,7 +189,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
         .send(loginPayload);
 
       const wsCookie = res.headers['set-cookie']
-        .find(c => c.startsWith('fireisp_ws_access='));
+        .find(c => c.startsWith('vigabss_ws_access='));
       expect(wsCookie).toBeDefined();
       expect(wsCookie).toContain('access-jwt');
       expect(wsCookie).toMatch(/HttpOnly/i);
@@ -224,7 +224,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
-        .set('Cookie', 'fireisp_refresh=cookie-refresh-token')
+        .set('Cookie', 'vigabss_refresh=cookie-refresh-token')
         .send({});
 
       expect(res.status).toBe(200);
@@ -232,9 +232,9 @@ describe('P3.4 — httpOnly cookie auth', () => {
       expect(authService.refreshToken).toHaveBeenCalledWith('cookie-refresh-token', undefined);
 
       const cookies = res.headers['set-cookie'];
-      expect(cookies.find(c => c.startsWith('fireisp_access='))).toBeDefined();
-      expect(cookies.find(c => c.startsWith('fireisp_ws_access='))).toBeDefined();
-      expect(cookies.find(c => c.startsWith('fireisp_refresh='))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('vigabss_access='))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('vigabss_ws_access='))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('vigabss_refresh='))).toBeDefined();
     });
 
     test('still accepts refresh token from request body (backward compat)', async () => {
@@ -253,7 +253,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
-        .set('Cookie', 'fireisp_refresh=cookie-wins')
+        .set('Cookie', 'vigabss_refresh=cookie-wins')
         .send({ refreshToken: 'body-loses' });
 
       expect(authService.refreshToken).toHaveBeenCalledWith('cookie-wins', undefined);
@@ -265,16 +265,16 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
-        .set('Cookie', 'fireisp_refresh=old-token; fireisp_active_org=7')
+        .set('Cookie', 'vigabss_refresh=old-token; vigabss_active_org=7')
         .send({});
 
       expect(res.status).toBe(200);
       // The active org from the cookie is forwarded for server-side re-validation...
       expect(authService.refreshToken).toHaveBeenCalledWith('old-token', '7');
       // ...and re-persisted (scoped to /refresh, httpOnly) so it survives reloads.
-      const activeOrgCookie = res.headers['set-cookie'].find(c => c.startsWith('fireisp_active_org='));
+      const activeOrgCookie = res.headers['set-cookie'].find(c => c.startsWith('vigabss_active_org='));
       expect(activeOrgCookie).toBeDefined();
-      expect(activeOrgCookie).toContain('fireisp_active_org=7');
+      expect(activeOrgCookie).toContain('vigabss_active_org=7');
       expect(activeOrgCookie).toMatch(/Path=\/api\/v1\/auth\/refresh/);
       expect(activeOrgCookie).toMatch(/HttpOnly/i);
     });
@@ -293,13 +293,13 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
-        .set('Cookie', 'fireisp_refresh=old-token')
+        .set('Cookie', 'vigabss_refresh=old-token')
         .send({});
 
       const cookies = res.headers['set-cookie'];
-      const accessCookie = cookies.find(c => c.startsWith('fireisp_access='));
-      const wsCookie = cookies.find(c => c.startsWith('fireisp_ws_access='));
-      const refreshCookie = cookies.find(c => c.startsWith('fireisp_refresh='));
+      const accessCookie = cookies.find(c => c.startsWith('vigabss_access='));
+      const wsCookie = cookies.find(c => c.startsWith('vigabss_ws_access='));
+      const refreshCookie = cookies.find(c => c.startsWith('vigabss_refresh='));
 
       expect(accessCookie).toContain('new-access-jwt');
       expect(wsCookie).toContain('new-access-jwt');
@@ -316,15 +316,15 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/logout')
-        .set('Cookie', 'fireisp_refresh=some-refresh-token');
+        .set('Cookie', 'vigabss_refresh=some-refresh-token');
 
       expect(res.status).toBe(200);
 
       const cookies = res.headers['set-cookie'];
       // Cleared cookies are set with empty value and a past / zero maxAge
-      const accessCleared = cookies.find(c => c.startsWith('fireisp_access='));
-      const wsAccessCleared = cookies.find(c => c.startsWith('fireisp_ws_access='));
-      const refreshCleared = cookies.find(c => c.startsWith('fireisp_refresh='));
+      const accessCleared = cookies.find(c => c.startsWith('vigabss_access='));
+      const wsAccessCleared = cookies.find(c => c.startsWith('vigabss_ws_access='));
+      const refreshCleared = cookies.find(c => c.startsWith('vigabss_refresh='));
       expect(accessCleared).toBeDefined();
       expect(wsAccessCleared).toBeDefined();
       expect(refreshCleared).toBeDefined();
@@ -339,7 +339,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       await request(app)
         .post('/api/v1/auth/logout')
-        .set('Cookie', 'fireisp_refresh=revoke-this-token');
+        .set('Cookie', 'vigabss_refresh=revoke-this-token');
 
       expect(authService.logout).toHaveBeenCalledWith('revoke-this-token');
     });
@@ -371,7 +371,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/switch-organization')
-        .set('Cookie', 'fireisp_refresh=cookie-refresh-token')
+        .set('Cookie', 'vigabss_refresh=cookie-refresh-token')
         .send({ organizationId: 7 });
 
       expect(res.status).toBe(200);
@@ -396,7 +396,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       await request(app)
         .post('/api/v1/auth/switch-organization')
-        .set('Cookie', 'fireisp_refresh=cookie-wins')
+        .set('Cookie', 'vigabss_refresh=cookie-wins')
         .send({ organizationId: 7, refreshToken: 'body-loses' });
 
       expect(authService.switchOrganization).toHaveBeenCalledWith(1, 7, 'cookie-wins');
@@ -407,13 +407,13 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/switch-organization')
-        .set('Cookie', 'fireisp_refresh=old-token')
+        .set('Cookie', 'vigabss_refresh=old-token')
         .send({ organizationId: 7 });
 
       const cookies = res.headers['set-cookie'];
-      expect(cookies.find(c => c.startsWith('fireisp_access='))).toContain('switched-access-jwt');
-      expect(cookies.find(c => c.startsWith('fireisp_ws_access='))).toContain('switched-access-jwt');
-      expect(cookies.find(c => c.startsWith('fireisp_refresh='))).toContain('switched-refresh-token');
+      expect(cookies.find(c => c.startsWith('vigabss_access='))).toContain('switched-access-jwt');
+      expect(cookies.find(c => c.startsWith('vigabss_ws_access='))).toContain('switched-access-jwt');
+      expect(cookies.find(c => c.startsWith('vigabss_refresh='))).toContain('switched-refresh-token');
     });
 
     test('persists the new active org as an httpOnly cookie scoped to /refresh', async () => {
@@ -421,13 +421,13 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/switch-organization')
-        .set('Cookie', 'fireisp_refresh=old-token')
+        .set('Cookie', 'vigabss_refresh=old-token')
         .send({ organizationId: 7 });
 
       // So a later /refresh (page reload) re-mints the token bound to org 7
       // instead of reverting to the user's primary org.
-      const activeOrgCookie = res.headers['set-cookie'].find(c => c.startsWith('fireisp_active_org='));
-      expect(activeOrgCookie).toContain('fireisp_active_org=7');
+      const activeOrgCookie = res.headers['set-cookie'].find(c => c.startsWith('vigabss_active_org='));
+      expect(activeOrgCookie).toContain('vigabss_active_org=7');
       expect(activeOrgCookie).toMatch(/Path=\/api\/v1\/auth\/refresh/);
       expect(activeOrgCookie).toMatch(/HttpOnly/i);
     });
@@ -445,7 +445,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
         .post('/api/v1/auth/login')
         .send({ email: 'admin@example.com', password: 'secret1234' });
 
-      const refreshCookie = res.headers['set-cookie'].find(c => c.startsWith('fireisp_refresh='));
+      const refreshCookie = res.headers['set-cookie'].find(c => c.startsWith('vigabss_refresh='));
       const cookiePath = /Path=([^;]+)/.exec(refreshCookie)[1];
 
       // RFC 6265 path-matching: the request path must equal the cookie Path or
@@ -505,7 +505,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.accessToken).toBe('access-jwt');
       expect(res.body.data).not.toHaveProperty('refreshToken');
-      expect(res.headers['set-cookie'].find(c => c.startsWith('fireisp_refresh=opaque-refresh-token') && /HttpOnly/.test(c)))
+      expect(res.headers['set-cookie'].find(c => c.startsWith('vigabss_refresh=opaque-refresh-token') && /HttpOnly/.test(c)))
         .toBeDefined();
     });
 
@@ -524,7 +524,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')
-        .set('Cookie', 'fireisp_refresh=r1')
+        .set('Cookie', 'vigabss_refresh=r1')
         .send({});
 
       expect(res.status).toBe(200);
@@ -538,7 +538,7 @@ describe('P3.4 — httpOnly cookie auth', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/switch-organization')
-        .set('Cookie', 'fireisp_refresh=r1')
+        .set('Cookie', 'vigabss_refresh=r1')
         .send({ organizationId: 2 });
 
       expect(res.status).toBe(200);

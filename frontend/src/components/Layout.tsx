@@ -39,8 +39,8 @@ import {
 // The nav tree itself lives in src/nav/routes.ts (single route registry);
 // the old NAV_GROUPS / TECHNICIAN_NAV_GROUPS fork is gone.
 // ---------------------------------------------------------------------------
-const EXPANDED_KEY = 'fireisp.nav.expanded';
-const WORKSPACE_KEY = 'fireisp.nav.workspace';
+const EXPANDED_KEY = 'vigabss.nav.expanded';
+const WORKSPACE_KEY = 'vigabss.nav.workspace';
 
 function loadExpanded(): SectionId[] {
   try {

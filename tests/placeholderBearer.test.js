@@ -2,7 +2,7 @@
 // FE-03 — a placeholder Bearer header falls back to the session cookie
 // =============================================================================
 // After a reload the SPA holds no in-memory access token and authenticates
-// with the fireisp_access cookie, but several pages sent
+// with the vigabss_access cookie, but several pages sent
 // `Authorization: Bearer ${token}` anyway. "Bearer null" / "Bearer " took
 // precedence over the cookie and every request failed with 401. Such a header
 // is no credential: authentication uses the cookie, and a write still needs
@@ -45,19 +45,19 @@ test.each([
 
 test.each(['Bearer null', 'Bearer '])('a read with %j and the session cookie is authenticated by the cookie', async (header) => {
   const res = await request(app).get('/api/v1/onu-management/profiles')
-    .set('Authorization', header).set('Cookie', `fireisp_access=${token}`);
+    .set('Authorization', header).set('Cookie', `vigabss_access=${token}`);
   expect(res.status).toBe(200);
 });
 
 test('a real but invalid Bearer token is still refused, cookie or not', async () => {
   const res = await request(app).get('/api/v1/onu-management/profiles')
-    .set('Authorization', 'Bearer not-a-jwt').set('Cookie', `fireisp_access=${token}`);
+    .set('Authorization', 'Bearer not-a-jwt').set('Cookie', `vigabss_access=${token}`);
   expect(res.status).toBe(401);
 });
 
 test('a cookie-authenticated write with a placeholder Bearer header still needs the CSRF token', async () => {
   const res = await request(app).post('/api/v1/onu-management/profiles')
-    .set('Authorization', 'Bearer null').set('Cookie', `fireisp_access=${token}`)
+    .set('Authorization', 'Bearer null').set('Cookie', `vigabss_access=${token}`)
     .send({ name: 'P' });
   expect(res.status).toBe(403);
   expect(db.query.mock.calls.some(([sql]) => /INSERT INTO onu_profiles/.test(sql))).toBe(false);

@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-Worktree: `C:\Users\votha\Repos\Claude fable\fireisp-wt-sec7` (branch `7-of-isp-platform-feature.md`). All §7.1–§7.4 committed.
+Branch `7-of-isp-platform-feature.md`. All §7.1–§7.4 committed.
 
 ## Tables added (208 total in schema.sql)
 

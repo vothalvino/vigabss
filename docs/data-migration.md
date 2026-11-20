@@ -2,10 +2,9 @@
 
 This runbook covers migrating an existing ISP's data into VigaBSS 0.1.0-alpha.21. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
 
-Examples use the fresh-install database name and backup prefix `vigabss`.
+Examples use the default database name and backup prefix `vigabss`.
 Before any destructive command, replace them with the configured `DB_NAME` and
-the exact backup filename from your installation. Existing FireISP-era
-databases and backup prefixes do not need to be renamed.
+the exact backup filename from your installation.
 
 ---
 

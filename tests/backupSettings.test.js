@@ -137,7 +137,7 @@ function installDbMock() {
 const MINIO_SETTINGS = {
   remote_enabled: true,
   provider: 'minio',
-  bucket: 'fireisp-backups',
+  bucket: 'vigabss-backups',
   region: 'us-east-1',
   endpoint: 'http://192.168.1.50:9000',
   prefix: 'db-backups/',
@@ -270,7 +270,7 @@ describe('backupSettingsService.getEffectiveRemoteConfig', () => {
     await request(app).put('/api/v1/backup-settings').send(MINIO_SETTINGS);
     const config = await backupSettingsService.getEffectiveRemoteConfig();
     expect(config).toMatchObject({
-      bucket: 'fireisp-backups',
+      bucket: 'vigabss-backups',
       accessKey: 'minio-key',
       secretKey: 'minio-secret', // decrypted for the uploader, never for HTTP
       endpoint: 'http://192.168.1.50:9000',
@@ -305,7 +305,7 @@ describe('backupSettingsService.getEffectiveRemoteConfig', () => {
 describe('POST /api/v1/backup-settings/test', () => {
   it('uploads and deletes a probe object, recording success', async () => {
     await request(app).put('/api/v1/backup-settings').send(MINIO_SETTINGS);
-    mockUploadObject.mockResolvedValue('http://192.168.1.50:9000/fireisp-backups/db-backups/probe.txt');
+    mockUploadObject.mockResolvedValue('http://192.168.1.50:9000/vigabss-backups/db-backups/probe.txt');
     mockDeleteObject.mockResolvedValue(undefined);
 
     const res = await request(app).post('/api/v1/backup-settings/test');
@@ -314,7 +314,7 @@ describe('POST /api/v1/backup-settings/test', () => {
     expect(mockUploadObject).toHaveBeenCalledTimes(1);
     const [config, key] = mockUploadObject.mock.calls[0];
     expect(config.secretKey).toBe('minio-secret');
-    expect(key).toMatch(/^db-backups\/fireisp-connection-test-/);
+    expect(key).toMatch(/^db-backups\/vigabss-connection-test-/);
     expect(mockDeleteObject).toHaveBeenCalledWith(expect.anything(), key);
     expect(settingsRow.last_test_status).toBe('success');
   });
@@ -353,7 +353,7 @@ describe('POST /api/v1/backup-settings/test', () => {
 describe('backup runs endpoints', () => {
   it('GET /runs returns run history (and tolerates a missing local dir)', async () => {
     runsRows = [{
-      id: 7, trigger_source: 'scheduled', status: 'success', filename: 'fireisp_x.sql.gz',
+      id: 7, trigger_source: 'scheduled', status: 'success', filename: 'vigabss_x.sql.gz',
       size_bytes: 12345, remote_status: 'uploaded', remote_url: 'http://x/y', error_message: null,
       started_at: '2026-07-17T03:00:00.000Z', finished_at: '2026-07-17T03:00:20.000Z',
     }];

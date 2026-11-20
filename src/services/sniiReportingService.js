@@ -26,7 +26,7 @@ const {
   ConflictError,
 } = require('../utils/errors');
 
-const GENERATOR_VERSION = 'fireisp-snii-preparer/1';
+const GENERATOR_VERSION = 'vigabss-snii-preparer/1';
 const SOURCE_TYPES = new Set([
   'site', 'device', 'network_link', 'fiber_route', 'infrastructure_point', 'manual',
 ]);

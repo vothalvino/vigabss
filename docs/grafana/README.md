@@ -1,8 +1,7 @@
 # VigaBSS 0.1.0-alpha.21 — Grafana Dashboards
 
-The JSON filenames, dashboard UIDs, and `fireisp` tags are retained as stable
-Grafana import/provisioning identifiers. Their visible dashboard titles use the
-VigaBSS product name; renaming a UID can create duplicate dashboards.
+The dashboard UIDs are stable Grafana import/provisioning identifiers:
+renaming a UID on a running Grafana creates a duplicate dashboard.
 
 This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 0.1.0-alpha.21. All dashboards use Prometheus as the data source.
 
@@ -10,11 +9,11 @@ This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 
 
 | File | UID | Title | Purpose |
 |---|---|---|---|
-| `fireisp-dashboard.json` | `fireisp-app` | Application Dashboard | Process health, HTTP throughput, request latency (p50/p95/p99), memory, DB query p95 |
-| `fireisp-api-performance.json` | `fireisp-api-perf` | API Performance | Per-route latency histograms, error rates, error ratio, DB query times by operation |
-| `fireisp-network.json` | `fireisp-network` | Network & SNMP | RADIUS request rates, SNMP polling latency, device management activity |
-| `fireisp-billing.json` | `fireisp-billing` | Billing & Revenue | Invoice generation, payment processing, billing endpoint latency and errors |
-| `fireisp-alerts.json` | `fireisp-alerts` | Alerts & Monitoring | Alert evaluations, webhook delivery, notification latency, audit log writes |
+| `vigabss-dashboard.json` | `vigabss-app` | Application Dashboard | Process health, HTTP throughput, request latency (p50/p95/p99), memory, DB query p95 |
+| `vigabss-api-performance.json` | `vigabss-api-perf` | API Performance | Per-route latency histograms, error rates, error ratio, DB query times by operation |
+| `vigabss-network.json` | `vigabss-network` | Network & SNMP | RADIUS request rates, SNMP polling latency, device management activity |
+| `vigabss-billing.json` | `vigabss-billing` | Billing & Revenue | Invoice generation, payment processing, billing endpoint latency and errors |
+| `vigabss-alerts.json` | `vigabss-alerts` | Alerts & Monitoring | Alert evaluations, webhook delivery, notification latency, audit log writes |
 
 ## Metrics Reference
 

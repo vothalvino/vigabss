@@ -25,7 +25,7 @@ interface AccentContextValue {
   toggleAccent: () => void;
 }
 
-const STORAGE_KEY = 'fireisp_accent';
+const STORAGE_KEY = 'vigabss_accent';
 
 const AccentContext = createContext<AccentContextValue | null>(null);
 

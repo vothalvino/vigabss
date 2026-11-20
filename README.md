@@ -56,11 +56,6 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 
 All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 
-Existing FireISP-era installs remain supported at `/opt/fireisp`; do not move
-that directory or rename its Docker volumes or database merely to match the new
-defaults. Their existing wrappers and `FIREISP_*` compatibility variables keep
-working. New documentation uses the VigaBSS names.
-
 > **Full deployment guide:** [`docs/deployment.md`](docs/deployment.md) covers bare-metal, Docker Compose, Kubernetes, TLS setup, MySQL tuning, and a production checklist.
 > **FreeRADIUS integration:** [`docs/freeradius/README.md`](docs/freeradius/README.md) covers installing FreeRADIUS 3.x, pointing `rlm_sql` at the VigaBSS MySQL database, enabling PPPoE/MAB/802.1X/EAP-TLS, and generating `clients.conf` from the `nas` table.
 
@@ -1533,7 +1528,7 @@ with `install.sh`, which uses `docker-compose.prod.yml`.
 | `pnpm --filter vigabss-frontend run lint` | Run frontend type-check / lint step |
 | `pnpm --filter vigabss-frontend build` | Build the frontend bundle |
 | `pnpm --filter vigabss-e2e test` | Run Playwright smoke tests |
-| `VIGABSS_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin [--org <id>]` | Create a user in an organization (`--org` is required when the install has more than one) — the password comes from `VIGABSS_ADMIN_PASSWORD` (legacy `FIREISP_ADMIN_PASSWORD` remains accepted), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
+| `VIGABSS_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin [--org <id>]` | Create a user in an organization (`--org` is required when the install has more than one) — the password comes from `VIGABSS_ADMIN_PASSWORD`, or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
 | `pnpm run backup` | Back up the database |
 
 ## Contributing

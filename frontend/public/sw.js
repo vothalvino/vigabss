@@ -5,8 +5,8 @@
 // handles Web Push notifications for outage / billing / ticket events.
 // =============================================================================
 
-// Changing the cache name also retires the legacy FireISP-branded cache in the
-// activate handler below, so existing installations move over cleanly.
+// Changing the cache name retires every older cache in the activate handler
+// below, so existing installations move over cleanly.
 const CACHE_NAME = 'vigabss-portal-v2';
 
 // Shell assets to cache on install (Vite build outputs vary; keep minimal)

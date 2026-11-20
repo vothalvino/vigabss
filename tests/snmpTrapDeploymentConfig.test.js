@@ -157,7 +157,7 @@ describe('SNMP trap listener deployment boundary', () => {
       container => container.name === 'database-migrate',
     );
     const applicationContainer = deployment.spec.template.spec.containers.find(
-      container => container.name === 'fireisp',
+      container => container.name === 'vigabss',
     );
     expect(deployment.spec.template.spec.initContainers).toEqual(expect.arrayContaining([
       expect.objectContaining({

@@ -12,7 +12,7 @@ interface BrandLockupProps {
 /**
  * One product lockup for the staff app and customer portal. The mark is a
  * repository-owned SVG rather than an emoji, so it renders consistently on
- * every platform and no longer carries the former FireISP flame cue.
+ * every platform and no longer carries a flame cue.
  */
 export function BrandLockup({
   showVersion = false,

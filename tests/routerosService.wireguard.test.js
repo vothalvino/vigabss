@@ -141,8 +141,8 @@ const CONN = { host: '127.0.0.1', user: 'admin', password: 'secret' };
 // Plausible 44-char base64 WireGuard key placeholders (format only — mock server ignores content)
 const PRIV_KEY = 'wB5oGz0h0fPxKA7jGtBEAkFvh2OwQ3rKNmD8s5fZVmI=';
 const PUB_KEY = 'YGi4NNBBEfZIuPTHnZIo2lMoWWWCBLx7GMbVx4MYbW4=';
-const WG_IFACE = 'wg-fireisp';
-const WG_PEER_COMMENT = 'fireisp-server';
+const WG_IFACE = 'wg-vigabss';
+const WG_PEER_COMMENT = 'vigabss-server';
 
 // =============================================================================
 // wireguardInterfaceUpsert
@@ -152,7 +152,7 @@ describe('wireguardInterfaceUpsert', () => {
   test('updates existing interface and returns created:false updated:true', async () => {
     const { handler, received } = capturingServer([
       [['!done']],                                                  // login
-      [['!re', '=.id=*1', '=name=wg-fireisp'], ['!done']],         // /interface/wireguard/print ?name=…
+      [['!re', '=.id=*1', '=name=wg-vigabss'], ['!done']],         // /interface/wireguard/print ?name=…
       [['!done']],                                                  // /interface/wireguard/set
     ]);
 
@@ -238,7 +238,7 @@ describe('wireguardAddressUpsert', () => {
   test('updates existing address and returns created:false updated:true', async () => {
     const { handler, received } = capturingServer([
       [['!done']],                                                                          // login
-      [['!re', '=.id=*2', '=interface=wg-fireisp', '=address=10.255.0.1/32'], ['!done']], // /ip/address/print
+      [['!re', '=.id=*2', '=interface=wg-vigabss', '=address=10.255.0.1/32'], ['!done']], // /ip/address/print
       [['!done']],                                                                          // /ip/address/set
     ]);
 
@@ -314,7 +314,7 @@ describe('wireguardPeerUpsert', () => {
   test('updates existing peer (by interface+comment) and returns created:false updated:true', async () => {
     const { handler, received } = capturingServer([
       [['!done']],                                                           // login
-      [['!re', '=.id=*3', '=comment=fireisp-server'], ['!done']],           // peers/print — found
+      [['!re', '=.id=*3', '=comment=vigabss-server'], ['!done']],           // peers/print — found
       [['!done']],                                                           // peers/set
     ]);
 
@@ -474,12 +474,12 @@ describe('wireguardReadTopology', () => {
       [['!done']], // login
       // /interface/wireguard/print
       [
-        ['!re', '=.id=*1', '=name=wg-fireisp', '=running=true'],
+        ['!re', '=.id=*1', '=name=wg-vigabss', '=running=true'],
         ['!done'],
       ],
       // /ip/address/print
       [
-        ['!re', '=.id=*2', '=address=10.255.0.1/32', '=interface=wg-fireisp'],
+        ['!re', '=.id=*2', '=address=10.255.0.1/32', '=interface=wg-vigabss'],
         ['!done'],
       ],
       // /ip/route/print ?connect=yes — ROS7 flags connected routes with connect=true
@@ -495,13 +495,13 @@ describe('wireguardReadTopology', () => {
 
       // Interface rows parsed correctly
       expect(result.interfaces).toHaveLength(1);
-      expect(result.interfaces[0].name).toBe('wg-fireisp');
+      expect(result.interfaces[0].name).toBe('wg-vigabss');
       expect(result.interfaces[0].running).toBe('true');
 
       // Address rows parsed correctly
       expect(result.addresses).toHaveLength(1);
       expect(result.addresses[0].address).toBe('10.255.0.1/32');
-      expect(result.addresses[0].interface).toBe('wg-fireisp');
+      expect(result.addresses[0].interface).toBe('wg-vigabss');
 
       // Route rows parsed correctly
       expect(result.routes).toHaveLength(2);
@@ -565,7 +565,7 @@ describe('wireguardPeerRemove', () => {
   test('removes existing peer by comment and returns deleted:true', async () => {
     const { handler, received } = capturingServer([
       [['!done']],                                                 // login
-      [['!re', '=.id=*3', '=comment=fireisp-server'], ['!done']], // peers/print — found
+      [['!re', '=.id=*3', '=comment=vigabss-server'], ['!done']], // peers/print — found
       [['!done']],                                                 // peers/remove
     ]);
 
@@ -623,7 +623,7 @@ describe('wireguardPeerRemove', () => {
 
 describe('wireguardRouteUpsert', () => {
   const DST = '10.255.0.0/16';
-  const GW  = 'fireisp-nas-7';
+  const GW  = 'vigabss-nas-7';
 
   test('creates a new route when absent and returns created:true with id from !done ret', async () => {
     const { handler, received } = capturingServer([
@@ -635,7 +635,7 @@ describe('wireguardRouteUpsert', () => {
     await withMockServer(handler, async (port) => {
       const result = await wireguardRouteUpsert(
         { ...CONN, port },
-        { dstAddress: DST, gateway: GW, comment: 'fireisp-hub-return' },
+        { dstAddress: DST, gateway: GW, comment: 'vigabss-hub-return' },
       );
       expect(result).toEqual({ id: '*3', created: true, updated: false });
 
@@ -646,7 +646,7 @@ describe('wireguardRouteUpsert', () => {
       expect(received[2][0]).toBe('/ip/route/add');
       expect(received[2]).toContain(`=dst-address=${DST}`);
       expect(received[2]).toContain(`=gateway=${GW}`);
-      expect(received[2]).toContain('=comment=fireisp-hub-return');
+      expect(received[2]).toContain('=comment=vigabss-hub-return');
     });
   });
 
@@ -797,8 +797,8 @@ describe('handlers — WireGuard entries', () => {
   test('wireguard.readTopology handler reads all three RouterOS paths', async () => {
     const handler = sequenceServer([
       [['!done']], // login
-      [['!re', '=.id=*1', '=name=wg-fireisp'], ['!done']], // interfaces
-      [['!re', '=.id=*2', '=address=10.255.0.1/32', '=interface=wg-fireisp'], ['!done']], // addresses
+      [['!re', '=.id=*1', '=name=wg-vigabss'], ['!done']], // interfaces
+      [['!re', '=.id=*2', '=address=10.255.0.1/32', '=interface=wg-vigabss'], ['!done']], // addresses
       [['!done']], // routes (empty)
     ]);
 
@@ -837,7 +837,7 @@ describe('handlers — WireGuard entries', () => {
   test('wireguard.peerRemove handler returns deleted:true when peer exists', async () => {
     const handler = sequenceServer([
       [['!done']],
-      [['!re', '=.id=*5', '=comment=fireisp-server'], ['!done']], // found
+      [['!re', '=.id=*5', '=comment=vigabss-server'], ['!done']], // found
       [['!done']], // remove
     ]);
 
@@ -868,8 +868,8 @@ describe('handlers — WireGuard entries', () => {
         user: 'admin',
         password: 'secret',
         dstAddress: '10.255.0.0/16',
-        gateway:    'wg-fireisp',
-        comment:    'fireisp-hub-return',
+        gateway:    'wg-vigabss',
+        comment:    'vigabss-hub-return',
       });
       expect(result.created).toBe(true);
       expect(result.id).toBe('*9');

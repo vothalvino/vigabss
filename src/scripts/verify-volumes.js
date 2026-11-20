@@ -13,7 +13,7 @@
 //   • Exit 2  → could not inspect the container (Docker missing / wrong name).
 //
 // Usage:  node src/scripts/verify-volumes.js <container> [target ...]
-//         npm run verify:volumes -- fireisp-db-1
+//         npm run verify:volumes -- vigabss-db-1
 //
 // When no targets are given, the MySQL data directory (/var/lib/mysql) is
 // checked by default. Pass extra targets to check Redis (/data), app storage

@@ -174,7 +174,7 @@ describe('WsHub', () => {
       const ws = connectWs(port, {
         headers: {
           Origin: 'http://localhost:3000',
-          Cookie: `unrelated=value; fireisp_ws_access=${encodeURIComponent(token)}`,
+          Cookie: `unrelated=value; vigabss_ws_access=${encodeURIComponent(token)}`,
         },
       });
       await waitForOpen(ws);
@@ -187,7 +187,7 @@ describe('WsHub', () => {
 
     it('rejects ambient cookie auth without a browser Origin', async () => {
       const ws = connectWs(port, {
-        headers: { Cookie: `fireisp_ws_access=${makeToken(8)}` },
+        headers: { Cookie: `vigabss_ws_access=${makeToken(8)}` },
       });
       await waitForOpen(ws);
       ws.send(JSON.stringify({ type: 'auth' }));
@@ -200,7 +200,7 @@ describe('WsHub', () => {
       const ws = connectWs(port, {
         headers: {
           Origin: 'https://evil.example',
-          Cookie: `fireisp_ws_access=${makeToken(8)}`,
+          Cookie: `vigabss_ws_access=${makeToken(8)}`,
         },
       });
       await waitForOpen(ws);

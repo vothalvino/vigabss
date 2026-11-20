@@ -1563,8 +1563,8 @@ deployment artifacts. Do not weaken a check or test to make a change pass.
   full-flow test environments; `docker-compose.build.yml` supports image builds.
   The test compose builds the Dockerfile `test` stage (devDependencies and a
   MySQL client), applies migrations, runs `tests/run_tests.sh`, then Jest.
-- `install.sh` is the fresh production installer. Current installs use
-  `/opt/vigabss`; `/opt/fireisp` remains a compatibility path.
+- `install.sh` is the fresh production installer. Installs use
+  `/opt/vigabss`.
 - `k8s/` and `charts/` provide Kubernetes and Helm deployment assets.
 - Operational references live in `docs/deployment.md`,
   `docs/backup-restore.md`, `docs/firerelay.md`, `docs/freeradius/`, and
@@ -1580,10 +1580,12 @@ configuration; there is not one uniform gate. Preserve each subsystem's safe
 disabled/no-op behavior, including the no-Redis fallback and opt-in listeners,
 unless the deployment contract is intentionally changed.
 
-The historical name `fireisp` remains in compatibility-sensitive identifiers,
-including default database/cookie names, deployment paths, and selected chart
-or runtime labels. Do not globally rename those strings as cosmetic cleanup;
-verify each one's upgrade and interoperability contract first.
+Runtime identifiers carry the product name: cookie and browser-storage keys,
+the default database name and user, the WireGuard hub interface (`wg-vigabss`)
+and nftables table (`vigabss_wg`), the objects written to managed routers
+(`vigabss-*` names and comments), metric names, and the Kubernetes resource
+names. They are contracts with deployed state: renaming one needs an upgrade
+path for whatever already carries the old name.
 
 ## Recurring failure modes
 

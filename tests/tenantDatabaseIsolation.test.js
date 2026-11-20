@@ -49,7 +49,7 @@ describe('OrganizationDatabaseConfig', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3307,
-      db_name: 'fireisp_org_7',
+      db_name: 'vigabss_org_7',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 1,
@@ -72,7 +72,7 @@ describe('OrganizationDatabaseConfig', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_7',
+        db_name: 'vigabss_org_7',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 0,
@@ -81,7 +81,7 @@ describe('OrganizationDatabaseConfig', () => {
     const cfg = await saveDatabaseIsolation(7, {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
-      db_name: 'fireisp_org_7',
+      db_name: 'vigabss_org_7',
       db_user: 'tenant_user',
       db_password: 'secret',
     });
@@ -100,7 +100,7 @@ describe('OrganizationDatabaseConfig', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_7',
+        db_name: 'vigabss_org_7',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 1,
@@ -110,7 +110,7 @@ describe('OrganizationDatabaseConfig', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_7',
+        db_name: 'vigabss_org_7',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 1,
@@ -157,7 +157,7 @@ describe('tenantDatabaseService validation', () => {
       {
         isolation_mode: 'isolated',
         db_host: 'old-db',
-        db_name: 'fireisp_org_9',
+        db_name: 'vigabss_org_9',
         db_user: 'tenant_user',
         has_password: true,
       },
@@ -178,7 +178,7 @@ describe('tenantDatabaseService connection checks and migrations', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_9',
+        db_name: 'vigabss_org_9',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 1,
@@ -190,7 +190,7 @@ describe('tenantDatabaseService connection checks and migrations', () => {
 
     expect(mockTestTenantConnection).toHaveBeenCalledWith(expect.objectContaining({
       host: 'tenant-db',
-      database: 'fireisp_org_9',
+      database: 'vigabss_org_9',
       user: 'tenant_user',
       password: 'secret',
       ssl: {},
@@ -210,7 +210,7 @@ describe('tenantDatabaseService connection checks and migrations', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_9',
+      db_name: 'vigabss_org_9',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,
@@ -220,10 +220,10 @@ describe('tenantDatabaseService connection checks and migrations', () => {
 
     expect(targets).toEqual([{
       organizationId: 9,
-      database: 'fireisp_org_9',
+      database: 'vigabss_org_9',
       connectionConfig: expect.objectContaining({
         host: 'tenant-db',
-        database: 'fireisp_org_9',
+        database: 'vigabss_org_9',
         password: 'secret',
       }),
     }]);
@@ -237,7 +237,7 @@ describe('tenantDatabaseService connection checks and migrations', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_9',
+      db_name: 'vigabss_org_9',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,

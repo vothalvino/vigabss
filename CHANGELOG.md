@@ -5,6 +5,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Every internal name now uses the product name.** Cookies and browser
+  storage keys, the default database name and user, the WireGuard hub
+  interface (`wg-vigabss`) and firewall table (`vigabss_wg`), the names and
+  comments written to managed routers (`vigabss-*`), metric names, the
+  container user, the Grafana dashboard files and the raw Kubernetes resource
+  names. The installer and deploy scripts no longer accept the earlier
+  spellings of their settings, install path or command. Everyone is signed
+  out once after upgrading. An install made from an earlier alpha also needs
+  two one-time fixes by hand: rename the SSO group-mapping role column to
+  `vigabss_role`, and rename the hub key files in the WireGuard key volume to
+  `wg-vigabss.key` / `wg-vigabss.pub` (otherwise the hub generates a new key
+  and NAS tunnels must be re-provisioned).
+
 - **Sorting works on the Overdue invoice filter.** Clicking a column header
   while the Invoices list was filtered to Overdue did nothing; the list now
   sorts by the chosen column. The default is still longest overdue first.
@@ -446,11 +459,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   test line is switching off it says when the visit can be finished and why,
   instead of claiming temporary internet is still on and offering the speed
   test again (#108).
-- **The Helm chart is named `vigabss`.** It was still `fireisp`, so every
-  release published a `fireisp-<version>` chart release. The chart now lives in
+- **The Helm chart is named `vigabss`.** It carried a different name, so every
+  release published a chart release under that name. The chart now lives in
   `charts/vigabss`; the docs install it as `helm install vigabss vigabss/vigabss`
   into the `vigabss` namespace, with `vigabss` database defaults.
-- **Prometheus alerts can fire.** The alert rules selected `job="fireisp"`
+- **Prometheus alerts can fire.** The alert rules selected a different job name
   while the docs configure the scrape job as `vigabss`, so no rule matched any
   series; both rule files now select `vigabss`, and a test keeps them aligned.
 - **The Resellers page shows write actions only to users who may use them.**
@@ -522,7 +535,7 @@ for a pilot, not for production billing.
 ### Installing
 
 - Fresh installs only: `install.sh` (Docker Compose) or the Helm chart
-  (`charts/fireisp`). The release image is
+  (`charts/vigabss`). The release image is
   `ghcr.io/vothalvino/vigabss:0.1.0-alpha.1`, multi-arch (amd64 and arm64)
   and signed with Cosign; `redeploy` verifies the signature.
 - The database is built from one migration, `001_baseline.sql`: the 525

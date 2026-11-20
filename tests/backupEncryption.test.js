@@ -121,7 +121,7 @@ describe('backup() with BACKUP_ENCRYPTION_KEY', () => {
     process.env.BACKUP_DIR = path.join(tmp, 'backups');
     // The fake dump compresses to a few dozen bytes.
     process.env.BACKUP_MIN_BYTES = '1';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
   });
 
   test('uploads only the encrypted file and removes it afterwards', async () => {
@@ -136,7 +136,7 @@ describe('backup() with BACKUP_ENCRYPTION_KEY', () => {
     const result = await backup();
 
     expect(result.remoteStatus).toBe('uploaded');
-    expect(uploaded.name).toMatch(/^fireisp_.*\.sql\.gz\.enc$/);
+    expect(uploaded.name).toMatch(/^vigabss_.*\.sql\.gz\.enc$/);
     expect(uploaded.bytes.subarray(0, 4).toString()).toBe('VBK1');
     expect(fs.existsSync(uploaded.localPath)).toBe(false);
     // The local copy stays plain gzip, and the remote copy decrypts to it.

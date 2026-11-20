@@ -43,7 +43,7 @@ describe('firerelayService', () => {
   describe('listNodes()', () => {
     test('returns paginated nodes with meta', async () => {
       const nodes = [
-        { id: 'node2', name: 'Worker 2', api_url: 'https://node2.fireisp.com', status: 'active' },
+        { id: 'node2', name: 'Worker 2', api_url: 'https://node2.example.com', status: 'active' },
       ];
       db.query
         .mockResolvedValueOnce([nodes])
@@ -76,7 +76,7 @@ describe('firerelayService', () => {
   describe('listAllNodes()', () => {
     test('returns all nodes without pagination', async () => {
       const nodes = [
-        { id: 'node1', name: 'Worker 1', api_url: 'https://node1.fireisp.com', status: 'active' },
+        { id: 'node1', name: 'Worker 1', api_url: 'https://node1.example.com', status: 'active' },
       ];
       db.query.mockResolvedValueOnce([nodes]);
 
@@ -90,7 +90,7 @@ describe('firerelayService', () => {
 
   describe('getNode()', () => {
     test('returns a single node by id', async () => {
-      const node = { id: 'node2', name: 'Worker 2', api_url: 'https://node2.fireisp.com' };
+      const node = { id: 'node2', name: 'Worker 2', api_url: 'https://node2.example.com' };
       db.query.mockResolvedValueOnce([[node]]);
 
       const result = await firerelayService.getNode('node2');
@@ -107,7 +107,7 @@ describe('firerelayService', () => {
 
   describe('registerNode()', () => {
     test('inserts a new node and returns it', async () => {
-      const node = { id: 'node3', name: 'Worker 3', api_url: 'https://node3.fireisp.com', status: 'active' };
+      const node = { id: 'node3', name: 'Worker 3', api_url: 'https://node3.example.com', status: 'active' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1 }])  // INSERT
         .mockResolvedValueOnce([[node]]);            // SELECT (getNode)
@@ -115,25 +115,25 @@ describe('firerelayService', () => {
       const result = await firerelayService.registerNode({
         id: 'node3',
         name: 'Worker 3',
-        api_url: 'https://node3.fireisp.com',
+        api_url: 'https://node3.example.com',
       });
       expect(result).toEqual(node);
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO firerelay_nodes'),
-        ['node3', 'Worker 3', 'https://node3.fireisp.com'],
+        ['node3', 'Worker 3', 'https://node3.example.com'],
       );
     });
 
     test('defaults name to empty string when not provided', async () => {
-      const node = { id: 'node4', name: '', api_url: 'https://node4.fireisp.com', status: 'active' };
+      const node = { id: 'node4', name: '', api_url: 'https://node4.example.com', status: 'active' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce([[node]]);
 
-      await firerelayService.registerNode({ id: 'node4', api_url: 'https://node4.fireisp.com' });
+      await firerelayService.registerNode({ id: 'node4', api_url: 'https://node4.example.com' });
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT'),
-        ['node4', '', 'https://node4.fireisp.com'],
+        ['node4', '', 'https://node4.example.com'],
       );
     });
   });
@@ -307,7 +307,7 @@ describe('firerelayService', () => {
         json: () => Promise.resolve(healthData),
       });
 
-      const node = { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active', client_count: 0 };
+      const node = { id: 'node2', api_url: 'https://node2.example.com', status: 'active', client_count: 0 };
 
       // updateNode calls: UPDATE then SELECT
       db.query
@@ -317,7 +317,7 @@ describe('firerelayService', () => {
       await firerelayService.pollNodeHealth(node);
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/v1/firerelay/health',
+        'https://node2.example.com/api/v1/firerelay/health',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ 'X-Relay-Token': 'a'.repeat(64) }),
@@ -334,7 +334,7 @@ describe('firerelayService', () => {
     test('handles health check failure gracefully', async () => {
       global.fetch = jest.fn().mockRejectedValue(new Error('Connection refused'));
 
-      const node = { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active' };
+      const node = { id: 'node2', api_url: 'https://node2.example.com', status: 'active' };
 
       // Should not throw
       await firerelayService.pollNodeHealth(node);
@@ -358,8 +358,8 @@ describe('firerelayService', () => {
   describe('fanOut()', () => {
     test('merges results from all healthy nodes', async () => {
       const nodes = [
-        { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active' },
-        { id: 'node3', api_url: 'https://node3.fireisp.com', status: 'active' },
+        { id: 'node2', api_url: 'https://node2.example.com', status: 'active' },
+        { id: 'node3', api_url: 'https://node3.example.com', status: 'active' },
       ];
       db.query.mockResolvedValueOnce([nodes]);
 
@@ -388,8 +388,8 @@ describe('firerelayService', () => {
 
     test('adds warnings for offline nodes', async () => {
       const nodes = [
-        { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active' },
-        { id: 'node3', api_url: 'https://node3.fireisp.com', status: 'offline' },
+        { id: 'node2', api_url: 'https://node2.example.com', status: 'active' },
+        { id: 'node3', api_url: 'https://node3.example.com', status: 'offline' },
       ];
       db.query.mockResolvedValueOnce([nodes]);
 
@@ -411,7 +411,7 @@ describe('firerelayService', () => {
 
     test('adds warnings for unreachable nodes', async () => {
       const nodes = [
-        { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active' },
+        { id: 'node2', api_url: 'https://node2.example.com', status: 'active' },
       ];
       db.query.mockResolvedValueOnce([nodes]);
 
@@ -435,7 +435,7 @@ describe('firerelayService', () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe('proxyToNode()', () => {
     test('proxies a request to the target node', async () => {
-      const node = { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'active' };
+      const node = { id: 'node2', api_url: 'https://node2.example.com', status: 'active' };
       db.query.mockResolvedValueOnce([[node]]);
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -455,7 +455,7 @@ describe('firerelayService', () => {
     });
 
     test('throws for offline nodes', async () => {
-      const node = { id: 'node2', api_url: 'https://node2.fireisp.com', status: 'offline' };
+      const node = { id: 'node2', api_url: 'https://node2.example.com', status: 'offline' };
       db.query.mockResolvedValueOnce([[node]]);
 
       await expect(
@@ -474,7 +474,7 @@ describe('firerelayService', () => {
         json: () => Promise.resolve({ ok: true }),
       });
 
-      const { status, data } = await firerelayService.httpRequest('https://node2.fireisp.com', {
+      const { status, data } = await firerelayService.httpRequest('https://node2.example.com', {
         method: 'GET',
         path: '/api/v1/firerelay/health',
       });
@@ -482,7 +482,7 @@ describe('firerelayService', () => {
       expect(status).toBe(200);
       expect(data).toEqual({ ok: true });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/v1/firerelay/health',
+        'https://node2.example.com/api/v1/firerelay/health',
         expect.objectContaining({ method: 'GET' }),
       );
 
@@ -495,14 +495,14 @@ describe('firerelayService', () => {
         json: () => Promise.resolve({ id: 1 }),
       });
 
-      await firerelayService.httpRequest('https://node2.fireisp.com', {
+      await firerelayService.httpRequest('https://node2.example.com', {
         method: 'POST',
         path: '/api/v1/clients',
         body: { name: 'Test Client' },
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/v1/clients',
+        'https://node2.example.com/api/v1/clients',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ name: 'Test Client' }),
@@ -523,7 +523,7 @@ describe('firerelayService', () => {
         });
 
       const { status } = await firerelayService.httpWithRetry(
-        'https://node2.fireisp.com',
+        'https://node2.example.com',
         { path: '/api/v1/firerelay/health' },
         1,
       );
@@ -539,7 +539,7 @@ describe('firerelayService', () => {
 
       await expect(
         firerelayService.httpWithRetry(
-          'https://node2.fireisp.com',
+          'https://node2.example.com',
           { path: '/api/v1/firerelay/health' },
           0,
         ),

@@ -7,7 +7,7 @@ import { tokenStore } from '@/api/client';
 // request — so the GraphQL POST never fired and ClientDetail showed
 // "Client not found" for every client. The endpoint must be absolute.
 describe('gql()', () => {
-  const clearCsrf = () => { document.cookie = 'fireisp_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT'; };
+  const clearCsrf = () => { document.cookie = 'vigabss_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT'; };
   beforeEach(() => { tokenStore.clear(); clearCsrf(); vi.restoreAllMocks(); });
 
   it('actually fires a request to an absolute /api/v1/graphql URL', async () => {
@@ -25,7 +25,7 @@ describe('gql()', () => {
 
   it('sends Bearer + X-CSRF-Token (through authedFetch)', async () => {
     tokenStore.setAccess('tok-7');
-    document.cookie = 'fireisp_csrf=csrf-9';
+    document.cookie = 'vigabss_csrf=csrf-9';
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: {} }), { status: 200, headers: { 'content-type': 'application/json' } }),
     );

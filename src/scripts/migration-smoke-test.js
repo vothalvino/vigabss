@@ -137,7 +137,7 @@ async function runSmokeTest() {
   // -------------------------------------------------------------------------
   // 2. Compare migrated table names against schema.sql
   // -------------------------------------------------------------------------
-  const dbName = process.env.DB_NAME || 'fireisp';
+  const dbName = process.env.DB_NAME || 'vigabss';
 
   const [rows] = await db.query(
     `SELECT table_name FROM information_schema.tables

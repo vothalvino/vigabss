@@ -79,7 +79,7 @@ describe('boot checks', () => {
 
   function validate(env) {
     Object.assign(process.env, {
-      JWT_SECRET: VALID_SECRET, DB_HOST: 'localhost', DB_NAME: 'fireisp', ...env,
+      JWT_SECRET: VALID_SECRET, DB_HOST: 'localhost', DB_NAME: 'vigabss', ...env,
     });
     jest.resetModules();
     return () => require('../src/config').validateEnv(null);

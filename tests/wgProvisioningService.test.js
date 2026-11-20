@@ -92,7 +92,7 @@ const BASE_NAS = {
   organization_id: 1,
   name: 'Core-RB',
   ip_address: '192.168.1.1',
-  api_username: 'fireisp',
+  api_username: 'vigabss',
   api_password_encrypted: 'enc:apipass',
   api_port: 8728,
   api_use_tls: 0,
@@ -103,7 +103,7 @@ const MOCK_TUNNEL = {
   id: 42,
   organization_id: 1,
   nas_id: 7,
-  interface_name: 'fireisp-nas-7',
+  interface_name: 'vigabss-nas-7',
   tunnel_address: '10.255.0.1',
   nas_public_key: 'pubkey==',
   nas_private_key_encrypted: 'enc:privkey',
@@ -114,7 +114,7 @@ const MOCK_TUNNEL = {
 };
 
 /** Connection descriptor returned by the mocked nasToConn. */
-const MOCK_CONN = { host: '192.168.1.1', port: 8728, user: 'fireisp' };
+const MOCK_CONN = { host: '192.168.1.1', port: 8728, user: 'vigabss' };
 
 // ---------------------------------------------------------------------------
 // Global per-test reset
@@ -292,7 +292,7 @@ describe('bootstrap — API success', () => {
       MOCK_CONN,
       expect.objectContaining({
         interface: MOCK_TUNNEL.interface_name,
-        comment: 'fireisp-server',
+        comment: 'vigabss-server',
       }),
     );
   });
@@ -315,7 +315,7 @@ describe('bootstrap — API success', () => {
       expect.objectContaining({
         dstAddress: expect.stringMatching(/^\d+\.\d+\.\d+\.\d+\/\d+$/), // CIDR form
         gateway:    MOCK_TUNNEL.interface_name,
-        comment:    'fireisp-hub-return',
+        comment:    'vigabss-hub-return',
       }),
     );
   });
@@ -402,12 +402,12 @@ describe('assembleSnippet — return-route line in snippet output', () => {
     expect(snippet).toMatch(/gateway=/);
   });
 
-  test('snippet contains fireisp-hub-return comment on the return-route line', async () => {
+  test('snippet contains vigabss-hub-return comment on the return-route line', async () => {
     setupUnreachable();
 
     const { snippet } = await bootstrap(BASE_NAS);
 
-    expect(snippet).toMatch(/comment=fireisp-hub-return/);
+    expect(snippet).toMatch(/comment=vigabss-hub-return/);
   });
 
   test('snippet section comment explains RouterOS 7 auto-route limitation', async () => {
@@ -656,7 +656,7 @@ describe('discoverSubnets — subnet exclusion filter', () => {
     const rawTopology = {
       routes: [{ 'dst-address': '10.0.0.0/24' }],
       addresses: [{ address: '10.255.0.1/32' }],
-      interfaces: [{ name: 'fireisp-nas-7' }],
+      interfaces: [{ name: 'vigabss-nas-7' }],
     };
     ros.wireguardReadTopology.mockResolvedValue(rawTopology);
 

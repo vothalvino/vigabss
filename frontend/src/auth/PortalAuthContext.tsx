@@ -27,7 +27,7 @@ import { QueryClientContext } from '@tanstack/react-query';
 // httpOnly cookie. localStorage keeps only a flag saying a session may exist,
 // so an anonymous visit does not call /refresh. The flag is not a credential.
 
-const PORTAL_SESSION_HINT_KEY = 'fireisp_portal_session';
+const PORTAL_SESSION_HINT_KEY = 'vigabss_portal_session';
 
 let _portalAccessToken: string | null = null;
 

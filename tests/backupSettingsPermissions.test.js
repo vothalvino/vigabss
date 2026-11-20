@@ -138,7 +138,7 @@ describe('backup_settings RBAC', () => {
       grantedSlugs: ['backup_settings.view', 'backup_settings.update'],
     });
     const res = await request(app)
-      .get('/api/v1/backup-settings/download/fireisp_2026-01-01T00-00-00.sql.gz')
+      .get('/api/v1/backup-settings/download/vigabss_2026-01-01T00-00-00.sql.gz')
       .set('Authorization', `Bearer ${tokenFor('billing')}`);
     expect(res.status).toBe(403);
   });
@@ -149,7 +149,7 @@ describe('backup_settings RBAC', () => {
       grantedSlugs: ['backup_settings.download'],
     });
     const res = await request(app)
-      .get('/api/v1/backup-settings/download/fireisp_2026-01-01T00-00-00.sql.gz')
+      .get('/api/v1/backup-settings/download/vigabss_2026-01-01T00-00-00.sql.gz')
       .set('Authorization', `Bearer ${tokenFor('billing')}`);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('INSTALL_OPERATOR_ONLY');
@@ -158,7 +158,7 @@ describe('backup_settings RBAC', () => {
   it('the install operator reaches the download handler (404 for a missing file)', async () => {
     mockAuthAndPermissions({ role: 'admin', installOperator: true });
     const res = await request(app)
-      .get('/api/v1/backup-settings/download/fireisp_2026-01-01T00-00-00.sql.gz')
+      .get('/api/v1/backup-settings/download/vigabss_2026-01-01T00-00-00.sql.gz')
       .set('Authorization', `Bearer ${tokenFor('admin')}`);
     expect(res.status).toBe(404);
   });

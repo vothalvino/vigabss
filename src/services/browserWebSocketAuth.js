@@ -15,7 +15,7 @@
 const config = require('../config');
 
 const BROWSER_WS_PATH = '/ws/firerelay/browser';
-const BROWSER_WS_COOKIE = 'fireisp_ws_access';
+const BROWSER_WS_COOKIE = 'vigabss_ws_access';
 
 /**
  * Read one cookie from a raw Cookie request header.

@@ -17,7 +17,7 @@ services:
     image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     environment:
       MYSQL_ROOT_PASSWORD: e2epassword
-      MYSQL_DATABASE: fireisp_e2e
+      MYSQL_DATABASE: vigabss_e2e
     command: >
       --event-scheduler=ON
       --character-set-server=utf8mb4
@@ -47,7 +47,7 @@ services:
       DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: e2epassword
-      DB_NAME: fireisp_e2e
+      DB_NAME: vigabss_e2e
       JWT_SECRET: e2e-test-jwt-secret-for-automated-tests-not-for-production-use!!
       REDIS_URL: ''
       LOG_LEVEL: warn

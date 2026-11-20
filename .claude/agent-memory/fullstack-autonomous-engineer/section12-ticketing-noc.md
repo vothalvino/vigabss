@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-Migrations 297-301 implemented in worktree `fireisp-wt-sec12` (branch `12-of-isp-platform-feature.md`).
+Migrations 297-301 implemented on a section worktree (branch `12-of-isp-platform-feature.md`).
 
 **Why:** §12 adds ticketing workflow extensions (time logs, relations, AI triage/summary, merge, source field) plus a live NOC dashboard, field dispatch work orders, mobile GPS technician tracking, and file attachments.
 

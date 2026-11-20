@@ -6,9 +6,8 @@ VigaBSS 0.1.0-alpha.21 includes a built-in backup script (`pnpm run backup`) tha
 > persistent volume (not the container's ephemeral layer) with the
 > [Volume Persistence — Verification & Migration Protocol](volume-persistence.md).
 
-The command examples use the fresh-install database name `vigabss`. Always
-substitute the `DB_NAME` configured for the installation you are operating;
-upgraded FireISP-era deployments may legitimately still use `fireisp`. A
+The command examples use the default database name `vigabss`. Always
+substitute the `DB_NAME` configured for the installation you are operating. A
 backup or restore is not the time to rename a live database or volume.
 
 ---
@@ -270,7 +269,7 @@ first, then restore the `.sql.gz` as usual:
 
 ```bash
 BACKUP_ENCRYPTION_KEY='<key>' node src/scripts/decryptBackup.js \
-  fireisp_2026-11-02T02-00-00.sql.gz.enc fireisp_2026-11-02T02-00-00.sql.gz
+  vigabss_2026-11-02T02-00-00.sql.gz.enc vigabss_2026-11-02T02-00-00.sql.gz
 ```
 
 Keep the key outside the server, for example in a password manager. Without

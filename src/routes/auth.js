@@ -37,11 +37,11 @@ const COOKIE_BASE = {
 
 /**
  * Set httpOnly SameSite=Strict auth cookies on the response.
- * - fireisp_access        — short-lived JWT (Path=/api, access token lifetime)
- * - fireisp_ws_access     — same JWT, scoped to the exact browser WebSocket path
- * - fireisp_refresh       — opaque refresh token (Path=/api/v1/auth, refresh token lifetime)
- * - fireisp_csrf_secret   — CSRF secret (httpOnly, server-only, Path=/api)
- * - fireisp_csrf          — CSRF token derived from secret (NOT httpOnly, SPA-readable, Path=/api)
+ * - vigabss_access        — short-lived JWT (Path=/api, access token lifetime)
+ * - vigabss_ws_access     — same JWT, scoped to the exact browser WebSocket path
+ * - vigabss_refresh       — opaque refresh token (Path=/api/v1/auth, refresh token lifetime)
+ * - vigabss_csrf_secret   — CSRF secret (httpOnly, server-only, Path=/api)
+ * - vigabss_csrf          — CSRF token derived from secret (NOT httpOnly, SPA-readable, Path=/api)
  *
  * The Path on the refresh cookie limits its exposure surface to the auth
  * endpoints under /api/v1/auth — notably /refresh and /switch-organization,
@@ -49,11 +49,11 @@ const COOKIE_BASE = {
  * narrow this back to /refresh: /switch-organization would then never receive
  * the cookie and would fail with "Refresh token required to switch organizations".
  *
- * The SPA reads `fireisp_csrf` and sends it as the `X-CSRF-Token` header on
+ * The SPA reads `vigabss_csrf` and sends it as the `X-CSRF-Token` header on
  * every state-changing request.  The server verifies it against the secret.
  */
 function setAuthCookies(res, accessToken, refreshToken) {
-  res.cookie('fireisp_access', accessToken, {
+  res.cookie('vigabss_access', accessToken, {
     ...COOKIE_BASE,
     path: '/api',
     maxAge: authService.ACCESS_SECONDS * 1000,
@@ -66,7 +66,7 @@ function setAuthCookies(res, accessToken, refreshToken) {
     path: BROWSER_WS_PATH,
     maxAge: authService.ACCESS_SECONDS * 1000,
   });
-  res.cookie('fireisp_refresh', refreshToken, {
+  res.cookie('vigabss_refresh', refreshToken, {
     ...COOKIE_BASE,
     // Scoped to /api/v1/auth (not just /refresh) so the browser also attaches it
     // to /switch-organization, which requires the current refresh token to
@@ -90,7 +90,7 @@ function setAuthCookies(res, accessToken, refreshToken) {
  */
 function setActiveOrgCookie(res, orgId) {
   if (orgId === null || orgId === undefined) return;
-  res.cookie('fireisp_active_org', String(orgId), {
+  res.cookie('vigabss_active_org', String(orgId), {
     ...COOKIE_BASE,
     path: '/api/v1/auth/refresh',
     maxAge: authService.REFRESH_SECONDS * 1000,
@@ -101,10 +101,10 @@ function setActiveOrgCookie(res, orgId) {
  * Clear all auth + CSRF cookies from the response.
  */
 function clearAuthCookies(res) {
-  res.clearCookie('fireisp_access', { ...COOKIE_BASE, path: '/api' });
+  res.clearCookie('vigabss_access', { ...COOKIE_BASE, path: '/api' });
   res.clearCookie(BROWSER_WS_COOKIE, { ...COOKIE_BASE, path: BROWSER_WS_PATH });
-  res.clearCookie('fireisp_refresh', { ...COOKIE_BASE, path: '/api/v1/auth' });
-  res.clearCookie('fireisp_active_org', { ...COOKIE_BASE, path: '/api/v1/auth/refresh' });
+  res.clearCookie('vigabss_refresh', { ...COOKIE_BASE, path: '/api/v1/auth' });
+  res.clearCookie('vigabss_active_org', { ...COOKIE_BASE, path: '/api/v1/auth/refresh' });
   clearCsrfCookie(res);
 }
 
@@ -270,7 +270,7 @@ router.post('/login/2fa',
 router.post('/logout', validate(authSchemas.refreshToken, { strip: false }), async (req, res, next) => {
   try {
     // Accept refresh token from cookie (browser SPA) or body (API clients)
-    const cookieToken = req.cookies?.fireisp_refresh;
+    const cookieToken = req.cookies?.vigabss_refresh;
     const bodyToken = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined;
     const refreshToken = cookieToken || bodyToken;
     if (refreshToken) {
@@ -278,7 +278,7 @@ router.post('/logout', validate(authSchemas.refreshToken, { strip: false }), asy
     }
     const hasBearer = typeof req.headers?.authorization === 'string' &&
       req.headers.authorization.startsWith('Bearer ');
-    if (cookieToken || req.cookies?.fireisp_access || hasBearer) {
+    if (cookieToken || req.cookies?.vigabss_access || hasBearer) {
       clearAuthCookies(res);
     }
     res.json({ message: 'Logged out' });
@@ -316,7 +316,7 @@ router.get('/me', authenticate, async (req, res, next) => {
 // GET /api/auth/sessions — the signed-in user's live sessions (SEC-23)
 router.get('/sessions', authenticate, async (req, res, next) => {
   try {
-    const data = await authService.listSessions(req.user.id, req.cookies?.fireisp_refresh || null);
+    const data = await authService.listSessions(req.user.id, req.cookies?.vigabss_refresh || null);
     res.json({ data });
   } catch (err) {
     next(err);
@@ -459,14 +459,14 @@ router.post('/refresh',
   async (req, res, next) => {
     try {
       // Prefer the httpOnly cookie; fall back to explicit body field
-      const fromCookie = Boolean(req.cookies?.fireisp_refresh);
-      const tokenValue = req.cookies?.fireisp_refresh || req.body?.refreshToken;
+      const fromCookie = Boolean(req.cookies?.vigabss_refresh);
+      const tokenValue = req.cookies?.vigabss_refresh || req.body?.refreshToken;
       if (!tokenValue) {
         return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Refresh token required' } });
       }
       // Pass the active-org cookie so a reload-triggered refresh keeps the
       // switched org instead of reverting to the user's primary org.
-      const result = await authService.refreshToken(tokenValue, req.cookies?.fireisp_active_org);
+      const result = await authService.refreshToken(tokenValue, req.cookies?.vigabss_active_org);
       // Rotate cookies for browser SPA
       setAuthCookies(res, result.accessToken, result.refreshToken);
       // Re-persist the (re-validated) active org so it keeps surviving reloads.
@@ -487,8 +487,8 @@ router.post('/switch-organization', authenticate,
   async (req, res, next) => {
     try {
       // Accept refresh token from cookie (browser SPA) or body (API clients)
-      const fromCookie = Boolean(req.cookies?.fireisp_refresh);
-      const refreshToken = req.cookies?.fireisp_refresh || req.body?.refreshToken;
+      const fromCookie = Boolean(req.cookies?.vigabss_refresh);
+      const refreshToken = req.cookies?.vigabss_refresh || req.body?.refreshToken;
       const result = await authService.switchOrganization(
         req.user.id,
         req.body.organizationId,

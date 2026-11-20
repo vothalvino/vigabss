@@ -5,10 +5,10 @@
 // execFile with array argv — never string concatenation or shell:true.
 //
 // Two surfaces, one module, interface-parameterized:
-//   wg-fireisp  — per-NAS tunnels (Part 1). Peers dial in; VigaBSS routes to
+//   wg-vigabss  — per-NAS tunnels (Part 1). Peers dial in; VigaBSS routes to
 //                 device subnets. Subnet: WG_SERVER_SUBNET (10.255.0.0/16).
 //   wg-clients  — user access tunnels (Part 2). Roaming clients (laptop/phone)
-//                 dial in; VigaBSS forwards through wg-fireisp to device subnets
+//                 dial in; VigaBSS forwards through wg-vigabss to device subnets
 //                 under per-user nftables FORWARD ACL + MASQUERADE.
 //                 Subnet: WG_CLIENT_SUBNET (10.99.0.0/16).
 //
@@ -28,7 +28,7 @@
 // Deployment prerequisite (Ubuntu Linux):
 //   - wireguard-tools, nftables, iproute2 installed in the helper image.
 //   - bootstrapHost() (called at startup) auto-provisions both interfaces: it
-//     generates + persists the server keypairs to WG_KEY_DIR, brings wg-fireisp +
+//     generates + persists the server keypairs to WG_KEY_DIR, brings wg-vigabss +
 //     wg-clients up, sets net.ipv4.ip_forward=1, and installs the nft base. The
 //     server private keys live only in WG_KEY_DIR — NEVER in the DB or git.
 //   - Self-managed alternative: bring the interfaces up yourself (host wg-quick@)
@@ -118,7 +118,7 @@ function callHelper(operation, params = {}) {
 function writeTmpFile(content) {
   const tmpPath = path.join(
     os.tmpdir(),
-    `fireisp-wg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `vigabss-wg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
   fs.writeFileSync(tmpPath, content, { mode: 0o600 });
   return tmpPath;
@@ -179,7 +179,7 @@ function subnetToRange(cidr) {
 }
 
 /**
- * The VigaBSS hub's own wg-fireisp tunnel IP (first host in the server subnet,
+ * The VigaBSS hub's own wg-vigabss tunnel IP (first host in the server subnet,
  * network+1 — e.g. 10.255.0.1 for 10.255.0.0/16). This is the address every
  * managed NAS should point RADIUS/API/CoA at so that traffic rides the encrypted
  * tunnel and no management port needs to face the public internet.
@@ -191,7 +191,7 @@ function serverTunnelIp() {
 }
 
 // =============================================================================
-// Part 1 — NAS peer management on wg-fireisp
+// Part 1 — NAS peer management on wg-vigabss
 // =============================================================================
 
 /**
@@ -261,7 +261,7 @@ async function allocateTunnelIp() {
   );
   const used = new Set(rows.map((r) => r.tunnel_address));
   // Skip network (.0), the reserved server-interface address (network+1, e.g.
-  // 10.255.0.1 — the host's own wg-fireisp IP), and broadcast. Peers start at
+  // 10.255.0.1 — the host's own wg-vigabss IP), and broadcast. Peers start at
   // network+2 so the allocator never hands a NAS the server's own address.
   for (let n = network + 2; n < broadcast; n++) {
     const ip = intToIp(n);
@@ -273,7 +273,7 @@ async function allocateTunnelIp() {
 }
 
 /**
- * Add or update a NAS peer on the wg-fireisp interface.
+ * Add or update a NAS peer on the wg-vigabss interface.
  *
  * Idempotent — `wg set` replaces any existing peer entry for `publicKey`.
  * After updating the peer, installs host and subnet routes via `ip route replace`.
@@ -305,7 +305,7 @@ async function syncPeer({ publicKey, tunnelIp, subnets = [] }) {
 }
 
 /**
- * Remove a NAS peer from wg-fireisp and clean up its kernel routes.
+ * Remove a NAS peer from wg-vigabss and clean up its kernel routes.
  *
  * Route cleanup is best-effort — errors are logged but not re-thrown.
  *
@@ -459,7 +459,7 @@ async function syncUserPeer({ publicKey, tunnelIp, presharedKey = null }) {
  * is interface info (contains the private key — we skip it immediately without
  * logging stdout).
  *
- * @param {string} iface  Interface name, e.g. 'wg-fireisp' or 'wg-clients'
+ * @param {string} iface  Interface name, e.g. 'wg-vigabss' or 'wg-clients'
  * @returns {Promise<Record<string, {lastHandshakeUnix:number, rxBytes:number, txBytes:number, endpoint:string|null}>>}
  *   Map keyed by peer public key. Returns {} when serverEnabled is false or on
  *   read failure (graceful degradation — the caller should surface this state).
@@ -512,12 +512,12 @@ async function readPeerHandshakes(iface) {
  * making changes. Per-user sets and accept rules are added by setUserForwardScope.
  *
  * Base structure:
- *   table inet fireisp_wg {
+ *   table inet vigabss_wg {
  *     chain forward  — hook forward, priority filter, policy DROP
  *       1. anything → wg-clients, established/related: accept   (device and internet replies)
  *       2. wg-clients→wg-clients: drop                             (no lateral movement)
- *       3. wg-clients→wg-fireisp: jump wg_user_fwd                (per-user ACL)
- *       4. wg-clients→wg-fireisp: drop                            (default-deny terminal)
+ *       3. wg-clients→wg-vigabss: jump wg_user_fwd                (per-user ACL)
+ *       4. wg-clients→wg-vigabss: drop                            (default-deny terminal)
  *       5. wg-clients→private/link-local/CGNAT/loopback: drop     (the app's Docker networks)
  *       6. wg-clients→anything else: accept                       (full-tunnel internet)
  *       everything else, e.g. a NAS peer routing onward: dropped by the policy
@@ -526,7 +526,7 @@ async function readPeerHandshakes(iface) {
  *       in particular not the app's HTTP port
  *     chain wg_user_fwd  — per-user accept rules (managed by setUserForwardScope)
  *     chain postrouting  — hook postrouting, priority srcnat
- *       MASQUERADE clientSubnet→wg-fireisp so device replies route back
+ *       MASQUERADE clientSubnet→wg-vigabss so device replies route back
  *   }
  *
  * The hub shares the app container's network namespace (network_mode:
@@ -562,7 +562,7 @@ function hubFilterRules(clientIface, serverIface) {
       `iifname "${clientIface}" oifname "${clientIface}" drop`,
       '# Per-user accept rules managed by setUserForwardScope',
       `iifname "${clientIface}" oifname "${serverIface}" jump wg_user_fwd`,
-      '# Default-deny terminal: all remaining wg-clients→wg-fireisp traffic is dropped',
+      '# Default-deny terminal: all remaining wg-clients→wg-vigabss traffic is dropped',
       `iifname "${clientIface}" oifname "${serverIface}" drop`,
       '# Never into the private ranges behind this namespace (the Docker networks)',
       `iifname "${clientIface}" ip daddr ${PRIVATE_V4} drop`,
@@ -595,7 +595,7 @@ async function ensureBaseFirewall() {
   // Check whether our table already exists (nft exits non-zero if not found)
   let tableExists = false;
   try {
-    await execFileAsync('nft', ['list', 'table', 'inet', 'fireisp_wg']);
+    await execFileAsync('nft', ['list', 'table', 'inet', 'vigabss_wg']);
     tableExists = true;
   } catch (_) {
     // Table not found — proceed with fresh installation
@@ -605,11 +605,11 @@ async function ensureBaseFirewall() {
   // The table is created once per hub network namespace, atomically, by the
   // script below, so an existing table already has this ruleset.
   if (tableExists) {
-    return { applied: false, reason: 'fireisp_wg table already installed' };
+    return { applied: false, reason: 'vigabss_wg table already installed' };
   }
 
   const nftConfig = [
-    'table inet fireisp_wg {',
+    'table inet vigabss_wg {',
     '  chain forward {',
     '    type filter hook forward priority filter; policy drop;',
     ...rules.forward.map((r) => `    ${r}`),
@@ -654,7 +654,7 @@ async function ensureBaseFirewall() {
  * Atomically set the forward scope for a single user peer.
  *
  * Creates (or updates) a named set `u<peerId>_dst` containing the CIDRs the
- * user is allowed to reach through wg-fireisp, then ensures a matching accept
+ * user is allowed to reach through wg-vigabss, then ensures a matching accept
  * rule exists in the `wg_user_fwd` chain. Rule addition is idempotent — the
  * existing ruleset is inspected before adding to avoid duplicates.
  *
@@ -682,7 +682,7 @@ async function setUserForwardScope({ peerId, tunnelIp, subnets = [] }) {
   // an nft -f file only when needed to avoid a spurious "already exists" error.
   let setExists = false;
   try {
-    await execFileAsync('nft', ['list', 'set', 'inet', 'fireisp_wg', setName]);
+    await execFileAsync('nft', ['list', 'set', 'inet', 'vigabss_wg', setName]);
     setExists = true;
   } catch (_) {
     // Set does not yet exist
@@ -690,7 +690,7 @@ async function setUserForwardScope({ peerId, tunnelIp, subnets = [] }) {
 
   if (!setExists) {
     const createFile = writeTmpFile(
-      `add set inet fireisp_wg ${setName} { type ipv4_addr; flags interval; }`,
+      `add set inet vigabss_wg ${setName} { type ipv4_addr; flags interval; }`,
     );
     try {
       await execFileAsync('nft', ['-f', createFile]);
@@ -700,10 +700,10 @@ async function setUserForwardScope({ peerId, tunnelIp, subnets = [] }) {
   }
 
   // ── Step 2: atomic set element swap (flush old, add new) ───────────────────
-  const atomicLines = [`flush set inet fireisp_wg ${setName}`];
+  const atomicLines = [`flush set inet vigabss_wg ${setName}`];
   if (subnets.length > 0) {
     atomicLines.push(
-      `add element inet fireisp_wg ${setName} { ${subnets.join(', ')} }`,
+      `add element inet vigabss_wg ${setName} { ${subnets.join(', ')} }`,
     );
   }
   const atomicFile = writeTmpFile(atomicLines.join('\n'));
@@ -718,7 +718,7 @@ async function setUserForwardScope({ peerId, tunnelIp, subnets = [] }) {
   let chainDump;
   try {
     ({ stdout: chainDump } = await execFileAsync('nft', [
-      'list', 'chain', 'inet', 'fireisp_wg', 'wg_user_fwd',
+      'list', 'chain', 'inet', 'vigabss_wg', 'wg_user_fwd',
     ]));
   } catch (err) {
     // Chain not found — base firewall has not been applied yet
@@ -731,7 +731,7 @@ async function setUserForwardScope({ peerId, tunnelIp, subnets = [] }) {
 
   if (!chainDump.includes(`@${setName}`)) {
     const ruleFile = writeTmpFile(
-      `add rule inet fireisp_wg wg_user_fwd ip saddr ${tunnelIp} ip daddr @${setName} oifname "${outIface}" accept`,
+      `add rule inet vigabss_wg wg_user_fwd ip saddr ${tunnelIp} ip daddr @${setName} oifname "${outIface}" accept`,
     );
     try {
       await execFileAsync('nft', ['-f', ruleFile]);
@@ -784,7 +784,7 @@ async function removeUserPeer({ publicKey, peerId }) {
   // ── Step 2: delete the accept rule referencing u<peerId>_dst ─────────────
   try {
     const { stdout: jsonOut } = await execFileAsync('nft', [
-      '-j', 'list', 'chain', 'inet', 'fireisp_wg', 'wg_user_fwd',
+      '-j', 'list', 'chain', 'inet', 'vigabss_wg', 'wg_user_fwd',
     ]);
     const parsed = JSON.parse(jsonOut);
     const ruleEntries = (parsed.nftables || []).filter((e) => e.rule);
@@ -794,7 +794,7 @@ async function removeUserPeer({ publicKey, peerId }) {
       // for the set name reference (robust against nft JSON schema variations)
       if (JSON.stringify(rule.expr || []).includes(setName)) {
         await execFileAsync('nft', [
-          'delete', 'rule', 'inet', 'fireisp_wg', 'wg_user_fwd',
+          'delete', 'rule', 'inet', 'vigabss_wg', 'wg_user_fwd',
           'handle', String(rule.handle),
         ]);
         logger.debug({ peerId, handle: rule.handle }, 'removeUserPeer: nft accept rule deleted');
@@ -807,7 +807,7 @@ async function removeUserPeer({ publicKey, peerId }) {
 
   // ── Step 3: delete the named set (rule must be gone first) ────────────────
   try {
-    const delFile = writeTmpFile(`delete set inet fireisp_wg ${setName}`);
+    const delFile = writeTmpFile(`delete set inet vigabss_wg ${setName}`);
     try {
       await execFileAsync('nft', ['-f', delFile]);
     } finally {
@@ -878,7 +878,7 @@ function reconcilePublicKey(field, envName, actual, iface) {
  *     that already has the interface re-converges instead of throwing.
  *
  * @param {object} opts
- * @param {string} opts.iface       interface name, e.g. 'wg-fireisp'
+ * @param {string} opts.iface       interface name, e.g. 'wg-vigabss'
  * @param {string} opts.subnet      CIDR pool; the host interface takes network+1
  * @param {number} opts.listenPort  UDP listen port for inbound peers
  * @returns {Promise<string>} the interface's base64 public key
@@ -960,7 +960,7 @@ async function ensureInterface({ iface, subnet, listenPort }) {
  *   2. populates config.wireguard.{server,client}PublicKey from the generated or
  *      persisted keys (unless an operator pinned them) so request-time config/QR
  *      issuance advertises the correct server public key;
- *   3. enables IPv4 forwarding so wg-clients traffic can route out via wg-fireisp;
+ *   3. enables IPv4 forwarding so wg-clients traffic can route out via wg-vigabss;
  *   4. installs the base nftables ruleset (ensureBaseFirewall).
  *
  * Each interface is provisioned independently and idempotently; a failure on one
@@ -1013,7 +1013,7 @@ async function bootstrapHost() {
   reconcilePublicKey('serverPublicKey', 'WG_SERVER_PUBLIC_KEY', serverPub, config.wireguard.serverInterface);
   reconcilePublicKey('clientPublicKey', 'WG_CLIENT_SERVER_PUBLIC_KEY', clientPub, config.wireguard.clientInterface);
 
-  // Enable IPv4 forwarding so wg-clients → wg-fireisp routing works. Write /proc
+  // Enable IPv4 forwarding so wg-clients → wg-vigabss routing works. Write /proc
   // directly (there's no `sysctl` binary in the slim image). A locked-down host
   // may refuse the write; that is logged without taking down the public API.
   try {
@@ -1073,7 +1073,7 @@ async function shutdownHost() {
     }
   }
   try {
-    await execFileAsync('nft', ['delete', 'table', 'inet', 'fireisp_wg']);
+    await execFileAsync('nft', ['delete', 'table', 'inet', 'vigabss_wg']);
   } catch (err) {
     if (!/no such file|not found/i.test(err.message)) {
       logger.warn({ err: err.message }, 'WireGuard firewall teardown failed (non-fatal)');
@@ -1087,7 +1087,7 @@ async function shutdownHost() {
 // =============================================================================
 
 module.exports = {
-  // Part 1 — NAS tunnels (wg-fireisp)
+  // Part 1 — NAS tunnels (wg-vigabss)
   generateKeypair,
   allocateTunnelIp,
   syncPeer,

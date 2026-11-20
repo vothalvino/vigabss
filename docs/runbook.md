@@ -294,7 +294,7 @@ An incident should be **formally declared** (create an incident channel / ticket
    docker compose -f docker-compose.prod.yml --env-file .env.prod exec db-primary mysqladmin -u root -p ping
    # K8s/Helm does not bundle MySQL. Confirm the external host configured for it,
    # then use that provider's health tooling (or your own in-cluster workload):
-   kubectl get secret fireisp-secret -n fireisp -o jsonpath='{.data.DB_HOST}' | base64 --decode; echo
+   kubectl get secret vigabss-secret -n vigabss -o jsonpath='{.data.DB_HOST}' | base64 --decode; echo
    ```
 3. **Check disk space** (MySQL will stop if disk is full):
    ```bash

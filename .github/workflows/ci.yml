@@ -215,8 +215,8 @@ jobs:
       - name: Start MySQL
         run: |
           docker run -d --name ci-mysql \
-            -e MYSQL_ROOT_PASSWORD=fireisp_test \
-            -e MYSQL_DATABASE=fireisp_test \
+            -e MYSQL_ROOT_PASSWORD=vigabss_test \
+            -e MYSQL_DATABASE=vigabss_test \
             -p 3306:3306 \
             mysql:8.4.9 \
             mysqld \
@@ -235,7 +235,7 @@ jobs:
           exit 1
 
       - name: Load schema
-        run: mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_test < database/schema.sql
+        run: mysql -h 127.0.0.1 -u root -pvigabss_test vigabss_test < database/schema.sql
 
       - name: Run SQL test suite
         # test_summary raises an SQL error when any assertion failed, so the
@@ -244,21 +244,21 @@ jobs:
           set -euo pipefail
           for f in tests/test_*.sql; do
             echo "=== Running $f ==="
-            mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_test < "$f"
+            mysql -h 127.0.0.1 -u root -pvigabss_test vigabss_test < "$f"
           done
           echo "All SQL tests passed"
 
       - name: Verify migrations produce expected table count
         run: |
           # Create a fresh database and apply all migrations sequentially
-          mysql -h 127.0.0.1 -u root -pfireisp_test -e "CREATE DATABASE IF NOT EXISTS fireisp_migrate_test;"
+          mysql -h 127.0.0.1 -u root -pvigabss_test -e "CREATE DATABASE IF NOT EXISTS vigabss_migrate_test;"
           for f in $(ls database/migrations/*.sql | sort -V); do
-            mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
+            mysql -h 127.0.0.1 -u root -pvigabss_test vigabss_migrate_test < "$f"
           done
           # migrate.js creates schema_migrations before the first migration;
           # this loop bypasses it, so create it the way the runner does
           # (src/scripts/migrate.js), as every install has it.
-          mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test -e "
+          mysql -h 127.0.0.1 -u root -pvigabss_test vigabss_migrate_test -e "
             CREATE TABLE IF NOT EXISTS schema_migrations (
               id         BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
               filename   VARCHAR(255)     NOT NULL,
@@ -269,8 +269,8 @@ jobs:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
           # Count tables and compare to schema.sql
           SCHEMA_TABLES=$(grep -c "CREATE TABLE" database/schema.sql)
-          MIGRATED_TABLES=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='fireisp_migrate_test' AND table_type='BASE TABLE';")
+          MIGRATED_TABLES=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='vigabss_migrate_test' AND table_type='BASE TABLE';")
           echo "schema.sql declares $SCHEMA_TABLES tables, migrations created $MIGRATED_TABLES tables"
           if [ "$MIGRATED_TABLES" -lt "$SCHEMA_TABLES" ]; then
             echo "ERROR: Migration table count ($MIGRATED_TABLES) is less than schema.sql ($SCHEMA_TABLES)"
@@ -281,7 +281,7 @@ jobs:
         run: |
           # Every FK column must have the same data type as the PK it references.
           # This catches INT UNSIGNED FK -> BIGINT UNSIGNED PK mismatches (e.g. ERROR 3780).
-          MISMATCHES=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e "
+          MISMATCHES=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e "
             SELECT CONCAT(
               kcu.table_name, '.', kcu.column_name,
               ' (', fk_col.column_type, ')',
@@ -301,10 +301,10 @@ jobs:
               ON pk_col.table_schema  = kcu.constraint_schema
              AND pk_col.table_name    = kcu.referenced_table_name
              AND pk_col.column_name   = kcu.referenced_column_name
-            WHERE kcu.constraint_schema = 'fireisp_migrate_test'
+            WHERE kcu.constraint_schema = 'vigabss_migrate_test'
               AND kcu.referenced_table_name IS NOT NULL
               AND fk_col.column_type <> pk_col.column_type;
-          " fireisp_migrate_test)
+          " vigabss_migrate_test)
           if [ -n "$MISMATCHES" ]; then
             echo "ERROR: FK column type mismatches detected:"
             echo "$MISMATCHES"
@@ -319,7 +319,7 @@ jobs:
           set -euo pipefail
           for f in tests/test_*.sql; do
             echo "=== Running $f (migrated) ==="
-            mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
+            mysql -h 127.0.0.1 -u root -pvigabss_test vigabss_migrate_test < "$f"
           done
           echo "All SQL tests passed on the migrated database"
 
@@ -349,8 +349,8 @@ jobs:
       mysql:
         image: mysql:8.4.9
         env:
-          MYSQL_ROOT_PASSWORD: fireisp_test
-          MYSQL_DATABASE: fireisp_integration
+          MYSQL_ROOT_PASSWORD: vigabss_test
+          MYSQL_DATABASE: vigabss_integration
         ports:
           - 3306:3306
         options: >-
@@ -365,8 +365,8 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: fireisp_test
-      DB_NAME: fireisp_integration
+      DB_PASSWORD: vigabss_test
+      DB_NAME: vigabss_integration
       JWT_SECRET: db-integration-ci-jwt-secret-for-github-actions-only
       ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       LOG_LEVEL: warn
@@ -468,8 +468,8 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: fireisp_test
-      DB_NAME: fireisp_runner_test
+      DB_PASSWORD: vigabss_test
+      DB_NAME: vigabss_runner_test
       JWT_SECRET: runner-test-jwt-secret-for-github-actions-only-not-for-production
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -491,8 +491,8 @@ jobs:
       - name: Start MySQL
         run: |
           docker run -d --name ci-mysql-runner \
-            -e MYSQL_ROOT_PASSWORD=fireisp_test \
-            -e MYSQL_DATABASE=fireisp_runner_test \
+            -e MYSQL_ROOT_PASSWORD=vigabss_test \
+            -e MYSQL_DATABASE=vigabss_runner_test \
             -p 3306:3306 \
             mysql:8.4.9 \
             mysqld \
@@ -517,7 +517,7 @@ jobs:
         # A table without COLLATE= takes the server default, which differs by
         # engine (tests/tableCollationDeclared.test.js checks the SQL).
         run: |
-          WRONG=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N fireisp_runner_test -e \
+          WRONG=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N vigabss_runner_test -e \
             "SELECT CONCAT(table_name, ' ', table_collation) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' AND table_collation <> 'utf8mb4_unicode_ci';")
           if [ -n "$WRONG" ]; then echo "Tables with another collation:"; echo "$WRONG"; exit 1; fi
           echo "✓ Every table is utf8mb4_unicode_ci"
@@ -526,26 +526,26 @@ jobs:
         # One with no owner and is_system = 0 could be adopted by the first
         # tenant to write it and vanish for every other (migration 525).
         run: |
-          WRONG=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N fireisp_runner_test -e \
+          WRONG=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N vigabss_runner_test -e \
             "SELECT CONCAT(id, ' ', name) FROM snmp_profiles WHERE organization_id IS NULL AND is_system = 0;")
           if [ -n "$WRONG" ]; then echo "Owner-less SNMP profiles that are not system:"; echo "$WRONG"; exit 1; fi
           echo "✓ Every owner-less SNMP profile is a system profile"
 
       - name: Re-run migrate.js and assert it is idempotent
         run: |
-          BEFORE=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          BEFORE=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations;")
           pnpm run migrate
-          AFTER=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          AFTER=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations;")
           echo "schema_migrations rows: before=$BEFORE after=$AFTER"
           if [ "$BEFORE" != "$AFTER" ]; then
             echo "ERROR: second migrate run changed schema_migrations ($BEFORE -> $AFTER)"
             exit 1
           fi
           echo "✓ Second migrate run applied nothing"
-          MISSING=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations WHERE checksum IS NULL;")
+          MISSING=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations WHERE checksum IS NULL;")
           if [ "$MISSING" != "0" ]; then
             echo "ERROR: $MISSING applied migrations have no checksum (DB-21)"
             exit 1
@@ -558,14 +558,14 @@ jobs:
         # statically). Forget them and apply them a second time.
         run: |
           set -euo pipefail
-          BEFORE=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
-          mysql -h 127.0.0.1 -u root -pfireisp_test -e \
-            "DELETE FROM fireisp_runner_test.schema_migrations
+          BEFORE=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations;")
+          mysql -h 127.0.0.1 -u root -pvigabss_test -e \
+            "DELETE FROM vigabss_runner_test.schema_migrations
               WHERE CAST(SUBSTRING_INDEX(filename, '_', 1) AS UNSIGNED) >= 2;"
           pnpm run migrate
-          AFTER=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          AFTER=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations;")
           if [ "$BEFORE" != "$AFTER" ]; then
             echo "ERROR: re-executing migrations after the baseline left $AFTER rows, expected $BEFORE"
             exit 1
@@ -578,8 +578,8 @@ jobs:
       - name: Rollback round-trip (every migration after the baseline, then re-migrate)
         run: |
           node src/scripts/rollback.js --to 1
-          REMAINING=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
-            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          REMAINING=$(mysql -h 127.0.0.1 -u root -pvigabss_test -N -e \
+            "SELECT COUNT(*) FROM vigabss_runner_test.schema_migrations;")
           echo "Migrations remaining after rollback --to 1: $REMAINING"
           if [ "$REMAINING" != "1" ]; then
             echo "ERROR: expected only the baseline to remain, found $REMAINING"
@@ -599,8 +599,8 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: fireisp_test
-      DB_NAME: fireisp_mariadb_migrate
+      DB_PASSWORD: vigabss_test
+      DB_NAME: vigabss_mariadb_migrate
       JWT_SECRET: mariadb-test-jwt-secret-for-github-actions-only
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -622,8 +622,8 @@ jobs:
       - name: Start MariaDB 10.6
         run: |
           docker run -d --name ci-mariadb \
-            -e MARIADB_ROOT_PASSWORD=fireisp_test \
-            -e MARIADB_DATABASE=fireisp_mariadb_migrate \
+            -e MARIADB_ROOT_PASSWORD=vigabss_test \
+            -e MARIADB_DATABASE=vigabss_mariadb_migrate \
             -p 3306:3306 \
             --health-cmd="healthcheck.sh --connect --innodb_initialized" \
             --health-interval=2s \
@@ -659,19 +659,19 @@ jobs:
       - name: Load schema.sql directly
         run: |
           docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
-            --execute="CREATE DATABASE fireisp_mariadb_schema CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            --protocol=socket --user=root --password=vigabss_test \
+            --execute="CREATE DATABASE vigabss_mariadb_schema CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           docker exec -i ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
-            --database=fireisp_mariadb_schema \
+            --protocol=socket --user=root --password=vigabss_test \
+            --database=vigabss_mariadb_schema \
             < database/schema.sql
 
           EXPECTED=$(grep -c '^CREATE TABLE' database/schema.sql)
           ACTUAL=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names \
             --execute="SELECT COUNT(*) FROM information_schema.tables
-                       WHERE table_schema='fireisp_mariadb_schema'
+                       WHERE table_schema='vigabss_mariadb_schema'
                          AND table_type='BASE TABLE';")
           test "$ACTUAL" = "$EXPECTED"
 
@@ -680,7 +680,7 @@ jobs:
           pnpm run migrate
 
           BEFORE=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT COUNT(*) FROM schema_migrations;")
           EXPECTED=$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')
@@ -689,7 +689,7 @@ jobs:
           pnpm run migrate
 
           AFTER=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT COUNT(*) FROM schema_migrations;")
           test "$AFTER" = "$BEFORE"
@@ -700,7 +700,7 @@ jobs:
       - name: Every table is utf8mb4_unicode_ci
         run: |
           WRONG=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT CONCAT(table_name, ' ', table_collation) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' AND table_collation <> 'utf8mb4_unicode_ci';")
           if [ -n "$WRONG" ]; then echo "Tables with another collation:"; echo "$WRONG"; exit 1; fi
@@ -709,7 +709,7 @@ jobs:
       - name: Every shipped SNMP profile is a system profile
         run: |
           WRONG=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT CONCAT(id, ' ', name) FROM snmp_profiles WHERE organization_id IS NULL AND is_system = 0;")
           if [ -n "$WRONG" ]; then echo "Owner-less SNMP profiles that are not system:"; echo "$WRONG"; exit 1; fi
@@ -719,14 +719,14 @@ jobs:
         run: |
           node src/scripts/rollback.js --to 1
           REMAINING=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT COUNT(*) FROM schema_migrations;")
           test "$REMAINING" = "1"
 
           pnpm run migrate
           AFTER=$(docker exec ci-mariadb mariadb \
-            --protocol=socket --user=root --password=fireisp_test \
+            --protocol=socket --user=root --password=vigabss_test \
             --batch --skip-column-names --database="$DB_NAME" \
             --execute="SELECT COUNT(*) FROM schema_migrations;")
           test "$AFTER" = "$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
@@ -807,7 +807,7 @@ jobs:
         run: |
           docker run -d --name ci-mysql-e2e \
             -e MYSQL_ROOT_PASSWORD=e2epassword \
-            -e MYSQL_DATABASE=fireisp_e2e \
+            -e MYSQL_DATABASE=vigabss_e2e \
             -p 3306:3306 \
             mysql:8.4.9 \
             mysqld \
@@ -832,7 +832,7 @@ jobs:
           DB_PORT: 3306
           DB_USER: root
           DB_PASSWORD: e2epassword
-          DB_NAME: fireisp_e2e
+          DB_NAME: vigabss_e2e
           JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production00
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
           # The seed generates a RANDOM admin password when this is unset
@@ -858,7 +858,7 @@ jobs:
           DB_PORT: 3306
           DB_USER: root
           DB_PASSWORD: e2epassword
-          DB_NAME: fireisp_e2e
+          DB_NAME: vigabss_e2e
           JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production00
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
           LOG_LEVEL: warn
@@ -1227,7 +1227,7 @@ jobs:
         image: mysql:8.4.9
         env:
           MYSQL_ROOT_PASSWORD: zaptest
-          MYSQL_DATABASE: fireisp_dast
+          MYSQL_DATABASE: vigabss_dast
         ports:
           - 3306:3306
         options: >-
@@ -1258,7 +1258,7 @@ jobs:
           DB_PORT: 3306
           DB_USER: root
           DB_PASSWORD: zaptest
-          DB_NAME: fireisp_dast
+          DB_NAME: vigabss_dast
           JWT_SECRET: zap-dast-ci-jwt-secret-for-github-actions-only-not-for-production
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
         run: |
@@ -1273,7 +1273,7 @@ jobs:
           DB_PORT: 3306
           DB_USER: root
           DB_PASSWORD: zaptest
-          DB_NAME: fireisp_dast
+          DB_NAME: vigabss_dast
           JWT_SECRET: zap-dast-ci-jwt-secret-for-github-actions-only-not-for-production
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
           LOG_LEVEL: warn

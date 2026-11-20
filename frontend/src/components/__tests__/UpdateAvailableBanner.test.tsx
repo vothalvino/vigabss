@@ -48,7 +48,7 @@ const tenantAdmin: AuthUser = { id: 2, email: 'ta@test.com', name: 'TA', role: '
 // role check could not distinguish.
 const tenantAdminWithAdminRole: AuthUser = { id: 3, email: 'ta2@test.com', name: 'TA2', role: 'admin', is_install_operator: false, ...base };
 
-const DISMISS_KEY = 'fireispUpdateBannerDismissedOn';
+const DISMISS_KEY = 'vigabssUpdateBannerDismissedOn';
 
 function mockUseAuth(user: AuthUser | null) {
   vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({

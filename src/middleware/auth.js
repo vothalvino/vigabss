@@ -129,9 +129,9 @@ async function authenticateApiToken(req) {
 /**
  * Require authentication. Attaches req.user with id, email, role, orgId, etc.
  * Supports both Bearer JWT tokens and X-API-Key header.
- * For the browser SPA, also accepts the JWT from the `fireisp_access` httpOnly cookie.
+ * For the browser SPA, also accepts the JWT from the `vigabss_access` httpOnly cookie.
  */
-const AUTHENTICATED_REQUEST = Symbol('fireisp.authenticatedRequest');
+const AUTHENTICATED_REQUEST = Symbol('vigabss.authenticatedRequest');
 
 async function authenticate(req, _res, next) {
   try {
@@ -152,7 +152,7 @@ async function authenticate(req, _res, next) {
     // so that programmatic API clients (tests, scripts) continue to work
     // unchanged.  The browser SPA falls back to the httpOnly cookie when no
     // Bearer header is present.
-    const token = bearerToken(req) || req.cookies?.fireisp_access;
+    const token = bearerToken(req) || req.cookies?.vigabss_access;
     if (!token) throw new UnauthorizedError('Missing or invalid Authorization header');
     let payload;
     try {
@@ -218,7 +218,7 @@ const requestPath = req => String(req.originalUrl || req.url || '').split('?')[0
  */
 async function optionalAuth(req, _res, next) {
   const apiKey = req.headers['x-api-key'];
-  const hasCookie = !!req.cookies?.fireisp_access;
+  const hasCookie = !!req.cookies?.vigabss_access;
   if (!apiKey && !bearerToken(req) && !hasCookie) {
     return next();
   }

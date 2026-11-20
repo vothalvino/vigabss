@@ -24,7 +24,7 @@ vi.mock('@/api/client', () => ({
 const SETTINGS = {
   remote_enabled: true,
   provider: 'minio',
-  bucket: 'fireisp-backups',
+  bucket: 'vigabss-backups',
   region: 'us-east-1',
   endpoint: 'http://192.168.1.50:9000',
   prefix: 'db-backups/',
@@ -38,12 +38,12 @@ const SETTINGS = {
 };
 
 const RUN = {
-  id: 1, trigger_source: 'scheduled', status: 'success', filename: 'fireisp_2026-07-17.sql.gz',
+  id: 1, trigger_source: 'scheduled', status: 'success', filename: 'vigabss_2026-07-17.sql.gz',
   size_bytes: 2 * 1024 * 1024, remote_status: 'uploaded', remote_url: 'http://x/y',
   error_message: null, started_at: '2026-07-17T03:00:00.000Z', finished_at: '2026-07-17T03:00:30.000Z',
 };
 
-function installGets({ settings = SETTINGS, runs = [RUN], files = [{ filename: 'fireisp_2026-07-17.sql.gz', size_bytes: 2 * 1024 * 1024, modified_at: '2026-07-17T03:00:30.000Z' }] } = {}) {
+function installGets({ settings = SETTINGS, runs = [RUN], files = [{ filename: 'vigabss_2026-07-17.sql.gz', size_bytes: 2 * 1024 * 1024, modified_at: '2026-07-17T03:00:30.000Z' }] } = {}) {
   mockApiGet.mockImplementation((path: string) => {
     if (path === '/backup-settings')
       return Promise.resolve({
@@ -70,7 +70,7 @@ function installGets({ settings = SETTINGS, runs = [RUN], files = [{ filename: '
  * Rather than wait on one field and hope the rest of the commit landed with it,
  * assert the field the failure actually reported. remote_enabled starts false
  * and the fixture sets it true, so a checked box proves the hydration effect ran
- * — the bucket value alone never did, because '' → 'fireisp-backups' can be
+ * — the bucket value alone never did, because '' → 'vigabss-backups' can be
  * observed from a different commit than the checkbox flip.
  *
  * NOTE: this is a hardening of the wait, not a root-cause fix. I could not
@@ -79,7 +79,7 @@ function installGets({ settings = SETTINGS, runs = [RUN], files = [{ filename: '
  */
 async function waitForFormHydrated() {
   await waitFor(() => {
-    expect(screen.getByDisplayValue('fireisp-backups')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('vigabss-backups')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { checked: true })).toBeInTheDocument();
   });
 }
@@ -105,9 +105,9 @@ describe('BackupSettings page', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Database Backups/)).toBeInTheDocument());
     expect(await screen.findByText(/0 3 \* \* \*/)).toBeInTheDocument();
-    expect(await screen.findByDisplayValue('fireisp-backups')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('vigabss-backups')).toBeInTheDocument();
     // The filename shows in BOTH the runs table and the local-files table.
-    expect((await screen.findAllByText('fireisp_2026-07-17.sql.gz')).length).toBe(2);
+    expect((await screen.findAllByText('vigabss_2026-07-17.sql.gz')).length).toBe(2);
     expect(screen.getAllByText('uploaded').length).toBeGreaterThan(0);
     // 2 MB run + identical local file size both render
     expect(screen.getAllByText('2.0 MB').length).toBeGreaterThan(0);
@@ -125,7 +125,7 @@ describe('BackupSettings page', () => {
     await waitFor(() => expect(mockApiPut).toHaveBeenCalledTimes(1));
     const body = (mockApiPut.mock.calls[0][1] as { body: Record<string, unknown> }).body;
     expect(body).not.toHaveProperty('secret_key');
-    expect(body).toMatchObject({ bucket: 'fireisp-backups', provider: 'minio' });
+    expect(body).toMatchObject({ bucket: 'vigabss-backups', provider: 'minio' });
   });
 
   it('a Save clicked the moment the saved settings render sends those settings', async () => {
@@ -139,7 +139,7 @@ describe('BackupSettings page', () => {
     let clicked = false;
     const observer = new MutationObserver(() => {
       const bucket = container.querySelector('input[placeholder="vigabss-backups"]') as HTMLInputElement | null;
-      if (clicked || bucket?.value !== 'fireisp-backups') return;
+      if (clicked || bucket?.value !== 'vigabss-backups') return;
       clicked = true;
       (screen.getByText('Save') as HTMLButtonElement).click();
     });
@@ -150,7 +150,7 @@ describe('BackupSettings page', () => {
       observer.disconnect();
     }
     const body = (mockApiPut.mock.calls[0][1] as { body: Record<string, unknown> }).body;
-    expect(body).toMatchObject({ bucket: 'fireisp-backups', provider: 'minio', remote_enabled: true });
+    expect(body).toMatchObject({ bucket: 'vigabss-backups', provider: 'minio', remote_enabled: true });
   });
 
   it('sends a typed secret on save', async () => {
@@ -187,7 +187,7 @@ describe('BackupSettings page', () => {
 
   it('disables Test connection while the form has unsaved edits, with a hint', async () => {
     renderPage();
-    const bucket = await screen.findByDisplayValue('fireisp-backups');
+    const bucket = await screen.findByDisplayValue('vigabss-backups');
     const testBtn = screen.getByText('Test connection');
     expect(testBtn).not.toBeDisabled();
 
@@ -206,7 +206,7 @@ describe('BackupSettings page', () => {
 
   it('clears a stale fixed endpoint when switching away from GCS', async () => {
     renderPage();
-    await screen.findByDisplayValue('fireisp-backups');
+    await screen.findByDisplayValue('vigabss-backups');
     const select = screen.getByDisplayValue('MinIO / self-hosted');
 
     fireEvent.change(select, { target: { value: 'gcs' } });
@@ -235,7 +235,7 @@ describe('BackupSettings page', () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     const [url] = fetchSpy.mock.calls[0];
     // authedFetch attaches the token and refreshes on 401 (FE-20; its own tests).
-    expect(url).toBe('/api/v1/backup-settings/download/fireisp_2026-07-17.sql.gz');
+    expect(url).toBe('/api/v1/backup-settings/download/vigabss_2026-07-17.sql.gz');
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
 
     clickSpy.mockRestore();

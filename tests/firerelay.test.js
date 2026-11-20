@@ -81,9 +81,9 @@ describe('FireRelay Config', () => {
 
   test('parses FIRERELAY_NODES JSON array', () => {
     process.env.FIRERELAY_MODE = 'master';
-    process.env.FIRERELAY_NODES = '["https://node2.fireisp.com","https://node3.fireisp.com"]';
+    process.env.FIRERELAY_NODES = '["https://node2.example.com","https://node3.example.com"]';
     const config = require('../src/config/firerelay');
-    expect(config.nodes).toEqual(['https://node2.fireisp.com', 'https://node3.fireisp.com']);
+    expect(config.nodes).toEqual(['https://node2.example.com', 'https://node3.example.com']);
   });
 
   test('returns empty array for empty FIRERELAY_NODES', () => {
@@ -102,9 +102,9 @@ describe('FireRelay Config', () => {
 
   test('filters non-string entries from FIRERELAY_NODES', () => {
     process.env.FIRERELAY_MODE = 'master';
-    process.env.FIRERELAY_NODES = '["https://node2.fireisp.com", 123, null, ""]';
+    process.env.FIRERELAY_NODES = '["https://node2.example.com", 123, null, ""]';
     const config = require('../src/config/firerelay');
-    expect(config.nodes).toEqual(['https://node2.fireisp.com']);
+    expect(config.nodes).toEqual(['https://node2.example.com']);
   });
 
   test('reads numeric settings with defaults', () => {
@@ -131,11 +131,11 @@ describe('FireRelay Config', () => {
 
   test('reads worker-specific settings', () => {
     process.env.FIRERELAY_MODE = 'worker';
-    process.env.FIRERELAY_MASTER_URL = 'https://master.fireisp.com';
+    process.env.FIRERELAY_MASTER_URL = 'https://master.example.com';
     process.env.FIRERELAY_NODE_ID = 'node2';
     process.env.FIRERELAY_AUTO_INCREMENT_OFFSET = '10000001';
     const config = require('../src/config/firerelay');
-    expect(config.masterUrl).toBe('https://master.fireisp.com');
+    expect(config.masterUrl).toBe('https://master.example.com');
     expect(config.nodeId).toBe('node2');
     expect(config.autoIncrementOffset).toBe(10000001);
   });
@@ -216,14 +216,14 @@ describe('FireRelay Validation Schemas', () => {
     test('passes with valid data', () => {
       const { req, res, next } = mockReqRes({
         id: 'node2',
-        api_url: 'https://node2.fireisp.com',
+        api_url: 'https://node2.example.com',
       });
       validate(firerelayNode)(req, res, next);
       expect(next).toHaveBeenCalledWith();
     });
 
     test('fails when id is missing', () => {
-      const { req, res, next } = mockReqRes({ api_url: 'https://node2.fireisp.com' });
+      const { req, res, next } = mockReqRes({ api_url: 'https://node2.example.com' });
       validate(firerelayNode)(req, res, next);
       expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 422 }));
     });
@@ -237,7 +237,7 @@ describe('FireRelay Validation Schemas', () => {
     test('fails when id exceeds max length', () => {
       const { req, res, next } = mockReqRes({
         id: 'a'.repeat(65),
-        api_url: 'https://node2.fireisp.com',
+        api_url: 'https://node2.example.com',
       });
       validate(firerelayNode)(req, res, next);
       expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 422 }));
@@ -491,7 +491,7 @@ describe('FireRelay Route — /api/v1/firerelay/nodes', () => {
   test('POST /api/v1/firerelay/nodes without auth returns 401', async () => {
     const res = await request(app)
       .post('/api/v1/firerelay/nodes')
-      .send({ id: 'node2', api_url: 'https://node2.fireisp.com' });
+      .send({ id: 'node2', api_url: 'https://node2.example.com' });
     expect(res.status).toBe(401);
   });
 

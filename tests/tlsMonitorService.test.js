@@ -428,7 +428,7 @@ describe('remediation text is install-agnostic', () => {
     stubPeerCert(5);
     await svc.checkTlsExpiry(null);
     const body = mockNotificationCreate.mock.calls[0][0].body;
-    expect(body).not.toMatch(/docker logs fireisp-certbot/);
+    expect(body).not.toMatch(/docker logs vigabss-certbot/);
     expect(body).toMatch(/docker compose/);
   });
 });

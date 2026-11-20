@@ -8,10 +8,10 @@
 //
 // CSRF token protection (double-submit cookie + csrf library):
 //   1. On login / token refresh the server generates a CSRF secret (via the
-//      `csrf` library) and stores it in an httpOnly `fireisp_csrf_secret`
+//      `csrf` library) and stores it in an httpOnly `vigabss_csrf_secret`
 //      cookie.  A derived CSRF token is stored in a non-httpOnly
-//      `fireisp_csrf` cookie that the browser SPA can read.
-//   2. The SPA reads `fireisp_csrf` and echoes it back as the `X-CSRF-Token`
+//      `vigabss_csrf` cookie that the browser SPA can read.
+//   2. The SPA reads `vigabss_csrf` and echoes it back as the `X-CSRF-Token`
 //      request header on every state-changing request.
 //   3. This middleware reads the secret from the httpOnly cookie and calls
 //      `Tokens.verify(secret, token)` — this is the CodeQL-recognised
@@ -26,8 +26,8 @@
 //     cross-origin, so these are inherently CSRF-safe even when cookies are present)
 //
 // Cookie paths:
-//   - fireisp_csrf_secret  path=/api  — httpOnly, only sent on API requests (server-only)
-//   - fireisp_csrf         path=/     — NOT httpOnly, readable via document.cookie on any SPA route
+//   - vigabss_csrf_secret  path=/api  — httpOnly, only sent on API requests (server-only)
+//   - vigabss_csrf         path=/     — NOT httpOnly, readable via document.cookie on any SPA route
 // =============================================================================
 
 const Tokens = require('csrf');
@@ -54,8 +54,8 @@ const allowedHost = parseHost(config.appUrl);
 // ---------------------------------------------------------------------------
 // Cookie names
 // ---------------------------------------------------------------------------
-const CSRF_SECRET_COOKIE = 'fireisp_csrf_secret'; // httpOnly — server reads it
-const CSRF_TOKEN_COOKIE  = 'fireisp_csrf';         // NOT httpOnly — SPA reads it
+const CSRF_SECRET_COOKIE = 'vigabss_csrf_secret'; // httpOnly — server reads it
+const CSRF_TOKEN_COOKIE  = 'vigabss_csrf';         // NOT httpOnly — SPA reads it
 const CSRF_HEADER        = 'x-csrf-token';
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ const CSRF_HEADER        = 'x-csrf-token';
 // These public endpoints establish or restore a session and MUST work no matter
 // what cookies the browser is still carrying from a prior session. A returning
 // user routinely lands on /login (or the SPA's mount-time /refresh) while a valid
-// httpOnly `fireisp_access` cookie is still live — the browser attaches it
+// httpOnly `vigabss_access` cookie is still live — the browser attaches it
 // automatically, but the request legitimately has no CSRF token, so the cookie-based
 // CSRF gate below would 403 it. They carry no ambient authority a forged request
 // could abuse (login/reset read posted credentials; /refresh uses the
@@ -127,8 +127,8 @@ function tokenCookieOptions(maxAge) {
  * Set CSRF cookies alongside the auth cookies.
  *
  * Sets:
- *   - `fireisp_csrf_secret` (httpOnly) — the CSRF secret (server-only)
- *   - `fireisp_csrf` (not httpOnly) — the derived CSRF token (SPA reads + sends as header)
+ *   - `vigabss_csrf_secret` (httpOnly) — the CSRF secret (server-only)
+ *   - `vigabss_csrf` (not httpOnly) — the derived CSRF token (SPA reads + sends as header)
  *
  * @param {import('express').Response} res
  * @param {number} maxAgeMs  Cookie lifetime in milliseconds (should match access token).
@@ -162,15 +162,15 @@ function clearCsrfCookie(res) {
  *   - The request targets a public auth-bootstrap endpoint (see
  *     CSRF_EXEMPT_SUFFIXES — login/register/refresh/verify-email/password-reset),
  *     which must work regardless of any stale session cookie the browser attaches.
- *   - No `fireisp_access` cookie is present (API-key / Bearer-only clients, or
+ *   - No `vigabss_access` cookie is present (API-key / Bearer-only clients, or
  *     unauthenticated requests). The refresh cookie alone does not gate CSRF.
  *
- * When the `fireisp_csrf_secret` cookie is present (new sessions):
+ * When the `vigabss_csrf_secret` cookie is present (new sessions):
  *   - Reads the CSRF token from the `X-CSRF-Token` request header.
  *   - Verifies with `tokens.verify(secret, token)` (CodeQL-recognised pattern).
  *   - Returns 403 if the token is missing or fails verification.
  *
- * When the `fireisp_csrf_secret` cookie is absent (legacy sessions):
+ * When the `vigabss_csrf_secret` cookie is absent (legacy sessions):
  *   - Falls back to Origin/Referer header check.
  */
 function csrfOriginCheck(req, res, next) {
@@ -191,7 +191,7 @@ function csrfOriginCheck(req, res, next) {
   // it broke /auth/login for returning users once the refresh cookie's Path was
   // widened to /api/v1/auth — the browser then sent it to sibling auth endpoints,
   // tripping this gate on requests that legitimately carry no CSRF token.
-  const hasAuthCookie = !!req.cookies?.fireisp_access;
+  const hasAuthCookie = !!req.cookies?.vigabss_access;
   if (!hasAuthCookie) return next();
 
   // Bearer-token requests cannot be forged via CSRF because cross-origin

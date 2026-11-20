@@ -1,16 +1,16 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: api
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: fireisp
+    name: vigabss
   # Scaling past one replica needs REDIS_URL (see deployment.yaml).
   minReplicas: 1
   maxReplicas: 1

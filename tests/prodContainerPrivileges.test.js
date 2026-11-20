@@ -25,9 +25,9 @@ describe('production container least privilege', () => {
     expect(base.networks.frontend.enable_ipv6).toBe('${WG_IPV6:-false}');
     expect(app.environment.WG_SERVER_ENABLED).toBe('false');
     expect(app.volumes).not.toContain('wg_keys:/etc/wireguard');
-    expect(app.volumes).toContain('wg_runtime:/run/fireisp-wireguard:ro');
-    // The fireisp user, by its fixed uid (numeric so runAsNonRoot can check it).
-    expect(dockerfile).toMatch(/useradd --system --uid 10001 --gid fireisp --no-create-home fireisp\n/);
+    expect(app.volumes).toContain('wg_runtime:/run/vigabss-wireguard:ro');
+    // The vigabss user, by its fixed uid (numeric so runAsNonRoot can check it).
+    expect(dockerfile).toMatch(/useradd --system --uid 10001 --gid vigabss --no-create-home vigabss\n/);
     expect(dockerfile).toMatch(/\nUSER 10001:10001\n/);
   });
 

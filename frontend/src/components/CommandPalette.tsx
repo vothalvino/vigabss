@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
 import { buildPaletteIndex, resolveRecents, searchPalette, type PaletteEntry } from '@/nav/search';
 
-const RECENTS_KEY = 'fireisp.nav.recents';
+const RECENTS_KEY = 'vigabss.nav.recents';
 
 function loadRecents(): string[] {
   try {

@@ -30,7 +30,7 @@ describe('VigaBSS release identity', () => {
     expect(new Set(versions)).toEqual(new Set([product.version]));
   });
 
-  it('does not expose the inherited FireISP package name in first-party metadata', () => {
+  it('names the UI kit package after the product', () => {
     expect(readJson('frontend/ui-kit/package.json').name).toBe('@vigabss/ui');
   });
 

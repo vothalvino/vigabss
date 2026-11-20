@@ -10,9 +10,8 @@
 //
 // The password now arrives by a channel that is not world-readable: the
 // VIGABSS_ADMIN_PASSWORD environment variable (/proc/<pid>/environ is 0400,
-// owner only), or an interactive prompt. The legacy FIREISP_ADMIN_PASSWORD
-// alias and flag still work so existing scripts do not
-// break, but it warns.
+// owner only), or an interactive prompt. The flag still works so existing
+// scripts do not break, but it warns.
 //
 // resolvePassword is exercised for real rather than asserted on as text: the
 // function is lifted out of the script and run in a child process, so a change
@@ -38,7 +37,7 @@ function harnessPath() {
   expect(start).toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-admincli-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-admincli-'));
   const file = path.join(dir, 'harness.mjs');
   fs.writeFileSync(file, [
     "import readline from 'node:readline';",
@@ -56,7 +55,6 @@ function run(env, file) {
   const clean = { ...process.env };
   delete clean.ADMIN_PASSWORD;
   delete clean.VIGABSS_ADMIN_PASSWORD;
-  delete clean.FIREISP_ADMIN_PASSWORD;
   return spawnSync('node', [file], { env: { ...clean, ...env }, input: '', encoding: 'utf8' });
 }
 
@@ -72,20 +70,6 @@ describe('the admin CLI takes the password off the command line', () => {
   it('lets the environment win over the deprecated flag', () => {
     const r = run({ VIGABSS_ADMIN_PASSWORD: 'from-env-123', TEST_ARGS: JSON.stringify({ password: 'from-flag' }) }, file);
     expect(r.stdout).toContain('RESOLVED:from-env-123');
-  });
-
-  it('keeps FIREISP_ADMIN_PASSWORD as a legacy alias', () => {
-    const r = run({ FIREISP_ADMIN_PASSWORD: 'legacy-env-123', TEST_ARGS: '{}' }, file);
-    expect(r.stdout).toContain('RESOLVED:legacy-env-123');
-  });
-
-  it('lets the canonical variable win over the legacy alias', () => {
-    const r = run({
-      VIGABSS_ADMIN_PASSWORD: 'canonical-123',
-      FIREISP_ADMIN_PASSWORD: 'legacy-123',
-      TEST_ARGS: '{}',
-    }, file);
-    expect(r.stdout).toContain('RESOLVED:canonical-123');
   });
 
   it('still accepts --password, so existing scripts keep working', () => {

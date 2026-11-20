@@ -71,10 +71,8 @@ services:
       - backend
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
-      # Legacy fallbacks are intentional: established custom env files could
-      # omit these optional keys and already own a `fireisp` database/user.
-      MYSQL_DATABASE:      ${DB_NAME:-fireisp}
-      MYSQL_USER:          ${DB_USER:-fireisp}
+      MYSQL_DATABASE:      ${DB_NAME:-vigabss}
+      MYSQL_USER:          ${DB_USER:-vigabss}
       MYSQL_PASSWORD:      ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - db_primary_data:/var/lib/mysql
@@ -114,8 +112,8 @@ services:
         condition: service_healthy
     environment:
       MYSQL_ROOT_PASSWORD:  ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
-      MYSQL_DATABASE:       ${DB_NAME:-fireisp}
-      MYSQL_USER:           ${DB_USER:-fireisp}
+      MYSQL_DATABASE:       ${DB_NAME:-vigabss}
+      MYSQL_USER:           ${DB_USER:-vigabss}
       MYSQL_PASSWORD:       ${DB_PASSWORD:?DB_PASSWORD is required}
       # Replication credentials
       MYSQL_REPL_USER:      ${MYSQL_REPL_USER:-repl_user}
@@ -245,20 +243,19 @@ services:
     # deploys, and the machine eventually thrashed hard enough to lock out SSH.
     #
     # CI builds and scans the image, then publishes it (.github/workflows/ci.yml
-    # → container-scan). redeploy.sh pins VIGABSS_IMAGE (and its FIREISP_IMAGE
-    # compatibility alias) to the exact commit SHA,
+    # → container-scan). redeploy.sh pins VIGABSS_IMAGE to the exact commit SHA,
     # so what runs here always corresponds to a specific commit — and a rollback
     # is a tag change rather than a rebuild.
     #
     # To build locally instead (dev boxes, air-gapped installs, testing an
     # unmerged commit), add the override that restores the build block:
     #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.prod up -d --build
-    image: ${VIGABSS_IMAGE:-${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}}
+    image: ${VIGABSS_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
     restart: unless-stopped
     # Docker's 10 s default SIGKILLed the app mid-shutdown on `restart`/`down`;
     # its own force-exit (SHUTDOWN_TIMEOUT_MS, 25 s) stays below this (OPS-13).
     stop_grace_period: 30s
-    # Least privilege: no `user` override means the image's non-root `fireisp`
+    # Least privilege: no `user` override means the image's non-root `vigabss`
     # user runs the web/API application with no added Linux capabilities.
     # This configures the shared network namespace at container creation; it
     # does not grant the app process permission to alter routes or interfaces.
@@ -289,8 +286,8 @@ services:
       DB_PORT:    3306
       # Keep the application aligned with the database container even when an
       # operator omits these optional values from a hand-written env file.
-      DB_USER:    ${DB_USER:-fireisp}
-      DB_NAME:    ${DB_NAME:-fireisp}
+      DB_USER:    ${DB_USER:-vigabss}
+      DB_NAME:    ${DB_NAME:-vigabss}
       REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379
       # Embedded RADIUS server (VigaBSS is the RADIUS server — docs/radius-server.md).
       # Defaults ON in production; set RADIUS_SERVER_ENABLED=false in .env.prod to disable.
@@ -309,31 +306,29 @@ services:
       # One-time upgrade bridge: runtime imports the old env/default into the
       # new DB setting, then the GUI becomes authoritative.
       WG_LEGACY_SERVER_ENABLED: ${WG_SERVER_ENABLED-__unset__}
-      WG_HELPER_SOCKET:      /run/fireisp-wireguard/helper.sock
+      WG_HELPER_SOCKET:      /run/vigabss-wireguard/helper.sock
       WG_IPV6:               ${WG_IPV6:-false}
       WG_CLIENT_SUBNET_V6:   ${WG_CLIENT_SUBNET_V6:-fd99:7669:6761::/64}
       # "A newer build is available" banner for the install operator. ON by
       # default so a fresh install works with no configuration. This is the only
       # outbound request VigaBSS makes on its own behalf: an unauthenticated
       # read of the newest public release tag or commit — no install data, no telemetry.
-      # Set VIGABSS_UPDATE_CHECK=0 in .env.prod to switch it off. The inherited
-      # FIREISP_UPDATE_CHECK spelling remains supported for existing installs.
+      # Set VIGABSS_UPDATE_CHECK=0 in .env.prod to switch it off.
       #
       # An env var, NOT a row in `settings`, deliberately: only whoever edits
       # .env.prod can change this, which is exactly the install operator. A
       # settings row would be writable by any tenant's admin.
-      VIGABSS_UPDATE_CHECK:   ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
-      FIREISP_UPDATE_CHECK:  ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
+      VIGABSS_UPDATE_CHECK:   ${VIGABSS_UPDATE_CHECK:-1}
       # The banner compares against the channel redeploy follows: the newest
       # v* release, or main.
       VIGABSS_CHANNEL:       ${VIGABSS_CHANNEL:-release}
     volumes:
       # Named volume, NOT a host bind mount: the previous `./storage` bind mount
-      # was root-owned on the host, so the non-root `fireisp` container user hit
-      # EACCES writing uploads. A named volume inherits the image's fireisp-owned
+      # was root-owned on the host, so the non-root `vigabss` container user hit
+      # EACCES writing uploads. A named volume inherits the image's vigabss-owned
       # /app/storage on first init, so it is writable by the app.
       - storage:/app/storage
-      - wg_runtime:/run/fireisp-wireguard:ro
+      - wg_runtime:/run/vigabss-wireguard:ro
     # HTTP (3000) stays internal behind Nginx. RADIUS and SNMP trap listeners
     # are UDP and must be published directly (Nginx proxies HTTP only).
     # NOTE: these are fixed host ports — keep the app at replicas:1, or front
@@ -368,7 +363,7 @@ services:
   # DB, Redis, JWT, or encryption secrets and accepts only named WireGuard
   # operations over a Unix socket mounted solely into these two containers.
   wireguard-helper:
-    image: ${VIGABSS_IMAGE:-${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}}
+    image: ${VIGABSS_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
     restart: unless-stopped
     user: "0:0"
     cap_drop:
@@ -388,7 +383,7 @@ services:
       WG_PRIVILEGED_HELPER: 'true'
       WG_SERVER_ENABLED: 'true'
       WG_KEY_DIR: /etc/wireguard
-      WG_SERVER_INTERFACE: ${WG_SERVER_INTERFACE:-wg-fireisp}
+      WG_SERVER_INTERFACE: ${WG_SERVER_INTERFACE:-wg-vigabss}
       WG_SERVER_SUBNET: ${WG_SERVER_SUBNET:-10.255.0.0/16}
       WG_LISTEN_PORT: ${WG_LISTEN_PORT:-51820}
       WG_CLIENT_INTERFACE: ${WG_CLIENT_INTERFACE:-wg-clients}
@@ -396,14 +391,14 @@ services:
       WG_CLIENT_LISTEN_PORT: ${WG_CLIENT_LISTEN_PORT:-51821}
       WG_IPV6: ${WG_IPV6:-false}
       WG_CLIENT_SUBNET_V6: ${WG_CLIENT_SUBNET_V6:-fd99:7669:6761::/64}
-      WG_HELPER_SOCKET: /run/fireisp-wireguard/helper.sock
+      WG_HELPER_SOCKET: /run/vigabss-wireguard/helper.sock
     volumes:
       - wg_keys:/etc/wireguard
-      - wg_runtime:/run/fireisp-wireguard
+      - wg_runtime:/run/vigabss-wireguard
     tmpfs:
       - /tmp:size=16m,mode=1777
     healthcheck:
-      test: ['CMD', 'node', '-e', "const n=require('net').connect('/run/fireisp-wireguard/helper.sock');n.on('connect',()=>process.exit(0));n.on('error',()=>process.exit(1))"]
+      test: ['CMD', 'node', '-e', "const n=require('net').connect('/run/vigabss-wireguard/helper.sock');n.on('connect',()=>process.exit(0));n.on('error',()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3

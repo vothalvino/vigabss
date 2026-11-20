@@ -24,7 +24,7 @@ describe('browser WebSocket transport', () => {
 
   it.each([
     ['nginx/nginx.conf', 'http://app'],
-    ['nginx/host-nginx.conf', 'http://fireisp_app'],
+    ['nginx/host-nginx.conf', 'http://vigabss_app'],
   ])('%s already upgrades the shared /ws/firerelay prefix', (file, upstream) => {
     const block = prefixLocation(read(file), '/ws/firerelay');
     expect(block).toContain(`proxy_pass              ${upstream};`);

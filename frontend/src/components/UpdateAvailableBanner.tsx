@@ -46,7 +46,7 @@ async function fetchVersion(): Promise<SystemVersion> {
   return (res.data as unknown as { data: SystemVersion }).data;
 }
 
-const DISMISS_KEY = 'fireispUpdateBannerDismissedOn';
+const DISMISS_KEY = 'vigabssUpdateBannerDismissedOn';
 
 /** Local calendar date, not UTC — "once a day" should mean the operator's day. */
 function today(): string {

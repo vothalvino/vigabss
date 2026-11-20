@@ -1,10 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: api
   annotations:
     # Uncomment for cert-manager TLS:
@@ -15,12 +15,12 @@ metadata:
 spec:
   ingressClassName: nginx
   # TLS is required: the auth cookies are Secure in production, so a login over
-  # plain HTTP cannot keep its session (OPS-17). Create the fireisp-tls secret,
+  # plain HTTP cannot keep its session (OPS-17). Create the vigabss-tls secret,
   # or let cert-manager issue it (annotation above).
   tls:
     - hosts:
         - vigabss.example.com
-      secretName: fireisp-tls
+      secretName: vigabss-tls
   rules:
     - host: vigabss.example.com
       http:
@@ -29,6 +29,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: fireisp
+                name: vigabss
                 port:
                   name: http

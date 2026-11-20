@@ -23,7 +23,7 @@ jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/config', () => ({
   wireguard: {
     serverEnabled: true,
-    serverInterface: 'wg-fireisp',
+    serverInterface: 'wg-vigabss',
     serverEndpoint: 'vpn.example.com',
     serverListenPort: 51820,
     serverPublicKey: '',
@@ -144,7 +144,7 @@ describe('allocateTunnelIp()', () => {
   test('returns the first host address in serverSubnet when pool is empty', async () => {
     db.query.mockResolvedValueOnce([[]]); // no existing tunnels
     const ip = await service.allocateTunnelIp();
-    // 10.255.0.0/16 → 10.255.0.1 is reserved for the wg-fireisp server interface,
+    // 10.255.0.0/16 → 10.255.0.1 is reserved for the wg-vigabss server interface,
     // so the first peer address is 10.255.0.2
     expect(ip).toBe('10.255.0.2');
   });
@@ -179,7 +179,7 @@ describe('allocateTunnelIp()', () => {
 });
 
 // =============================================================================
-// syncPeer() — NAS peer on wg-fireisp
+// syncPeer() — NAS peer on wg-vigabss
 // =============================================================================
 
 describe('syncPeer()', () => {
@@ -193,7 +193,7 @@ describe('syncPeer()', () => {
     expect(execFile).toHaveBeenNthCalledWith(
       1,
       'wg',
-      ['set', 'wg-fireisp', 'peer', PUB, 'allowed-ips', `${TUNNEL_IP}/32`],
+      ['set', 'wg-vigabss', 'peer', PUB, 'allowed-ips', `${TUNNEL_IP}/32`],
       { encoding: 'utf8' },
       expect.any(Function),
     );
@@ -206,7 +206,7 @@ describe('syncPeer()', () => {
     expect(execFile).toHaveBeenNthCalledWith(
       1,
       'wg',
-      ['set', 'wg-fireisp', 'peer', PUB, 'allowed-ips',
+      ['set', 'wg-vigabss', 'peer', PUB, 'allowed-ips',
         `${TUNNEL_IP}/32,${subnets.join(',')}`],
       { encoding: 'utf8' },
       expect.any(Function),
@@ -218,7 +218,7 @@ describe('syncPeer()', () => {
 
     expect(execFile).toHaveBeenCalledWith(
       'ip',
-      ['route', 'replace', `${TUNNEL_IP}/32`, 'dev', 'wg-fireisp'],
+      ['route', 'replace', `${TUNNEL_IP}/32`, 'dev', 'wg-vigabss'],
       { encoding: 'utf8' },
       expect.any(Function),
     );
@@ -231,7 +231,7 @@ describe('syncPeer()', () => {
     for (const subnet of subnets) {
       expect(execFile).toHaveBeenCalledWith(
         'ip',
-        ['route', 'replace', subnet, 'dev', 'wg-fireisp'],
+        ['route', 'replace', subnet, 'dev', 'wg-vigabss'],
         { encoding: 'utf8' },
         expect.any(Function),
       );
@@ -268,7 +268,7 @@ describe('removePeer()', () => {
     expect(execFile).toHaveBeenNthCalledWith(
       1,
       'wg',
-      ['set', 'wg-fireisp', 'peer', PUB, 'remove'],
+      ['set', 'wg-vigabss', 'peer', PUB, 'remove'],
       { encoding: 'utf8' },
       expect.any(Function),
     );
@@ -280,7 +280,7 @@ describe('removePeer()', () => {
     for (const subnet of SUBNETS) {
       expect(execFile).toHaveBeenCalledWith(
         'ip',
-        ['route', 'del', subnet, 'dev', 'wg-fireisp'],
+        ['route', 'del', subnet, 'dev', 'wg-vigabss'],
         { encoding: 'utf8' },
         expect.any(Function),
       );

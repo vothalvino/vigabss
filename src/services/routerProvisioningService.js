@@ -165,14 +165,14 @@ async function removeSubscriber(nas, { username }) {
 //   • optional global queue-tree skeleton (parent HTB nodes for total bw)
 //   • optional suspended-subscriber walled-garden firewall hook
 //
-// Every managed object carries a `fireisp-*` comment so re-running is idempotent
+// Every managed object carries a `vigabss-*` comment so re-running is idempotent
 // and non-destructive: we look the object up by its tag and `set` it in place,
 // or `add` it if absent. Nothing is ever removed. Per-step errors are captured
 // (not thrown) so a partial failure still returns a useful report.
 // =============================================================================
 
 // Comment tag prefix marking every VigaBSS-managed object on the router.
-const SEED_TAG = 'fireisp';
+const SEED_TAG = 'vigabss';
 
 // Blueprint §4 — global priority-class simple-queue names. The numeric prefixes
 // keep them ordered at the top of the simple-queue list (RouterOS evaluates
@@ -278,18 +278,18 @@ async function upsertByName(client, basePath, name, attrWords, addOnlyWords = []
  * @param {boolean}[opts.seedPppoeServer=false]    §2 — base PPP profile + pppoe-server on pppoeInterface
  * @param {string} [opts.pppoeInterface]           Required when seedPppoeServer (e.g. 'ether2')
  * @param {string} [opts.pppoeServiceName='VigaBSS-Internet']
- * @param {string} [opts.pppoeProfileName='fireisp-pppoe']
+ * @param {string} [opts.pppoeProfileName='vigabss-pppoe']
  * @param {string} [opts.pppoeLocalAddress]        PPP profile local-address (gateway IP)
  * @param {string} [opts.pppoeParentQueue]         PPP profile parent-queue (defaults to POP limit when §4 seeded)
  * @param {boolean}[opts.seedWalledGarden=false]
- * @param {string} [opts.suspendedListName='fireisp-suspended']
+ * @param {string} [opts.suspendedListName='vigabss-suspended']
  * @param {string} [opts.portalAddress]     If set, lays down a redirect-to-portal NAT rule for the suspended list
  * @param {string} [opts.redirectPorts='80,443']   §5 — dst-ports the walled-garden redirect matches
  * @param {number} [opts.redirectToPort=80]        §5 — port the portal listens on (dst-nat to-ports)
  * @param {boolean}[opts.redirectEnabled=true]     §5 — lay the redirect down live (false = disabled on create)
  * @param {boolean}[opts.seedRealtimePriority=false] Realtime/VoIP priority: classify → DSCP EF → priority-1 queue
  * @param {string} [opts.sipRtpPorts='5060,5061,10000-20000'] UDP ports treated as SIP/RTP
- * @param {string} [opts.voipNetworks]              CIDRs (comma/space) added to the fireisp-voip address-list (OTT providers)
+ * @param {string} [opts.voipNetworks]              CIDRs (comma/space) added to the vigabss-voip address-list (OTT providers)
  * @param {boolean}[opts.trustClientDscp=false]     Also mark packets the client already tags DSCP EF (spoofable — capped)
  * @param {string} [opts.realtimeParent='global']   Parent for the priority-1 realtime queue-tree node
  * @param {number} [opts.realtimeMaxMbps]           Optional cap (Mbps) on the realtime queue — the anti-abuse limit
@@ -640,7 +640,7 @@ async function seedDevice(nas, opts = {}) {
     // calls stay crisp while the same subscriber saturates the link. Layers on top
     // of §3 fq-codel (the biggest low-latency win). RADIUS still governs per-plan
     // rate; this prioritises voice WITHIN each pipe. Encrypted OTT calls (WhatsApp,
-    // FaceTime, Meet…) can't be matched by port — the operator-fillable fireisp-voip
+    // FaceTime, Meet…) can't be matched by port — the operator-fillable vigabss-voip
     // address-list (provider netblocks) covers those; SIP/RTP is matched by port.
     if (seedRealtimePriority) {
       const RT_CONN = `${SEED_TAG}-rt-conn`;
@@ -649,7 +649,7 @@ async function seedDevice(nas, opts = {}) {
       const ports = String(sipRtpPorts || '5060,5061,10000-20000').trim();
       const rtParent = String(realtimeParent || 'global').trim();
 
-      // (a) Seed operator-supplied OTT provider networks into the fireisp-voip list.
+      // (a) Seed operator-supplied OTT provider networks into the vigabss-voip list.
       const voipNets = String(voipNetworks || '').split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
       for (const cidr of voipNets) {
         await step(`realtime:voip-list:${cidr}`, `address-list ${VOIP_LIST} += ${cidr}`, async () => {
@@ -743,13 +743,13 @@ async function seedDevice(nas, opts = {}) {
 // =============================================================================
 
 /**
- * Reconcile the `fireisp-voip` firewall address-list on one NAS against a desired
- * set of RTC/VoIP CIDRs. Only entries THIS updater owns (comment `fireisp-voip-auto`)
- * are managed — operator-added entries (seed-time `fireisp-voip`, or untagged) are
+ * Reconcile the `vigabss-voip` firewall address-list on one NAS against a desired
+ * set of RTC/VoIP CIDRs. Only entries THIS updater owns (comment `vigabss-voip-auto`)
+ * are managed — operator-added entries (seed-time `vigabss-voip`, or untagged) are
  * left untouched. Adds missing CIDRs, removes stale auto-entries, and no-ops the rest.
  *
- * Skips NAS that never seeded real-time priority (no `fireisp-realtime` queue or
- * `fireisp-rt-packet` mangle), so we never create an orphan list on an opted-out device.
+ * Skips NAS that never seeded real-time priority (no `vigabss-realtime` queue or
+ * `vigabss-rt-packet` mangle), so we never create an orphan list on an opted-out device.
  *
  * @param {object} nas  NAS row (ip/api credentials)
  * @param {string[]} ranges  desired IPv4 CIDRs
@@ -775,7 +775,7 @@ async function syncVoipAddressList(nas, ranges, opts = {}) {
     // and only OUR auto-managed rows (address → .id) for the remove decision.
     const printed = await client.run(['/ip/firewall/address-list/print', `?list=${listName}`]);
     const allAddresses = new Set(); // every address in the list, regardless of comment
-    const autoEntries = new Map();  // address → .id (only fireisp-voip-auto rows)
+    const autoEntries = new Map();  // address → .id (only vigabss-voip-auto rows)
     for (const s of printed) {
       if (s[0] !== '!re') continue;
       const a = ros.parseAttrs(s.slice(1));

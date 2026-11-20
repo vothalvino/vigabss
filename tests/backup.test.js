@@ -42,7 +42,7 @@ describe('backup rotate', () => {
   test('rotate removes oldest files when exceeding max', () => {
     // Create 10 fake backup files (MAX_BACKUPS defaults to 7)
     for (let i = 0; i < 10; i++) {
-      const name = `fireisp_2025-01-${String(i + 1).padStart(2, '0')}T00-00-00.sql.gz`;
+      const name = `vigabss_2025-01-${String(i + 1).padStart(2, '0')}T00-00-00.sql.gz`;
       fs.writeFileSync(path.join(backupDir, name), 'test');
     }
 
@@ -56,14 +56,14 @@ describe('backup rotate', () => {
     expect(after.length).toBe(7);
 
     // Should keep the newest 7 (sorted alphabetically, last 7)
-    expect(after[0]).toBe('fireisp_2025-01-04T00-00-00.sql.gz');
-    expect(after[6]).toBe('fireisp_2025-01-10T00-00-00.sql.gz');
+    expect(after[0]).toBe('vigabss_2025-01-04T00-00-00.sql.gz');
+    expect(after[6]).toBe('vigabss_2025-01-10T00-00-00.sql.gz');
   });
 
   test('rotate does nothing when under limit', () => {
     // Create 3 files
     for (let i = 0; i < 3; i++) {
-      const name = `fireisp_2025-02-${String(i + 1).padStart(2, '0')}T00-00-00.sql.gz`;
+      const name = `vigabss_2025-02-${String(i + 1).padStart(2, '0')}T00-00-00.sql.gz`;
       fs.writeFileSync(path.join(backupDir, name), 'test');
     }
 

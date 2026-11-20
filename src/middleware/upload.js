@@ -253,7 +253,7 @@ function attachmentStorage(subdir) {
  *
  * Two shapes exist in the database and both must keep working:
  *   * relative to STORAGE_ROOT — what everything writes now, and what survives
- *     the install root moving (/app in Docker, /opt/fireisp from install.sh);
+ *     the install root moving (/app in Docker, /opt/vigabss from install.sh);
  *   * absolute — written by ticket and work-order attachments before they were
  *     moved into STORAGE_ROOT. Those rows are read as-is so existing
  *     attachments stay downloadable.

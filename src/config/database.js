@@ -36,7 +36,7 @@ const baseConnectionConfig = {
   port: parseInt(process.env.DB_PORT || '3306', 10),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'fireisp',
+  database: process.env.DB_NAME || 'vigabss',
   charset: 'utf8mb4',
   timezone: '+00:00',
 };
@@ -113,7 +113,7 @@ const replicaPool = process.env.DB_REPLICA_HOST
     password: process.env.DB_REPLICA_PASSWORD !== undefined
       ? process.env.DB_REPLICA_PASSWORD
       : (process.env.DB_PASSWORD || ''),
-    database: process.env.DB_NAME || 'fireisp',
+    database: process.env.DB_NAME || 'vigabss',
     charset: 'utf8mb4',
     timezone: '+00:00',
     waitForConnections: true,

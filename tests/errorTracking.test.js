@@ -152,7 +152,7 @@ describe('errorTracking', () => {
       const safe = beforeSend({
         request: {
           method: 'POST',
-          url: 'https://fireisp.example/api/webhooks?token=query-secret',
+          url: 'https://vigabss.example/api/webhooks?token=query-secret',
           headers: {
             authorization: 'Bearer bearer-secret',
             cookie: 'session=session-secret',
@@ -209,7 +209,7 @@ describe('errorTracking', () => {
         transaction: 'POST /internal/hooks/capability-token?secret=query-secret',
         request: {
           method: 'POST',
-          url: 'https://fireisp.example/api/webhooks?token=query-secret',
+          url: 'https://vigabss.example/api/webhooks?token=query-secret',
         },
         spans: [{
           description: 'POST https://capability.example/hooks/path-token',

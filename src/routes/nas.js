@@ -265,7 +265,7 @@ router.post('/:id/seed', requirePermission('devices.update'), validate(seedNas, 
 });
 
 // =============================================================================
-// VoIP/RTC address-list refresh — reconcile the fireisp-voip list on this NAS
+// VoIP/RTC address-list refresh — reconcile the vigabss-voip list on this NAS
 // from the configured provider ranges (see voipRangesService). Manual trigger for
 // the scheduled `refresh_voip_ranges` task. Idempotent; skips NAS without realtime.
 // =============================================================================

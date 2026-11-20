@@ -87,7 +87,7 @@ describe('ChangelogPanel', () => {
   });
 
   it('shows unread badge when entries are newer than seen id', async () => {
-    localStorageMock.setItem('fireisp_changelog_seen', 'p3.1');
+    localStorageMock.setItem('vigabss_changelog_seen', 'p3.1');
     renderPanel();
     await waitFor(() => expect(screen.queryByTestId('changelog-badge')).toBeInTheDocument());
     const badge = screen.getByTestId('changelog-badge');
@@ -95,7 +95,7 @@ describe('ChangelogPanel', () => {
   });
 
   it('hides badge when all entries are seen (seen id = newest)', async () => {
-    localStorageMock.setItem('fireisp_changelog_seen', 'p3.7');
+    localStorageMock.setItem('vigabss_changelog_seen', 'p3.7');
     renderPanel();
     // Wait for data to load then check badge is absent
     await waitFor(() => expect(mockFetch).toHaveBeenCalled());
@@ -121,7 +121,7 @@ describe('ChangelogPanel', () => {
   });
 
   it('mark-all-read clears the badge', async () => {
-    localStorageMock.setItem('fireisp_changelog_seen', 'p3.1');
+    localStorageMock.setItem('vigabss_changelog_seen', 'p3.1');
     renderPanel();
     await waitFor(() => expect(screen.queryByTestId('changelog-badge')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('changelog-bell'));

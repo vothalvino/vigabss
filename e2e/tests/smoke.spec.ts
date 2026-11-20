@@ -37,10 +37,10 @@ const API = '/api/v1';
 
 /**
  * Log in via the REST API and return the access token plus the CSRF token that
- * the server stored in the `fireisp_csrf` cookie.
+ * the server stored in the `vigabss_csrf` cookie.
  *
  * The CSRF middleware requires `X-CSRF-Token` on every state-changing request
- * that carries the `fireisp_access` auth cookie.  Playwright's
+ * that carries the `vigabss_access` auth cookie.  Playwright's
  * `APIRequestContext` automatically re-sends cookies across requests in the
  * same context, so every subsequent POST/PUT/DELETE must echo the CSRF token
  * back via the header.
@@ -58,7 +58,7 @@ async function apiLogin(
   // Extract the CSRF token from the cookie jar so we can echo it as
   // X-CSRF-Token on subsequent state-changing API requests.
   const state = await request.storageState();
-  const csrfCookie = state.cookies.find((c) => c.name === 'fireisp_csrf');
+  const csrfCookie = state.cookies.find((c) => c.name === 'vigabss_csrf');
   const csrfToken = csrfCookie?.value ?? '';
 
   return { token, csrfToken };

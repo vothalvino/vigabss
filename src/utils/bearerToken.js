@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS 5.0 — bearerToken
 // =============================================================================
-// The staff SPA authenticates with the httpOnly `fireisp_access` cookie after
+// The staff SPA authenticates with the httpOnly `vigabss_access` cookie after
 // a page reload: the in-memory access token is gone until the next refresh.
 // Several pages still sent `Authorization: Bearer ${token}` regardless, so
 // the header arrived as "Bearer null" or "Bearer " and, because a Bearer

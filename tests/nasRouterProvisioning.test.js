@@ -59,7 +59,7 @@ const mockNas = {
   type: 'mikrotik',
   status: 'active',
   api_port: 8728,
-  api_username: 'fireisp',
+  api_username: 'vigabss',
   api_password_encrypted: 'iv:tag:cipher',
   api_use_tls: false,
 };
@@ -95,7 +95,7 @@ describe('POST /api/v1/nas/:id/test-connection', () => {
     expect(res.body.data.boardName).toBe('RB5009');
     // The NAS row (incl. encrypted password) was loaded and passed to the service
     expect(routerProvisioningService.testConnection).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 7, api_username: 'fireisp' }),
+      expect.objectContaining({ id: 7, api_username: 'vigabss' }),
     );
   });
 
@@ -424,7 +424,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
         ip_address: '10.10.0.1',
         secret: 'radsecret',
         api_port: 8728,
-        api_username: 'fireisp',
+        api_username: 'vigabss',
         api_password: 'super-secret',
         api_use_tls: false,
       });
@@ -433,7 +433,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
     expect(res.body.data.id).toBe(7);
     expect(res.body.data).not.toHaveProperty('api_password_encrypted');
     expect(res.body.data).not.toHaveProperty('api_password');
-    expect(res.body.data.api_username).toBe('fireisp');
+    expect(res.body.data.api_username).toBe('vigabss');
   });
 
   test('POST /api/v1/nas restores a soft-deleted row for the same IP (createOrRestore)', async () => {

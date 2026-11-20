@@ -13,8 +13,8 @@ const crypto = require('crypto');
 const db = require('../config/database');
 const logger = require('./logger').child({ service: 'advisoryLock' });
 
-const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'fireisp';
-const LOCK_PREFIX = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:`;
+const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'vigabss';
+const LOCK_PREFIX = `vigabss:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:`;
 
 /**
  * Run `fn` while holding the named lock. Without the lock, `fn` does not run.

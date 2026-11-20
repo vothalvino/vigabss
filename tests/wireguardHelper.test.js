@@ -39,7 +39,7 @@ describe('privileged WireGuard helper allowlist', () => {
   });
 
   test('rejects inherited object names at the RPC boundary', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-wg-helper-test-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-wg-helper-test-'));
     const socketPath = path.join(dir, 'helper.sock');
     const server = createServer();
     await new Promise(resolve => server.listen(socketPath, resolve));
@@ -76,7 +76,7 @@ describe('privileged WireGuard helper allowlist', () => {
   });
 
   test('limits handshake reads to the two configured interfaces', async () => {
-    await expect(operations.readPeerHandshakes({ iface: 'wg-fireisp' })).resolves.toEqual({});
+    await expect(operations.readPeerHandshakes({ iface: 'wg-vigabss' })).resolves.toEqual({});
     await expect(operations.readPeerHandshakes({ iface: 'wg-attacker' }))
       .rejects.toThrow(/configured WireGuard interface/);
     expect(wireguard.readPeerHandshakes).toHaveBeenCalledTimes(1);

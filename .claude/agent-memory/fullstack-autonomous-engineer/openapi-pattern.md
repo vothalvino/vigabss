@@ -1,6 +1,6 @@
 ---
 name: openapi-pattern
-description: FireISP OpenAPI spec is generated STATICALLY by hand in src/utils/openapi.js — not scanned from JSDoc. New paths must be added manually to generateSpec(). Frontend API types use `as never` casts on entire options objects when generated types have `query?: never` or narrow path types. components.schemas is auto-derived from EVERY file in src/middleware/schemas/, independent of whether any path references it.
+description: VigaBSS OpenAPI spec is generated STATICALLY by hand in src/utils/openapi.js — not scanned from JSDoc. New paths must be added manually to generateSpec(). Frontend API types use `as never` casts on entire options objects when generated types have `query?: never` or narrow path types. components.schemas is auto-derived from EVERY file in src/middleware/schemas/, independent of whether any path references it.
 metadata:
   type: project
 ---

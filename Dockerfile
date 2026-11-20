@@ -61,8 +61,8 @@ RUN apt-get update \
 # fsGroup 10001): `--system` alone took whatever id the base image left free,
 # and 10001 matches no base-image user (node is 1000) and no human account on
 # the host.
-RUN groupadd --system --gid 10001 fireisp \
-  && useradd --system --uid 10001 --gid fireisp --no-create-home fireisp
+RUN groupadd --system --gid 10001 vigabss \
+  && useradd --system --uid 10001 --gid vigabss --no-create-home vigabss
 
 WORKDIR /app
 
@@ -79,7 +79,7 @@ RUN pnpm install --frozen-lockfile --prod \
 
 # Code, node_modules and the SPA stay root-owned and read-only to the runtime
 # user: a `chown -R /app` duplicated them into another layer and let code
-# running as fireisp rewrite itself, which persists across restarts of the
+# running as vigabss rewrite itself, which persists across restarts of the
 # same container (OPS-25). Only /app/storage below is writable.
 COPY . .
 
@@ -89,10 +89,10 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Uploads land in /app/storage, which production mounts as a named Docker volume.
 # Docker initialises a named volume from the image's mountpoint, so the directory
 # must exist and be owned by the runtime user or the container gets EACCES on write.
-RUN mkdir -p /app/storage && chown -R fireisp:fireisp /app/storage
+RUN mkdir -p /app/storage && chown -R vigabss:vigabss /app/storage
 
 # Server WireGuard keys belong to the isolated helper service. The normal
-# web/API process never mounts this directory and always retains USER fireisp.
+# web/API process never mounts this directory and always retains USER vigabss.
 RUN mkdir -p /etc/wireguard && chmod 700 /etc/wireguard
 
 # Numeric, so Kubernetes' runAsNonRoot can verify the image's user itself.
@@ -113,9 +113,6 @@ USER 10001:10001
 # app treats an empty value as "unknown" rather than guessing.
 ARG GIT_SHA=""
 ENV VIGABSS_GIT_SHA=$GIT_SHA
-# Compatibility for installations and observability tooling created before the
-# VigaBSS rename. New code reads VIGABSS_GIT_SHA first.
-ENV FIREISP_GIT_SHA=$GIT_SHA
 
 EXPOSE 3000
 # Embedded RADIUS server (auth + accounting) — only used when RADIUS_SERVER_ENABLED=true

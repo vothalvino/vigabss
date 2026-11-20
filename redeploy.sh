@@ -30,7 +30,7 @@
 # a `VAR=x sudo redeploy` prefix is SILENTLY DISCARDED — the script would then
 # fall through to HEAD and redeploy the newest build, i.e. the exact thing you
 # were rolling back from, while exiting 0. The argument form cannot be stripped.
-# VIGABSS_IMAGE_TAG (or its legacy FIREISP_IMAGE_TAG alias) still works when the
+# VIGABSS_IMAGE_TAG still works when the
 # environment genuinely survives (running as root without sudo, or `sudo -E`
 # with a SETENV sudoers tag).
 #
@@ -57,12 +57,8 @@ SCRIPT_DIR="${SCRIPT_PATH%/*}"
 SCRIPT_DIR="$(cd -- "$SCRIPT_DIR" && pwd)"
 if [[ -n "${VIGABSS_DIR:-}" ]]; then
   APP_DIR="$VIGABSS_DIR"
-elif [[ -n "${FIREISP_DIR:-}" ]]; then
-  APP_DIR="$FIREISP_DIR"
 elif [[ -f /opt/vigabss/docker-compose.prod.yml ]]; then
   APP_DIR="/opt/vigabss"
-elif [[ -f /opt/fireisp/docker-compose.prod.yml ]]; then
-  APP_DIR="/opt/fireisp"
 elif [[ -f "$SCRIPT_DIR/docker-compose.prod.yml" ]]; then
   APP_DIR="$SCRIPT_DIR"
 else
@@ -71,24 +67,23 @@ fi
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
 HOST_NGINX_COMPOSE_FILE="$APP_DIR/docker-compose.host-nginx.yml"
 ENV_FILE="$APP_DIR/.env.prod"
-REGISTRY_IMAGE="${VIGABSS_REGISTRY_IMAGE:-${FIREISP_REGISTRY_IMAGE:-ghcr.io/vothalvino/vigabss}}"
+REGISTRY_IMAGE="${VIGABSS_REGISTRY_IMAGE:-ghcr.io/vothalvino/vigabss}"
 # How many superseded images to keep on disk for rollback. Everything older is
 # removed after a successful deploy — see "Reclaiming" at the end.
-KEEP_IMAGES="${VIGABSS_IMAGE_KEEP:-${FIREISP_IMAGE_KEEP:-3}}"
+KEEP_IMAGES="${VIGABSS_IMAGE_KEEP:-3}"
 # Seconds to wait for the image to appear before giving up. The dominant
 # "failure" is redeploying in the few minutes between merging and CI finishing
 # the publish, which is not a failure at all — it is a race worth waiting out.
 # 0 disables the wait and fails immediately.
-IMAGE_WAIT="${VIGABSS_IMAGE_WAIT:-${FIREISP_IMAGE_WAIT:-600}}"
+IMAGE_WAIT="${VIGABSS_IMAGE_WAIT:-600}"
 # Install/refresh the systemd units for the GUI deploy agent as part of every
 # deploy. 0 disables it entirely for an operator who would rather not have a
 # timer on the box.
 #
-DEPLOY_AGENT="${VIGABSS_DEPLOY_AGENT:-${FIREISP_DEPLOY_AGENT:-1}}"
-SYSTEMD_UNIT_DIR="${VIGABSS_SYSTEMD_UNIT_DIR:-${FIREISP_SYSTEMD_UNIT_DIR:-/etc/systemd/system}}"
+DEPLOY_AGENT="${VIGABSS_DEPLOY_AGENT:-1}"
+SYSTEMD_UNIT_DIR="${VIGABSS_SYSTEMD_UNIT_DIR:-/etc/systemd/system}"
 DEPLOY_AGENT_SERVICE="vigabss-deploy-agent.service"
 DEPLOY_AGENT_TIMER="vigabss-deploy-agent.timer"
-LEGACY_DEPLOY_AGENT_TIMER="fireisp-deploy-agent.timer"
 
 # The opt-out is read from .env.prod because that is the only place that
 # survives `sudo`: sudoers' env_reset strips a `VIGABSS_DEPLOY_AGENT=0 sudo
@@ -102,21 +97,17 @@ LEGACY_DEPLOY_AGENT_TIMER="fireisp-deploy-agent.timer"
 # itself, where the selected install's .env.prod is exactly the file that exists.
 #
 # Quotes, CRLF, an `export` prefix and a trailing comment are all tolerated
-# because this file is hand-edited. Unlike FIREISP_UPDATE_CHECK — where reading
+# because this file is hand-edited. Unlike VIGABSS_UPDATE_CHECK — where reading
 # a typo as the default is right, because the default is an inert banner — an
 # unrecognised value here is WARNED about rather than silently ignored: the
 # default grants a root timer the power to service GUI-initiated deploys, so
 # "off" must never be mistaken for "on".
 resolve_deploy_agent_flag() {
   local raw line key="VIGABSS_DEPLOY_AGENT"
-  [[ -z "${VIGABSS_DEPLOY_AGENT:-}" && -z "${FIREISP_DEPLOY_AGENT:-}" ]] || return 0
+  [[ -z "${VIGABSS_DEPLOY_AGENT:-}" ]] || return 0
   [[ -f "$ENV_FILE" ]] || return 0
 
   line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-  if [[ -z "$line" ]]; then
-    key="FIREISP_DEPLOY_AGENT"
-    line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?FIREISP_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-  fi
   raw="$(printf '%s\n' "$line" | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')" || return 0
 
   case "$raw" in
@@ -128,20 +119,15 @@ resolve_deploy_agent_flag() {
   esac
 }
 
-# Resolve the topology selected by install.sh. Older installations predate the
-# persisted VIGABSS_HOST_NGINX/FIREISP_HOST_NGINX marker, so the generated
-# host-nginx config is a safe compatibility signal: install.sh creates it only
-# for that topology.
+# Resolve the topology selected by install.sh. An install without the persisted
+# VIGABSS_HOST_NGINX marker is recognised by the generated host-nginx config:
+# install.sh creates it only for that topology.
 resolve_host_nginx_mode() {
   local line raw="" explicit=0 key="VIGABSS_HOST_NGINX"
   HOST_NGINX_MODE=0
 
   if [[ -f "$ENV_FILE" ]]; then
     line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_HOST_NGINX[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-    if [[ -z "$line" ]]; then
-      key="FIREISP_HOST_NGINX"
-      line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?FIREISP_HOST_NGINX[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-    fi
     if [[ -n "$line" ]]; then
       explicit=1
       raw="$(printf '%s\n' "$line" | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')"
@@ -160,9 +146,6 @@ resolve_host_nginx_mode() {
   if (( ! explicit )) && [[ -f /etc/nginx/conf.d/vigabss.conf ]]; then
     HOST_NGINX_MODE=1
     echo "    host-nginx install detected from /etc/nginx/conf.d/vigabss.conf"
-  elif (( ! explicit )) && [[ -f /etc/nginx/conf.d/fireisp.conf ]]; then
-    HOST_NGINX_MODE=1
-    echo "    legacy host-nginx install detected from /etc/nginx/conf.d/fireisp.conf"
   fi
 
   COMPOSE_ARGS=(-f "$COMPOSE_FILE")
@@ -175,11 +158,11 @@ resolve_host_nginx_mode() {
     echo "    using host-nginx Compose topology"
   fi
 
-  # Converge legacy installs on the explicit marker after detecting them. The
+  # Converge detected installs on the explicit marker. The
   # existing managed-env writer appends only when absent and takes a backup, so
   # an operator's explicit 0/1 is never overwritten.
   MANAGED_ENV_KEYS+=(
-    "VIGABSS_HOST_NGINX=${HOST_NGINX_MODE}|Persist the installer-selected nginx topology so every redeploy uses the same Compose files; FIREISP_HOST_NGINX remains accepted for legacy installs."
+    "VIGABSS_HOST_NGINX=${HOST_NGINX_MODE}|Persist the installer-selected nginx topology so every redeploy uses the same Compose files."
   )
 }
 
@@ -201,7 +184,7 @@ resolve_host_nginx_mode() {
 #
 # Format: KEY=default|one-line explanation written into the file as a comment.
 MANAGED_ENV_KEYS=(
-  # (none currently — see MANAGED_ENV_RETIRE below for FIREISP_UPDATE_CHECK)
+  # (none currently)
 )
 
 # Settings this script may REMOVE from an existing .env.prod.
@@ -216,14 +199,14 @@ MANAGED_ENV_KEYS=(
 # line rather than rewriting it leaves the file identical to a fresh install's.
 #
 # A value match alone is NOT enough to prove we wrote the line: an operator who
-# typed `FIREISP_UPDATE_CHECK=0` by hand produces a byte-identical line, and
+# typed the same `KEY=value` by hand produces a byte-identical line, and
 # withdrawing that would re-enable something they deliberately switched off.
 # So the comment block we wrote alongside it must also be there. An operator's
 # own line has no such comment and is left completely alone.
 #
 # Format: KEY=old-default|marker in our comment|why it is being withdrawn.
 MANAGED_ENV_RETIRE=(
-  "FIREISP_UPDATE_CHECK=0|once-a-day banner|the update check is now ON by default, so the line we previously added would pin this install to the old default"
+  # (none currently)
 )
 
 # Append any managed setting the operator's .env.prod does not already mention.
@@ -380,14 +363,8 @@ retire_managed_env() {
 # Idempotent and quiet: the files are compared before writing, and systemd is
 # only reloaded when something actually changed. A host without systemd, or
 # without root, is skipped with a note rather than failing the deploy.
-restore_legacy_deploy_timer() {
-  systemctl enable --now "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1 \
-    && systemctl is-enabled "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1 \
-    && systemctl is-active "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1
-}
-
 install_deploy_agent() {
-  local unit src dst rendered content timer changed=0 found=0 failed=0 legacy_was_enabled=0 restart_failed=0
+  local unit src dst rendered content timer changed=0 found=0 failed=0 restart_failed=0
 
   resolve_deploy_agent_flag
 
@@ -406,7 +383,7 @@ install_deploy_agent() {
     # question is whether a timer is RUNNING, and answering "GUI deploys are
     # off" because a directory was read-only would be a claim this function had
     # not checked. If the disable then fails, that is said out loud.
-    for timer in "$DEPLOY_AGENT_TIMER" "$LEGACY_DEPLOY_AGENT_TIMER"; do
+    for timer in "$DEPLOY_AGENT_TIMER"; do
       if systemctl is-enabled "$timer" >/dev/null 2>&1 \
          || systemctl is-active "$timer" >/dev/null 2>&1; then
         found=1
@@ -419,9 +396,9 @@ install_deploy_agent() {
       fi
     done
     if (( failed )); then
-      echo "    WARNING: at least one deploy timer may still be active — GUI deploys may still be enabled." >&2
+      echo "    WARNING: the deploy timer may still be active — GUI deploys may still be enabled." >&2
     elif (( found )); then
-      echo "    VIGABSS_DEPLOY_AGENT=0 — deploy timers stopped; GUI deploys are off"
+      echo "    VIGABSS_DEPLOY_AGENT=0 — deploy timer stopped; GUI deploys are off"
     else
       echo "    (VIGABSS_DEPLOY_AGENT=0 — no timer installed; GUI deploys are off)"
     fi
@@ -432,8 +409,8 @@ install_deploy_agent() {
   [[ -w "$SYSTEMD_UNIT_DIR" ]] || { echo "    (need root to install units in $SYSTEMD_UNIT_DIR — run via sudo to enable GUI deploys)" >&2; return 0; }
 
   # Validate both templates before touching systemd. A partial install (new
-  # service with no timer, or vice versa) would strand the existing legacy
-  # timer without providing a complete replacement.
+  # service with no timer, or vice versa) would leave GUI deploys half
+  # installed.
   for unit in "$DEPLOY_AGENT_SERVICE" "$DEPLOY_AGENT_TIMER"; do
     src="$APP_DIR/deploy/$unit"
     if [[ ! -f "$src" ]]; then
@@ -481,36 +458,11 @@ install_deploy_agent() {
       return 0
     fi
   fi
-  # Stop future legacy timer activations before starting the canonical timer.
-  # A legacy service already executing this redeploy is allowed to finish; both
-  # service names run deploy-agent.sh's shared flock, so the canonical timer
-  # cannot overlap it or claim a second request during this migration window.
-  if systemctl is-enabled "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1 \
-     || systemctl is-active "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
-    legacy_was_enabled=1
-    if ! systemctl disable --now "$LEGACY_DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
-      # It may have existed from a partially completed earlier migration. Keep
-      # one scheduler, not two, even when retiring the predecessor fails.
-      systemctl disable --now "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1 || true
-      echo "    WARNING: could not disable ${LEGACY_DEPLOY_AGENT_TIMER}; ${DEPLOY_AGENT_TIMER} was left disabled to avoid overlapping schedulers." >&2
-      return 0
-    fi
-    echo "    - stopped legacy ${LEGACY_DEPLOY_AGENT_TIMER}"
-  fi
-
   if ! systemctl enable --now "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
     # `enable --now` can create the boot symlink before the start operation
-    # fails. Remove that partial activation before restoring the predecessor.
+    # fails. Remove that partial activation.
     systemctl disable --now "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1 || true
-    if (( legacy_was_enabled )); then
-      if restore_legacy_deploy_timer; then
-        echo "    WARNING: could not enable ${DEPLOY_AGENT_TIMER}; restored ${LEGACY_DEPLOY_AGENT_TIMER}." >&2
-      else
-        echo "    WARNING: could not enable ${DEPLOY_AGENT_TIMER}, and ${LEGACY_DEPLOY_AGENT_TIMER} could not be restored. GUI deploys are unavailable; CLI redeploy remains available." >&2
-      fi
-    else
-      echo "    (could not enable the timer — see: systemctl status $DEPLOY_AGENT_TIMER)" >&2
-    fi
+    echo "    (could not enable the timer — see: systemctl status $DEPLOY_AGENT_TIMER)" >&2
     return 0
   fi
 
@@ -519,20 +471,11 @@ install_deploy_agent() {
   fi
 
   # Do not claim success from `enable --now` alone: a changed timer can fail its
-  # restart and remain inactive. Verify both persistence and current activity,
-  # and restore the legacy timer when this was an in-place migration.
+  # restart and remain inactive. Verify both persistence and current activity.
   if ! systemctl is-enabled "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1 \
      || ! systemctl is-active "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
     systemctl disable --now "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1 || true
-    if (( legacy_was_enabled )); then
-      if restore_legacy_deploy_timer; then
-        echo "    WARNING: ${DEPLOY_AGENT_TIMER} did not remain active; restored ${LEGACY_DEPLOY_AGENT_TIMER}." >&2
-      else
-        echo "    WARNING: ${DEPLOY_AGENT_TIMER} did not remain active, and ${LEGACY_DEPLOY_AGENT_TIMER} could not be restored. GUI deploys are unavailable; CLI redeploy remains available." >&2
-      fi
-    else
-      echo "    WARNING: ${DEPLOY_AGENT_TIMER} did not remain active; inspect: systemctl status ${DEPLOY_AGENT_TIMER}" >&2
-    fi
+    echo "    WARNING: ${DEPLOY_AGENT_TIMER} did not remain active; inspect: systemctl status ${DEPLOY_AGENT_TIMER}" >&2
     return 0
   fi
 
@@ -540,8 +483,6 @@ install_deploy_agent() {
     echo "    units updated; timer remained active despite an explicit restart warning"
   elif (( changed )); then
     echo "    units updated and timer restarted"
-  elif (( legacy_was_enabled )); then
-    echo "    canonical timer enabled; legacy timer retired"
   else
     echo "    already current"
   fi
@@ -559,7 +500,7 @@ install_deploy_agent() {
 #   required  refuse to deploy unless the signature verifies
 #   off       skip the check (e.g. while Sigstore cannot be reached); it stays
 #             off until the line is removed from .env.prod
-VERIFY_SIGNATURE="${VIGABSS_VERIFY_SIGNATURE:-${FIREISP_VERIFY_SIGNATURE:-}}"
+VERIFY_SIGNATURE="${VIGABSS_VERIFY_SIGNATURE:-}"
 COSIGN_IDENTITY_REGEXP='^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$'
 COSIGN_OIDC_ISSUER='https://token.actions.githubusercontent.com'
 
@@ -614,7 +555,6 @@ verify_image_signature() {
 
   # Deploy by digest: the image Compose starts is the one just checked.
   export VIGABSS_IMAGE="$digest_ref"
-  export FIREISP_IMAGE="$digest_ref"
   echo "    deploying ${digest_ref}"
 }
 
@@ -660,12 +600,12 @@ update_source() {
 }
 
 # Sourced by tests to get the functions above without running a deploy.
-if [[ "${VIGABSS_LIB_ONLY:-${FIREISP_LIB_ONLY:-0}}" == "1" ]]; then
+if [[ "${VIGABSS_LIB_ONLY:-0}" == "1" ]]; then
   return 0 2>/dev/null || exit 0
 fi
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
-  echo "error: $COMPOSE_FILE not found — set VIGABSS_DIR (or legacy FIREISP_DIR) to your VigaBSS install path" >&2
+  echo "error: $COMPOSE_FILE not found — set VIGABSS_DIR to your VigaBSS install path" >&2
   exit 1
 fi
 
@@ -677,13 +617,12 @@ update_source || exit 1
 # first invocation would otherwise continue running the old implementation and
 # only the SECOND `sudo redeploy` would receive a critical deploy fix.
 REDEPLOY_SCRIPT_AFTER="$(git -C "$APP_DIR" rev-parse HEAD:redeploy.sh 2>/dev/null || true)"
-REDEPLOY_REEXEC="${VIGABSS_REDEPLOY_REEXEC:-${FIREISP_REDEPLOY_REEXEC:-0}}"
+REDEPLOY_REEXEC="${VIGABSS_REDEPLOY_REEXEC:-0}"
 if [[ "$REDEPLOY_REEXEC" != "1" \
       && -n "$REDEPLOY_SCRIPT_BEFORE" \
       && "$REDEPLOY_SCRIPT_BEFORE" != "$REDEPLOY_SCRIPT_AFTER" ]]; then
   echo "==> Redeploy logic updated; restarting with the new script"
-  exec env VIGABSS_DIR="$APP_DIR" FIREISP_DIR="$APP_DIR" \
-    VIGABSS_REDEPLOY_REEXEC=1 FIREISP_REDEPLOY_REEXEC=1 \
+  exec env VIGABSS_DIR="$APP_DIR" VIGABSS_REDEPLOY_REEXEC=1 \
     "$APP_DIR/redeploy.sh" "$@"
 fi
 
@@ -693,17 +632,14 @@ resolve_host_nginx_mode
 # pull/migrate/start/health operation uses the files selected by install.sh.
 dc() { docker compose "${COMPOSE_ARGS[@]}" --env-file "$ENV_FILE" "$@"; }
 
-# Precedence: positional argument, then VIGABSS_IMAGE_TAG, then its legacy
-# FIREISP_IMAGE_TAG alias, then the release just checked out (its image is
+# Precedence: positional argument, then VIGABSS_IMAGE_TAG, then the release
+# just checked out (its image is
 # :<version>), then the commit just checked out. The argument comes first
 # because it is the only form that survives `sudo`.
-PINNED_ENV_TAG="${VIGABSS_IMAGE_TAG:-${FIREISP_IMAGE_TAG:-}}"
+PINNED_ENV_TAG="${VIGABSS_IMAGE_TAG:-}"
 SOURCE_TAG="${SOURCE_RELEASE:+${SOURCE_RELEASE#v}}"
 TAG="${1:-${PINNED_ENV_TAG:-${SOURCE_TAG:-$(git -C "$APP_DIR" rev-parse HEAD)}}}"
 export VIGABSS_IMAGE="${REGISTRY_IMAGE}:${TAG}"
-# Keep old Compose overrides and locally customised overlays working during the
-# rename. New Compose files consume VIGABSS_IMAGE first.
-export FIREISP_IMAGE="$VIGABSS_IMAGE"
 echo "==> Target image $VIGABSS_IMAGE"
 if [[ -n "${1:-}" ]]; then
   echo "    (pinned by argument — this is a ROLLBACK; the database schema is NOT rolled back)"
@@ -840,9 +776,8 @@ EOF
       docker system df          # where the space actually went
       docker builder prune -f   # build cache only -- keeps every image
 
-  To keep fewer rollback targets, lower VIGABSS_IMAGE_KEEP (or its legacy
-  FIREISP_IMAGE_KEEP alias; currently ${KEEP_IMAGES}) and run a successful
-  deploy; the prune step then reclaims the
+  To keep fewer rollback targets, lower VIGABSS_IMAGE_KEEP (currently
+  ${KEEP_IMAGES}) and run a successful deploy; the prune step then reclaims the
   rest. Do NOT reach for a blanket image prune: it deletes the older builds that
   make \`sudo redeploy <sha>\` a one-step rollback.
 EOF

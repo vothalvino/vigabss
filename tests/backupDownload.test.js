@@ -14,7 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const TEST_BACKUP_DIR = path.join(os.tmpdir(), 'fireisp-download-test-backups');
+const TEST_BACKUP_DIR = path.join(os.tmpdir(), 'vigabss-download-test-backups');
 
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
@@ -42,7 +42,7 @@ jest.mock('../src/scripts/backup', () => ({
   backup: jest.fn(),
   isRunning: () => false,
   rotate: jest.fn(),
-  BACKUP_DIR: require('path').join(require('os').tmpdir(), 'fireisp-download-test-backups'),
+  BACKUP_DIR: require('path').join(require('os').tmpdir(), 'vigabss-download-test-backups'),
 }));
 
 const request = require('supertest');
@@ -50,11 +50,11 @@ const db = require('../src/config/database');
 const app = require('../src/app');
 
 const FILE_CONTENT = Buffer.from('fake gzip backup content for download test');
-const OUTSIDE_SECRET = path.join(os.tmpdir(), 'fireisp-download-test-outside-secret.txt');
+const OUTSIDE_SECRET = path.join(os.tmpdir(), 'vigabss-download-test-outside-secret.txt');
 
 beforeAll(() => {
   fs.mkdirSync(TEST_BACKUP_DIR, { recursive: true });
-  fs.writeFileSync(path.join(TEST_BACKUP_DIR, 'fireisp_2026-07-17T03-00-00.sql.gz'), FILE_CONTENT);
+  fs.writeFileSync(path.join(TEST_BACKUP_DIR, 'vigabss_2026-07-17T03-00-00.sql.gz'), FILE_CONTENT);
   // A sibling file OUTSIDE the allowlisted extension — must never be servable.
   fs.writeFileSync(path.join(TEST_BACKUP_DIR, 'secrets.env'), 'DB_PASSWORD=hunter2');
   // A directory whose name matches the pattern — isFile() must refuse it.
@@ -81,7 +81,7 @@ beforeEach(() => {
 describe('GET /api/v1/backup-settings/download/:filename', () => {
   it('serves an existing backup file as an attachment and audit-logs it first', async () => {
     const res = await request(app)
-      .get('/api/v1/backup-settings/download/fireisp_2026-07-17T03-00-00.sql.gz')
+      .get('/api/v1/backup-settings/download/vigabss_2026-07-17T03-00-00.sql.gz')
       .buffer(true)
       .parse((r, cb) => {
         const chunks = [];
@@ -90,13 +90,13 @@ describe('GET /api/v1/backup-settings/download/:filename', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.headers['content-disposition']).toContain('fireisp_2026-07-17T03-00-00.sql.gz');
+    expect(res.headers['content-disposition']).toContain('vigabss_2026-07-17T03-00-00.sql.gz');
     expect(Buffer.compare(res.body, FILE_CONTENT)).toBe(0);
 
     const auditInsert = db.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO audit_logs'));
     expect(auditInsert).toBeDefined();
     expect(auditInsert[1][0]).toBe(7); // user_id
-    expect(auditInsert[1][5]).toContain('fireisp_2026-07-17T03-00-00.sql.gz'); // summary
+    expect(auditInsert[1][5]).toContain('vigabss_2026-07-17T03-00-00.sql.gz'); // summary
   });
 
   it.each([
@@ -116,7 +116,7 @@ describe('GET /api/v1/backup-settings/download/:filename', () => {
   });
 
   it('404s a well-formed filename that does not exist', async () => {
-    const res = await request(app).get('/api/v1/backup-settings/download/fireisp_2099-01-01T00-00-00.sql.gz');
+    const res = await request(app).get('/api/v1/backup-settings/download/vigabss_2099-01-01T00-00-00.sql.gz');
     expect(res.status).toBe(404);
   });
 
@@ -144,7 +144,7 @@ describe('GET /api/v1/backup-settings/runs — local file listing', () => {
     expect(res.status).toBe(200);
     const names = res.body.data.files.map(f => f.filename);
     // Every listed file must be one the download route would actually serve.
-    expect(names).toContain('fireisp_2026-07-17T03-00-00.sql.gz');
+    expect(names).toContain('vigabss_2026-07-17T03-00-00.sql.gz');
     expect(names).not.toContain('dir.sql.gz');
     expect(names).not.toContain('leak.sql.gz');
     expect(names).not.toContain('secrets.env');

@@ -11,8 +11,7 @@ replicaCount: 1
 
 image:
   ## What CI publishes, and what templates/cosign-policy.yaml verifies.
-  ## The old default (fireisp/fireisp) resolved to Docker Hub, a namespace
-  ## this project does not control, and never matched the signature policy.
+  ## Must match the image the signature policy verifies.
   repository: ghcr.io/vothalvino/vigabss
   ## Required for installs from the source tree: use a full commit SHA published
   ## by main CI. The version-tag workflow injects its verified X.Y.Z image into
@@ -41,7 +40,7 @@ podLabels: {}
 ## Pod-level security context.
 podSecurityContext:
   runAsNonRoot: true
-  # The image's fireisp user (Dockerfile).
+  # The image's vigabss user (Dockerfile).
   runAsUser: 10001
   runAsGroup: 10001
   fsGroup: 10001

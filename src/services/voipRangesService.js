@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS 5.0 — VoIP / RTC Address-List Auto-Updater
 // =============================================================================
-// Keeps the `fireisp-voip` firewall address-list on managed MikroTik NAS current
+// Keeps the `vigabss-voip` firewall address-list on managed MikroTik NAS current
 // with real-time-communication (RTC) provider IP ranges, so the §VoIP realtime-
 // priority mangle (routerProvisioningService.seedRealtimePriority) keeps matching
 // live call/media servers as providers rotate their netblocks.
@@ -13,9 +13,9 @@
 //     covers the offline / all-sources-failed case.
 //   • Only providers that are real-time-ONLY (e.g. Zoom) are defaulted; broad
 //     ranges (all-of-Meta/Google) over-match bulk traffic and are left to the
-//     operator (seed-time `voipNetworks`, tagged `fireisp-voip`, untouched here).
+//     operator (seed-time `voipNetworks`, tagged `vigabss-voip`, untouched here).
 //   • The device push RECONCILES only entries this updater owns (comment
-//     `fireisp-voip-auto`) and skips NAS that never seeded realtime priority.
+//     `vigabss-voip-auto`) and skips NAS that never seeded realtime priority.
 // =============================================================================
 
 const config = require('../config');
@@ -172,7 +172,7 @@ async function resolveRanges({ fetchImpl } = {}) {
 // =============================================================================
 
 /**
- * Resolve ranges once, then reconcile the fireisp-voip address-list on every
+ * Resolve ranges once, then reconcile the vigabss-voip address-list on every
  * managed NAS (with API credentials) in scope. NAS that never seeded realtime
  * priority are skipped by syncVoipAddressList.
  *

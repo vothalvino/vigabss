@@ -163,8 +163,8 @@ Content-Type: application/json
 
 The old refresh token is immediately invalidated (rotation). Each refresh issues a new token pair. If a previously rotated refresh token is reused, the request is rejected — this helps detect token theft.
 
-Browsers get the refresh token only as an httpOnly cookie (`fireisp_refresh`
-for staff, `fireisp_portal_refresh` for the client portal), never in the JSON
+Browsers get the refresh token only as an httpOnly cookie (`vigabss_refresh`
+for staff, `vigabss_portal_refresh` for the client portal), never in the JSON
 body, so page scripts cannot read it. A request counts as a browser request
 when it carries the `Sec-Fetch-Site` header, which browsers add to every
 fetch, or when its refresh token came from the cookie. API clients that send

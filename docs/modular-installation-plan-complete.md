@@ -82,8 +82,7 @@ flowchart TD
 ### 2.1 Shared preamble (all profiles)
 
 Unchanged from today: root check, screen/tmux warning, install directory
-detection (with the existing `/opt/fireisp` reuse rule), Docker and Compose
-installation, and the FireISP-to-VigaBSS upgrade guard.
+selection, and Docker and Compose installation.
 
 New in the preamble:
 

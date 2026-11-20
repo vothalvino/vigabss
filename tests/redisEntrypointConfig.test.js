@@ -111,7 +111,7 @@ function sdssplitargs(line) {
  * things only a container provides, and return the requirepass line it wrote.
  */
 function requirepassLineFor(password, { chownFails = false } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-redis-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-redis-'));
   const bin = path.join(dir, 'bin');
   fs.mkdirSync(bin);
   // `exec docker-entrypoint.sh redis-server <conf> ...` must be reached, and is

@@ -72,7 +72,7 @@ describe('DarkModeContext', () => {
   it('setTheme("dark") sets theme and persists to localStorage', async () => {
     render(<DarkModeProvider><ThemeDisplay /></DarkModeProvider>);
     await userEvent.click(screen.getByTestId('set-dark'));
-    expect(localStorage.getItem('fireisp_theme')).toBe('dark');
+    expect(localStorage.getItem('vigabss_theme')).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
@@ -80,19 +80,19 @@ describe('DarkModeContext', () => {
     render(<DarkModeProvider><ThemeDisplay /></DarkModeProvider>);
     await userEvent.click(screen.getByTestId('set-dark'));
     await userEvent.click(screen.getByTestId('set-light'));
-    expect(localStorage.getItem('fireisp_theme')).toBe('light');
+    expect(localStorage.getItem('vigabss_theme')).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 
   it('reads persisted theme from localStorage on mount', () => {
-    localStorage.setItem('fireisp_theme', 'dark');
+    localStorage.setItem('vigabss_theme', 'dark');
     render(<DarkModeProvider><ThemeDisplay /></DarkModeProvider>);
     expect(screen.getByTestId('theme').textContent).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
   it('setTheme("system") resolves to system preference', async () => {
-    localStorage.setItem('fireisp_theme', 'dark');
+    localStorage.setItem('vigabss_theme', 'dark');
     render(<DarkModeProvider><ThemeDisplay /></DarkModeProvider>);
     await userEvent.click(screen.getByTestId('set-system'));
     expect(screen.getByTestId('theme').textContent).toBe('system');

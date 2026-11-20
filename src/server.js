@@ -27,7 +27,7 @@ async function start() {
   try {
     const [rows] = await db.query('SELECT 1 AS connected');
     if (rows[0].connected === 1) {
-      logger.info({ host: process.env.DB_HOST || '127.0.0.1', port: process.env.DB_PORT || '3306', db: process.env.DB_NAME || 'fireisp' }, 'Database connected');
+      logger.info({ host: process.env.DB_HOST || '127.0.0.1', port: process.env.DB_PORT || '3306', db: process.env.DB_NAME || 'vigabss' }, 'Database connected');
     }
   } catch (err) {
     logger.fatal({ err }, 'Database connection failed');

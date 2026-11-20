@@ -7,22 +7,22 @@ const { classifyMounts, verify, DEFAULT_TARGETS } = require('../src/scripts/veri
 describe('classifyMounts', () => {
   test('named volume on /var/lib/mysql is persistent', () => {
     const mounts = [
-      { Type: 'volume', Name: 'fireisp_db_primary_data', Destination: '/var/lib/mysql' },
+      { Type: 'volume', Name: 'vigabss_db_primary_data', Destination: '/var/lib/mysql' },
     ];
     const [result] = classifyMounts(mounts, ['/var/lib/mysql']);
     expect(result.persistent).toBe(true);
     expect(result.type).toBe('volume');
-    expect(result.source).toBe('fireisp_db_primary_data');
+    expect(result.source).toBe('vigabss_db_primary_data');
   });
 
   test('host bind mount is persistent', () => {
     const mounts = [
-      { Type: 'bind', Source: '/srv/fireisp/storage', Destination: '/app/storage' },
+      { Type: 'bind', Source: '/srv/vigabss/storage', Destination: '/app/storage' },
     ];
     const [result] = classifyMounts(mounts, ['/app/storage']);
     expect(result.persistent).toBe(true);
     expect(result.type).toBe('bind');
-    expect(result.source).toBe('/srv/fireisp/storage');
+    expect(result.source).toBe('/srv/vigabss/storage');
   });
 
   test('missing mount is ephemeral', () => {

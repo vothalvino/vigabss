@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-const LS_KEY = 'fireisp_changelog_seen';
+const LS_KEY = 'vigabss_changelog_seen';
 const API_URL = '/api/v1/changelog';
 
 export interface ChangelogEntry {

@@ -188,7 +188,7 @@ describeHap('MikroTik hAP Lab Integration', () => {
   // ─── Firewall Address-List ───────────────────────────────────────────────────
 
   describe('Firewall Address-List', () => {
-    const testList = 'fireisp_lab_test';
+    const testList = 'vigabss_lab_test';
     const testAddress = '10.99.88.77';
 
     test('adds an IP address to a firewall address-list', async () => {
