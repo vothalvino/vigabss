@@ -111,7 +111,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "autocannon": "^7.15.0",
-    "eslint": "^10.14.0",
+    "eslint": "^10.15.0",
     "fast-check": "^4.10.2",
     "husky": "^9.1.7",
     "jest": "^30.5.2",
