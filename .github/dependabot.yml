@@ -61,4 +61,6 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # Follows the playwright npm package, not its own release train: bump it
       # in the same PR as @playwright/test (dependency-scan checks they match).
-      - dependency-name: "mcr.microsoft.com/playwright"
+      # Dependabot names a compose image without its registry host, so the
+      # image mcr.microsoft.com/playwright is the dependency "playwright".
+      - dependency-name: "playwright"
