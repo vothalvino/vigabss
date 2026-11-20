@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **What's New shows the real release notes.** The panel read a fixed list
+  of six entries that was never updated, so no release ever appeared in it.
+  It now shows the notes of each release, newest first, from the same
+  changelog the releases are written from.
+
 ## 0.1.0-alpha.22 — 2026-11-20
 
 - **Dependency updates, three with security fixes.** nodemailer 10.6.0
