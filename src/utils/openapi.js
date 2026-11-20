@@ -1502,6 +1502,13 @@ function generateSpec() {
         get: { tags: ['Backup Settings'], summary: 'Get install-wide backup settings (install operator only; secret masked)', operationId: 'getBackupSettings', security: [{ bearerAuth: [] }], responses: r200('BackupSettingsOverview') },
         put: { tags: ['Backup Settings'], summary: 'Update the install-wide remote backup destination (install operator only)', operationId: 'updateBackupSettings', security: [{ bearerAuth: [] }], requestBody: jsonBody('BackupSettingsUpdate'), responses: r200('BackupSettings') },
       },
+      '/whatsapp-settings': {
+        get: { tags: ['WhatsApp Settings'], summary: 'Get the install-wide WhatsApp (Meta Cloud API) connection (install operator only; secrets reported as set/unset)', operationId: 'getWhatsappSettings', security: [{ bearerAuth: [] }], responses: r200('WhatsappSettingsView') },
+        put: { tags: ['WhatsApp Settings'], summary: 'Update the install-wide WhatsApp connection (install operator only; omit = keep, empty = remove)', operationId: 'updateWhatsappSettings', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', additionalProperties: false, properties: { phone_number_id: { type: ['string', 'null'] }, business_number: { type: ['string', 'null'] }, access_token: { type: ['string', 'null'] }, app_secret: { type: ['string', 'null'] }, verify_token: { type: ['string', 'null'] } } } } } }, responses: r200('WhatsappSettingsView') },
+      },
+      '/whatsapp-settings/test': {
+        post: { tags: ['WhatsApp Settings'], summary: 'Ask Meta about the configured number with the configured token (install operator only)', operationId: 'testWhatsappSettings', security: [{ bearerAuth: [] }], responses: r200('WhatsappTestResult') },
+      },
       '/backup-settings/test': {
         post: { tags: ['Backup Settings'], summary: 'Test the effective remote destination (install operator only)', operationId: 'testBackupSettings', security: [{ bearerAuth: [] }], responses: r200('BackupTestResult') },
       },

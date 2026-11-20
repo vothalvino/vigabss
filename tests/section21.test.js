@@ -9,6 +9,10 @@ const app = require('../src/app');
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
+// These suites pin the rule-based engine with ordered db.query queues. The AI
+// writer (tests/supportAiWriter.test.js) makes queries of its own, so it is
+// switched off here: no organization in these tests has the assistant enabled.
+jest.mock('../src/services/supportAiWriter', () => ({ writeReply: jest.fn().mockResolvedValue(null) }));
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 // Business events load rows and run hooks that query too; these positional
 // fixtures cover the conversation logic only (events: businessEventsEmitted.test.js).

@@ -234,6 +234,27 @@ function moduleExtras(reply) {
 }
 
 // ---------------------------------------------------------------------------
+// Internal: AI-written wording
+// ---------------------------------------------------------------------------
+
+/**
+ * Let the organization's AI assistant word the reply, when it is enabled for
+ * this channel. The rule-based reply stays the source of every fact and is
+ * what the customer gets whenever the writer declines or fails.
+ *
+ * Left as written by the rules: a reply that hands the conversation to a
+ * person, and one that asks the customer to confirm an action — those are
+ * commitments, and their wording is not the model's to change.
+ */
+async function _wordWithAi(aiResponse, { orgId, conversationId, channel, customerMessage }) {
+  if (aiResponse.escalate || aiResponse.requiresConfirmation) return aiResponse;
+  const written = await require('./supportAiWriter').writeReply({
+    orgId, conversationId, channel, customerMessage, ruleReply: aiResponse.text,
+  });
+  return written ? { ...aiResponse, text: written, aiWritten: true } : aiResponse;
+}
+
+// ---------------------------------------------------------------------------
 // Internal: load conversation + messages
 // ---------------------------------------------------------------------------
 
@@ -325,14 +346,14 @@ async function startConversation({ orgId, clientId, channel = 'web', message }) 
   }
 
   // Generate AI response
-  const aiResponse = await _generateResponse({
+  const aiResponse = await _wordWithAi(await _generateResponse({
     intent,
     context,
     content: intentClassifierService.sanitize(message),
     orgId,
     clientId,
     conversationId,
-  });
+  }), { orgId, conversationId, channel, customerMessage: intentClassifierService.sanitize(message) });
 
   // Insert assistant message
   await _insertMessage({
@@ -463,7 +484,7 @@ async function sendMessage({ conversationId, orgId, content, clientId }) {
     [conversationId],
   ).catch(() => [[]]);
 
-  const aiResponse = await _generateResponse({
+  const aiResponse = await _wordWithAi(await _generateResponse({
     intent,
     context,
     content: sanitized,
@@ -471,7 +492,7 @@ async function sendMessage({ conversationId, orgId, content, clientId }) {
     orgId,
     clientId,
     conversationId,
-  });
+  }), { orgId, conversationId, channel: conv.channel || 'web', customerMessage: sanitized });
 
   await _insertMessage({
     conversationId,

@@ -5,6 +5,22 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The support chat's replies can be written by the AI.** When the AI
+  assistant is on for the channel, the chat (the Conversations tab and the
+  WhatsApp bot) words each answer with the organization's model, for the
+  customer's actual message and the conversation so far. The rule-based
+  answer stays the only source of facts, and it is what the customer gets
+  whenever the assistant is off, over budget or fails. A hand-off to a person
+  and a request to confirm an action are never reworded.
+- **WhatsApp can be connected from the app.** AI Support → Settings →
+  WhatsApp holds the Meta Cloud API connection (phone number ID, access
+  token, app secret, verify token), shows the webhook URL to give Meta and
+  has a connection test. Install operator only; the secrets are stored
+  encrypted and never shown again. Values set in the server environment keep
+  working and are used wherever the screen is left empty.
+- WhatsApp (Meta Cloud API) calls use Graph API v26.0 by default. The
+  previous default, v21.0, stops working on 21 January 2027.
+
 - **The AI chat uses the connected model to understand a message.** It
   classified every message by keyword only, so anything outside its word
   lists counted as unclear and two unclear messages sent the conversation to

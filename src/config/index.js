@@ -266,7 +266,7 @@ const config = {
     // Meta Cloud API outbound (replies within the 24h customer-service window).
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
-    graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v21.0',
+    graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v26.0',
     // Public business number customers message, E.164 (no 'whatsapp:' prefix),
     // used to build wa.me deep links. Falls back to the Twilio WhatsApp sender.
     businessNumber: process.env.WHATSAPP_BUSINESS_NUMBER || process.env.TWILIO_WHATSAPP_FROM || '',

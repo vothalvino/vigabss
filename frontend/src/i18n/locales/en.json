@@ -1471,7 +1471,8 @@
       "providers": "🔌 Providers",
       "phrases": "💬 Phrase Library",
       "forbiddenTerms": "🚫 Forbidden Terms",
-      "audit": "📊 Audit & Metrics"
+      "audit": "📊 Audit & Metrics",
+      "whatsapp": "📱 WhatsApp"
     },
     "general": {
       "sectionTitle": "General Settings",
@@ -11250,6 +11251,48 @@
     "ledger": {
       "inBags": "In bags awaiting pickup or on their way",
       "bag": "Bag {{serial}}"
+    }
+  },
+  "whatsappSettings": {
+    "title": "WhatsApp connection (Meta Cloud API)",
+    "intro": "Connects the WhatsApp bot to your Meta business number. These values apply to the whole installation.",
+    "loading": "Loading…",
+    "operatorOnly": "Only the install operator can view or change the WhatsApp connection.",
+    "fromEnvironment": "(from the server environment)",
+    "secretSet": "— set",
+    "secretNotSet": "— not set",
+    "secretKeep": "Leave blank to keep the current value",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "test": "Test connection",
+    "testing": "Testing…",
+    "testOk": "Connected: {{name}} ({{number}}).",
+    "testFailed": "Test failed: {{reason}}",
+    "testNote": "The test checks the phone number ID and the access token. The app secret and the webhook are proven only when a message arrives from WhatsApp.",
+    "status": {
+      "canReceive": "Can receive messages",
+      "cannotReceive": "Cannot receive yet",
+      "canSend": "Can send replies",
+      "cannotSend": "Cannot send yet"
+    },
+    "webhook": {
+      "legend": "Webhook for Meta",
+      "help": "In Meta for Developers, set this as the callback URL, use the verify token below, and subscribe to the \"messages\" field.",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "fields": {
+      "phoneNumberId": "Phone number ID",
+      "phoneNumberIdHelp": "The numeric ID of the sending number, from WhatsApp → API Setup in Meta. Not the phone number itself.",
+      "businessNumber": "Business phone number",
+      "businessNumberHelp": "The number customers write to, with country code. Used for the \"open WhatsApp\" link in the portal.",
+      "access_token": "Access token",
+      "access_tokenHelp": "A permanent system-user token with WhatsApp messaging permission. The temporary token from Meta expires in 24 hours.",
+      "app_secret": "App secret",
+      "app_secretHelp": "From the app's Basic settings in Meta. Proves that webhook calls really come from Meta.",
+      "verify_token": "Verify token",
+      "verify_tokenHelp": "Any text you choose. Enter the same text in Meta when you set the webhook."
     }
   }
 }

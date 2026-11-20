@@ -30920,6 +30920,125 @@
         }
       }
     },
+    "/whatsapp-settings": {
+      "get": {
+        "tags": [
+          "WhatsApp Settings"
+        ],
+        "summary": "Get the install-wide WhatsApp (Meta Cloud API) connection (install operator only; secrets reported as set/unset)",
+        "operationId": "getWhatsappSettings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "WhatsappSettingsView",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "WhatsApp Settings"
+        ],
+        "summary": "Update the install-wide WhatsApp connection (install operator only; omit = keep, empty = remove)",
+        "operationId": "updateWhatsappSettings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "business_number": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "access_token": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "app_secret": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "verify_token": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WhatsappSettingsView",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whatsapp-settings/test": {
+      "post": {
+        "tags": [
+          "WhatsApp Settings"
+        ],
+        "summary": "Ask Meta about the configured number with the configured token (install operator only)",
+        "operationId": "testWhatsappSettings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "WhatsappTestResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/backup-settings/test": {
       "post": {
         "tags": [
