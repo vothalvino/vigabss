@@ -99,6 +99,29 @@ async function _insertMessage({ conversationId, role, content, intent = null, co
 }
 
 // ---------------------------------------------------------------------------
+// Internal: intent classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Classify a customer message. Keywords first: they are free, instant and
+ * settle most messages. Only when they cannot place the message ("other") is
+ * the organization's AI provider asked, if it has one.
+ *
+ * Both call sites used to pass no provider at all, so the chat never used the
+ * configured model: anything outside the keyword lists ("cuanto debo") scored
+ * as unclear, and two unclear messages escalate the conversation to a person.
+ * getOrgProviderId() existed for this and was never called.
+ */
+async function _classify(text, orgId) {
+  const byKeyword = await intentClassifierService.classify(text, null);
+  if (byKeyword.intent !== 'other') return byKeyword;
+  const providerId = await getOrgProviderId(orgId);
+  if (!providerId) return byKeyword;
+  // classify() falls back to keywords itself when the provider call fails.
+  return intentClassifierService.classify(text, providerId, { orgId });
+}
+
+// ---------------------------------------------------------------------------
 // Internal: AI response generation
 // ---------------------------------------------------------------------------
 
@@ -261,8 +284,7 @@ async function startConversation({ orgId, clientId, channel = 'web', message }) 
     throw new Error('supportConversationService.startConversation: message is required');
   }
 
-  // Keyword-only classification for the opening message (deterministic; no LLM cost)
-  const { intent, confidence } = await intentClassifierService.classify(message, null);
+  const { intent, confidence } = await _classify(message, orgId);
   // An opening message can already be a dispute or a request for a person;
   // only follow-ups were checked (SUP-02).
   const openingEscalation = HUMAN_REQUEST_RE.test(message) ? 'human_requested'
@@ -359,7 +381,7 @@ async function sendMessage({ conversationId, orgId, content, clientId }) {
 
   // Sanitize and classify
   const sanitized = intentClassifierService.sanitize(content);
-  const { intent, confidence } = await intentClassifierService.classify(sanitized, null);
+  const { intent, confidence } = await _classify(sanitized, orgId);
 
   // Insert customer message
   await _insertMessage({

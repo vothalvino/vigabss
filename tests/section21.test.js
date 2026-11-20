@@ -516,6 +516,8 @@ describe('supportConversationService', () => {
   test('sendMessage triggers escalation on human request keyword', async () => {
     // 1. conv lookup
     db.query.mockResolvedValueOnce([[mockConversation], undefined]);
+    // keywords cannot place this message, so the org's AI provider is looked up: none
+    db.query.mockResolvedValueOnce([[], undefined]);
     // 2. INSERT customer message
     db.query.mockResolvedValueOnce([{ insertId: 20 }, undefined]);
     // 3. escalate: atomic claim UPDATE — affectedRows:1 (first escalation)
