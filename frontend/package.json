@@ -40,7 +40,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.10",
     "@types/jest-axe": "^3.5.9",
     "@types/node": "^25.9.9",
     "@types/react": "^19.3.0",
@@ -51,7 +51,7 @@
     "jsdom": "^29.1.1",
     "openapi-typescript": "^7.4.4",
     "typescript": "^5.7.2",
-    "vite": "^6.4.5",
+    "vite": "^6.4.6",
     "vitest": "^3.2.7"
   }
 }

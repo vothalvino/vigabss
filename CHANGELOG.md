@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- Development and test tooling: Playwright 1.65.1 (library and the e2e
+  container image together), vite 6.4.6, supertest 7.3.2 and
+  `@testing-library/user-event` 14.6.10. Dependabot no longer opens a
+  separate PR for the Playwright image, which could never pass on its own.
+
 - **One unreachable device no longer slows SNMP polling for the rest.**
   Devices were polled in groups of ten, and each group waited for its slowest
   device, so a device that did not answer held up the nine beside it and
