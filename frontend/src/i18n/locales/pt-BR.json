@@ -351,7 +351,7 @@
     "paymentReminderSettings": "Lembretes de Pagamento",
     "settings": "Configurações",
     "profecoComplaints": "PROFECO",
-    "aiAssistant": "Assistente IA",
+    "aiAssistant": "Assistente de respostas IA",
     "subscriberCertificates": "Certificados de Assinante",
     "csdCertificates": "Certificados CSD",
     "pacProviders": "Provedores PAC",
@@ -372,7 +372,7 @@
     "resellers": "Revendedores",
     "cashBags": "Malotes de dinheiro",
     "integrations": "Integracoes",
-    "aiSupport": "Suporte IA",
+    "aiSupport": "Chat de clientes IA",
     "myWgTunnels": "Meus Túneis VPN",
     "adminUserTunnels": "Túneis de Usuário",
     "sections": {

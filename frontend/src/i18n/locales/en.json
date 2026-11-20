@@ -351,7 +351,7 @@
     "paymentReminderSettings": "Payment Reminders",
     "settings": "Settings",
     "profecoComplaints": "PROFECO",
-    "aiAssistant": "AI Assistant",
+    "aiAssistant": "AI Reply Assistant",
     "subscriberCertificates": "Subscriber Certificates",
     "csdCertificates": "CSD Certificates",
     "pacProviders": "PAC Providers",
@@ -372,7 +372,7 @@
     "resellers": "Resellers",
     "cashBags": "Cash bags",
     "integrations": "Integrations",
-    "aiSupport": "AI Support",
+    "aiSupport": "AI Customer Chat",
     "myWgTunnels": "My VPN Tunnels",
     "adminUserTunnels": "User Tunnels",
     "sections": {

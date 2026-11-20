@@ -492,6 +492,8 @@ describe('supportConversationService', () => {
   test('escalate handles ticket creation failure gracefully', async () => {
     // atomic claim UPDATE — affectedRows:1 means WE claimed it (first escalation)
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
+    // transcript read for the ticket description
+    db.query.mockResolvedValueOnce([[mockMessage], undefined]);
     // ticket INSERT fails
     db.query.mockRejectedValueOnce(new Error('tickets table missing'));
     // INSERT system message
