@@ -18,6 +18,7 @@ const { decrypt } = require('../utils/encryption');
 const deviceStatusService = require('./deviceStatusService');
 const logger = require('../utils/logger').child({ service: 'snmpPoller' });
 const { orgScopeFilter } = require('./organizationFanOut');
+const { runWithConcurrency } = require('../utils/concurrency');
 
 // Columns in snmp_metrics that a profile OID may target.
 // Includes base columns (migrations 001-248) and §6.2 extended metrics (migration 255).
@@ -114,8 +115,9 @@ const METRIC_COLUMN_BOUNDS = {
   rx_rate_mbps:       { min: -999999.99, max: 999999.99 },       // DECIMAL(8,2), schema.sql:1587
 };
 
-// Configurable concurrency for parallel polling (default: 10 devices at a time)
-const POLL_CONCURRENCY = parseInt(process.env.SNMP_POLL_CONCURRENCY || '10', 10);
+// How many devices are polled at the same time (default 10). An unusable value
+// falls back to the default rather than stalling the cycle.
+const POLL_CONCURRENCY = Math.max(1, parseInt(process.env.SNMP_POLL_CONCURRENCY, 10) || 10);
 
 /**
  * Poll all SNMP-enabled devices.
@@ -142,28 +144,23 @@ async function poll() {
   let polled = 0;
   let errors = 0;
 
-  // Poll devices in batches for parallel execution
-  for (let i = 0; i < devices.length; i += POLL_CONCURRENCY) {
-    const batch = devices.slice(i, i + POLL_CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(device => pollDevice(device).then(() => device.id)),
-    );
-
-    for (let j = 0; j < results.length; j++) {
-      const result = results[j];
-      const device = batch[j];
-      if (result.status === 'fulfilled') {
-        polled++;
-        await deviceStatusService.recordPollResult(device.id, true)
-          .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (success) failed'));
-      } else {
-        errors++;
-        logger.error({ err: result.reason }, 'SNMP poll failed');
-        await deviceStatusService.recordPollResult(device.id, false, String(result.reason?.message || result.reason))
-          .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (failure) failed'));
-      }
+  // Each device runs in its own slot and its result is recorded as soon as it
+  // is known. A device that does not answer costs one slot for its timeout; it
+  // no longer holds up the devices polled beside it or the ones queued behind.
+  await runWithConcurrency(devices, POLL_CONCURRENCY, async (device) => {
+    try {
+      await pollDevice(device);
+    } catch (err) {
+      errors++;
+      logger.error({ err, deviceId: device.id }, 'SNMP poll failed');
+      await deviceStatusService.recordPollResult(device.id, false, String(err?.message || err))
+        .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (failure) failed'));
+      return;
     }
-  }
+    polled++;
+    await deviceStatusService.recordPollResult(device.id, true)
+      .catch(err2 => logger.warn({ err: err2, deviceId: device.id }, 'recordPollResult (success) failed'));
+  });
 
   return { polled, errors, total: devices.length };
 }
@@ -202,8 +199,13 @@ async function poll() {
  * pollInterfaces() one-row-per-index behavior, unchanged. Both (1) and (2)
  * fold their result into scalarRow and insert through the same single
  * device-level insertMetricRow() call as true scalar OIDs.
+ *
+ * @param {object} device
+ * @param {{ timeout?: number, retries?: number }} [sessionOpts] per-device
+ *        SNMP timeout (ms) and retry count; createSnmpSession's defaults apply
+ *        to whatever is left out.
  */
-async function pollDevice(device) {
+async function pollDevice(device, sessionOpts = {}) {
   const [oids] = await db.query(
     `SELECT id, oid, metric_column, label, oid_type, is_per_interface, transform, aggregate
      FROM snmp_profile_oids
@@ -250,7 +252,7 @@ async function pollDevice(device) {
     return;
   }
 
-  const session = createSnmpSession(device);
+  const session = createSnmpSession(device, sessionOpts);
   let agentResponded = false;
 
   try {
@@ -680,7 +682,7 @@ function createSnmpSession(device, opts = {}) {
   const retries = opts.retries ?? 1;
 
   if (device.snmp_version === 'v3') {
-    const secName  = device.snmp_v3_security_name || 'firesipv3';
+    const secName  = device.snmp_v3_security_name || 'vigabssv3';
     const authProto = device.snmp_v3_auth_protocol || 'sha';
     const privProto = device.snmp_v3_priv_protocol || 'aes128';
 

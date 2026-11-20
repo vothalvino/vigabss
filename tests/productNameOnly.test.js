@@ -8,8 +8,9 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-// Assembled from two halves so this file is not itself a match.
-const RETIRED = ['fire', 'isp'].join('');
+// Assembled from two halves so this file is not itself a match. The second
+// entry is a misspelling that was in the code and that the first does not catch.
+const RETIRED_SPELLINGS = [['fire', 'isp'].join(''), ['fire', 'sip'].join('')];
 
 function git(args) {
   try {
@@ -21,12 +22,12 @@ function git(args) {
   }
 }
 
-test('no tracked file mentions the retired product name', () => {
-  const files = git(['grep', '-ilI', RETIRED]).split('\n').filter(Boolean);
+test.each(RETIRED_SPELLINGS)('no tracked file mentions the retired product name (spelling %#)', (word) => {
+  const files = git(['grep', '-ilI', word]).split('\n').filter(Boolean);
   expect(files).toEqual([]);
 });
 
-test('no tracked path contains the retired product name', () => {
-  const paths = git(['ls-files']).split('\n').filter(f => f.toLowerCase().includes(RETIRED));
+test.each(RETIRED_SPELLINGS)('no tracked path contains the retired product name (spelling %#)', (word) => {
+  const paths = git(['ls-files']).split('\n').filter(f => f.toLowerCase().includes(word));
   expect(paths).toEqual([]);
 });

@@ -1184,6 +1184,15 @@ imprecise counter otherwise. The poll loop is install-wide, but a
 then an install-wide NULL-org row), and its `device_id` must belong to
 `req.orgId` on create/update.
 
+Devices are polled through `runWithConcurrency` (`src/utils/concurrency.js`):
+`SNMP_POLL_CONCURRENCY` devices are in flight at once, each in its own slot,
+and a result is recorded as soon as it is known. Do not go back to awaiting
+fixed batches: a batch ends only when its slowest device does, so one device
+that does not answer stalls the rest of the cycle for its timeout. The
+interval-aware poller applies a config's `timeout_ms` and `retries` to the
+device's session; `bulk_get_enabled` and `max_repetitions` are stored but not
+yet applied.
+
 The metric pipeline is:
 
 ```text
