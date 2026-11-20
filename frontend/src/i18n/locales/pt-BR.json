@@ -1514,7 +1514,7 @@
       "form": {
         "name": "Nome",
         "kind": "Tipo de provedor",
-        "model": "Modelo (ex. gpt-4o, claude-3-opus)",
+        "model": "Modelo (ex. gpt-4o, claude-haiku-5-5)",
         "endpoint": "URL do endpoint",
         "deployment": "Nome do deployment Azure",
         "apiKey": "Chave de API",

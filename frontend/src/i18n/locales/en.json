@@ -1514,7 +1514,7 @@
       "form": {
         "name": "Name",
         "kind": "Provider kind",
-        "model": "Model (e.g. gpt-4o, claude-3-opus)",
+        "model": "Model (e.g. gpt-4o, claude-haiku-5-5)",
         "endpoint": "Endpoint URL",
         "deployment": "Azure deployment name",
         "apiKey": "API key",

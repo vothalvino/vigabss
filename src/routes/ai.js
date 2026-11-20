@@ -134,7 +134,7 @@ const PROVIDER_CATALOG = [
     label: 'Anthropic',
     requiresApiKey: true,
     requiresEndpoint: false,
-    models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+    models: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'],
   },
   {
     kind: 'gemini',

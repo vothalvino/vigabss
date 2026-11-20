@@ -234,7 +234,12 @@ async function _semanticSearch(orgId, query, locale, limit, llm) {
   const providerId = providerRow?.[0]?.id;
   if (!providerId) return _keywordSearch(orgId, query, locale, limit);
 
-  const queryEmbedding = await llm.embed(query, providerId);
+  // Not every provider can embed (Anthropic and OpenRouter cannot). Search by
+  // keyword then, rather than failing the reply that asked for articles.
+  const queryEmbedding = await llm.embed(query, providerId).catch((err) => {
+    logger.warn({ err: err.message, orgId }, 'kbService: embedding unavailable, using keyword search');
+    return null;
+  });
   if (!queryEmbedding) return _keywordSearch(orgId, query, locale, limit);
 
   // Compute cosine similarities
