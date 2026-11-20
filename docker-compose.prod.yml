@@ -407,7 +407,7 @@ services:
 
   # ── Nginx reverse proxy ───────────────────────────────────────────────────
   nginx:
-    image: nginx:1.30.6-alpine@sha256:dc06c17afbc08d6fe9fbe48159aa81459da2b56baddddc45002f1a68ef77e256
+    image: nginx:1.30.6-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
     restart: unless-stopped
     networks:
       - frontend
