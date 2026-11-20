@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Record Payment no longer overwrites an amount you have started typing.**
+  The dialog fills the amount with the client's open balance once the
+  invoices load. If they arrived after typing had begun, the typed amount was
+  replaced, and keystrokes still on their way were appended to the balance.
+  The amount is now filled only while the field is empty. The end-to-end
+  smoke test waited on the same race and failed intermittently; it now waits
+  for the invoices before typing.
+
 - Development and test tooling: Playwright 1.65.1 (library and the e2e
   container image together), vite 6.4.6, supertest 7.3.2 and
   `@testing-library/user-event` 14.6.10. Dependabot no longer opens a

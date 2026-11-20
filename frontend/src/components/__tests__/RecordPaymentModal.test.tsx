@@ -139,6 +139,26 @@ describe('RecordPaymentModal', () => {
     expect(screen.getByRole('spinbutton')).toHaveValue(240); // 40 + 200
   });
 
+  it('does not overwrite an amount typed before the open invoices arrive', async () => {
+    // The invoices load in the background. Filling the amount with their sum
+    // after the user had already typed replaced what they typed, and a
+    // keystroke still in flight was then appended to the sum.
+    let deliverInvoices: (value: unknown) => void = () => {};
+    (api.GET as unknown as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+      if (path === '/clients/{id}/open-invoices') return new Promise((resolve) => { deliverInvoices = resolve; });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    renderModal();
+
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '29.99' } });
+    deliverInvoices({ data: { data: OPEN_INVOICES }, error: undefined });
+
+    // The checklist still appears, checked, but the typed amount stands.
+    expect(await screen.findByRole('checkbox', { name: 'INV-10' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'INV-11' })).toBeChecked();
+    expect(screen.getByRole('spinbutton')).toHaveValue(29.99);
+  });
+
   it('unchecking an invoice recomputes the amount', async () => {
     const user = userEvent.setup();
     renderModal();

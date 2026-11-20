@@ -237,13 +237,20 @@ test('full operator workflow smoke test', async ({ page, request }) => {
 
   await pickClient(payDialog, clientName);
 
-  // Enter amount — overrides whatever the checklist auto-filled from this
-  // client's open invoices (editing the amount never unchecks anything; the
-  // FIFO allocate-auto call below just applies less than the full balance).
-  await payDialog
-    .locator('input[type="number"]')
-    .first()
-    .fill('29.99');
+  // The dialog loads this client's open invoices and fills the amount with
+  // their balance. Wait for that before typing: fill() selects the field and
+  // then inserts the text as two steps, and when the auto-fill landed between
+  // them the typed text was appended to it ("29.99" became "29.992999"), which
+  // the browser refuses to submit.
+  const amountInput = payDialog.locator('input[type="number"]').first();
+  await expect(payDialog.getByRole('checkbox').first()).toBeChecked({ timeout: 10_000 });
+  await expect(amountInput).not.toHaveValue('', { timeout: 10_000 });
+
+  // Enter amount — overrides what the checklist auto-filled (editing the
+  // amount never unchecks anything; the FIFO allocate-auto call below just
+  // applies less than the full balance).
+  await amountInput.fill('29.99');
+  await expect(amountInput).toHaveValue('29.99');
 
   // Submit
   await page.getByRole('button', { name: /^record payment$/i }).click();

@@ -204,7 +204,11 @@ export function RecordPaymentModal({
     const sum = openInvoices
       .filter(inv => defaultChecked.has(inv.id))
       .reduce((s, inv) => s + Number(inv.balance_due), 0);
-    if (sum > 0) setField('amount', String(round2(sum)));
+    // Fill the amount only while the field is still empty. The invoices can
+    // arrive after the user has started typing; writing the sum then replaced
+    // what they had typed, and keystrokes still in flight landed after it, so
+    // the two ran together into one number.
+    if (sum > 0) setForm(prev => (prev.amount === '' ? { ...prev, amount: String(round2(sum)) } : prev));
 
     // Carry the invoice currency over when we know exactly which one (locked
     // invoice, or the client's invoices all share one) — a small UX nicety,
