@@ -364,7 +364,7 @@ retire_managed_env() {
 # only reloaded when something actually changed. A host without systemd, or
 # without root, is skipped with a note rather than failing the deploy.
 install_deploy_agent() {
-  local unit src dst rendered content timer changed=0 found=0 failed=0 restart_failed=0
+  local unit src dst rendered content changed=0 found=0 failed=0 restart_failed=0
 
   resolve_deploy_agent_flag
 
@@ -383,18 +383,16 @@ install_deploy_agent() {
     # question is whether a timer is RUNNING, and answering "GUI deploys are
     # off" because a directory was read-only would be a claim this function had
     # not checked. If the disable then fails, that is said out loud.
-    for timer in "$DEPLOY_AGENT_TIMER"; do
-      if systemctl is-enabled "$timer" >/dev/null 2>&1 \
-         || systemctl is-active "$timer" >/dev/null 2>&1; then
-        found=1
-        if systemctl disable --now "$timer" >/dev/null 2>&1; then
-          echo "    - stopped and disabled ${timer}"
-        else
-          echo "    WARNING: VIGABSS_DEPLOY_AGENT=0 but ${timer} could NOT be disabled. Run: systemctl disable --now ${timer}" >&2
-          failed=1
-        fi
+    if systemctl is-enabled "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1 \
+       || systemctl is-active "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
+      found=1
+      if systemctl disable --now "$DEPLOY_AGENT_TIMER" >/dev/null 2>&1; then
+        echo "    - stopped and disabled ${DEPLOY_AGENT_TIMER}"
+      else
+        echo "    WARNING: VIGABSS_DEPLOY_AGENT=0 but ${DEPLOY_AGENT_TIMER} could NOT be disabled. Run: systemctl disable --now ${DEPLOY_AGENT_TIMER}" >&2
+        failed=1
       fi
-    done
+    fi
     if (( failed )); then
       echo "    WARNING: the deploy timer may still be active — GUI deploys may still be enabled." >&2
     elif (( found )); then
