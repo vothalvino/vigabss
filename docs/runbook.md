@@ -594,7 +594,7 @@ curl -X PUT https://<your-domain>/api/v1/ai/policy \
 **Option B — Admin UI:**
 
 1. Log in as an admin user.
-2. Navigate to **Settings → AI Assistant → General** tab.
+2. Navigate to **Administration → AI Support → Settings → General**.
 3. Toggle the **Master switch** to **Off**.
 4. Click **Save**.
 
@@ -612,7 +612,7 @@ curl -X PUT https://<your-domain>/api/v1/ai/policy \
   -d '{"enabled": true}'
 ```
 
-Or re-toggle the master switch in the admin UI (Settings → AI Assistant → General).
+Or re-toggle the master switch in the admin UI (Administration → AI Support → Settings → General).
 
 ### Disabling a specific channel
 

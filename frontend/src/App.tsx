@@ -195,7 +195,6 @@ const RefundRequestList = lazy(() => import('@/pages/RefundRequestList').then((m
 const BillingDisputeList = lazy(() => import('@/pages/BillingDisputeList').then((m) => ({ default: m.BillingDisputeList })));
 const ChargebackList = lazy(() => import('@/pages/ChargebackList').then((m) => ({ default: m.ChargebackList })));
 const BillingAdjustmentList = lazy(() => import('@/pages/BillingAdjustmentList').then((m) => ({ default: m.BillingAdjustmentList })));
-const AIAssistantSettings = lazy(() => import('@/pages/AIAssistantSettings').then((m) => ({ default: m.AIAssistantSettings })));
 const OltManagementPage = lazy(() => import('@/pages/OltManagementPage').then((m) => ({ default: m.OltManagementPage })));
 const OnuManagementPage = lazy(() => import('@/pages/OnuManagementPage').then((m) => ({ default: m.OnuManagementPage })));
 const PonPortManagementPage = lazy(() => import('@/pages/PonPortManagementPage').then((m) => ({ default: m.PonPortManagementPage })));
@@ -218,6 +217,7 @@ const ResellerPage = lazy(() => import('@/pages/ResellerPage'));
 const CashBagsPage = lazy(() => import('@/pages/cashBags/CashBagsPage'));
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })));
 const AiSupportPage = lazy(() => import('@/pages/AiSupportPage').then((m) => ({ default: m.AiSupportPage })));
+const NocInsightsPage = lazy(() => import('@/pages/NocInsightsPage').then((m) => ({ default: m.NocInsightsPage })));
 const UserWgTunnels = lazy(() => import('@/pages/UserWgTunnels').then((m) => ({ default: m.UserWgTunnels })));
 const AdminWgTunnels = lazy(() => import('@/pages/AdminWgTunnels').then((m) => ({ default: m.AdminWgTunnels })));
 
@@ -479,7 +479,7 @@ export function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="message-templates" element={<MessageTemplateList />} />
                 <Route path="document-templates" element={<DocumentTemplates />} />
-                <Route path="ai-assistant" element={<AIAssistantSettings />} />
+                <Route path="ai-assistant" element={<Navigate to="/ai-support?tab=settings" replace />} />
                 <Route path="security-access-control" element={<SecurityAccessControlPage />} />
                 <Route path="automation" element={<AutomationPage />} />
                 <Route path="resellers" element={<ResellerPage />} />
@@ -487,6 +487,7 @@ export function App() {
                 <Route path="cash-bags" element={<CashBagsPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="ai-support" element={<AiSupportPage />} />
+                <Route path="noc-insights" element={<NocInsightsPage />} />
                 <Route path="admin/user-tunnels" element={<AdminWgTunnels />} />
               </Route>
             </Route>

@@ -1,23 +1,35 @@
-﻿// =============================================================================
+// =============================================================================
 // VigaBSS 5.0 — AI Customer Support Page (Section 21)
 // =============================================================================
-// 4-tab page covering §21 AI Customer Support:
-//   1. Chat        — conversation list + message thread + escalation
+// The one AI Support page. It used to be two menu items — this page and a
+// separate "AI Assistant" settings page — which read as two products.
+//   1. Conversations  — conversation list + message thread + escalation
 //   2. Knowledge Base — article search/create/embed
-//   3. Metrics     — KPI cards for resolution rate, escalation rate, etc.
-//   4. NOC Insights — AI-generated NOC analysis actions + insight history
+//   3. Settings       — the reply assistant's policy, providers, phrase
+//                       library and forbidden terms (AIAssistantSettings)
+//   4. Metrics        — chat KPIs, then the reply assistant's activity log
+// NOC Insights is network tooling and lives on its own page
+// (NocInsightsPage), which renders NocInsightsTab from this file.
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { localToday } from '@/lib/dates';
 import { apiFetch } from '@/api/apiFetch';
+import { AIAssistantSettings, AuditTab } from './AIAssistantSettings';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'chat' | 'kb' | 'metrics' | 'noc';
+type Tab = 'chat' | 'kb' | 'settings' | 'metrics';
+const TABS: Tab[] = ['chat', 'kb', 'settings', 'metrics'];
+
+/** `?tab=settings` opens a tab directly; the old settings URL redirects with it. */
+function initialTab(): Tab {
+  const wanted = new URLSearchParams(window.location.search).get('tab');
+  return TABS.includes(wanted as Tab) ? (wanted as Tab) : 'chat';
+}
 
 interface SupportConversation {
   id: number;
@@ -678,7 +690,7 @@ function MetricsTab() {
 // NOC Insights Tab
 // ---------------------------------------------------------------------------
 
-function NocInsightsTab() {
+export function NocInsightsTab() {
   const { t } = useTranslation();
   const [insights, setInsights] = useState<NocInsight[]>([]);
   const [loading, setLoading] = useState(false);
@@ -816,13 +828,13 @@ function NocInsightsTab() {
 
 export function AiSupportPage() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'chat', label: t('aiSupport.tabs.chat') },
     { id: 'kb', label: t('aiSupport.tabs.kb') },
+    { id: 'settings', label: t('aiSupport.tabs.settings') },
     { id: 'metrics', label: t('aiSupport.tabs.metrics') },
-    { id: 'noc', label: t('aiSupport.tabs.noc') },
   ];
 
   return (
@@ -853,8 +865,14 @@ export function AiSupportPage() {
 
       {activeTab === 'chat' && <ChatTab />}
       {activeTab === 'kb' && <KbTab />}
-      {activeTab === 'metrics' && <MetricsTab />}
-      {activeTab === 'noc' && <NocInsightsTab />}
+      {activeTab === 'settings' && <AIAssistantSettings embedded />}
+      {activeTab === 'metrics' && (
+        <>
+          <MetricsTab />
+          <h3 style={{ margin: '32px 0 12px' }}>{t('aiSupport.replyActivity')}</h3>
+          <AuditTab />
+        </>
+      )}
     </div>
   );
 }
