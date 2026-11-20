@@ -17,7 +17,6 @@ const path = require('path');
 
 const SCRIPT = path.join(__dirname, '..', 'nginx', 'install-reload-cron.sh');
 const OLD_LINE = '0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  # vigabss-nginx-reload';
-const LEGACY_LINE = '0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  # fireisp-nginx-reload';
 
 function run(initialCrontab, { times = 1 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-cron-'));
@@ -55,7 +54,6 @@ test.each([
   ['no crontab', null, null],
   ['an empty crontab', '', ''],
   ['only the old VigaBSS line', `${OLD_LINE}\n`, ''],
-  ['only the legacy FireISP line', `${LEGACY_LINE}\n`, ''],
 ])('with %s it succeeds and installs /etc/cron.d/vigabss-nginx-reload', (_label, initial, expectedCrontab) => {
   const result = run(initial);
   expect(result.cronFile).toMatch(/^0 \*\/6 \* \* \* root \/usr\/sbin\/nginx -s reload /m);

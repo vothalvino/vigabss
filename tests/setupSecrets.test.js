@@ -20,7 +20,7 @@ function parseEnv(filePath) {
 }
 
 function createWorkspace() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-setup-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-setup-'));
   for (const file of ['setup.sh', '.env.example', '.env.prod.example']) {
     fs.copyFileSync(path.join(REPO_ROOT, file), path.join(dir, file));
   }
@@ -120,7 +120,7 @@ describe('setup.sh set_env_value keeps secrets out of argv and intact', () => {
   ];
 
   let dir;
-  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-setenv-')); });
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-setenv-')); });
 
   const seed = (contents = 'JWT_SECRET=old\n# DB_PASSWORD=commented\nKEEP_ME=yes\n') => {
     const file = path.join(dir, '.env');

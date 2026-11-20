@@ -24,15 +24,15 @@ describe('browser WebSocket authentication helpers', () => {
   });
 
   it('keeps the ambient access cookie scoped to the exact browser hub path', () => {
-    expect(BROWSER_WS_COOKIE).toBe('fireisp_ws_access');
+    expect(BROWSER_WS_COOKIE).toBe('vigabss_ws_access');
     expect(BROWSER_WS_PATH).toBe('/ws/firerelay/browser');
   });
 
   it('parses only the requested cookie and safely decodes its value', () => {
-    expect(readCookie('other=one; fireisp_ws_access=a%2Eb%2Ec', BROWSER_WS_COOKIE))
+    expect(readCookie('other=one; vigabss_ws_access=a%2Eb%2Ec', BROWSER_WS_COOKIE))
       .toBe('a.b.c');
     expect(readCookie('other=one', BROWSER_WS_COOKIE)).toBeNull();
-    expect(readCookie('fireisp_ws_access=%E0%A4%A', BROWSER_WS_COOKIE)).toBeNull();
+    expect(readCookie('vigabss_ws_access=%E0%A4%A', BROWSER_WS_COOKIE)).toBeNull();
   });
 
   it('allows the exact configured production Origin', () => {

@@ -5,16 +5,6 @@ This guide covers deploying VigaBSS 0.1.0-alpha.21 in production environments. C
 > **Alpha release:** validate restore, upgrade, billing, and device automation
 > against a non-production deployment before serving customers.
 
-### Existing FireISP-era installations
-
-The VigaBSS defaults below are for fresh installs. An existing installation at
-`/opt/fireisp`, with a `fireisp` Compose project/database/volume set or
-`FIREISP_*` environment settings, remains supported. Do **not** rename a live
-database, Docker volume, Compose project, WireGuard interface, or install
-directory merely for branding. The deployment scripts accept the legacy names
-as compatibility aliases; keep using the identifiers already attached to your
-data and pass that installation's path explicitly when needed.
-
 ---
 
 ## Table of Contents
@@ -837,9 +827,7 @@ verify which image is actually running.
 
 The included `Dockerfile` is production-ready:
 - Node.js 24 on Debian Bookworm slim
-- Non-root user (the image currently retains the legacy internal account name
-  `fireisp`; this is not an installation or database name and need not be
-  changed on existing volumes)
+- Non-root user (`vigabss`, uid 10001)
 - Health check built-in
 - Production dependencies only
 
@@ -1037,7 +1025,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 This production topology runs the public application as the image's non-root
-`fireisp` compatibility account and grants it no Linux capabilities. The optional WireGuard hub is
+`vigabss` account and grants it no Linux capabilities. The optional WireGuard hub is
 enabled from the installation-wide web Settings page; a separate hardened helper
 owns `NET_ADMIN`. See [WireGuard activation](wireguard-setup.md#1-activation--web-gui).
 
@@ -1224,23 +1212,22 @@ Available metrics:
 
 Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.21.
 
-The checked-in raw manifests intentionally retain the `fireisp` namespace,
-resource names, selectors, and PVC name. Treat these as stable compatibility
-identifiers: changing them during a rebrand can orphan storage or create a
-parallel deployment.
+The checked-in raw manifests use the `vigabss` namespace, resource names,
+selectors, and PVC name. On a running cluster treat these as stable
+identifiers: changing them can orphan storage or create a parallel deployment.
 
 ### ConfigMap
 
 The maintained [`k8s/configmap.yaml`](../k8s/configmap.yaml) stores non-secret
-configuration under the compatibility name `fireisp-config`. Add site-specific
+configuration as `vigabss-config`. Add site-specific
 non-secret settings there; database connection values belong in the Secret.
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fireisp-config
-  namespace: fireisp
+  name: vigabss-config
+  namespace: vigabss
 data:
   NODE_ENV: "production"
   PORT: "3000"
@@ -1251,23 +1238,23 @@ data:
 
 Edit the maintained [`k8s/secret.yaml`](../k8s/secret.yaml) before applying it.
 It uses `stringData`, so values must be plain text rather than pre-encoded.
-The `fireisp` database host/name/user defaults are compatibility identifiers;
-change them only when the target database was provisioned with different names.
+Change the `vigabss` database host/name/user defaults only when the target
+database was provisioned with different names.
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: fireisp-secret
-  namespace: fireisp
+  name: vigabss-secret
+  namespace: vigabss
 type: Opaque
 stringData:
   JWT_SECRET: <strong-random-value>
   ENCRYPTION_KEY: <32-byte-hex-value>
-  DB_HOST: mysql.fireisp.svc.cluster.local
+  DB_HOST: mysql.vigabss.svc.cluster.local
   DB_PORT: "3306"
-  DB_NAME: fireisp
-  DB_USER: fireisp
+  DB_NAME: vigabss
+  DB_USER: vigabss
   DB_PASSWORD: <database-password>
 ```
 
@@ -1295,7 +1282,7 @@ kubectl apply -f k8s/pvc.yaml
 kubectl apply -f k8s/service.yaml
 sed "s/REPLACE_WITH_FULL_COMMIT_SHA/$RELEASE_SHA/g" k8s/deployment.yaml \
   | kubectl apply -f -
-kubectl rollout status -n fireisp deployment/fireisp --timeout=180s
+kubectl rollout status -n vigabss deployment/vigabss --timeout=180s
 ```
 
 ### Service
@@ -1304,12 +1291,12 @@ kubectl rollout status -n fireisp deployment/fireisp --timeout=180s
 apiVersion: v1
 kind: Service
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: api
   ports:
     - name: http
@@ -1324,8 +1311,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
@@ -1334,7 +1321,7 @@ spec:
   tls:
     - hosts:
         - isp.example.com
-      secretName: fireisp-tls
+      secretName: vigabss-tls
   rules:
     - host: isp.example.com
       http:
@@ -1343,7 +1330,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: fireisp
+                name: vigabss
                 port:
                   name: http
 ```
@@ -1356,8 +1343,8 @@ The `storage/` directory holds uploaded files and must persist across pod restar
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fireisp-storage
-  namespace: fireisp
+  name: vigabss-storage
+  namespace: vigabss
 spec:
   accessModes:
     - ReadWriteMany
@@ -1375,13 +1362,13 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: fireisp
+    name: vigabss
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -1739,8 +1726,8 @@ third `deployment-track` label. Then switch the Service without dropping its
 base selectors:
 
 ```bash
-kubectl patch service fireisp -n fireisp --type merge -p \
-  '{"spec":{"selector":{"app.kubernetes.io/name":"fireisp","app.kubernetes.io/component":"api","deployment-track":"green"}}}'
+kubectl patch service vigabss -n vigabss --type merge -p \
+  '{"spec":{"selector":{"app.kubernetes.io/name":"vigabss","app.kubernetes.io/component":"api","deployment-track":"green"}}}'
 ```
 
 ### Rollback Procedure

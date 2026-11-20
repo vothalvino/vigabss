@@ -709,7 +709,7 @@ describe('Consumer Protection MX registered-template evidence', () => {
         } as unknown as Response);
       }
       if (url.includes('/consumer-protection/contract-templates-mx?')) {
-        const page = new URL(url, 'https://fireisp.test').searchParams.get('page');
+        const page = new URL(url, 'https://vigabss.test').searchParams.get('page');
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({

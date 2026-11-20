@@ -41,27 +41,20 @@ SCRIPT_DIR="${SCRIPT_PATH%/*}"
 SCRIPT_DIR="$(cd -- "$SCRIPT_DIR" && pwd)"
 if [[ -n "${VIGABSS_DIR:-}" ]]; then
   APP_DIR="$VIGABSS_DIR"
-elif [[ -n "${FIREISP_DIR:-}" ]]; then
-  APP_DIR="$FIREISP_DIR"
 elif [[ -f /opt/vigabss/docker-compose.prod.yml ]]; then
   APP_DIR="/opt/vigabss"
-elif [[ -f /opt/fireisp/docker-compose.prod.yml ]]; then
-  APP_DIR="/opt/fireisp"
 elif [[ -f "$SCRIPT_DIR/docker-compose.prod.yml" ]]; then
   APP_DIR="$SCRIPT_DIR"
 else
   APP_DIR="/opt/vigabss"
 fi
-# The canonical path wins, while exporting the predecessor keeps a rollback to
-# an older redeploy.sh pointed at this same checkout.
 export VIGABSS_DIR="$APP_DIR"
-export FIREISP_DIR="$APP_DIR"
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
 ENV_FILE="$APP_DIR/.env.prod"
 AGENT_VERSION="1"
 # How much redeploy output to keep for the UI. Enough to see what failed, not so
 # much that a root process dumps a whole log into a table the GUI renders.
-OUTPUT_TAIL_BYTES="${VIGABSS_DEPLOY_TAIL_BYTES:-${FIREISP_DEPLOY_TAIL_BYTES:-4000}}"
+OUTPUT_TAIL_BYTES="${VIGABSS_DEPLOY_TAIL_BYTES:-4000}"
 
 [[ -f "$COMPOSE_FILE" ]] || { echo "deploy-agent: $COMPOSE_FILE not found" >&2; exit 1; }
 [[ -f "$ENV_FILE" ]]     || { echo "deploy-agent: $ENV_FILE not found" >&2; exit 1; }
@@ -75,15 +68,8 @@ OUTPUT_TAIL_BYTES="${VIGABSS_DEPLOY_TAIL_BYTES:-${FIREISP_DEPLOY_TAIL_BYTES:-400
 FLAG_KEY="VIGABSS_DEPLOY_AGENT"
 if [[ -n "${VIGABSS_DEPLOY_AGENT+x}" ]]; then
   FLAG_RAW="$VIGABSS_DEPLOY_AGENT"
-elif [[ -n "${FIREISP_DEPLOY_AGENT+x}" ]]; then
-  FLAG_KEY="FIREISP_DEPLOY_AGENT"
-  FLAG_RAW="$FIREISP_DEPLOY_AGENT"
 else
   FLAG_LINE="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-  if [[ -z "$FLAG_LINE" ]]; then
-    FLAG_KEY="FIREISP_DEPLOY_AGENT"
-    FLAG_LINE="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?FIREISP_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
-  fi
   FLAG_RAW="${FLAG_LINE#*=}"
 fi
 FLAG="$(printf '%s\n' "$FLAG_RAW" | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')" || FLAG=""
@@ -91,15 +77,13 @@ case "$FLAG" in
   0|false|no|off) echo "deploy-agent: ${FLAG_KEY}=${FLAG} — GUI deploys are disabled; exiting"; exit 0 ;;
 esac
 
-# The legacy and canonical timers can coexist briefly while redeploy migrates
-# systemd. Their service names are different, so Type=oneshot alone cannot
-# prevent them from running at the same time. Hold one host-wide advisory lock
-# for the entire poll/claim/deploy/writeback lifecycle. Both unit names execute
-# this same checkout, so the first agent owns the cycle and the other exits
-# without touching a request.
-DEPLOY_LOCK_FILE="${VIGABSS_DEPLOY_LOCK_FILE:-${FIREISP_DEPLOY_LOCK_FILE:-/run/vigabss-deploy-agent.lock}}"
+# Type=oneshot stops the unit overlapping itself, but not a second copy started
+# by hand or by another unit. Hold one host-wide advisory lock for the entire
+# poll/claim/deploy/writeback lifecycle: the first agent owns the cycle and any
+# other exits without touching a request.
+DEPLOY_LOCK_FILE="${VIGABSS_DEPLOY_LOCK_FILE:-/run/vigabss-deploy-agent.lock}"
 command -v flock >/dev/null 2>&1 || {
-  echo "deploy-agent: flock is required to prevent overlapping legacy/canonical agents" >&2
+  echo "deploy-agent: flock is required to prevent overlapping agents" >&2
   exit 1
 }
 if ! exec 9>"$DEPLOY_LOCK_FILE"; then
@@ -131,7 +115,7 @@ fi
 # heartbeat was never written and the Update button never appeared. Overridable
 # for a non-standard compose file; tests cross-check the default against
 # docker-compose.prod.yml so it cannot silently drift again.
-DB_SERVICE="${VIGABSS_DB_SERVICE:-${FIREISP_DB_SERVICE:-db-primary}}"
+DB_SERVICE="${VIGABSS_DB_SERVICE:-db-primary}"
 
 dc() { docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
 

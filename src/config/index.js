@@ -185,17 +185,17 @@ const config = {
   // the embedded server and external FreeRADIUS.
   radiusSessionLivenessMinutes: parseIntEnv('RADIUS_SESSION_LIVENESS_MINUTES', 60),
 
-  // WireGuard VPN hub — two surfaces: per-NAS tunnels (wg-fireisp) + user access tunnels (wg-clients).
+  // WireGuard VPN hub — two surfaces: per-NAS tunnels (wg-vigabss) + user access tunnels (wg-clients).
   // The public app initializes disabled; the installation-wide DB setting is
   // loaded after database startup. Production kernel work is delegated to the
   // isolated helper rather than granting this process NET_ADMIN.
   // HARD CONSTRAINT: VigaBSS NEVER writes /ip/service or /ip/firewall on the router.
   wireguard: {
     serverEnabled:    parseBoolEnv('WG_SERVER_ENABLED', false),
-    serverInterface:  process.env.WG_SERVER_INTERFACE  || 'wg-fireisp',
+    serverInterface:  process.env.WG_SERVER_INTERFACE  || 'wg-vigabss',
     serverEndpoint:   process.env.WG_ENDPOINT_HOST || process.env.DOMAIN || '', // public host NAS+clients dial; defaults to DOMAIN (the TLS host)
     serverListenPort: parseIntEnv('WG_LISTEN_PORT',        51820),
-    serverPublicKey:  process.env.WG_SERVER_PUBLIC_KEY  || '',   // wg-fireisp public key (auto-generated on boot; pin only for an external key)
+    serverPublicKey:  process.env.WG_SERVER_PUBLIC_KEY  || '',   // wg-vigabss public key (auto-generated on boot; pin only for an external key)
     serverSubnet:     process.env.WG_SERVER_SUBNET      || '10.255.0.0/16', // NAS peer pool
     keepalive:        parseIntEnv('WG_KEEPALIVE',           25),
     // DNS servers written into full-tunnel client configs. Without them a phone
@@ -220,7 +220,7 @@ const config = {
   },
 
   // VoIP/RTC address-list auto-updater (voipRangesService). Refreshes the
-  // fireisp-voip address-list on managed NAS from provider IP-range endpoints so
+  // vigabss-voip address-list on managed NAS from provider IP-range endpoints so
   // the §VoIP realtime-priority mangle keeps matching current RTC media servers.
   // Disabled by default — enable per deployment once realtime priority is seeded.
   voipRanges: {

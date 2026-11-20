@@ -142,11 +142,11 @@ export function Modal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="fireisp-modal-title"
+      aria-labelledby="vigabss-modal-title"
     >
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <h2 id="fireisp-modal-title" style={titleStyle}>
+          <h2 id="vigabss-modal-title" style={titleStyle}>
             {title}
           </h2>
           <button

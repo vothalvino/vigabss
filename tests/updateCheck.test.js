@@ -63,8 +63,6 @@ beforeEach(() => {
   jest.clearAllMocks();
   updateCheck._resetCache();
   delete process.env.VIGABSS_UPDATE_CHECK;
-  delete process.env.FIREISP_UPDATE_CHECK;
-  delete process.env.FIREISP_GIT_SHA;
   process.env.VIGABSS_GIT_SHA = RUNNING;
   // These cases describe the main channel; the release channel has its own
   // block below.
@@ -77,9 +75,7 @@ afterEach(() => {
   fetchSpy.mockRestore();
   delete process.env.VIGABSS_CHANNEL;
   delete process.env.VIGABSS_GIT_SHA;
-  delete process.env.FIREISP_GIT_SHA;
   delete process.env.VIGABSS_UPDATE_CHECK;
-  delete process.env.FIREISP_UPDATE_CHECK;
 });
 
 describe('on by default, explicit opt-OUT', () => {
@@ -123,20 +119,6 @@ describe('on by default, explicit opt-OUT', () => {
     expect(status.check_enabled).toBe(false);
   });
 
-  it('keeps the legacy FIREISP_UPDATE_CHECK alias working', async () => {
-    process.env.FIREISP_UPDATE_CHECK = '0';
-    const status = await updateCheck.getStatus();
-    expect(status.check_enabled).toBe(false);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it('prefers the canonical VIGABSS_UPDATE_CHECK value over the legacy alias', async () => {
-    process.env.VIGABSS_UPDATE_CHECK = '1';
-    process.env.FIREISP_UPDATE_CHECK = '0';
-    expect((await updateCheck.getStatus()).check_enabled).toBe(true);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-  });
-
   it('sends no identifying data', async () => {
     await updateCheck.getStatus();
     const [url, opts] = fetchSpy.mock.calls[0];
@@ -165,12 +147,6 @@ describe('update_available is only claimed when it is knowable', () => {
     const status = await updateCheck.getStatus();
     expect(status.running_sha).toBeNull();
     expect(status.update_available).toBe(false);
-  });
-
-  it('reads the legacy FIREISP_GIT_SHA stamp when upgrading an old image contract', async () => {
-    delete process.env.VIGABSS_GIT_SHA;
-    process.env.FIREISP_GIT_SHA = RUNNING;
-    expect((await updateCheck.getStatus()).running_sha).toBe(RUNNING);
   });
 
   it('false, and does not throw, when GitHub is unreachable', async () => {

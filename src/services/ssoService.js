@@ -63,7 +63,7 @@ function normalizeOidcRedirectPath(redirectTo) {
   if (typeof redirectTo !== 'string' || !redirectTo.startsWith('/')) return null;
   if (redirectTo.startsWith('//') || redirectTo.startsWith('/\\')) return null;
 
-  const safeOrigin = 'https://fireisp.invalid';
+  const safeOrigin = 'https://vigabss.invalid';
   try {
     const parsed = new URL(redirectTo, safeOrigin);
     if (parsed.origin !== safeOrigin) return null;
@@ -218,12 +218,12 @@ function assertValidGroupMappings(mappings) {
     } else {
       seen.add(m.idp_group);
     }
-    if (!SSO_ROLES.includes(m.fireisp_role)) {
-      errors.push({ field: `mappings[${i}].fireisp_role`, message: `must be one of: ${SSO_ROLES.join(', ')}` });
+    if (!SSO_ROLES.includes(m.vigabss_role)) {
+      errors.push({ field: `mappings[${i}].vigabss_role`, message: `must be one of: ${SSO_ROLES.join(', ')}` });
     }
   });
   if (errors.length) throw new ValidationError('Validation failed', errors);
-  return mappings.map(m => ({ idp_group: m.idp_group, fireisp_role: m.fireisp_role }));
+  return mappings.map(m => ({ idp_group: m.idp_group, vigabss_role: m.vigabss_role }));
 }
 
 /**
@@ -231,7 +231,7 @@ function assertValidGroupMappings(mappings) {
  */
 async function getGroupMappings(ssoConfigId) {
   const [rows] = await db.query(
-    'SELECT id, idp_group, fireisp_role FROM organization_sso_group_mappings WHERE sso_config_id = ? ORDER BY idp_group',
+    'SELECT id, idp_group, vigabss_role FROM organization_sso_group_mappings WHERE sso_config_id = ? ORDER BY idp_group',
     [ssoConfigId],
   );
   return rows;
@@ -241,7 +241,7 @@ async function getGroupMappings(ssoConfigId) {
  * Replace all group mappings for a config in a single transaction.
  *
  * @param {number} ssoConfigId
- * @param {Array<{idp_group: string, fireisp_role: string}>} mappings
+ * @param {Array<{idp_group: string, vigabss_role: string}>} mappings
  */
 async function saveGroupMappings(ssoConfigId, rawMappings) {
   const mappings = assertValidGroupMappings(rawMappings);
@@ -253,7 +253,7 @@ async function saveGroupMappings(ssoConfigId, rawMappings) {
       [ssoConfigId],
     );
     if (mappings.length > 0) {
-      const values = mappings.map(m => [ssoConfigId, m.idp_group, m.fireisp_role]);
+      const values = mappings.map(m => [ssoConfigId, m.idp_group, m.vigabss_role]);
       // NOTE: this is `conn.query()` (the raw mysql2 PoolConnection's real
       // text-protocol query method), NOT `db.query()`/`db.queryReplica()`
       // from src/config/database.js — those wrap mysql2's `execute()`
@@ -264,7 +264,7 @@ async function saveGroupMappings(ssoConfigId, rawMappings) {
       // through db.query() — either change would be a regression for a
       // site that was never actually broken.
       await conn.query(
-        'INSERT INTO organization_sso_group_mappings (sso_config_id, idp_group, fireisp_role) VALUES ?',
+        'INSERT INTO organization_sso_group_mappings (sso_config_id, idp_group, vigabss_role) VALUES ?',
         [values],
       );
     }
@@ -777,9 +777,9 @@ async function findOrCreateSsoUser(orgId, profile, cfg, mappings) {
   let orgRole = SSO_ROLES.includes(cfg.default_role) ? cfg.default_role : 'readonly';
   if (profile.groups && profile.groups.length > 0 && mappings.length > 0) {
     for (const group of profile.groups) {
-      const match = mappings.find(m => m.idp_group === group && SSO_ROLES.includes(m.fireisp_role));
+      const match = mappings.find(m => m.idp_group === group && SSO_ROLES.includes(m.vigabss_role));
       if (match) {
-        orgRole = match.fireisp_role;
+        orgRole = match.vigabss_role;
         break;
       }
     }

@@ -102,7 +102,7 @@ function overlapsSubnet(cidrA, cidrB) {
  * @returns {string}
  */
 function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
-  const ifaceName = tunnel.interface_name || `fireisp-nas-${tunnel.id}`;
+  const ifaceName = tunnel.interface_name || `vigabss-nas-${tunnel.id}`;
   const tunnelIp  = tunnel.tunnel_address;
 
   const lines = [
@@ -114,7 +114,7 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
     '# =================================================================',
     '',
     '# 1. Create the WireGuard interface (NAS dials out — no listen-port)',
-    `/interface/wireguard/add name=${ifaceName} private-key=${privateKey} comment=fireisp-server`,
+    `/interface/wireguard/add name=${ifaceName} private-key=${privateKey} comment=vigabss-server`,
     '',
     '# 2. Assign the tunnel /32 address',
     `/ip/address/add interface=${ifaceName} address=${tunnelIp}/32`,
@@ -126,7 +126,7 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
     `  endpoint-port=${serverCfg.port} \\`,
     `  allowed-address=${serverCfg.subnet} \\`,
     `  persistent-keepalive=${serverCfg.keepalive} \\`,
-    '  comment=fireisp-server',
+    '  comment=vigabss-server',
   ];
 
   // 4. Return route — RouterOS 7 does NOT auto-create routes from a peer's
@@ -135,7 +135,7 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
   // NAS to the hub's masqueraded source (10.255.0.1) exits via the WAN and is lost.
   lines.push('');
   lines.push('# 4. Return route — NAS must route the VigaBSS hub subnet via the WG interface');
-  lines.push(`/ip/route/add dst-address=${serverCfg.subnet} gateway=${ifaceName} comment=fireisp-hub-return`);
+  lines.push(`/ip/route/add dst-address=${serverCfg.subnet} gateway=${ifaceName} comment=vigabss-hub-return`);
 
   if (subnets && subnets.length > 0) {
     lines.push('');
@@ -208,7 +208,7 @@ async function provisionDesiredState(nas, opts = {}) {
     const tunnelData = {
       organization_id: nas.organization_id || null,
       nas_id: nas.id,
-      interface_name: `fireisp-nas-${nas.id}`,
+      interface_name: `vigabss-nas-${nas.id}`,
       tunnel_address: tunnelIp,
       nas_public_key: publicKey,
       nas_private_key_encrypted: encrypt(privateKey),
@@ -236,7 +236,7 @@ async function provisionDesiredState(nas, opts = {}) {
       'UPDATE nas_wg_tunnels SET server_peer_synced = 1 WHERE id = ?',
       [tunnel.id],
     );
-    record('syncPeer', 'ok', `Host wg-fireisp peer synced for ${tunnel.tunnel_address}/32`);
+    record('syncPeer', 'ok', `Host wg-vigabss peer synced for ${tunnel.tunnel_address}/32`);
   } else {
     record('syncPeer', 'skipped', syncResult.reason || 'WireGuard hub is disabled');
   }
@@ -279,7 +279,7 @@ async function bootstrap(nas) {
     steps.push(...provisioned.steps);
   }
 
-  const ifaceName  = tunnel.interface_name || `fireisp-nas-${nas.id}`;
+  const ifaceName  = tunnel.interface_name || `vigabss-nas-${nas.id}`;
   const tunnelIp   = tunnel.tunnel_address;
   // SECURITY: privateKey is decrypted for use in RouterOS API calls and the
   // snippet body but is NEVER logged.
@@ -301,7 +301,7 @@ async function bootstrap(nas) {
     const ifaceRes = await ros.wireguardInterfaceUpsert(conn, {
       name:       ifaceName,
       privateKey,
-      comment:    'fireisp-server',
+      comment:    'vigabss-server',
     });
     steps.push({
       step:   'interface',
@@ -328,7 +328,7 @@ async function bootstrap(nas) {
       endpointPort:    serverCfg.port,
       allowedAddress:  serverCfg.subnet,
       keepalive:       serverCfg.keepalive,
-      comment:         'fireisp-server',
+      comment:         'vigabss-server',
     });
     steps.push({
       step:   'peer',
@@ -340,7 +340,7 @@ async function bootstrap(nas) {
     const routeRes = await ros.wireguardRouteUpsert(conn, {
       dstAddress: serverCfg.subnet,
       gateway:    ifaceName,
-      comment:    'fireisp-hub-return',
+      comment:    'vigabss-hub-return',
     });
     steps.push({
       step:   'return-route',
@@ -440,7 +440,7 @@ async function discoverSubnets(nas) {
 // =============================================================================
 
 // Routed subnets become `allowed-ips` and `ip route replace` on the shared
-// wg-fireisp hub (NET-08), so each must be a canonical IPv4 network that no
+// wg-vigabss hub (NET-08), so each must be a canonical IPv4 network that no
 // other tunnel, tunnel address or the hub subnet already covers: an overlap
 // (equal, wider or narrower) would pull another NAS's traffic — possibly
 // another tenant's — into this tunnel.
@@ -581,7 +581,7 @@ async function confirmRoutes(nas, { subnets: requested }) {
       'UPDATE nas_wg_tunnels SET server_peer_synced = 1 WHERE id = ?',
       [tunnel.id],
     );
-    record('syncPeer', 'ok', `Host wg-fireisp peer updated with ${subnets.length} subnet(s)`);
+    record('syncPeer', 'ok', `Host wg-vigabss peer updated with ${subnets.length} subnet(s)`);
   } else {
     record('syncPeer', 'skipped', syncResult.reason || 'WireGuard hub is disabled');
   }
@@ -651,9 +651,9 @@ async function buildSnippet(nas, serverCfg, subnets) {
 // =============================================================================
 
 /**
- * Re-add every live NAS hub peer to wg-fireisp from the database.
+ * Re-add every live NAS hub peer to wg-vigabss from the database.
  *
- * A NAS peer and its routes live ONLY in the wg-fireisp interface's runtime
+ * A NAS peer and its routes live ONLY in the wg-vigabss interface's runtime
  * kernel state, which is wiped whenever the hub container restarts.
  * `wireguardServerService.bootstrapHost()` recreates the interfaces but NOT the
  * per-NAS peers, so without this step every site tunnel would stay down after a

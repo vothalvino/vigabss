@@ -13128,7 +13128,7 @@
         "tags": [
           "NAS"
         ],
-        "summary": "Reconcile the fireisp-voip RTC/VoIP address-list on this NAS from the configured provider ranges (voipRangesService). Idempotent; skips NAS without real-time priority seeded",
+        "summary": "Reconcile the vigabss-voip RTC/VoIP address-list on this NAS from the configured provider ranges (voipRangesService). Idempotent; skips NAS without real-time priority seeded",
         "operationId": "refreshNasVoipRanges",
         "security": [
           {
@@ -13316,7 +13316,7 @@
         "tags": [
           "NAS"
         ],
-        "summary": "Confirm routed CIDRs for a NAS WireGuard tunnel and re-sync the server-side peer on wg-fireisp",
+        "summary": "Confirm routed CIDRs for a NAS WireGuard tunnel and re-sync the server-side peer on wg-vigabss",
         "operationId": "confirmNasWgRoutes",
         "security": [
           {
@@ -49046,7 +49046,7 @@
           "Portal Auth"
         ],
         "summary": "Refresh portal access token",
-        "description": "Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.",
+        "description": "Reads the refresh token from the vigabss_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.",
         "operationId": "portalRefreshToken",
         "requestBody": {
           "description": "refreshToken (API clients only)",

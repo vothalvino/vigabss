@@ -305,7 +305,7 @@ describe('Global Error Handler', () => {
   });
 
   test('handles missing table error (ER_NO_SUCH_TABLE) with 503 DB_MIGRATIONS_REQUIRED', async () => {
-    const tableError = new Error("Table 'fireisp.users' doesn't exist");
+    const tableError = new Error("Table 'vigabss.users' doesn't exist");
     tableError.code = 'ER_NO_SUCH_TABLE';
     tableError.errno = 1146;
     db.query.mockRejectedValueOnce(tableError);

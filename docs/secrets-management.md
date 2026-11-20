@@ -4,12 +4,10 @@ This document explains how VigaBSS 0.1.0-alpha.21 manages production secrets, wh
 options are available, and which approach is recommended for each deployment
 topology.
 
-Cloud secret IDs and Vault paths in this guide use fresh VigaBSS names. The
-checked-in raw Kubernetes manifests deliberately retain the `fireisp`
-namespace, workload, service-account, and Secret names as compatibility
-identifiers; the examples below match those manifests. Existing identifiers
-should be renamed only through the normal migration procedure for that backend,
-never as a cosmetic edit.
+The examples below match the checked-in raw Kubernetes manifests (`vigabss`
+namespace, workload, service-account, and Secret names). Identifiers already
+in use should be renamed only through the normal migration procedure for that
+backend, never as a cosmetic edit.
 
 ---
 
@@ -79,8 +77,8 @@ ENCRYPTION_KEY=$(openssl rand -hex 32)
 DB_PASSWORD=$(openssl rand -base64 24)
 EOF
 
-kubectl create secret generic fireisp-secret \
-  --namespace fireisp \
+kubectl create secret generic vigabss-secret \
+  --namespace vigabss \
   --from-env-file=/tmp/vigabss-secrets.env \
   --dry-run=client -o yaml > /tmp/vigabss-plain.yaml
 
@@ -107,7 +105,7 @@ kubectl apply -f k8s/sealed-secret.yaml
 ```bash
 # Re-create the plain Secret with new values, seal, and re-apply.
 # Then restart the deployment to pick up the new Secret.
-kubectl rollout restart deployment/fireisp -n fireisp
+kubectl rollout restart deployment/vigabss -n vigabss
 ```
 
 ### Required secrets
@@ -203,15 +201,15 @@ spec:
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: fireisp-secret
-  namespace: fireisp
+  name: vigabss-secret
+  namespace: vigabss
 spec:
   refreshInterval: 1h
   secretStoreRef:
     name: aws-secrets-manager
     kind: ClusterSecretStore
   target:
-    name: fireisp-secret
+    name: vigabss-secret
     creationPolicy: Owner
   dataFrom:
     - extract:
@@ -219,7 +217,7 @@ spec:
 ```
 
 ESO will create (and periodically refresh) the compatibility-named Kubernetes
-Secret `fireisp-secret` in the `fireisp` namespace with all keys from the
+Secret `vigabss-secret` in the `vigabss` namespace with all keys from the
 VigaBSS-named AWS secret.
 
 ---
@@ -265,15 +263,15 @@ spec:
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: fireisp-secret
-  namespace: fireisp
+  name: vigabss-secret
+  namespace: vigabss
 spec:
   refreshInterval: 1h
   secretStoreRef:
     name: gcp-secret-manager
     kind: ClusterSecretStore
   target:
-    name: fireisp-secret
+    name: vigabss-secret
     creationPolicy: Owner
   data:
     - secretKey: JWT_SECRET
@@ -317,8 +315,8 @@ path "secret/data/vigabss/production" {
 EOF
 
 vault write auth/kubernetes/role/vigabss \
-  bound_service_account_names=fireisp \
-  bound_service_account_namespaces=fireisp \
+  bound_service_account_names=vigabss \
+  bound_service_account_namespaces=vigabss \
   policies=vigabss \
   ttl=1h
 ```
@@ -337,7 +335,7 @@ vault kv put secret/vigabss/production - <<EOF
 EOF
 ```
 
-Add annotations to the compatibility-named `fireisp` Deployment pod template
+Add annotations to the `vigabss` Deployment pod template
 to inject the VigaBSS-named Vault secret:
 
 ```yaml
@@ -398,8 +396,7 @@ EnvironmentFile=/etc/vigabss/secrets.env
 ```
 
 Non-secret configuration (NODE_ENV, PORT, etc.) can still live in
-`/opt/vigabss/.env.prod` (or the retained `/opt/fireisp/.env.prod` on an
-upgraded installation).
+`/opt/vigabss/.env.prod`.
 
 ---
 

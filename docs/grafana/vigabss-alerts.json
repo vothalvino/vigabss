@@ -9,9 +9,9 @@
     }
   ],
   "title": "VigaBSS — Alerts & Monitoring",
-  "uid": "fireisp-alerts",
+  "uid": "vigabss-alerts",
   "version": 1,
-  "tags": ["fireisp", "alerts", "monitoring"],
+  "tags": ["vigabss", "alerts", "monitoring"],
   "timezone": "browser",
   "refresh": "30s",
   "time": { "from": "now-12h", "to": "now" },

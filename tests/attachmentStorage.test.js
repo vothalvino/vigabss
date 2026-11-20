@@ -5,7 +5,7 @@
 // Ticket attachments and work-order photos used to be written to
 // `<repo>/uploads/...`, a directory NO deployment mounts. Everything else in
 // the app writes under STORAGE_ROOT (`<repo>/storage`), which is mounted as
-// `storage:/app/storage` in docker-compose.prod.yml and as the fireisp-storage
+// `storage:/app/storage` in docker-compose.prod.yml and as the vigabss-storage
 // PVC in k8s/deployment.yaml.
 //
 // Three distinct failures came out of that one wrong path:

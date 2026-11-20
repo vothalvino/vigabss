@@ -6,7 +6,7 @@
 #
 # Usage:
 #   ./tests/run_tests.sh                          # use env vars for connection
-#   ./tests/run_tests.sh -u root -p secret -d fireisp_test
+#   ./tests/run_tests.sh -u root -p secret -d vigabss_test
 #   MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 ./tests/run_tests.sh
 #
 # Environment variables:
@@ -14,12 +14,12 @@
 #   MYSQL_PORT     — default: 3306
 #   MYSQL_USER     — default: root
 #   MYSQL_PASSWORD — default: (empty)
-#   MYSQL_DATABASE — default: fireisp_test
+#   MYSQL_DATABASE — default: vigabss_test
 #
 # Prerequisites:
 #   1. MySQL 8.0.29+ or MariaDB 10.6+ running
-#   2. Database created:  CREATE DATABASE fireisp_test;
-#   3. Schema applied:    mysql -u root fireisp_test < database/schema.sql
+#   2. Database created:  CREATE DATABASE vigabss_test;
+#   3. Schema applied:    mysql -u root vigabss_test < database/schema.sql
 # =============================================================================
 
 set -euo pipefail
@@ -29,7 +29,7 @@ MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
 MYSQL_USER="${MYSQL_USER:-root}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
-MYSQL_DATABASE="${MYSQL_DATABASE:-fireisp_test}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-vigabss_test}"
 
 # ---- Parse CLI args ---------------------------------------------------------
 while getopts "h:P:u:p:d:" opt; do

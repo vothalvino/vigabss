@@ -8,7 +8,7 @@ jest.mock('../src/config/firerelay', () => ({
   healthInterval: 30000,
   requestTimeout: 5000,
   maxRetries: 2,
-  masterUrl: 'https://master.fireisp.local',
+  masterUrl: 'https://master.vigabss.local',
   nodeId: 'pop-1',
   autoIncrementOffset: 1,
   maxClients: 10000,
@@ -28,7 +28,7 @@ describe('firerelay-agent script helpers', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    relayConfig.masterUrl = 'https://master.fireisp.local';
+    relayConfig.masterUrl = 'https://master.vigabss.local';
     relayConfig.nodeId = 'pop-1';
     relayConfig.tunnelSecret = 'test-secret';
   });

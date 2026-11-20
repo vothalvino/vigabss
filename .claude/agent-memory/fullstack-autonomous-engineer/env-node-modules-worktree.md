@@ -14,8 +14,7 @@ not walk up parent directories looking for a bin.
 **What still works and why:** `npx eslint ...` and `npx jest ...` (or `node
 -e "require(...)"`) succeed anyway, because Node's own `require()` resolution
 algorithm walks UP parent directories looking for `node_modules` — and since
-the worktree is nested inside the main repo checkout
-(`/home/coder/Documents/Claude/fireisp5.0/node_modules` in this environment),
+the worktree is nested inside the main repo checkout,
 that walk-up finds the main checkout's real, correctly-versioned
 `node_modules` (confirmed: `npx eslint --version` → v10.2.1, matching the
 `^10.2.0` pin in package.json — it is NOT a different ad-hoc npx-downloaded

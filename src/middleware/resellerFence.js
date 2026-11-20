@@ -71,7 +71,7 @@ function hasStaffCredential(req) {
   if (req.headers['x-api-key']) return true;
   const auth = req.headers.authorization;
   if (typeof auth === 'string' && auth.startsWith('Bearer ')) return true;
-  return Boolean(req.cookies?.fireisp_access);
+  return Boolean(req.cookies?.vigabss_access);
 }
 
 async function resellerFence(req, res, next) {

@@ -45,10 +45,7 @@ const logger = require('../utils/logger').child({ service: 'updateCheck' });
 const product = require('../product');
 
 const ENV_FLAG = 'VIGABSS_UPDATE_CHECK';
-const LEGACY_ENV_FLAG = 'FIREISP_UPDATE_CHECK';
-const REPO = process.env.VIGABSS_UPDATE_REPO
-  || process.env.FIREISP_UPDATE_REPO
-  || 'vothalvino/vigabss';
+const REPO = process.env.VIGABSS_UPDATE_REPO || 'vothalvino/vigabss';
 const API = `https://api.github.com/repos/${REPO}/commits/main`;
 const TAGS_API = `https://api.github.com/repos/${REPO}/tags?per_page=100`;
 
@@ -154,7 +151,7 @@ let inFlight = null;
  * exactly when someone has rolled back.
  */
 function runningSha() {
-  const sha = (process.env.VIGABSS_GIT_SHA || process.env.FIREISP_GIT_SHA || '').trim();
+  const sha = (process.env.VIGABSS_GIT_SHA || '').trim();
   return sha.length ? sha : null;
 }
 
@@ -169,7 +166,7 @@ function runningSha() {
  */
 function isEnabled() {
   const raw = String(
-    process.env[ENV_FLAG] ?? process.env[LEGACY_ENV_FLAG] ?? '',
+    process.env[ENV_FLAG] ?? '',
   ).trim().toLowerCase();
   if (raw === '') return true;
   return !['0', 'false', 'no', 'off'].includes(raw);
@@ -334,6 +331,6 @@ function _resetCache() {
 
 module.exports = {
   getStatus, runningSha, isEnabled, warmCache, channel, compareVersionTags, newestReleaseTag,
-  ENV_FLAG, LEGACY_ENV_FLAG, CHECK_TTL_MS, FAILURE_TTL_MS, MIN_FORCED_INTERVAL_MS,
+  ENV_FLAG, CHECK_TTL_MS, FAILURE_TTL_MS, MIN_FORCED_INTERVAL_MS,
   _resetCache,
 };

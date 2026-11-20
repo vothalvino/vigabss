@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 jest.mock('../src/config/database', () => ({
-  baseConnectionConfig: { database: 'fireisp_test' },
+  baseConnectionConfig: { database: 'vigabss_test' },
   close: jest.fn(),
 }));
 
@@ -19,7 +19,7 @@ const everyMigration = fs.readdirSync(path.join(__dirname, '../database/migratio
 function connectionWithLock(acquired = 1) {
   const conn = {
     execute: jest.fn(async (sql) => {
-      if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
+      if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'vigabss_test' }]];
       if (/GET_LOCK/.test(sql)) return [[{ acquired }]];
       if (/SELECT filename(, checksum)? FROM schema_migrations/.test(sql)) return [everyMigration];
       if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
@@ -36,7 +36,7 @@ describe('migration advisory lock', () => {
     const conn = connectionWithLock();
     const pool = { getConnection: jest.fn().mockResolvedValue(conn) };
 
-    await applyMigrations(pool, 'primary:fireisp_test');
+    await applyMigrations(pool, 'primary:vigabss_test');
 
     const statements = conn.execute.mock.calls.map(([sql]) => sql);
     const acquireAt = statements.findIndex(sql => /GET_LOCK/.test(sql));
@@ -58,7 +58,7 @@ describe('migration advisory lock', () => {
     const conn = connectionWithLock(0);
     const pool = { getConnection: jest.fn().mockResolvedValue(conn) };
 
-    await expect(applyMigrations(pool, 'primary:fireisp_test'))
+    await expect(applyMigrations(pool, 'primary:vigabss_test'))
       .rejects.toThrow('Could not acquire the migration lock');
 
     expect(conn.execute.mock.calls.some(([sql]) => /CREATE TABLE IF NOT EXISTS schema_migrations/.test(sql)))

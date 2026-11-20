@@ -322,7 +322,7 @@ export function NasDetail() {
             </button>
           )}
           {canManage && (
-            <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title={t('ui.nasDetail.refreshTheFireispVoipRtc')}>
+            <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title={t('ui.nasDetail.refreshTheVigabssVoipRtc')}>
               {actionPending === 'voip-refresh' ? 'VoIP…' : 'VoIP'}
             </button>
           )}

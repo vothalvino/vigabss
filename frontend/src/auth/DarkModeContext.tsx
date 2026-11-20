@@ -20,7 +20,7 @@ interface DarkModeContextValue {
   toggleTheme: () => void;
 }
 
-const STORAGE_KEY = 'fireisp_theme';
+const STORAGE_KEY = 'vigabss_theme';
 
 const DarkModeContext = createContext<DarkModeContextValue | null>(null);
 

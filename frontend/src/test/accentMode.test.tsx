@@ -45,7 +45,7 @@ describe('AccentContext', () => {
     const user = userEvent.setup();
     const { unmount } = render(<AccentProvider><AccentDisplay /></AccentProvider>);
     await user.click(screen.getByTestId('set-green'));
-    expect(localStorage.getItem('fireisp_accent')).toBe('green');
+    expect(localStorage.getItem('vigabss_accent')).toBe('green');
     unmount();
 
     render(<AccentProvider><AccentDisplay /></AccentProvider>);
@@ -54,7 +54,7 @@ describe('AccentContext', () => {
   });
 
   it('ignores an invalid stored value and falls back to orange', () => {
-    localStorage.setItem('fireisp_accent', 'purple');
+    localStorage.setItem('vigabss_accent', 'purple');
     render(<AccentProvider><AccentDisplay /></AccentProvider>);
     expect(screen.getByTestId('accent').textContent).toBe('orange');
   });

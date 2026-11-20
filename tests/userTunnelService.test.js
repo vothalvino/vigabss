@@ -23,7 +23,7 @@ jest.mock('../src/config', () => ({
   log: { level: 'silent' },
   wireguard: {
     serverEnabled: true,
-    serverInterface: 'wg-fireisp',
+    serverInterface: 'wg-vigabss',
     serverEndpoint: 'vpn.example.com',
     serverListenPort: 51820,
     serverPublicKey: '',

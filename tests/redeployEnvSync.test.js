@@ -47,19 +47,18 @@ function write(name, content) {
 const read = (p) => fs.readFileSync(p, 'utf8');
 
 describe('a new setting arrives without the operator editing anything', () => {
-  // MANAGED_ENV_KEYS is empty right now (FIREISP_UPDATE_CHECK moved to
-  // MANAGED_ENV_RETIRE when its default flipped to on). These exercise the
-  // mechanism with a synthetic entry so it stays proven for the next setting,
-  // rather than deleting the coverage until one appears.
+  // MANAGED_ENV_KEYS is empty right now. These exercise the mechanism with a
+  // synthetic entry so it stays proven for the next setting, rather than
+  // deleting the coverage until one appears.
   const withKey = (file, entry) => execFileSync('bash', ['-c',
     `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("$3"); sync_managed_env "$2"`,
     'bash', SCRIPT, file, entry], { encoding: 'utf8' });
-  const ENTRY = 'FIREISP_DEMO_KEY=7|A synthetic managed setting used only by the test suite.';
+  const ENTRY = 'VIGABSS_DEMO_KEY=7|A synthetic managed setting used only by the test suite.';
 
   it('appends the key with its default and an explanation', () => {
     const f = write('.env.prod', 'DOMAIN=isp.example\n');
     withKey(f, ENTRY);
-    expect(read(f)).toMatch(/^FIREISP_DEMO_KEY=7$/m);
+    expect(read(f)).toMatch(/^VIGABSS_DEMO_KEY=7$/m);
     // The comment is the point: a bare key teaches nobody what it does.
     expect(read(f)).toMatch(/^# A synthetic managed setting/m);
   });
@@ -81,21 +80,21 @@ describe('a new setting arrives without the operator editing anything', () => {
   });
 
   it('does not revert a value the operator set', () => {
-    const f = write('.env.prod', 'FIREISP_DEMO_KEY=99\n');
+    const f = write('.env.prod', 'VIGABSS_DEMO_KEY=99\n');
     withKey(f, ENTRY);
-    expect(read(f)).toBe('FIREISP_DEMO_KEY=99\n');
+    expect(read(f)).toBe('VIGABSS_DEMO_KEY=99\n');
   });
 });
 
 describe('it never overrides what the operator decided', () => {
   const withKey = (file) => execFileSync('bash', ['-c',
-    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
+    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("VIGABSS_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
     'bash', SCRIPT, file], { encoding: 'utf8' });
 
   it.each([
-    ['export FIREISP_DEMO_KEY=1'],
-    ['FIREISP_DEMO_KEY = 1'],
-    ['  export  FIREISP_DEMO_KEY  =  1'],
+    ['export VIGABSS_DEMO_KEY=1'],
+    ['VIGABSS_DEMO_KEY = 1'],
+    ['  export  VIGABSS_DEMO_KEY  =  1'],
   ])('recognises %j as already present', (line) => {
     // compose-go's dotenv parser accepts an export prefix and whitespace around
     // the `=`, and so does `set -a; source`. If the presence check misses one,
@@ -104,15 +103,15 @@ describe('it never overrides what the operator decided', () => {
     // choice, leaving two contradictory lines in the file.
     const f = write('.env.prod', `${line}\n`);
     withKey(f);
-    expect(read(f).match(/FIREISP_DEMO_KEY/g)).toHaveLength(1);
+    expect(read(f).match(/VIGABSS_DEMO_KEY/g)).toHaveLength(1);
     expect(read(f)).toBe(`${line}\n`);
   });
 
   it('does not re-add a key they deliberately commented out', () => {
     // Commenting something out is an expressed intent, not an absence.
-    const f = write('.env.prod', '# FIREISP_DEMO_KEY=7\n');
+    const f = write('.env.prod', '# VIGABSS_DEMO_KEY=7\n');
     withKey(f);
-    expect(read(f).match(/FIREISP_DEMO_KEY/g)).toHaveLength(1);
+    expect(read(f).match(/VIGABSS_DEMO_KEY/g)).toHaveLength(1);
   });
 
   it('is idempotent across repeated deploys', () => {
@@ -125,11 +124,11 @@ describe('it never overrides what the operator decided', () => {
 
 describe('it cannot corrupt the file it is appending to', () => {
   const withKey = (file) => execFileSync('bash', ['-c',
-    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
+    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("VIGABSS_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
     'bash', SCRIPT, file], { encoding: 'utf8' });
 
   it('does not glue the new key onto a file with no trailing newline', () => {
-    // The realistic disaster: ENCRYPTION_KEY=deadbeefFIREISP_UPDATE_CHECK=0
+    // The realistic disaster: ENCRYPTION_KEY=deadbeefVIGABSS_DEMO_KEY=7
     //
     // Note for anyone mutation-testing this: deleting the tail -c1 guard in
     // redeploy.sh does NOT fail this test, and that is correct rather than a
@@ -139,7 +138,7 @@ describe('it cannot corrupt the file it is appending to', () => {
     const f = write('.env.prod', 'ENCRYPTION_KEY=deadbeef');
     withKey(f);
     expect(read(f)).toMatch(/^ENCRYPTION_KEY=deadbeef$/m);
-    expect(read(f)).toMatch(/^FIREISP_DEMO_KEY=7$/m);
+    expect(read(f)).toMatch(/^VIGABSS_DEMO_KEY=7$/m);
   });
 
   it('warns and continues when the file is read-only', () => {
@@ -197,9 +196,9 @@ describe('the allowlist is the safety mechanism', () => {
 // ---------------------------------------------------------------------------
 // When a setting's default flips, installs that received the OLD default
 // explicitly are pinned to it and would need exactly the hand-edit the sync
-// exists to avoid. FIREISP_UPDATE_CHECK is the first case: it shipped as
-// off-by-default, the sync wrote `=0` into live .env.prod files, and the
-// default is now on.
+// exists to avoid. MANAGED_ENV_RETIRE is empty right now, so these exercise
+// the mechanism with a synthetic entry: a setting the sync once wrote as `=0`
+// whose default is now on.
 //
 // Removing a line from a file holding DB_PASSWORD and ENCRYPTION_KEY earns
 // tighter constraints than appending to one.
@@ -207,22 +206,24 @@ describe('the allowlist is the safety mechanism', () => {
 function retire(file) {
   return execFileSync(
     'bash',
-    ['-c', 'set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; retire_managed_env "$2"',
-      'bash', SCRIPT, file],
+    ['-c', 'set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_RETIRE=("$3"); retire_managed_env "$2"',
+      'bash', SCRIPT, file, RETIRE_ENTRY],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
 }
 
-// What sync_managed_env actually wrote in #607, comment and all.
+const RETIRE_ENTRY = 'VIGABSS_DEMO_FLAG=0|once-a-day banner|synthetic entry for the test suite';
+
+// What sync_managed_env writes: the comment block, then the line.
 const OURS = 'DB_PASSWORD=s3cret\nDOMAIN=isp.example\n'
   + '\n# Show the install operator a once-a-day banner when a newer VigaBSS release exists. Set to 1 to enable.\n'
-  + 'FIREISP_UPDATE_CHECK=0\n';
+  + 'VIGABSS_DEMO_FLAG=0\n';
 
 describe('withdrawing a setting whose default changed', () => {
   it('removes the line and the comment we wrote with it', () => {
     const f = write('.env.prod', OURS);
     retire(f);
-    expect(read(f)).not.toMatch(/FIREISP_UPDATE_CHECK/);
+    expect(read(f)).not.toMatch(/VIGABSS_DEMO_FLAG/);
     // An orphaned comment explaining an absent key is worse than either.
     expect(read(f)).not.toMatch(/once-a-day banner/);
   });
@@ -261,19 +262,19 @@ describe('withdrawing a setting whose default changed', () => {
 
 describe('it can only withdraw a suggestion, never a decision', () => {
   it('keeps a value the operator changed', () => {
-    const f = write('.env.prod', OURS.replace('FIREISP_UPDATE_CHECK=0', 'FIREISP_UPDATE_CHECK=1'));
+    const f = write('.env.prod', OURS.replace('VIGABSS_DEMO_FLAG=0', 'VIGABSS_DEMO_FLAG=1'));
     retire(f);
-    expect(read(f)).toMatch(/^FIREISP_UPDATE_CHECK=1$/m);
+    expect(read(f)).toMatch(/^VIGABSS_DEMO_FLAG=1$/m);
   });
 
   it("keeps an operator's OWN opt-out, which is byte-identical to ours", () => {
-    // The whole reason the marker exists. `FIREISP_UPDATE_CHECK=0` typed by
+    // The whole reason the marker exists. `VIGABSS_DEMO_FLAG=0` typed by
     // hand is indistinguishable from ours by value, and withdrawing it would
     // re-enable something they deliberately switched off. The comment we wrote
     // alongside it is the only evidence of authorship available.
-    const f = write('.env.prod', 'DOMAIN=isp.example\nFIREISP_UPDATE_CHECK=0\n');
+    const f = write('.env.prod', 'DOMAIN=isp.example\nVIGABSS_DEMO_FLAG=0\n');
     retire(f);
-    expect(read(f)).toMatch(/^FIREISP_UPDATE_CHECK=0$/m);
+    expect(read(f)).toMatch(/^VIGABSS_DEMO_FLAG=0$/m);
   });
 
   it('refuses to write an empty file when the rewrite yields nothing', () => {
@@ -283,7 +284,7 @@ describe('it can only withdraw a suggestion, never a decision', () => {
     // DB_PASSWORD and ENCRYPTION_KEY. Found by mutation testing: removing the
     // guard passed every other case in this suite.
     const onlyOurs = '# Show the install operator a once-a-day banner when a newer VigaBSS release exists.\n'
-      + 'FIREISP_UPDATE_CHECK=0\n';
+      + 'VIGABSS_DEMO_FLAG=0\n';
     const f = write('.env.prod', onlyOurs);
     retire(f);
     expect(read(f)).toBe(onlyOurs);

@@ -507,7 +507,7 @@ async function completeMfaLogin({ mfaToken, code }, ctx = {}) {
  * Returns { id, name, membership_role } if the user may operate as that org, or
  * null otherwise. Install operators and system super_admin accounts may switch
  * to any live org; everyone else only to orgs they are a member of. Shared by the active-org
- * re-validation on token refresh so a stale/forged `fireisp_active_org` value can
+ * re-validation on token refresh so a stale/forged `vigabss_active_org` value can
  * never escalate access.
  */
 async function resolveActiveOrg(userId, userRole, requestedOrgId) {
@@ -531,7 +531,7 @@ async function resolveActiveOrg(userId, userRole, requestedOrgId) {
  * Implements rotation: the old refresh token is consumed and a new pair is issued.
  * A token that was already rotated is reuse: the entire family is revoked.
  *
- * `requestedActiveOrgId` (from the `fireisp_active_org` cookie) preserves the active
+ * `requestedActiveOrgId` (from the `vigabss_active_org` cookie) preserves the active
  * organization across refreshes/reloads; it is re-validated, never trusted blindly.
  */
 async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
@@ -574,7 +574,7 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
 
   // Preserve the active organization across refreshes (e.g. a page reload, where
   // the SPA's in-memory access token is gone). The caller passes the org from the
-  // `fireisp_active_org` cookie; we RE-VALIDATE it here so a stale or forged value
+  // `vigabss_active_org` cookie; we RE-VALIDATE it here so a stale or forged value
   // can never grant access to an org the user may not use — invalid → fall back.
   let activeOrgId = fallbackOrgId;
   if (requestedActiveOrgId && Number(requestedActiveOrgId) !== Number(fallbackOrgId)) {

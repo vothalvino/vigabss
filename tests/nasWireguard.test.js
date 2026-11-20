@@ -82,7 +82,7 @@ const mockNas = {
   type: 'mikrotik',
   status: 'active',
   api_port: 8728,
-  api_username: 'fireisp',
+  api_username: 'vigabss',
   api_password_encrypted: 'iv:tag:cipher',
   api_use_tls: false,
 };
@@ -172,7 +172,7 @@ describe('POST /api/v1/nas/:id/wg/bootstrap', () => {
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
 
     // Service resolves (no throw) with method:'snippet' — the route returns 200
-    const snippetText = '# VigaBSS WireGuard snippet\n/interface/wireguard add name=wg-fireisp';
+    const snippetText = '# VigaBSS WireGuard snippet\n/interface/wireguard add name=wg-vigabss';
     wgProvisioningService.bootstrap.mockResolvedValue({
       method: 'snippet',
       snippet: snippetText,
@@ -186,7 +186,7 @@ describe('POST /api/v1/nas/:id/wg/bootstrap', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.method).toBe('snippet');
     expect(typeof res.body.data.snippet).toBe('string');
-    expect(res.body.data.snippet).toContain('wg-fireisp');
+    expect(res.body.data.snippet).toContain('wg-vigabss');
     // The tunnel private key must never appear in the snippet response
     expect(JSON.stringify(res.body)).not.toContain('nas_private_key_encrypted');
   });
@@ -201,7 +201,7 @@ describe('POST /api/v1/nas/:id/wg/bootstrap', () => {
     wgProvisioningService.bootstrap.mockResolvedValue({
       method: 'api',
       steps: [
-        { step: 'interface', status: 'created', detail: 'wg-fireisp created' },
+        { step: 'interface', status: 'created', detail: 'wg-vigabss created' },
         { step: 'address',   status: 'created', detail: '10.255.0.2/32' },
         { step: 'peer',      status: 'created', detail: 'server pub key' },
       ],

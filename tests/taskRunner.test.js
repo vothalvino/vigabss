@@ -17,7 +17,7 @@ jest.mock('../src/config/database', () => ({
   withTenantContext: jest.fn((_organizationId, callback) => callback()),
   close: jest.fn(),
   pool: { end: jest.fn() },
-  baseConnectionConfig: { database: 'fireisp_test' },
+  baseConnectionConfig: { database: 'vigabss_test' },
 }));
 
 jest.mock('../src/services/billingService', () => ({

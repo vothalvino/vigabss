@@ -46,7 +46,7 @@ function loadBackup() {
 
 beforeEach(() => {
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
-  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-backup-'));
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-backup-'));
   backupDir = path.join(tmpRoot, 'backups');
   binDir = path.join(tmpRoot, 'bin');
   fs.mkdirSync(binDir, { recursive: true });
@@ -54,9 +54,9 @@ beforeEach(() => {
   process.env.BACKUP_DIR = backupDir;
   process.env.DB_HOST = '127.0.0.1';
   process.env.DB_PORT = '3306';
-  process.env.DB_USER = 'fireisp';
+  process.env.DB_USER = 'vigabss';
   process.env.DB_PASSWORD = 'sekret with spaces; $pecial';
-  process.env.DB_NAME = 'fireisp';
+  process.env.DB_NAME = 'vigabss';
   // Only the fake binary is visible — the real mysqldump (if any) is not.
   process.env.PATH = binDir;
   delete process.env.BACKUP_MIN_BYTES;

@@ -23,7 +23,7 @@ const wireguard = require('../services/wireguardServerService');
 const config = require('../config');
 const logger = require('../utils/logger').child({ service: 'wireguardHelper' });
 
-const SOCKET_PATH = process.env.WG_HELPER_SOCKET || '/run/fireisp-wireguard/helper.sock';
+const SOCKET_PATH = process.env.WG_HELPER_SOCKET || '/run/vigabss-wireguard/helper.sock';
 const KEY_RE = /^[A-Za-z0-9+/]{43}=$/;
 
 function validCidr(value) {

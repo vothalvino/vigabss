@@ -346,7 +346,7 @@ describe('seedDevice', () => {
     expect(add).toContain('=service=ppp');
     expect(add).toContain('=address=203.0.113.10');
     expect(add).toContain('=secret=radsecret');
-    expect(add).toContain('=comment=fireisp-radius');
+    expect(add).toContain('=comment=vigabss-radius');
 
     // CoA listener + AAA toggled on.
     expect(callTo(calls, '/radius/incoming/set')).toEqual(
@@ -360,7 +360,7 @@ describe('seedDevice', () => {
 
   test('is idempotent — updates the existing tagged RADIUS entry instead of adding', async () => {
     const { client, calls } = makeSeedClient((words) => {
-      if (words[0] === '/radius/print') return [['!re', '=.id=*5', '=comment=fireisp-radius'], ['!done']];
+      if (words[0] === '/radius/print') return [['!re', '=.id=*5', '=comment=vigabss-radius'], ['!done']];
       return null;
     });
     ros.createClient.mockResolvedValue(client);
@@ -390,8 +390,8 @@ describe('seedDevice', () => {
     expect(stepStatus(result.steps, 'queue-tree:upload')).toBe('created');
     const adds = calls.filter((c) => c[0] === '/queue/tree/add');
     expect(adds).toHaveLength(2);
-    expect(adds[0]).toEqual(expect.arrayContaining(['=name=fireisp-total-download', '=parent=global', '=max-limit=500M']));
-    expect(adds[1]).toEqual(expect.arrayContaining(['=name=fireisp-total-upload', '=max-limit=200M']));
+    expect(adds[0]).toEqual(expect.arrayContaining(['=name=vigabss-total-download', '=parent=global', '=max-limit=500M']));
+    expect(adds[1]).toEqual(expect.arrayContaining(['=name=vigabss-total-upload', '=max-limit=200M']));
   });
 
   test('skips the queue tree when enabled but no bandwidth is supplied', async () => {
@@ -411,14 +411,14 @@ describe('seedDevice', () => {
     const result = await seedDevice(SEED_NAS, {
       radiusAddress: '203.0.113.10',
       seedWalledGarden: true,
-      suspendedListName: 'fireisp-suspended',
+      suspendedListName: 'vigabss-suspended',
       portalAddress: '203.0.113.10',
     });
 
     expect(stepStatus(result.steps, 'walled-garden:block')).toBe('created');
     const filter = callTo(calls, '/ip/firewall/filter/add');
     expect(filter).toEqual(expect.arrayContaining([
-      '=chain=forward', '=src-address-list=fireisp-suspended', '=action=reject',
+      '=chain=forward', '=src-address-list=vigabss-suspended', '=action=reject',
     ]));
     // With an ENABLED portal redirect, the reject must spare the portal destination
     // so the (off-router) captive portal stays reachable through the forward chain.
@@ -507,7 +507,7 @@ describe('seedDevice', () => {
     expect(stepStatus(result.steps, 'queue-tree:upload')).toBe('created');
     const adds = calls.filter((c) => c[0] === '/queue/tree/add');
     expect(adds).toHaveLength(1);
-    expect(adds[0]).toEqual(expect.arrayContaining(['=name=fireisp-total-upload', '=max-limit=200M']));
+    expect(adds[0]).toEqual(expect.arrayContaining(['=name=vigabss-total-upload', '=max-limit=200M']));
     expect(calls.some((c) => c.includes('=max-limit=0M'))).toBe(false);
   });
 
@@ -546,7 +546,7 @@ describe('seedDevice', () => {
     // or it would silently turn off a redirect the admin has since enabled.
     const rerun = makeSeedClient((words) => {
       if (words[0] === '/ip/firewall/nat/print') {
-        return [['!re', '=.id=*7', '=comment=fireisp-suspended-redirect'], ['!done']];
+        return [['!re', '=.id=*7', '=comment=vigabss-suspended-redirect'], ['!done']];
       }
       return null;
     });
@@ -735,14 +735,14 @@ describe('seedDevice', () => {
 
     const profileAdd = callTo(calls, '/ppp/profile/add');
     expect(profileAdd).toEqual(expect.arrayContaining([
-      '=name=fireisp-pppoe', '=change-tcp-mss=yes', '=local-address=10.0.0.1', '=parent-queue=01-GLOBAL-POP-LIMIT',
+      '=name=vigabss-pppoe', '=change-tcp-mss=yes', '=local-address=10.0.0.1', '=parent-queue=01-GLOBAL-POP-LIMIT',
     ]));
     // The blueprint's invalid "remote-pool" token is never sent (real prop is remote-address).
     expect(profileAdd.some((w) => w.startsWith('=remote-pool='))).toBe(false);
 
     const serverAdd = callTo(calls, '/interface/pppoe-server/server/add');
     expect(serverAdd).toEqual(expect.arrayContaining([
-      '=service-name=VigaBSS-Internet', '=interface=ether2', '=default-profile=fireisp-pppoe', '=disabled=no',
+      '=service-name=VigaBSS-Internet', '=interface=ether2', '=default-profile=vigabss-pppoe', '=disabled=no',
     ]));
   });
 
@@ -783,7 +783,7 @@ describe('seedDevice', () => {
         return [['!re', '=.id=*3', '=interface=ether2'], ['!done']];
       }
       if (words[0] === '/ppp/profile/print') {
-        return [['!re', '=.id=*9', '=name=fireisp-pppoe'], ['!done']];
+        return [['!re', '=.id=*9', '=name=vigabss-pppoe'], ['!done']];
       }
       return null;
     });
@@ -811,27 +811,27 @@ describe('seedDevice', () => {
       realtimeMaxMbps: 50,
     });
 
-    // OTT provider networks land in the fireisp-voip address-list.
+    // OTT provider networks land in the vigabss-voip address-list.
     const alAdds = calls.filter((c) => c[0] === '/ip/firewall/address-list/add');
     expect(alAdds).toHaveLength(2);
-    expect(alAdds[0]).toEqual(expect.arrayContaining(['=list=fireisp-voip', '=address=157.240.0.0/16']));
+    expect(alAdds[0]).toEqual(expect.arrayContaining(['=list=vigabss-voip', '=address=157.240.0.0/16']));
     expect(alAdds[1]).toEqual(expect.arrayContaining(['=address=142.250.0.0/15']));
 
     // Mangle chain: mark-connection (ports/voip-src/voip-dst) → mark-packet → change-dscp.
     const mangleAdds = calls.filter((c) => c[0] === '/ip/firewall/mangle/add');
     const byComment = (frag) => mangleAdds.find((c) => c.includes(`=comment=${frag}`));
-    expect(byComment('fireisp-rt-ports')).toEqual(expect.arrayContaining(['=protocol=udp', '=dst-port=5060,5061,10000-20000', '=action=mark-connection']));
-    expect(byComment('fireisp-rt-voip-src')).toEqual(expect.arrayContaining(['=src-address-list=fireisp-voip']));
-    expect(byComment('fireisp-rt-voip-dst')).toEqual(expect.arrayContaining(['=dst-address-list=fireisp-voip']));
-    expect(byComment('fireisp-rt-packet')).toEqual(expect.arrayContaining(['=action=mark-packet', '=new-packet-mark=fireisp-realtime']));
-    expect(byComment('fireisp-rt-setdscp')).toEqual(expect.arrayContaining(['=action=change-dscp', '=new-dscp=46']));
+    expect(byComment('vigabss-rt-ports')).toEqual(expect.arrayContaining(['=protocol=udp', '=dst-port=5060,5061,10000-20000', '=action=mark-connection']));
+    expect(byComment('vigabss-rt-voip-src')).toEqual(expect.arrayContaining(['=src-address-list=vigabss-voip']));
+    expect(byComment('vigabss-rt-voip-dst')).toEqual(expect.arrayContaining(['=dst-address-list=vigabss-voip']));
+    expect(byComment('vigabss-rt-packet')).toEqual(expect.arrayContaining(['=action=mark-packet', '=new-packet-mark=vigabss-realtime']));
+    expect(byComment('vigabss-rt-setdscp')).toEqual(expect.arrayContaining(['=action=change-dscp', '=new-dscp=46']));
     // trust-client-DSCP is OFF by default → no such rule.
-    expect(byComment('fireisp-rt-dscp')).toBeUndefined();
+    expect(byComment('vigabss-rt-dscp')).toBeUndefined();
 
     // Priority-1 queue-tree node (single-value priority) with the anti-abuse cap.
     const qAdd = callTo(calls, '/queue/tree/add');
     expect(qAdd).toEqual(expect.arrayContaining([
-      '=name=fireisp-realtime', '=parent=global', '=packet-mark=fireisp-realtime', '=priority=1', '=max-limit=50M',
+      '=name=vigabss-realtime', '=parent=global', '=packet-mark=vigabss-realtime', '=priority=1', '=max-limit=50M',
     ]));
     expect(result.ok).toBe(true);
   });
@@ -841,7 +841,7 @@ describe('seedDevice', () => {
     ros.createClient.mockResolvedValue(client);
     await seedDevice(SEED_NAS, { radiusAddress: '203.0.113.10', seedRealtimePriority: true, trustClientDscp: true });
     const dscpRule = calls.filter((c) => c[0] === '/ip/firewall/mangle/add')
-      .find((c) => c.includes('=comment=fireisp-rt-dscp'));
+      .find((c) => c.includes('=comment=vigabss-rt-dscp'));
     expect(dscpRule).toEqual(expect.arrayContaining(['=dscp=46', '=action=mark-connection']));
     // Fresh device: rt-packet not created yet when rt-dscp is added → no place-before needed.
     expect(dscpRule.some((w) => w.startsWith('=place-before='))).toBe(false);
@@ -851,8 +851,8 @@ describe('seedDevice', () => {
     // Device already has rt-packet (prior seed); now trustClientDscp is turned on.
     // The new rt-dscp mark-connection must be placed BEFORE rt-packet, not appended.
     const { client, calls } = makeSeedClient((words) => {
-      if (words[0] === '/ip/firewall/mangle/print' && words.includes('?comment=fireisp-rt-packet')) {
-        return [['!re', '=.id=*77', '=comment=fireisp-rt-packet'], ['!done']];
+      if (words[0] === '/ip/firewall/mangle/print' && words.includes('?comment=vigabss-rt-packet')) {
+        return [['!re', '=.id=*77', '=comment=vigabss-rt-packet'], ['!done']];
       }
       return null;
     });
@@ -861,7 +861,7 @@ describe('seedDevice', () => {
     await seedDevice(SEED_NAS, { radiusAddress: '203.0.113.10', seedRealtimePriority: true, trustClientDscp: true });
 
     const dscpAdd = calls.filter((c) => c[0] === '/ip/firewall/mangle/add')
-      .find((c) => c.includes('=comment=fireisp-rt-dscp'));
+      .find((c) => c.includes('=comment=vigabss-rt-dscp'));
     expect(dscpAdd).toEqual(expect.arrayContaining(['=dscp=46', '=place-before=*77']));
   });
 
@@ -870,7 +870,7 @@ describe('seedDevice', () => {
     ros.createClient.mockResolvedValue(client);
     await seedDevice(SEED_NAS, { radiusAddress: '203.0.113.10', seedRealtimePriority: true });
     const qAdd = callTo(calls, '/queue/tree/add');
-    expect(qAdd).toEqual(expect.arrayContaining(['=name=fireisp-realtime', '=priority=1']));
+    expect(qAdd).toEqual(expect.arrayContaining(['=name=vigabss-realtime', '=priority=1']));
     expect(qAdd.some((w) => w.startsWith('=max-limit='))).toBe(false);
     expect(calls.some((c) => c[0] === '/ip/firewall/address-list/add')).toBe(false);
   });
@@ -929,10 +929,10 @@ describe('syncVoipAddressList', () => {
         calls.push(words);
         if (words[0] === '/ip/firewall/address-list/print') {
           return [
-            ['!re', '=.id=*1', '=list=fireisp-voip', '=address=8.8.8.0/24', '=comment=fireisp-voip-auto'],
-            ['!re', '=.id=*2', '=list=fireisp-voip', '=address=1.1.1.0/24', '=comment=fireisp-voip-auto'],
-            // operator-added entry (comment fireisp-voip, NOT -auto) → must be left alone
-            ['!re', '=.id=*9', '=list=fireisp-voip', '=address=157.240.0.0/16', '=comment=fireisp-voip'],
+            ['!re', '=.id=*1', '=list=vigabss-voip', '=address=8.8.8.0/24', '=comment=vigabss-voip-auto'],
+            ['!re', '=.id=*2', '=list=vigabss-voip', '=address=1.1.1.0/24', '=comment=vigabss-voip-auto'],
+            // operator-added entry (comment vigabss-voip, NOT -auto) → must be left alone
+            ['!re', '=.id=*9', '=list=vigabss-voip', '=address=157.240.0.0/16', '=comment=vigabss-voip'],
             ['!done'],
           ];
         }
@@ -947,7 +947,7 @@ describe('syncVoipAddressList', () => {
 
     expect(result).toEqual({ added: 1, removed: 1, kept: 1, desired: 2 });
     const add = calls.find((c) => c[0] === '/ip/firewall/address-list/add');
-    expect(add).toEqual(expect.arrayContaining(['=list=fireisp-voip', '=address=9.9.9.0/24', '=comment=fireisp-voip-auto']));
+    expect(add).toEqual(expect.arrayContaining(['=list=vigabss-voip', '=address=9.9.9.0/24', '=comment=vigabss-voip-auto']));
     // 8.8.8.0/24 already present → not re-added
     expect(calls.some((c) => c[0] === '/ip/firewall/address-list/add' && c.includes('=address=8.8.8.0/24'))).toBe(false);
     // only the stale auto entry *2 is removed; operator entry *9 is untouched
@@ -965,8 +965,8 @@ describe('syncVoipAddressList', () => {
       run: jest.fn(async (words) => {
         calls.push(words);
         if (words[0] === '/ip/firewall/address-list/print') {
-          // Operator seeded 149.137.0.0/17 (comment fireisp-voip); it's also in `desired`.
-          return [['!re', '=.id=*9', '=list=fireisp-voip', '=address=149.137.0.0/17', '=comment=fireisp-voip'], ['!done']];
+          // Operator seeded 149.137.0.0/17 (comment vigabss-voip); it's also in `desired`.
+          return [['!re', '=.id=*9', '=list=vigabss-voip', '=address=149.137.0.0/17', '=comment=vigabss-voip'], ['!done']];
         }
         return [['!done']];
       }),

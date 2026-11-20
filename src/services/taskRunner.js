@@ -63,8 +63,8 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
-const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'fireisp';
-const PPPoE_EVENT_POLL_LOCK = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:${PPPoE_EVENT_POLL_TASK}`;
+const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'vigabss';
+const PPPoE_EVENT_POLL_LOCK = `vigabss:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:${PPPoE_EVENT_POLL_TASK}`;
 
 /**
  * Acquire an install-wide MySQL advisory mutex on a session from the lock pool

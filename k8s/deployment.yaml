@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fireisp
-  namespace: fireisp
+  name: vigabss
+  namespace: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: api
 spec:
   # One replica unless REDIS_URL is set in secret.yaml: rate limits, caches,
@@ -13,7 +13,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: fireisp
+      app.kubernetes.io/name: vigabss
       app.kubernetes.io/component: api
   strategy:
     # Migration 459 and later security migrations may not be safe while an old
@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: fireisp
+        app.kubernetes.io/name: vigabss
         app.kubernetes.io/component: api
     spec:
       terminationGracePeriodSeconds: 30
@@ -31,7 +31,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
-        # The image's fireisp user (Dockerfile).
+        # The image's vigabss user (Dockerfile).
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
@@ -46,9 +46,9 @@ spec:
           command: ['node', 'src/scripts/migrate.js']
           envFrom:
             - configMapRef:
-                name: fireisp-config
+                name: vigabss-config
             - secretRef:
-                name: fireisp-secret
+                name: vigabss-secret
           env:
             # Keep the security-migration fan-out explicit here as well as in
             # the ConfigMap so a custom ConfigMap cannot silently skip tenants.
@@ -71,10 +71,10 @@ spec:
             - name: tmp
               mountPath: /tmp
       containers:
-        - name: fireisp
+        - name: vigabss
           # ghcr.io/vothalvino/vigabss is what CI actually publishes and
-          # what cosign-policy.yaml verifies. `fireisp/fireisp` resolved to
-          # docker.io/fireisp/fireisp — a namespace this project does not
+          # what cosign-policy.yaml verifies. `vigabss/vigabss` resolved to
+          # docker.io/vigabss/vigabss — a namespace this project does not
           # control, so a squatter there would have been pulled and run, and
           # the signature policy would never have matched the running image.
           image: ghcr.io/vothalvino/vigabss:REPLACE_WITH_FULL_COMMIT_SHA
@@ -88,9 +88,9 @@ spec:
               protocol: UDP
           envFrom:
             - configMapRef:
-                name: fireisp-config
+                name: vigabss-config
             - secretRef:
-                name: fireisp-secret
+                name: vigabss-secret
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -135,6 +135,6 @@ spec:
       volumes:
         - name: storage
           persistentVolumeClaim:
-            claimName: fireisp-storage
+            claimName: vigabss-storage
         - name: tmp
           emptyDir: {}

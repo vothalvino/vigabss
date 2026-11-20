@@ -40,7 +40,7 @@ describe('database tenant routing', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_5',
+      db_name: 'vigabss_org_5',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,
@@ -81,7 +81,7 @@ describe('database tenant routing', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_12',
+        db_name: 'vigabss_org_12',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 0,
@@ -109,7 +109,7 @@ describe('database tenant routing', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_7',
+      db_name: 'vigabss_org_7',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,
@@ -136,7 +136,7 @@ describe('database tenant routing', () => {
     const tenantPool = makePool();
     primaryPool.execute.mockResolvedValue([[{
       organization_id: 8, isolation_mode: 'isolated', db_host: 'tenant-db', db_port: 3306,
-      db_name: 'fireisp_org_8', db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
+      db_name: 'vigabss_org_8', db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
     }], []]);
     tenantPool.execute.mockResolvedValue([[{ id: 1 }], []]);
     // The invalidation below retires the pool; the next query builds another.
@@ -174,7 +174,7 @@ describe('database tenant routing', () => {
         isolation_mode: 'isolated',
         db_host: 'tenant-db',
         db_port: 3306,
-        db_name: 'fireisp_org_14',
+        db_name: 'vigabss_org_14',
         db_user: 'tenant_user',
         db_password_encrypted: 'secret',
         ssl_enabled: 0,
@@ -210,8 +210,8 @@ describe('database tenant routing', () => {
       ssl_enabled: 0,
     }], []];
     primaryPool.execute
-      .mockResolvedValueOnce(config('old-tenant-db', 'fireisp_org_15_old'))
-      .mockResolvedValueOnce(config('new-tenant-db', 'fireisp_org_15_new'));
+      .mockResolvedValueOnce(config('old-tenant-db', 'vigabss_org_15_old'))
+      .mockResolvedValueOnce(config('new-tenant-db', 'vigabss_org_15_new'));
     oldTenantPool.execute.mockResolvedValueOnce([[{ generation: 'old' }], []]);
     newTenantPool.execute.mockResolvedValueOnce([[{ generation: 'new' }], []]);
 
@@ -257,7 +257,7 @@ describe('database tenant routing', () => {
       isolation_mode: 'isolated',
       db_host: 'stale-tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_5_stale',
+      db_name: 'vigabss_org_5_stale',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,
@@ -281,7 +281,7 @@ describe('database tenant routing', () => {
     const tenantPoolB = makePool();
     const configFor = (id) => [[{
       organization_id: id, isolation_mode: 'isolated', db_host: 'tenant-db', db_port: 3306,
-      db_name: `fireisp_org_${id}`, db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
+      db_name: `vigabss_org_${id}`, db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
     }], []];
     primaryPool.execute
       .mockResolvedValueOnce(configFor(8))
@@ -314,7 +314,7 @@ describe('database tenant routing', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: `fireisp_org_${id}`,
+      db_name: `vigabss_org_${id}`,
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 0,
@@ -343,7 +343,7 @@ describe('database tenant routing', () => {
       isolation_mode: 'isolated',
       db_host: 'tenant-db',
       db_port: 3306,
-      db_name: 'fireisp_org_10',
+      db_name: 'vigabss_org_10',
       db_user: 'tenant_user',
       db_password_encrypted: 'secret',
       ssl_enabled: 1,

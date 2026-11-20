@@ -123,7 +123,7 @@ const portalRefreshSchema = {
 // SEC-28: the portal SPA kept its 7-day refresh token in localStorage, where
 // any script on the page could read it. It is now an httpOnly SameSite=Strict
 // cookie sent only to the portal auth endpoints.
-const PORTAL_REFRESH_COOKIE = 'fireisp_portal_refresh';
+const PORTAL_REFRESH_COOKIE = 'vigabss_portal_refresh';
 const PORTAL_REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'strict',

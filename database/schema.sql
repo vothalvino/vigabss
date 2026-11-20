@@ -619,7 +619,7 @@ CREATE TABLE IF NOT EXISTS nas (
 -- ---------------------------------------------------------------------------
 -- Table: nas_wg_tunnels
 -- Purpose: Per-NAS WireGuard tunnel configuration and state (migration 364).
---          One active row per NAS; the VigaBSS host is the hub (wg-fireisp).
+--          One active row per NAS; the VigaBSS host is the hub (wg-vigabss).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS nas_wg_tunnels (
     id                       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -627,7 +627,7 @@ CREATE TABLE IF NOT EXISTS nas_wg_tunnels (
                                  COMMENT 'Tenant org; NULL = single-tenant deployment',
     nas_id                   BIGINT UNSIGNED NOT NULL
                                  COMMENT 'FK to nas.id — one active tunnel per NAS',
-    interface_name           VARCHAR(15) NOT NULL DEFAULT 'wg-fireisp'
+    interface_name           VARCHAR(15) NOT NULL DEFAULT 'wg-vigabss'
                                  COMMENT 'Host WireGuard interface name (max 15 chars; Linux IFNAMSIZ)',
     tunnel_address           VARCHAR(45) NOT NULL
                                  COMMENT 'Allocated /32 host IP within WG_SERVER_SUBNET (e.g. 10.255.0.2)',
@@ -642,7 +642,7 @@ CREATE TABLE IF NOT EXISTS nas_wg_tunnels (
     state                    ENUM('pending','active','manual','degraded','error','disabled') NOT NULL DEFAULT 'pending'
                                  COMMENT 'Provisioning state machine',
     server_peer_synced       TINYINT(1) NOT NULL DEFAULT 0
-                                 COMMENT '1 when wg set wg-fireisp peer has been called for this NAS',
+                                 COMMENT '1 when wg set wg-vigabss peer has been called for this NAS',
     last_handshake_at        DATETIME NULL
                                  COMMENT 'Last WireGuard handshake timestamp (poller; FOLLOW-UP)',
     last_error               TEXT NULL
@@ -9128,7 +9128,7 @@ CREATE TABLE IF NOT EXISTS organization_sso_group_mappings (
     id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sso_config_id         BIGINT UNSIGNED NOT NULL,
     idp_group             VARCHAR(255) NOT NULL,
-    fireisp_role          ENUM('admin','manager','technician','billing','readonly') NOT NULL,
+    vigabss_role          ENUM('admin','manager','technician','billing','readonly') NOT NULL,
     created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_group_mapping_config_group (sso_config_id, idp_group),
@@ -17699,7 +17699,7 @@ VALUES
 INSERT INTO scheduled_tasks
     (organization_id, task_name, task_type, handler, description, cron_expression, priority, max_retries, timeout_seconds, is_enabled, payload)
 VALUES
-    (NULL, 'refresh_voip_ranges', 'other', 'voipRangesService.refreshAllNas', 'Refreshes the fireisp-voip RTC/VoIP address-list on managed MikroTik NAS from provider IP-range sources. Disabled by default; enable once real-time priority is seeded and VOIP_RANGES_ENABLED=true.', '0 4 * * 1', 'low', 2, 600, 0, NULL);
+    (NULL, 'refresh_voip_ranges', 'other', 'voipRangesService.refreshAllNas', 'Refreshes the vigabss-voip RTC/VoIP address-list on managed MikroTik NAS from provider IP-range sources. Disabled by default; enable once real-time priority is seeded and VOIP_RANGES_ENABLED=true.', '0 4 * * 1', 'low', 2, 600, 0, NULL);
 
 -- ---------------------------------------------------------------------------
 -- Table: import_jobs (migration 522)

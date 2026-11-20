@@ -42,7 +42,7 @@ test('the pod mounts no service-account token, and namespaces enforce the restri
   }
 });
 
-// The image created fireisp with `useradd --system`, so its uid was whatever
+// The image created vigabss with `useradd --system`, so its uid was whatever
 // the base image left free (999 on bookworm), while both manifests ran the pod
 // as 1000: the base image's `node` user, which does not own /app/storage. The
 // uid is now fixed in the image and the manifests run as exactly that, above

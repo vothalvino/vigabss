@@ -119,12 +119,12 @@ describe('Session hardening', () => {
       require('../src/config/database').query.mockResolvedValueOnce([[]]); // session lookup: already gone
       const res = await request(app)
         .post('/api/v1/auth/logout')
-        .set('Cookie', 'fireisp_refresh=some-refresh-token');
+        .set('Cookie', 'vigabss_refresh=some-refresh-token');
 
       expect(res.status).toBe(200);
       const cookies = res.headers['set-cookie'] || [];
-      expect(cookies.find((c) => c.startsWith('fireisp_access='))).toBeDefined();
-      expect(cookies.find((c) => c.startsWith('fireisp_refresh='))).toBeDefined();
+      expect(cookies.find((c) => c.startsWith('vigabss_access='))).toBeDefined();
+      expect(cookies.find((c) => c.startsWith('vigabss_refresh='))).toBeDefined();
     });
 
     it('with NO credential at all: returns 200 but emits NO cookie-clearing headers', async () => {
@@ -136,8 +136,8 @@ describe('Session hardening', () => {
 
       expect(res.status).toBe(200);
       const cookies = res.headers['set-cookie'] || [];
-      expect(cookies.find((c) => c.startsWith('fireisp_access='))).toBeUndefined();
-      expect(cookies.find((c) => c.startsWith('fireisp_refresh='))).toBeUndefined();
+      expect(cookies.find((c) => c.startsWith('vigabss_access='))).toBeUndefined();
+      expect(cookies.find((c) => c.startsWith('vigabss_refresh='))).toBeUndefined();
     });
 
     it('rejects a non-string refreshToken with 422 instead of 500ing in crypto', async () => {

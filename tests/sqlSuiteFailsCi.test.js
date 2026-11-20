@@ -26,7 +26,7 @@ test('every SQL test file ends with test_summary, so its failures surface', () =
 });
 
 test('CI runs the suite on schema.sql and on the migrated database, stopping on the first error', () => {
-  for (const [step, db] of [['Run SQL test suite', 'fireisp_test'], ['Run SQL test suite against the migrated database', 'fireisp_migrate_test']]) {
+  for (const [step, db] of [['Run SQL test suite', 'vigabss_test'], ['Run SQL test suite against the migrated database', 'vigabss_migrate_test']]) {
     const start = ci.indexOf(`- name: ${step}\n`);
     expect(start).toBeGreaterThan(-1);
     const block = ci.slice(start, ci.indexOf('- name:', start + 10));

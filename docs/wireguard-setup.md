@@ -5,11 +5,6 @@ dial in over WireGuard, and VigaBSS routes between them so an operator can reach
 device behind a NAS for monitoring and troubleshooting — without exposing the router's
 management plane to the internet.
 
-The interface name `wg-fireisp`, nftables table `fireisp_wg`, and the container
-image's `fireisp` Linux account are legacy protocol/runtime identifiers retained
-for upgrades and host firewall rules. They are not display branding and should
-not be renamed on a working installation.
-
 A fresh installation ships **disabled**. While disabled the app
 still *generates* configs / paste-once snippets / QR codes, but it does **not** bring up
 kernel tunnels (`GET /nas/:id/wg` stays `null`, peers report `server_peer_synced=0`).
@@ -18,10 +13,10 @@ Two kernel WireGuard interfaces are **auto-provisioned and managed by the app**:
 
 | Interface    | Peers                         | Subnet (`env`)                 | Server IP    | UDP port (`env`)            |
 |--------------|-------------------------------|--------------------------------|--------------|-----------------------------|
-| `wg-fireisp` | MikroTik NAS routers          | `WG_SERVER_SUBNET` 10.255.0.0/16 | `10.255.0.1` | `WG_LISTEN_PORT` 51820      |
+| `wg-vigabss` | MikroTik NAS routers          | `WG_SERVER_SUBNET` 10.255.0.0/16 | `10.255.0.1` | `WG_LISTEN_PORT` 51820      |
 | `wg-clients` | admin / technician / support  | `WG_CLIENT_SUBNET` 10.99.0.0/16  | `10.99.0.1`  | `WG_CLIENT_LISTEN_PORT` 51821 |
 
-Datapath: `user client → wg-clients → (IP-forward + nftables per-user scope + MASQUERADE) → wg-fireisp → NAS tunnel → device`.
+Datapath: `user client → wg-clients → (IP-forward + nftables per-user scope + MASQUERADE) → wg-vigabss → NAS tunnel → device`.
 
 The IP allocator reserves `.1` on each subnet for the server interface and assigns
 peers from `.2` upward, so the addresses above never collide with a provisioned peer.
@@ -70,7 +65,7 @@ steps required):
 
 - generates the two server keypairs **if absent**, persisting them `0600` to the
   `wg_keys` volume at `WG_KEY_DIR=/etc/wireguard` (keys never enter git or the image);
-- creates `wg-fireisp` (10.255.0.1) + `wg-clients` (10.99.0.1), binds each private key
+- creates `wg-vigabss` (10.255.0.1) + `wg-clients` (10.99.0.1), binds each private key
   + listen port, and brings the interfaces up;
 - enables `net.ipv4.ip_forward`;
 - installs the base nftables ruleset.
@@ -82,7 +77,7 @@ stop and runtime interfaces/firewall state are removed (configs/snippets/QRs rem
 > **Security model.** Only `wireguard-helper` runs as uid 0 with `NET_ADMIN`;
 > every other capability is dropped, privilege escalation is disabled, and its
 > root filesystem is read-only. The public app, dev, test, and e2e retain the
-> image's non-root `fireisp` user.
+> image's non-root `vigabss` user.
 
 > **Where do the interfaces live?** In the **app container's own network namespace**
 > (the compose does *not* use host networking, which would break the bridge service-DNS
@@ -103,8 +98,8 @@ advertises the on-disk key (issued configs always reflect the key the server hol
 
 ```bash
 # Per interface, on the host:
-sudo sh -c 'umask 077; wg genkey | tee /etc/wireguard/wg-fireisp.key | wg pubkey > /etc/wireguard/wg-fireisp.pub'
-# …create /etc/wireguard/wg-fireisp.conf (Address 10.255.0.1/16, ListenPort 51820, PrivateKey …)
+sudo sh -c 'umask 077; wg genkey | tee /etc/wireguard/wg-vigabss.key | wg pubkey > /etc/wireguard/wg-vigabss.pub'
+# …create /etc/wireguard/wg-vigabss.conf (Address 10.255.0.1/16, ListenPort 51820, PrivateKey …)
 # …repeat for wg-clients (10.99.0.1/16, 51821) and `systemctl enable --now wg-quick@…`.
 ```
 
@@ -118,10 +113,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
   exec wireguard-helper wg show                  # optional shell-level diagnostic
 ```
 - Create a peer in **My Tunnels** → `… exec wireguard-helper wg show wg-clients`
-  lists it, and `… exec wireguard-helper nft list table inet fireisp_wg` shows
+  lists it, and `… exec wireguard-helper nft list table inet vigabss_wg` shows
   the `forward` (policy drop), `input` and `wg_user_fwd` chains.
 - Add a MikroTik **NAS** → `GET /nas/:id/wg` flips to `state: active`,
-  `server_peer_synced: 1`; `… exec wireguard-helper wg show wg-fireisp` lists
+  `server_peer_synced: 1`; `… exec wireguard-helper wg show wg-vigabss` lists
   the NAS peer.
 - If the host lacks the `wireguard` module or the GUI setting is disabled, `GET /nas/:id/wg`
   stays `null` and peer creation still returns a config but `server_peer_synced=0` — the
@@ -150,7 +145,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
   in the downloaded `.conf`.
 - **Tunnel trust model (OPS-10).** The hub runs in the app container's network
   namespace, with IP forwarding on, so its firewall is all that stands between a peer
-  and the app's private networks. The `fireisp_wg` table therefore:
+  and the app's private networks. The `vigabss_wg` table therefore:
   - drops forwarded traffic by default. A technician or support peer reaches only the
     NAS subnets its assignments allow (the per-user chain) and, with a full tunnel, the
     internet. Private, link-local, CGNAT and loopback destinations are dropped, which
@@ -161,7 +156,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
     reachable from a tunnel, so a peer cannot bypass nginx or the admin IP allowlist
     with a forged `X-Forwarded-For`.
 
-  Confirm with `… exec wireguard-helper nft list table inet fireisp_wg`: `policy drop`
+  Confirm with `… exec wireguard-helper nft list table inet vigabss_wg`: `policy drop`
   on `forward`, and a `chain input`.
 - **DNS on a full tunnel.** Because private destinations are dropped, a phone that kept
   its own network's resolver (a Wi-Fi router or a carrier DNS on a private address)

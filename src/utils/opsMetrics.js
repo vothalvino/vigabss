@@ -3,7 +3,7 @@
 // =============================================================================
 // Operational metrics recorded outside HTTP (OPS-15)
 // =============================================================================
-// The shipped backup alert queried fireisp_last_backup_timestamp_seconds and
+// The shipped backup alert queried vigabss_last_backup_timestamp_seconds and
 // nothing exported it; scheduled tasks had no run or failure counters. These
 // are recorded where the work happens and read by /metrics.
 // =============================================================================
@@ -50,7 +50,7 @@ function refreshLastBackupFromDb() {
 }
 
 registry.collected({
-  name: 'fireisp_last_backup_timestamp_seconds',
+  name: 'vigabss_last_backup_timestamp_seconds',
   help: 'Unix time of the last successful database backup',
   collect: () => {
     refreshLastBackupFromDb();

@@ -17,7 +17,6 @@
 //
 // THE PASSWORD IS NEVER A COMMAND-LINE ARGUMENT. It is read from the
 // VIGABSS_ADMIN_PASSWORD environment variable, or prompted for interactively.
-// FIREISP_ADMIN_PASSWORD remains a compatibility alias for older automation.
 //
 // NOT `ADMIN_PASSWORD`: seed.js already owns that name for the INITIAL password
 // of the seeded admin account, install.sh writes it into .env.prod, and the app
@@ -70,13 +69,12 @@ function promptHidden(question) {
 /**
  * Resolve the password for a command, preferring channels that never reach argv.
  *
- * Order: VIGABSS_ADMIN_PASSWORD, legacy FIREISP_ADMIN_PASSWORD (environment —
- * /proc/<pid>/environ is 0400, owner only) → interactive prompt → the
+ * Order: VIGABSS_ADMIN_PASSWORD (environment — /proc/<pid>/environ is 0400,
+ * owner only) → interactive prompt → the
  * deprecated flag, which works but warns.
  */
 async function resolvePassword(args, { confirm = false } = {}) {
   if (process.env.VIGABSS_ADMIN_PASSWORD) return process.env.VIGABSS_ADMIN_PASSWORD;
-  if (process.env.FIREISP_ADMIN_PASSWORD) return process.env.FIREISP_ADMIN_PASSWORD;
 
   if (args.password && args.password !== true) {
     logger.warn(

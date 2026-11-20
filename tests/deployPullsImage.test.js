@@ -42,33 +42,28 @@ describe('the production compose file pulls the app image', () => {
   });
 
   it('lets the tag be pinned, and defaults to latest when it is not', () => {
-    // redeploy.sh pins VIGABSS_IMAGE to the exact commit. The nested legacy
-    // alias keeps existing local Compose overlays working during the rename.
-    expect(prod.services.app.image).toMatch(/^\$\{VIGABSS_IMAGE:-\$\{FIREISP_IMAGE:-/);
-    expect(prod.services.app.image).toMatch(/:latest\}\}$/);
+    // redeploy.sh pins VIGABSS_IMAGE to the exact commit.
+    expect(prod.services.app.image).toMatch(/^\$\{VIGABSS_IMAGE:-/);
+    expect(prod.services.app.image).toMatch(/:latest\}$/);
   });
 
-  it('uses VIGABSS_* as primary runtime knobs while preserving FIREISP_* aliases', () => {
-    const canonical = '${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}';
-    expect(prod.services.app.environment.VIGABSS_UPDATE_CHECK).toBe(canonical);
-    // The compatibility value resolves from the canonical spelling first too,
-    // so conflicting definitions cannot make old and new backends disagree.
-    expect(prod.services.app.environment.FIREISP_UPDATE_CHECK).toBe(canonical);
+  it('passes the update-check switch through, on by default', () => {
+    expect(prod.services.app.environment.VIGABSS_UPDATE_CHECK).toBe('${VIGABSS_UPDATE_CHECK:-1}');
   });
 
-  it('retains legacy database fallbacks while fresh installs write VigaBSS names', () => {
-    // An established custom .env.prod may omit these optional values. Changing
-    // Compose's fallback would then point the app at a new empty database and
-    // initialize MySQL with a different user beside the existing volume.
+  it('uses one database name and user default everywhere', () => {
+    // The app and both database services must agree on the fallback, or an
+    // env file that omits these optional values points the app at a database
+    // MySQL never created.
     for (const service of ['db-primary', 'db-replica']) {
-      expect(prod.services[service].environment.MYSQL_DATABASE).toBe('${DB_NAME:-fireisp}');
-      expect(prod.services[service].environment.MYSQL_USER).toBe('${DB_USER:-fireisp}');
+      expect(prod.services[service].environment.MYSQL_DATABASE).toBe('${DB_NAME:-vigabss}');
+      expect(prod.services[service].environment.MYSQL_USER).toBe('${DB_USER:-vigabss}');
     }
-    expect(prod.services.app.environment.DB_NAME).toBe('${DB_NAME:-fireisp}');
-    expect(prod.services.app.environment.DB_USER).toBe('${DB_USER:-fireisp}');
+    expect(prod.services.app.environment.DB_NAME).toBe('${DB_NAME:-vigabss}');
+    expect(prod.services.app.environment.DB_USER).toBe('${DB_USER:-vigabss}');
 
-    // New installs never depend on that fallback: the generated env selects
-    // the rebranded names explicitly.
+    // Installs never depend on that fallback: the generated env selects the
+    // names explicitly.
     const install = read('install.sh');
     expect(install).toMatch(/^DB_NAME=vigabss$/m);
     expect(install).toMatch(/^DB_USER=vigabss$/m);
@@ -126,7 +121,6 @@ describe('redeploy.sh pulls and never builds', () => {
     expect(tagLine).toMatch(/rev-parse HEAD/);
     expect(tagLine).not.toMatch(/latest/);
     expect(script).toMatch(/export VIGABSS_IMAGE=/);
-    expect(script).toMatch(/export FIREISP_IMAGE="\$VIGABSS_IMAGE"/);
   });
 
   it('accepts the rollback target as an ARGUMENT, ahead of the env var', () => {
@@ -141,7 +135,7 @@ describe('redeploy.sh pulls and never builds', () => {
   it('refuses an application rollback to a build that predates the release baseline', () => {
     // The 459/460 one-way boundaries are part of 001_baseline.sql, so every
     // tagged release is past them; only a pre-release build is not.
-    expect(script).toMatch(/PINNED_ENV_TAG="\$\{VIGABSS_IMAGE_TAG:-\$\{FIREISP_IMAGE_TAG:-\}\}"/);
+    expect(script).toMatch(/PINNED_ENV_TAG="\$\{VIGABSS_IMAGE_TAG:-\}"/);
     expect(script).toMatch(/\[\[ -n "\$\{1:-\$PINNED_ENV_TAG\}" \]\]/);
     expect(script).toMatch(/cat-file -e "\$\{TAG\}\^\{commit\}:database\/migrations\/001_baseline\.sql"/);
     expect(script).toMatch(/refusing to start an application version that predates the release/);
@@ -185,31 +179,20 @@ describe('redeploy.sh pulls and never builds', () => {
 describe('the installer does not compile on the target box', () => {
   const install = read('install.sh');
 
-  it('defaults to /opt/vigabss, reuses one legacy install, and refuses an ambiguous pair', () => {
-    const fnStart = install.indexOf('install_dir_present() {');
+  it('defaults to /opt/vigabss and validates an explicit install path', () => {
+    const fnStart = install.indexOf('normalize_install_dir() {');
     const fnEnd = install.indexOf('\nif ! INSTALL_DIR=', fnStart);
     const selectFunctions = install.slice(fnStart, fnEnd);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-install-path-'));
     const canonical = path.join(dir, 'vigabss');
-    const legacy = path.join(dir, 'fireisp');
     const choose = requested => spawnSync('bash', ['-c', [
       'set -euo pipefail',
       selectFunctions,
-      'select_install_dir "$1" "$2" "$3"',
-    ].join('\n'), 'install-dir-test', requested, canonical, legacy], { encoding: 'utf8' });
+      'select_install_dir "$1" "$2"',
+    ].join('\n'), 'install-dir-test', requested, canonical], { encoding: 'utf8' });
 
     try {
       expect(choose('').stdout).toBe(canonical);
-      fs.mkdirSync(legacy, { recursive: true });
-      fs.writeFileSync(path.join(legacy, '.env.prod'), 'DB_PASSWORD=preserve-me\n');
-      expect(choose('').stdout).toBe(legacy);
-
-      fs.mkdirSync(canonical, { recursive: true });
-      fs.writeFileSync(path.join(canonical, 'docker-compose.prod.yml'), 'services: {}\n');
-      const ambiguous = choose('');
-      expect(ambiguous.status).not.toBe(0);
-      expect(ambiguous.stderr).toMatch(/both .*vigabss.*fireisp.*look like VigaBSS installs/);
-      expect(ambiguous.stderr).toMatch(/Set INSTALL_DIR explicitly/);
 
       const explicit = path.join(dir, 'chosen');
       expect(choose(`${explicit}////`).stdout).toBe(explicit);
@@ -307,7 +290,7 @@ describe('the installer does not compile on the target box', () => {
       expect(end).toBeGreaterThan(start);
       return install.slice(start, end + 2);
     };
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-compose-env-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-compose-env-'));
     const file = path.join(dir, '.env.prod');
     const fakeDocker = path.join(dir, 'docker');
     const savedJwt = 'b'.repeat(64);
@@ -342,7 +325,7 @@ describe('the installer does not compile on the target box', () => {
     const start = install.indexOf('get_env_value() {');
     const end = install.indexOf('\n}', start);
     const getEnvValue = install.slice(start, end + 2);
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-multiline-env-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-multiline-env-'));
     const file = path.join(dir, '.env.prod');
     const fakeDocker = path.join(dir, 'docker');
     fs.writeFileSync(file, 'ADMIN_PASSWORD=placeholder\n', { mode: 0o600 });
@@ -378,7 +361,7 @@ describe('the installer does not compile on the target box', () => {
     const start = install.indexOf('get_env_value() {');
     const end = install.indexOf('\n}', start);
     const getEnvValue = install.slice(start, end + 2);
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-old-compose-env-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-old-compose-env-'));
     const file = path.join(dir, '.env.prod');
     const fakeDocker = path.join(dir, 'docker');
     fs.writeFileSync(fakeDocker, '#!/usr/bin/env bash\nexit 0\n', { mode: 0o700 });
@@ -422,7 +405,7 @@ describe('the installer does not compile on the target box', () => {
       expect(end).toBeGreaterThan(start);
       return install.slice(start, end + 2);
     };
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-install-env-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-install-env-'));
     const file = path.join(dir, '.env.prod');
     const originalDb = 'db-old|with&chars';
     const originalEncryption = 'ab'.repeat(32);
@@ -473,7 +456,7 @@ describe('the installer does not compile on the target box', () => {
     expect(install).toContain('mysql --connect-timeout=5 --protocol=TCP -h 127.0.0.1 -u "$MYSQL_USER" "$MYSQL_DATABASE"');
     expect(install).toContain('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()');
     expect(install).toContain('VIGABSS_BOOTSTRAP_STATE=pending');
-    expect(install).toContain('get_compatible_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE FIREISP_BOOTSTRAP_STATE');
+    expect(install).toContain('get_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE');
     expect(install).toMatch(/pending\)\s+RUN_INITIAL_SEED=1/);
     expect(install).toMatch(/if \[\[ "\$RUN_INITIAL_SEED" == "1" \]\]; then[\s\S]+src\/scripts\/bootstrap\.js[\s\S]+VIGABSS_BOOTSTRAP_STATE seeded/);
     expect(install).toContain('VIGABSS_BOOTSTRAP_STATE complete');
@@ -676,9 +659,9 @@ describe('the image is published for every architecture people self-host on', ()
 });
 
 describe('k8s and Helm point at the image that is actually published', () => {
-  // These defaulted to `fireisp/fireisp`, which resolves to
-  // docker.io/fireisp/fireisp — a namespace this project does not control, so a
-  // squatter there would have been pulled and run. Worse, the cosign policies
+  // These defaulted to a bare two-part name, which resolves to Docker Hub — a
+  // namespace this project does not control, so a squatter there would have
+  // been pulled and run. Worse, the cosign policies
   // shipped alongside glob ghcr.io/vothalvino/vigabss:*, so they never
   // matched the deployed image and the signature check bought nothing.
   const REGISTRY = 'ghcr.io/vothalvino/vigabss';
@@ -696,7 +679,7 @@ describe('k8s and Helm point at the image that is actually published', () => {
   it('the plain manifest runs migration and app from one immutable release image', () => {
     const dep = yaml.load(read('k8s/deployment.yaml'));
     const migration = dep.spec.template.spec.initContainers.find(c => c.name === 'database-migrate');
-    const app = dep.spec.template.spec.containers.find(c => c.name === 'fireisp');
+    const app = dep.spec.template.spec.containers.find(c => c.name === 'vigabss');
     expect(migration.image).toBe(app.image);
     expect(app.image).toBe(`${REGISTRY}:REPLACE_WITH_FULL_COMMIT_SHA`);
     expect(app.image).not.toMatch(/:latest$/);
@@ -770,23 +753,20 @@ describe('a fresh install can actually run the command it advertises', () => {
   it('installs it as a WRAPPER, so it cannot go stale', () => {
     // A copy keeps running the old logic after `git pull`, silently. The
     // wrapper execs whatever shipped with the installed code.
-    expect(install).toMatch(/exec env VIGABSS_DIR=.*FIREISP_DIR=.*redeploy\.sh/);
+    expect(install).toMatch(/exec env VIGABSS_DIR=.*redeploy\.sh/);
     expect(install).not.toMatch(/install -m 0755 "\$INSTALL_DIR\/redeploy\.sh"/);
   });
 
-  it('pins the canonical and legacy install dir in the wrapper, because sudo strips them', () => {
+  it('pins the install dir in the wrapper, because sudo strips it', () => {
     // `VIGABSS_DIR=/srv/x sudo redeploy` is discarded by `Defaults env_reset`,
     // so a non-default install directory could not be reached at all.
     const wrapper = install.split('REDEPLOYEOF')[1] || '';
     expect(wrapper).toMatch(/VIGABSS_DIR="\$INSTALL_DIR"/);
-    expect(wrapper).toMatch(/FIREISP_DIR="\$INSTALL_DIR"/);
     expect(wrapper).toMatch(/"\\\$@"/);   // forwards the rollback argument
   });
 
-  it('installs the VigaBSS CLI and retains fireisp as a compatibility alias', () => {
+  it('installs the VigaBSS CLI wrapper', () => {
     expect(install).toContain('VIGABSS_BIN="/usr/local/bin/vigabss"');
-    expect(install).toContain('LEGACY_FIREISP_BIN="/usr/local/bin/fireisp"');
-    expect(install).toMatch(/ln -sfn "\$VIGABSS_BIN" "\$LEGACY_FIREISP_BIN"/);
   });
 });
 
@@ -822,7 +802,7 @@ describe('operator-facing guidance matches what CI actually publishes', () => {
 // `sudo redeploy <sha>` is the emergency path, run when production is already
 // broken. CI only ever publishes the full 40-hex sha, -amd64/-arm64 and
 // :latest, so an abbreviated or mistyped rollback tag does not exist and never
-// will. Retrying it burns the whole FIREISP_IMAGE_WAIT — 600s of `sleep 15`
+// will. Retrying it burns the whole VIGABSS_IMAGE_WAIT — 600s of `sleep 15`
 // before failing — which is ten minutes of outage spent waiting for something
 // that cannot arrive.
 describe('redeploy.sh — rollback does not wait', () => {

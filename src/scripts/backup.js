@@ -176,7 +176,7 @@ async function doBackup(trigger) {
   const port = process.env.DB_PORT || '3306';
   const user = process.env.DB_USER || 'root';
   const password = process.env.DB_PASSWORD || '';
-  const database = process.env.DB_NAME || 'fireisp';
+  const database = process.env.DB_NAME || 'vigabss';
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `${database}_${timestamp}.sql.gz`;

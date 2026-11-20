@@ -156,7 +156,7 @@ async function main() {
     console.error('Usage: node src/scripts/schema-snapshot.js <output.json>');
     process.exit(2);
   }
-  const schema = process.env.DB_NAME || 'fireisp';
+  const schema = process.env.DB_NAME || 'vigabss';
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),

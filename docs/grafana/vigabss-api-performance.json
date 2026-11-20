@@ -9,9 +9,9 @@
     }
   ],
   "title": "VigaBSS — API Performance",
-  "uid": "fireisp-api-perf",
+  "uid": "vigabss-api-perf",
   "version": 1,
-  "tags": ["fireisp", "api", "latency", "performance"],
+  "tags": ["vigabss", "api", "latency", "performance"],
   "timezone": "browser",
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },

@@ -392,7 +392,7 @@ async function assigneeAuthError(assignedTo, orgId) {
 // Multer — work order attachments (disk storage, 20 MB limit)
 // ---------------------------------------------------------------------------
 // Under STORAGE_ROOT, which is the ONLY directory any deployment mounts:
-// `storage:/app/storage` in docker-compose.prod.yml and the fireisp-storage PVC
+// `storage:/app/storage` in docker-compose.prod.yml and the vigabss-storage PVC
 // in k8s/deployment.yaml. The previous ../../uploads/work-orders was mounted by
 // nothing, so a technician's installation photos lived in the container's
 // writable layer and were destroyed by every redeploy.

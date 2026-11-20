@@ -46,9 +46,9 @@
 
 Set shell variables before starting to avoid typos across commands:
 
-The default below is for a fresh VigaBSS install. Set `DB_NAME` explicitly to
-the existing configured name when testing an upgraded installation; do not
-rename a live FireISP-era database as part of the drill.
+The default below is for a standard VigaBSS install. Set `DB_NAME` explicitly
+when the installation uses a different name; do not rename a live database as
+part of the drill.
 
 ```bash
 export DB_HOST="${DB_HOST:-127.0.0.1}"

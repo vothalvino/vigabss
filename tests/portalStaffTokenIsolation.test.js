@@ -78,7 +78,7 @@ describe.each([
   });
 
   test('GET /api/v1/auth/me (access cookie) is 401', async () => {
-    const res = await request(app).get('/api/v1/auth/me').set('Cookie', `fireisp_access=${makeToken()}`);
+    const res = await request(app).get('/api/v1/auth/me').set('Cookie', `vigabss_access=${makeToken()}`);
     expect(res.status).toBe(401);
     expect(usersQueried()).toBe(false);
   });
@@ -157,7 +157,7 @@ describe('staff 2FA challenge token on staff surfaces', () => {
   });
 
   test('GET /api/v1/auth/me (access cookie) is 401', async () => {
-    const res = await request(app).get('/api/v1/auth/me').set('Cookie', `fireisp_access=${challenge()}`);
+    const res = await request(app).get('/api/v1/auth/me').set('Cookie', `vigabss_access=${challenge()}`);
     expect(res.status).toBe(401);
   });
 

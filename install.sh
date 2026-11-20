@@ -14,8 +14,7 @@
 #   EMAIL               Administrator login + Let's Encrypt contact
 #   ORG_NAME            Your organization's name (prompted on a fresh install)
 #   ORG_COUNTRY         Two-letter country code, e.g. MX (prompted on a fresh install)
-#   INSTALL_DIR         Target install directory (default: /opt/vigabss;
-#                       an existing /opt/fireisp install is reused automatically)
+#   INSTALL_DIR         Target install directory (default: /opt/vigabss)
 #   SKIP_TLS            Set to 1 to use a self-signed cert instead of Let's Encrypt
 #   DB_PASSWORD         MySQL app user password     (auto-generated if omitted)
 #   DB_ROOT_PASSWORD    MySQL root password          (auto-generated if omitted)
@@ -38,17 +37,6 @@ trap 'echo "install.sh: stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 REPO_URL="https://github.com/vothalvino/vigabss.git"
 VIGABSS_VERSION="0.1.0-alpha.21"
-
-# New installations use the VigaBSS path. An upgrade must not silently create a
-# second stack beside an existing FireISP-era checkout: that would reuse neither
-# its secrets nor its database volume and would then collide on ports 80/443.
-# An explicit INSTALL_DIR always wins. With no override, reuse exactly one
-# detected install; if both paths look live, fail closed instead of guessing
-# which stack owns the production secrets, volumes and ports.
-install_dir_present() {
-  local dir="$1"
-  [[ -d "$dir/.git" || -f "$dir/.env.prod" || -f "$dir/docker-compose.prod.yml" ]]
-}
 
 normalize_install_dir() {
   local dir="$1"
@@ -80,32 +68,13 @@ normalize_install_dir() {
   printf '%s' "$dir"
 }
 
+# An explicit INSTALL_DIR always wins; otherwise the standard path is used.
 select_install_dir() {
-  local requested="$1" canonical="$2" legacy="$3"
-  local canonical_present=0 legacy_present=0 selected
-
-  if [[ -n "$requested" ]]; then
-    normalize_install_dir "$requested"
-    return
-  fi
-
-  install_dir_present "$canonical" && canonical_present=1
-  install_dir_present "$legacy" && legacy_present=1
-  if (( canonical_present && legacy_present )); then
-    echo "error: both $canonical and $legacy look like VigaBSS installs." >&2
-    echo "       Set INSTALL_DIR explicitly to the production install you intend to update." >&2
-    return 1
-  elif (( canonical_present )); then
-    selected="$canonical"
-  elif (( legacy_present )); then
-    selected="$legacy"
-  else
-    selected="$canonical"
-  fi
-  normalize_install_dir "$selected"
+  local requested="$1" standard="$2"
+  normalize_install_dir "${requested:-$standard}"
 }
 
-if ! INSTALL_DIR="$(select_install_dir "${INSTALL_DIR:-}" /opt/vigabss /opt/fireisp)"; then
+if ! INSTALL_DIR="$(select_install_dir "${INSTALL_DIR:-}" /opt/vigabss)"; then
   exit 1
 fi
 ENV_FILE="$INSTALL_DIR/.env.prod"
@@ -402,21 +371,6 @@ get_env_value() {
   printf '%s' "$value"
 }
 
-# Read a renamed installer setting without abandoning existing installations.
-# The VIGABSS_* spelling is authoritative when both are present; a missing new
-# key falls back to its FIREISP_* predecessor. Parse/format errors are preserved
-# so callers still fail closed instead of guessing at a secrets file.
-get_compatible_env_value() {
-  local file="$1" primary="$2" legacy="$3" value status=0
-  value="$(get_env_value "$file" "$primary")" || status=$?
-  if [[ "$status" -eq 0 ]]; then
-    printf '%s' "$value"
-    return 0
-  fi
-  [[ "$status" -eq 1 ]] || return "$status"
-  get_env_value "$file" "$legacy"
-}
-
 normalize_boolean_value() {
   local value="${1,,}"
   case "$value" in
@@ -619,31 +573,31 @@ if [[ -f "$ENV_FILE" ]]; then
   fi
 
   _BOOTSTRAP_STATE_STATUS=0
-  SAVED_BOOTSTRAP_STATE="$(get_compatible_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE FIREISP_BOOTSTRAP_STATE)" \
+  SAVED_BOOTSTRAP_STATE="$(get_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE)" \
     || _BOOTSTRAP_STATE_STATUS=$?
   if [[ "$_BOOTSTRAP_STATE_STATUS" -eq 0 ]]; then
     case "$SAVED_BOOTSTRAP_STATE" in
       pending|seeded|complete) ;;
-      *) die "Existing $ENV_FILE has an invalid VIGABSS_BOOTSTRAP_STATE (or legacy FIREISP_BOOTSTRAP_STATE) value." ;;
+      *) die "Existing $ENV_FILE has an invalid VIGABSS_BOOTSTRAP_STATE value." ;;
     esac
   elif [[ "$_BOOTSTRAP_STATE_STATUS" -ge 2 ]]; then
-    die "Docker Compose could not safely resolve VIGABSS_BOOTSTRAP_STATE/FIREISP_BOOTSTRAP_STATE from $ENV_FILE.
+    die "Docker Compose could not safely resolve VIGABSS_BOOTSTRAP_STATE from $ENV_FILE.
   Upgrade Compose to 2.27.2 or newer if the file uses quotes/interpolation."
   fi
 
   # Topology is persistent state just like the database credentials. Read it
   # before SKIP_TLS and port-ownership heuristics so a rerun cannot silently
   # switch an established host-nginx install back to the Docker proxy (or vice
-  # versa). The canonical spelling wins; legacy files remain readable.
+  # versa).
   _HOST_NGINX_STATE_STATUS=0
-  _SAVED_HOST_NGINX_RAW="$(get_compatible_env_value "$ENV_FILE" VIGABSS_HOST_NGINX FIREISP_HOST_NGINX)" \
+  _SAVED_HOST_NGINX_RAW="$(get_env_value "$ENV_FILE" VIGABSS_HOST_NGINX)" \
     || _HOST_NGINX_STATE_STATUS=$?
   if [[ "$_HOST_NGINX_STATE_STATUS" -eq 0 ]]; then
     SAVED_HOST_NGINX="$(normalize_boolean_value "$_SAVED_HOST_NGINX_RAW")" \
-      || die "Existing $ENV_FILE has an invalid VIGABSS_HOST_NGINX (or legacy FIREISP_HOST_NGINX) value. Use 1 or 0."
+      || die "Existing $ENV_FILE has an invalid VIGABSS_HOST_NGINX value. Use 1 or 0."
     HOST_NGINX_TOPOLOGY_PERSISTED=1
   elif [[ "$_HOST_NGINX_STATE_STATUS" -ge 2 ]]; then
-    die "Docker Compose could not safely resolve VIGABSS_HOST_NGINX/FIREISP_HOST_NGINX from $ENV_FILE.
+    die "Docker Compose could not safely resolve VIGABSS_HOST_NGINX from $ENV_FILE.
   Upgrade Compose to 2.27.2 or newer if the file uses quotes/interpolation."
   fi
 
@@ -706,7 +660,7 @@ fi
 if (( ! HOST_NGINX_TOPOLOGY_PERSISTED )) && [[ "$USE_HOST_NGINX" != "1" ]]; then
   # Config-file detection is topology evidence even with SKIP_TLS=1. This is
   # the compatibility path for installs created before the env marker existed.
-  if [[ -f /etc/nginx/conf.d/vigabss.conf || -f /etc/nginx/conf.d/fireisp.conf ]]; then
+  if [[ -f /etc/nginx/conf.d/vigabss.conf ]]; then
     USE_HOST_NGINX=1
     info "Existing VigaBSS host-nginx configuration detected; preserving host-nginx mode."
   elif [[ "$SKIP_TLS" != "1" ]]; then
@@ -957,7 +911,6 @@ fi
 # an interrupted install could leave a usable/recovered stack with the exact
 # advertised command (`sudo redeploy`) missing.
 VIGABSS_BIN="/usr/local/bin/vigabss"
-LEGACY_FIREISP_BIN="/usr/local/bin/fireisp"
 info "Installing VigaBSS CLI wrapper at $VIGABSS_BIN ..."
 
 if [[ "$USE_HOST_NGINX" == "1" ]]; then
@@ -980,22 +933,11 @@ exec ${_COMPOSE_CMD} "\$@"
 WRAPEOF
 
 chmod +x "$VIGABSS_BIN"
-
-# Keep the old command as an alias so existing automation and operator muscle
-# memory continue to work. Both names execute the one canonical wrapper, so the
-# compatibility path cannot drift.
-if [[ -d "$LEGACY_FIREISP_BIN" && ! -L "$LEGACY_FIREISP_BIN" ]]; then
-  warn "Cannot retain the legacy 'fireisp' alias because $LEGACY_FIREISP_BIN is a directory."
-else
-  ln -sfn "$VIGABSS_BIN" "$LEGACY_FIREISP_BIN"
-  info "Legacy 'fireisp' command retained as an alias to 'vigabss'."
-fi
 log "VigaBSS CLI installed. Run 'vigabss --help' to get started."
 
 # A wrapper, not a copy: every invocation executes the redeploy logic from the
 # current checkout. Pinning VIGABSS_DIR here also survives sudo's default
-# environment reset and keeps non-default install paths working. FIREISP_DIR is
-# passed too for a rollback to an older redeploy.sh.
+# environment reset and keeps non-default install paths working.
 REDEPLOY_BIN="/usr/local/bin/redeploy"
 if [[ -f "$INSTALL_DIR/redeploy.sh" ]]; then
   info "Installing redeploy command at $REDEPLOY_BIN ..."
@@ -1004,7 +946,7 @@ if [[ -f "$INSTALL_DIR/redeploy.sh" ]]; then
 # VigaBSS 0.1.0-alpha.21 redeploy wrapper — generated by install.sh
 #   sudo redeploy              # deploy the newest release (or main: VIGABSS_CHANNEL in .env.prod)
 #   sudo redeploy <commit-sha> # roll back to an earlier published build
-exec env VIGABSS_DIR="$INSTALL_DIR" FIREISP_DIR="$INSTALL_DIR" "$INSTALL_DIR/redeploy.sh" "\$@"
+exec env VIGABSS_DIR="$INSTALL_DIR" "$INSTALL_DIR/redeploy.sh" "\$@"
 REDEPLOYEOF
   chmod +x "$REDEPLOY_BIN"
   log "redeploy installed. Update any time with: sudo redeploy"
@@ -1045,9 +987,7 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   HOST_NGINX_CONF_SRC="$INSTALL_DIR/nginx/host-nginx.conf"
   [[ -f "$HOST_NGINX_CONF_SRC" ]] || die "Missing $HOST_NGINX_CONF_SRC — repository may be incomplete."
   HOST_NGINX_CONF_DST="/etc/nginx/conf.d/vigabss.conf"
-  LEGACY_HOST_NGINX_CONF="/etc/nginx/conf.d/fireisp.conf"
   HOST_NGINX_CONF_BACKUP=""
-  LEGACY_HOST_NGINX_BACKUP=""
   HOST_NGINX_BACKUP_SUFFIX="$(date -u '+%Y%m%d%H%M%S')-$$"
   HOST_NGINX_CONF_TEMP="$(mktemp /etc/nginx/conf.d/.vigabss-rendered-XXXXXX)" \
     || die "Cannot create a temporary nginx configuration."
@@ -1059,22 +999,16 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
     die "Could not render $HOST_NGINX_CONF_SRC. The existing nginx configuration was not changed."
   fi
 
-  # Loading both files would define the same listeners twice. Move the legacy
-  # config out of nginx's *.conf include set. Existing canonical and legacy
-  # files both get recoverable backups until the newly rendered config passes
-  # validation, so a bad update cannot erase a working proxy configuration.
+  # The existing file gets a recoverable backup until the newly rendered config
+  # passes validation, so a bad update cannot erase a working proxy
+  # configuration.
   if [[ -f "$HOST_NGINX_CONF_DST" ]]; then
     HOST_NGINX_CONF_BACKUP="${HOST_NGINX_CONF_DST}.pre-vigabss-${HOST_NGINX_BACKUP_SUFFIX}"
     mv -- "$HOST_NGINX_CONF_DST" "$HOST_NGINX_CONF_BACKUP"
   fi
-  if [[ -f "$LEGACY_HOST_NGINX_CONF" ]]; then
-    LEGACY_HOST_NGINX_BACKUP="${LEGACY_HOST_NGINX_CONF}.pre-vigabss-${HOST_NGINX_BACKUP_SUFFIX}"
-    mv -- "$LEGACY_HOST_NGINX_CONF" "$LEGACY_HOST_NGINX_BACKUP"
-  fi
   if ! install -m 0644 "$HOST_NGINX_CONF_TEMP" "$HOST_NGINX_CONF_DST"; then
     rm -f -- "$HOST_NGINX_CONF_TEMP"
     [[ -z "$HOST_NGINX_CONF_BACKUP" ]] || mv -- "$HOST_NGINX_CONF_BACKUP" "$HOST_NGINX_CONF_DST"
-    [[ -z "$LEGACY_HOST_NGINX_BACKUP" ]] || mv -- "$LEGACY_HOST_NGINX_BACKUP" "$LEGACY_HOST_NGINX_CONF"
     die "Could not install $HOST_NGINX_CONF_DST. The previous nginx configuration was restored."
   fi
   rm -f -- "$HOST_NGINX_CONF_TEMP"
@@ -1085,9 +1019,6 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
     if [[ -n "$HOST_NGINX_CONF_BACKUP" && -f "$HOST_NGINX_CONF_BACKUP" ]]; then
       mv -- "$HOST_NGINX_CONF_BACKUP" "$HOST_NGINX_CONF_DST"
     fi
-    if [[ -n "$LEGACY_HOST_NGINX_BACKUP" && -f "$LEGACY_HOST_NGINX_BACKUP" ]]; then
-      mv -- "$LEGACY_HOST_NGINX_BACKUP" "$LEGACY_HOST_NGINX_CONF"
-    fi
     die "Generated nginx configuration is invalid. The previous configuration was restored.
   Check $HOST_NGINX_CONF_SRC and fix any errors."
   fi
@@ -1097,9 +1028,6 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   log "Host nginx configured ($HOST_NGINX_CONF_DST, server_name ${DOMAIN})."
   if [[ -n "$HOST_NGINX_CONF_BACKUP" ]]; then
     info "Previous VigaBSS nginx config archived at $HOST_NGINX_CONF_BACKUP."
-  fi
-  if [[ -n "$LEGACY_HOST_NGINX_BACKUP" ]]; then
-    info "Legacy nginx config archived at $LEGACY_HOST_NGINX_BACKUP."
   fi
 
   # Schedule nginx to reload every 6 hours so it picks up renewed TLS
@@ -1255,7 +1183,6 @@ else
   _head_sha="$(git -C "$INSTALL_DIR" rev-parse HEAD)"
   export VIGABSS_IMAGE="ghcr.io/vothalvino/vigabss:${_head_sha}"
 fi
-export FIREISP_IMAGE="$VIGABSS_IMAGE"
 
 _ARCH="$(uname -m)"
 if [[ "$_ARCH" == "x86_64" || "$_ARCH" == "amd64" || "$_ARCH" == "aarch64" || "$_ARCH" == "arm64" ]]; then

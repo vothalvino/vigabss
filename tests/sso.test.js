@@ -277,7 +277,7 @@ describe('ssoService.findOrCreateSsoUser', () => {
     email: 'user@example.com', firstName: 'Jane', lastName: 'Doe', groups: ['admins'],
     issuer: 'https://idp.example', subject: 'sub-123', emailVerified: null,
   };
-  const MAPPINGS    = [{ idp_group: 'admins', fireisp_role: 'admin' }];
+  const MAPPINGS    = [{ idp_group: 'admins', vigabss_role: 'admin' }];
 
   /**
    * Route db.query by statement. `state` describes the install:
@@ -348,7 +348,7 @@ describe('ssoService.findOrCreateSsoUser', () => {
       usersByEmail: { 'user@example.com': homed() },
       memberships: [{ organization_id: ORG_ID, deleted_at: null }],
     });
-    const noMatchMappings = [{ idp_group: 'other-group', fireisp_role: 'manager' }];
+    const noMatchMappings = [{ idp_group: 'other-group', vigabss_role: 'manager' }];
     const { orgRole } = await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, noMatchMappings);
     expect(orgRole).toBe('readonly');
   });
@@ -359,7 +359,7 @@ describe('ssoService.findOrCreateSsoUser', () => {
       memberships: [{ organization_id: ORG_ID, deleted_at: null }],
     });
     const { orgRole } = await ssoService.findOrCreateSsoUser(
-      ORG_ID, PROFILE, CFG_ENABLED, [{ idp_group: 'admins', fireisp_role: 'super_admin' }],
+      ORG_ID, PROFILE, CFG_ENABLED, [{ idp_group: 'admins', vigabss_role: 'super_admin' }],
     );
     expect(orgRole).toBe('readonly');
   });
@@ -589,8 +589,8 @@ describe('ssoService.getGroupMappings', () => {
 
   test('returns sorted mappings for a config', async () => {
     const rows = [
-      { id: 1, idp_group: 'admins', fireisp_role: 'admin' },
-      { id: 2, idp_group: 'staff',  fireisp_role: 'technician' },
+      { id: 1, idp_group: 'admins', vigabss_role: 'admin' },
+      { id: 2, idp_group: 'staff',  vigabss_role: 'technician' },
     ];
     mockQuery.mockResolvedValueOnce([rows]);
     const result = await ssoService.getGroupMappings(10);
@@ -617,9 +617,9 @@ describe('ssoService.saveGroupMappings', () => {
 
   test('replaces all mappings in a transaction', async () => {
     // After save, getGroupMappings query
-    mockQuery.mockResolvedValueOnce([[{ id: 1, idp_group: 'g1', fireisp_role: 'admin' }]]);
+    mockQuery.mockResolvedValueOnce([[{ id: 1, idp_group: 'g1', vigabss_role: 'admin' }]]);
 
-    const mappings = [{ idp_group: 'g1', fireisp_role: 'admin' }];
+    const mappings = [{ idp_group: 'g1', vigabss_role: 'admin' }];
     const result = await ssoService.saveGroupMappings(10, mappings);
     expect(mockConnBegin).toHaveBeenCalled();
     expect(mockConnCommit).toHaveBeenCalled();
@@ -631,7 +631,7 @@ describe('ssoService.saveGroupMappings', () => {
       .mockResolvedValueOnce([{}])  // DELETE
       .mockRejectedValueOnce(new Error('DB error')); // INSERT fails
 
-    await expect(ssoService.saveGroupMappings(10, [{ idp_group: 'g', fireisp_role: 'admin' }]))
+    await expect(ssoService.saveGroupMappings(10, [{ idp_group: 'g', vigabss_role: 'admin' }]))
       .rejects.toThrow('DB error');
     expect(mockConnRollback).toHaveBeenCalled();
   });
@@ -732,7 +732,7 @@ describe('GET /api/v1/sso/:orgId/saml/group-mappings', () => {
   test('returns group mappings list', async () => {
     mockQuery
       .mockResolvedValueOnce([[{ id: 1, organization_id: 1, provider_type: 'saml' }]]) // getConfig
-      .mockResolvedValueOnce([[{ id: 1, idp_group: 'admins', fireisp_role: 'admin' }]]); // getGroupMappings
+      .mockResolvedValueOnce([[{ id: 1, idp_group: 'admins', vigabss_role: 'admin' }]]); // getGroupMappings
     const res = await request(app).get('/api/v1/sso/1/saml/group-mappings');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -758,11 +758,11 @@ describe('PUT /api/v1/sso/:orgId/saml/group-mappings', () => {
   test('replaces group mappings and returns 200', async () => {
     mockQuery
       .mockResolvedValueOnce([[{ id: 1, organization_id: 1, provider_type: 'saml' }]]) // getConfig
-      .mockResolvedValueOnce([[{ id: 1, idp_group: 'admins', fireisp_role: 'admin' }]]); // getGroupMappings after save
+      .mockResolvedValueOnce([[{ id: 1, idp_group: 'admins', vigabss_role: 'admin' }]]); // getGroupMappings after save
 
     const res = await request(app)
       .put('/api/v1/sso/1/saml/group-mappings')
-      .send({ mappings: [{ idp_group: 'admins', fireisp_role: 'admin' }] });
+      .send({ mappings: [{ idp_group: 'admins', vigabss_role: 'admin' }] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -887,9 +887,9 @@ describe('SSO config/mapping validation', () => {
   });
 
   test.each([
-    [[{ idp_group: 'admins', fireisp_role: 'super_admin' }]],
-    [[{ idp_group: 'admins', fireisp_role: 'owner' }]],
-    [[{ idp_group: '', fireisp_role: 'admin' }]],
+    [[{ idp_group: 'admins', vigabss_role: 'super_admin' }]],
+    [[{ idp_group: 'admins', vigabss_role: 'owner' }]],
+    [[{ idp_group: '', vigabss_role: 'admin' }]],
     [['admins']],
   ])('PUT group-mappings rejects %j', async (mappings) => {
     mockQuery.mockResolvedValueOnce([[{ id: 1, organization_id: 1, provider_type: 'saml' }]]); // getConfig
@@ -966,9 +966,9 @@ describe('GET /sso/:orgId/oidc/callback — 2FA', () => {
     expect(res.headers.location).toBe('http://localhost:3000/');
     expect(res.headers.location).not.toMatch(/accessToken|refreshToken/);
     const cookies = res.headers['set-cookie'].join('\n');
-    expect(cookies).toMatch(/fireisp_refresh=[^;]+;[^\n]*HttpOnly/);
-    expect(cookies).toMatch(/fireisp_access=[^;]+;[^\n]*HttpOnly/);
-    expect(cookies).toMatch(/fireisp_active_org=1;/);
+    expect(cookies).toMatch(/vigabss_refresh=[^;]+;[^\n]*HttpOnly/);
+    expect(cookies).toMatch(/vigabss_access=[^;]+;[^\n]*HttpOnly/);
+    expect(cookies).toMatch(/vigabss_active_org=1;/);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO user_sessions/.test(sql))).toBe(true);
   });
 });

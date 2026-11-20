@@ -18,7 +18,6 @@ set -euo pipefail
 CRON_DIR="${VIGABSS_CRON_DIR:-/etc/cron.d}"
 CRON_FILE="$CRON_DIR/vigabss-nginx-reload"
 CRON_MARKER="# vigabss-nginx-reload"
-LEGACY_CRON_MARKER="# fireisp-nginx-reload"
 
 umask 022
 tmp="$(mktemp "$CRON_DIR/.vigabss-nginx-reload.XXXXXX")"
@@ -30,9 +29,9 @@ mv -f "$tmp" "$CRON_FILE"
 
 if command -v crontab >/dev/null 2>&1; then
   existing="$(crontab -l 2>/dev/null || true)"
-  if printf '%s\n' "$existing" | grep -q -e "$CRON_MARKER" -e "$LEGACY_CRON_MARKER"; then
+  if printf '%s\n' "$existing" | grep -q -e "$CRON_MARKER"; then
     printf '%s\n' "$existing" \
-      | { grep -v -e "$CRON_MARKER" -e "$LEGACY_CRON_MARKER" || true; } \
+      | { grep -v -e "$CRON_MARKER" || true; } \
       | crontab -
   fi
 fi

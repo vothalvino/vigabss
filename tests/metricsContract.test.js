@@ -4,7 +4,7 @@
 // =============================================================================
 // http_requests_total had no labels, so the SLO numerators (status=~"5..")
 // were empty and the SLO alerts never fired; radius_auth_* and
-// fireisp_last_backup_timestamp_seconds were not exported; the dashboards
+// vigabss_last_backup_timestamp_seconds were not exported; the dashboards
 // queried nodejs_heap_size_used_bytes, http_active_connections and
 // nodejs_eventloop_lag_seconds, none of which existed; and the histogram
 // re-summed cumulative counts (le=10 read 11x the request count).
@@ -131,12 +131,12 @@ test('a successful backup and scheduled-task runs are exported', () => {
   noteBackupSuccess(new Date('2026-11-01T03:00:00Z'));
   noteTaskRun('database_backup', 'success');
   const out = metrics.registry.render();
-  expect(out).toMatch(/^fireisp_last_backup_timestamp_seconds 1793502000$/m);
+  expect(out).toMatch(/^vigabss_last_backup_timestamp_seconds 1793502000$/m);
   expect(out).toMatch(/^scheduled_task_runs_total\{task="database_backup",status="success"\} 1$/m);
 });
 
 test('the alert rules select the scrape job the docs tell operators to configure', () => {
-  // The rules said job="fireisp" while docs/deployment.md names the job
+  // The rules said job="vigabss" while docs/deployment.md names the job
   // vigabss, so no alert could ever match a series.
   const jobName = read('docs/deployment.md').match(/^\s+- job_name: (\S+)$/m)[1];
   for (const file of ['k8s/prometheus-alerts.yaml', 'charts/vigabss/templates/prometheus-alerts.yaml']) {

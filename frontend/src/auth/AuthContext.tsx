@@ -192,18 +192,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       setState({ user: null, loading: false, initialized: true });
     };
-    window.addEventListener('fireisp:session-expired', onSessionExpired);
-    return () => window.removeEventListener('fireisp:session-expired', onSessionExpired);
+    window.addEventListener('vigabss:session-expired', onSessionExpired);
+    return () => window.removeEventListener('vigabss:session-expired', onSessionExpired);
   }, [queryClient]);
 
   // On mount: attempt silent session restore by calling the refresh endpoint.
-  // The httpOnly `fireisp_refresh` cookie is sent automatically by the browser
+  // The httpOnly `vigabss_refresh` cookie is sent automatically by the browser
   // (credentials: 'include'), so no localStorage read is needed.  If the
   // cookie is absent or expired the server returns 401 and we settle as
   // logged-out without further network calls.
   //
   // The CSRF middleware enforces X-CSRF-Token for cookie-authenticated POSTs.
-  // Read the non-httpOnly `fireisp_csrf` cookie and echo it back.
+  // Read the non-httpOnly `vigabss_csrf` cookie and echo it back.
   const booted = useRef(false);
   useEffect(() => {
     if (booted.current) return;
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Restore the session on mount WITHOUT bouncing to /login on a transient hiccup.
     //
-    // Cookie-first: the httpOnly `fireisp_access` cookie authenticates GET /auth/me
+    // Cookie-first: the httpOnly `vigabss_access` cookie authenticates GET /auth/me
     // directly, so a reload within the access-token lifetime needs no /refresh (no
     // token rotation, a single request). Only when that cookie is missing/expired
     // (401) do we fall back to one /refresh and re-hydrate.
@@ -383,7 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // httpOnly cookies. After a cookie-first reload there is no in-memory token, so
       // a token-gated logout would be a no-op — the cookies would stay live and the
       // next reload would silently re-authenticate. /logout is authenticate-gated
-      // (accepts the fireisp_access cookie) and is a cookie-auth POST, so send the
+      // (accepts the vigabss_access cookie) and is a cookie-auth POST, so send the
       // CSRF token; Bearer is added only when an in-memory token is present.
       const accessToken = tokenStore.getAccess();
       const csrf = readCsrfCookie();
@@ -418,10 +418,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const switchOrganization = useCallback(
     async (organizationId: number) => {
       // After a cookie-first reload the in-memory token may be empty; the httpOnly
-      // fireisp_access cookie authenticates the request instead (so do NOT hard-gate
+      // vigabss_access cookie authenticates the request instead (so do NOT hard-gate
       // on a Bearer token — that regressed the switcher into "Not authenticated").
       // switch-organization is a cookie-auth state-changing POST, so it needs the
-      // CSRF token (Bearer requests ignore it). The httpOnly fireisp_refresh cookie
+      // CSRF token (Bearer requests ignore it). The httpOnly vigabss_refresh cookie
       // (Path=/api/v1/auth) is attached automatically via credentials:'include'.
       const accessToken = tokenStore.getAccess();
       const csrf = readCsrfCookie();

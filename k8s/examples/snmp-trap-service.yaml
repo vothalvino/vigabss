@@ -8,10 +8,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: fireisp-snmp-trap
-  namespace: fireisp
+  name: vigabss-snmp-trap
+  namespace: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: snmp-trap
 spec:
   type: LoadBalancer
@@ -21,7 +21,7 @@ spec:
     # device traffic, making an accidental application fail closed.
     - 192.0.2.0/24
   selector:
-    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/name: vigabss
     app.kubernetes.io/component: api
   ports:
     - name: snmp-trap

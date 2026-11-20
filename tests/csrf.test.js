@@ -4,7 +4,7 @@
 
 jest.mock('../src/config', () => ({
   env: 'test',
-  appUrl: 'https://app.fireisp.example.com',
+  appUrl: 'https://app.vigabss.example.com',
   jwt: { secret: 'test-secret' },
 }));
 
@@ -51,7 +51,7 @@ describe('csrfOriginCheck', () => {
   test.each(['GET', 'HEAD', 'OPTIONS'])(
     '%s requests are always allowed (no CSRF check)',
     (method) => {
-      const req = mockReq({ method, cookies: { fireisp_access: 'some-jwt' } });
+      const req = mockReq({ method, cookies: { vigabss_access: 'some-jwt' } });
       const res = mockRes();
       const next = jest.fn();
 
@@ -81,7 +81,7 @@ describe('csrfOriginCheck', () => {
   // =========================================================================
   test('POST with Authorization: Bearer header is exempt even when auth cookies are set', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: { authorization: 'Bearer some-access-token' },
     });
     const res = mockRes();
@@ -99,7 +99,7 @@ describe('csrfOriginCheck', () => {
     (method) => {
       const req = mockReq({
         method,
-        cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+        cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
         headers: { authorization: 'Bearer some-access-token' },
       });
       const res = mockRes();
@@ -118,7 +118,7 @@ describe('csrfOriginCheck', () => {
   test('POST with valid X-CSRF-Token header is allowed (tokens.verify returns true)', () => {
     mockVerify.mockReturnValue(true);
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: { 'x-csrf-token': 'valid-token' },
     });
     const res = mockRes();
@@ -134,7 +134,7 @@ describe('csrfOriginCheck', () => {
   test('POST with invalid X-CSRF-Token header returns 403 (tokens.verify returns false)', () => {
     mockVerify.mockReturnValue(false);
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: { 'x-csrf-token': 'bad-token' },
     });
     const res = mockRes();
@@ -150,7 +150,7 @@ describe('csrfOriginCheck', () => {
 
   test('POST with missing X-CSRF-Token header returns 403 when secret cookie is set', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: {},
     });
     const res = mockRes();
@@ -165,7 +165,7 @@ describe('csrfOriginCheck', () => {
   test('POST can also read CSRF token from body._csrf', () => {
     mockVerify.mockReturnValue(true);
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: {},
       body: { _csrf: 'body-token' },
     });
@@ -184,7 +184,7 @@ describe('csrfOriginCheck', () => {
       mockVerify.mockReturnValue(false);
       const req = mockReq({
         method,
-        cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+        cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
         headers: { 'x-csrf-token': 'bad' },
       });
       const res = mockRes();
@@ -198,12 +198,12 @@ describe('csrfOriginCheck', () => {
   );
 
   // =========================================================================
-  // Fallback: Origin/Referer check (no fireisp_csrf_secret cookie)
+  // Fallback: Origin/Referer check (no vigabss_csrf_secret cookie)
   // =========================================================================
-  test('POST with fireisp_access cookie and correct Origin is allowed (fallback)', () => {
+  test('POST with vigabss_access cookie and correct Origin is allowed (fallback)', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt' },
-      headers: { origin: 'https://app.fireisp.example.com' },
+      cookies: { vigabss_access: 'jwt' },
+      headers: { origin: 'https://app.vigabss.example.com' },
     });
     const res = mockRes();
     const next = jest.fn();
@@ -215,14 +215,14 @@ describe('csrfOriginCheck', () => {
 
   // =========================================================================
   // Regression (PR #303 follow-up): the refresh cookie alone must NOT trigger
-  // CSRF enforcement. Widening fireisp_refresh's Path to /api/v1/auth made the
+  // CSRF enforcement. Widening vigabss_refresh's Path to /api/v1/auth made the
   // browser send it to /auth/login, which then 403'd returning users with
   // "CSRF check failed: invalid or missing CSRF token". The refresh cookie is
   // not an ambient authenticator, so its presence must not gate CSRF.
   // =========================================================================
-  test('POST with ONLY fireisp_refresh cookie is exempt, even with a hostile Origin', () => {
+  test('POST with ONLY vigabss_refresh cookie is exempt, even with a hostile Origin', () => {
     const req = mockReq({
-      cookies: { fireisp_refresh: 'opaque-token' },
+      cookies: { vigabss_refresh: 'opaque-token' },
       headers: { origin: 'https://evil.attacker.com' },
     });
     const res = mockRes();
@@ -230,19 +230,19 @@ describe('csrfOriginCheck', () => {
 
     csrfOriginCheck(req, res, next);
 
-    // Exempt because no fireisp_access cookie — SameSite=Strict already prevents
+    // Exempt because no vigabss_access cookie — SameSite=Strict already prevents
     // the refresh cookie from being sent cross-site, so this is structurally safe.
     expect(next).toHaveBeenCalledWith();
     expect(res._status).toBeNull();
   });
 
-  test('login-style POST with fireisp_refresh + stale csrf_secret and NO token is exempt', () => {
+  test('login-style POST with vigabss_refresh + stale csrf_secret and NO token is exempt', () => {
     // Exact reproduction of the demo regression: a returning user opens /auth/login
     // with a lingering 7-day refresh cookie plus a stale csrf secret, but the login
     // request carries no X-CSRF-Token. Must pass through, not 403.
     const req = mockReq({
-      cookies: { fireisp_refresh: 'opaque-token', fireisp_csrf_secret: 'stale-secret' },
-      headers: { origin: 'https://app.fireisp.example.com' },
+      cookies: { vigabss_refresh: 'opaque-token', vigabss_csrf_secret: 'stale-secret' },
+      headers: { origin: 'https://app.vigabss.example.com' },
     });
     const res = mockRes();
     const next = jest.fn();
@@ -255,11 +255,11 @@ describe('csrfOriginCheck', () => {
     expect(mockVerify).not.toHaveBeenCalled();
   });
 
-  test('POST that carries fireisp_access still enforces CSRF even with a refresh cookie alongside', () => {
+  test('POST that carries vigabss_access still enforces CSRF even with a refresh cookie alongside', () => {
     // Genuine cookie-authenticated session: access cookie present → CSRF enforced.
     const req = mockReq({
       originalUrl: '/api/v1/clients',
-      cookies: { fireisp_access: 'jwt', fireisp_refresh: 'opaque-token' },
+      cookies: { vigabss_access: 'jwt', vigabss_refresh: 'opaque-token' },
       headers: { origin: 'https://evil.attacker.com' },
     });
     const res = mockRes();
@@ -274,7 +274,7 @@ describe('csrfOriginCheck', () => {
   // =========================================================================
   // Public auth-bootstrap endpoints are CSRF-exempt (PR #303/#304 follow-up).
   // A returning user lands on /login (or the SPA's mount-time /refresh) while a
-  // valid httpOnly fireisp_access cookie is still live; the browser attaches it
+  // valid httpOnly vigabss_access cookie is still live; the browser attaches it
   // automatically but the request has no CSRF token. These endpoints must not be
   // blocked. This is the exact "logged in, then couldn't log in again" repro.
   // =========================================================================
@@ -285,11 +285,11 @@ describe('csrfOriginCheck', () => {
     '/api/v1/auth/password-reset',
     '/api/v1/auth/password-reset/request',
     '/api/auth/login', // legacy non-v1 mount
-  ])('POST %s is exempt even with a live fireisp_access cookie and NO token', (originalUrl) => {
+  ])('POST %s is exempt even with a live vigabss_access cookie and NO token', (originalUrl) => {
     const req = mockReq({
       originalUrl,
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
-      headers: { origin: 'https://app.fireisp.example.com' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
+      headers: { origin: 'https://app.vigabss.example.com' },
     });
     const res = mockRes();
     const next = jest.fn();
@@ -304,7 +304,7 @@ describe('csrfOriginCheck', () => {
   test('exemption survives a query string on the URL', () => {
     const req = mockReq({
       originalUrl: '/api/v1/auth/login?redirect=%2Fdashboard',
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: {},
     });
     const res = mockRes();
@@ -320,7 +320,7 @@ describe('csrfOriginCheck', () => {
     mockVerify.mockReturnValue(false);
     const req = mockReq({
       originalUrl: '/api/v1/auth/change-password',
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: { 'x-csrf-token': 'bad' },
     });
     const res = mockRes();
@@ -335,7 +335,7 @@ describe('csrfOriginCheck', () => {
   test('authenticated /auth/switch-organization is NOT exempt in cookie mode — still enforces CSRF', () => {
     const req = mockReq({
       originalUrl: '/api/v1/auth/switch-organization',
-      cookies: { fireisp_access: 'jwt', fireisp_csrf_secret: 'secret' },
+      cookies: { vigabss_access: 'jwt', vigabss_csrf_secret: 'secret' },
       headers: {}, // no token, no Bearer
     });
     const res = mockRes();
@@ -349,8 +349,8 @@ describe('csrfOriginCheck', () => {
 
   test('POST falls back to Referer when no Origin header (fallback)', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt' },
-      headers: { referer: 'https://app.fireisp.example.com/some/page' },
+      cookies: { vigabss_access: 'jwt' },
+      headers: { referer: 'https://app.vigabss.example.com/some/page' },
     });
     const res = mockRes();
     const next = jest.fn();
@@ -362,7 +362,7 @@ describe('csrfOriginCheck', () => {
 
   test('POST with cookie and wrong Origin returns 403 (fallback)', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt' },
+      cookies: { vigabss_access: 'jwt' },
       headers: { origin: 'https://evil.attacker.com' },
     });
     const res = mockRes();
@@ -377,7 +377,7 @@ describe('csrfOriginCheck', () => {
 
   test('POST with cookie and no Origin/Referer header returns 403 (fallback)', () => {
     const req = mockReq({
-      cookies: { fireisp_access: 'jwt' },
+      cookies: { vigabss_access: 'jwt' },
       headers: {},
     });
     const res = mockRes();
@@ -394,7 +394,7 @@ describe('csrfOriginCheck', () => {
     (method) => {
       const req = mockReq({
         method,
-        cookies: { fireisp_access: 'jwt' },
+        cookies: { vigabss_access: 'jwt' },
         headers: { origin: 'https://evil.attacker.com' },
       });
       const res = mockRes();
@@ -412,43 +412,43 @@ describe('csrfOriginCheck', () => {
 // setCsrfCookie / clearCsrfCookie helpers
 // =============================================================================
 describe('setCsrfCookie', () => {
-  test('sets fireisp_csrf_secret (httpOnly) and fireisp_csrf (not httpOnly) cookies', () => {
+  test('sets vigabss_csrf_secret (httpOnly) and vigabss_csrf (not httpOnly) cookies', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
 
-    expect(res._cookies.fireisp_csrf_secret).toBeDefined();
-    expect(res._cookies.fireisp_csrf).toBeDefined();
+    expect(res._cookies.vigabss_csrf_secret).toBeDefined();
+    expect(res._cookies.vigabss_csrf).toBeDefined();
   });
 
-  test('fireisp_csrf_secret cookie is httpOnly', () => {
+  test('vigabss_csrf_secret cookie is httpOnly', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
-    expect(res._cookies.fireisp_csrf_secret.opts.httpOnly).toBe(true);
+    expect(res._cookies.vigabss_csrf_secret.opts.httpOnly).toBe(true);
   });
 
-  test('fireisp_csrf token cookie is NOT httpOnly (must be readable by JS)', () => {
+  test('vigabss_csrf token cookie is NOT httpOnly (must be readable by JS)', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
-    expect(res._cookies.fireisp_csrf.opts.httpOnly).toBe(false);
+    expect(res._cookies.vigabss_csrf.opts.httpOnly).toBe(false);
   });
 
-  test('fireisp_csrf token cookie has path "/" so SPA can read it on any route', () => {
+  test('vigabss_csrf token cookie has path "/" so SPA can read it on any route', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
-    expect(res._cookies.fireisp_csrf.opts.path).toBe('/');
+    expect(res._cookies.vigabss_csrf.opts.path).toBe('/');
   });
 
-  test('fireisp_csrf_secret cookie has path "/api" (server-only)', () => {
+  test('vigabss_csrf_secret cookie has path "/api" (server-only)', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
-    expect(res._cookies.fireisp_csrf_secret.opts.path).toBe('/api');
+    expect(res._cookies.vigabss_csrf_secret.opts.path).toBe('/api');
   });
 
   test('both cookies are SameSite=Strict', () => {
     const res = mockRes();
     setCsrfCookie(res, 900_000);
-    expect(res._cookies.fireisp_csrf_secret.opts.sameSite).toBe('strict');
-    expect(res._cookies.fireisp_csrf.opts.sameSite).toBe('strict');
+    expect(res._cookies.vigabss_csrf_secret.opts.sameSite).toBe('strict');
+    expect(res._cookies.vigabss_csrf.opts.sameSite).toBe('strict');
   });
 
   test('uses tokens.secretSync() and tokens.create() to generate values', () => {
@@ -456,15 +456,15 @@ describe('setCsrfCookie', () => {
     setCsrfCookie(res, 900_000);
     expect(mockSecretSync).toHaveBeenCalled();
     expect(mockCreate).toHaveBeenCalledWith('mock-secret');
-    expect(res._cookies.fireisp_csrf.value).toBe('mock-token');
+    expect(res._cookies.vigabss_csrf.value).toBe('mock-token');
   });
 });
 
 describe('clearCsrfCookie', () => {
-  test('clears both fireisp_csrf_secret and fireisp_csrf cookies', () => {
+  test('clears both vigabss_csrf_secret and vigabss_csrf cookies', () => {
     const res = mockRes();
     clearCsrfCookie(res);
-    expect(res._cleared.fireisp_csrf_secret).toBeDefined();
-    expect(res._cleared.fireisp_csrf).toBeDefined();
+    expect(res._cleared.vigabss_csrf_secret).toBeDefined();
+    expect(res._cleared.vigabss_csrf).toBeDefined();
   });
 });

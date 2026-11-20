@@ -19,8 +19,8 @@ test('every FROM pins an exact node version by digest', () => {
 
 test('only /app/storage is chowned to the runtime user', () => {
   const chowns = dockerfile.split('\n').filter((l) => /chown/.test(l) && !l.trim().startsWith('#'));
-  expect(chowns).toEqual(['RUN mkdir -p /app/storage && chown -R fireisp:fireisp /app/storage']);
-  expect(dockerfile).not.toMatch(/COPY --chown=fireisp/);
+  expect(chowns).toEqual(['RUN mkdir -p /app/storage && chown -R vigabss:vigabss /app/storage']);
+  expect(dockerfile).not.toMatch(/COPY --chown=vigabss/);
 });
 
 test('.dockerignore excludes nested node_modules and env files, keeping the example', () => {

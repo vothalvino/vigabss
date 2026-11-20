@@ -14,7 +14,7 @@ services:
     image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     environment:
       MYSQL_ROOT_PASSWORD: testpassword
-      MYSQL_DATABASE: fireisp_test
+      MYSQL_DATABASE: vigabss_test
     ports:
       - '3307:3306'
     command: >
@@ -45,8 +45,8 @@ services:
       DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: testpassword
-      DB_NAME: fireisp_test
-      JWT_SECRET: test-jwt-secret-key-for-integration-tests-fireisp-do-not-use!!!!
+      DB_NAME: vigabss_test
+      JWT_SECRET: test-jwt-secret-key-for-integration-tests-vigabss-do-not-use!!!!
       LOG_LEVEL: warn
     volumes:
       - ./src:/app/src
@@ -57,7 +57,7 @@ services:
         echo '=== Applying migrations ===' &&
         node src/scripts/migrate.js &&
         echo '=== Running SQL test suite ===' &&
-        MYSQL_HOST=test-db MYSQL_USER=root MYSQL_PASSWORD=testpassword MYSQL_DATABASE=fireisp_test ./tests/run_tests.sh &&
+        MYSQL_HOST=test-db MYSQL_USER=root MYSQL_PASSWORD=testpassword MYSQL_DATABASE=vigabss_test ./tests/run_tests.sh &&
         echo '=== Running Jest tests ===' &&
         pnpm exec jest --detectOpenHandles --forceExit --ci &&
         echo '=== All tests passed ==='

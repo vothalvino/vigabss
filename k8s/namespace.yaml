@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: fireisp
+  name: vigabss
   labels:
-    app.kubernetes.io/name: fireisp
-    app.kubernetes.io/part-of: fireisp
+    app.kubernetes.io/name: vigabss
+    app.kubernetes.io/part-of: vigabss
     # The pod meets the restricted profile (OPS-17).
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted

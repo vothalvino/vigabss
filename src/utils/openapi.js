@@ -758,7 +758,7 @@ function generateSpec() {
       '/nas/{id}/health-check': { post: { tags: ['NAS'], summary: 'Trigger manual health check probe for org NAS devices', operationId: 'triggerNasHealthCheck', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Health check results') } },
       '/nas/{id}/test-connection': { post: { tags: ['NAS'], summary: 'Test the direct RouterOS API connection to a NAS (uses its configured api_port/credentials)', operationId: 'testNasConnection', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Connection result (version, board, identity)') } },
       '/nas/{id}/seed': { post: { tags: ['NAS'], summary: 'Seed a MikroTik NAS: configure VigaBSS RADIUS client, PPP AAA, CoA incoming, and optionally fq-codel queue types, a queue-tree skeleton, Business/Residential priority simple queues, a PPPoE server + base profile, a suspended-subscriber walled garden, and real-time/VoIP traffic prioritisation (idempotent, non-destructive)', operationId: 'seedNasDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('nas_seedNas'), responses: r200('Seed result — per-step report') } },
-      '/nas/{id}/voip/refresh': { post: { tags: ['NAS'], summary: 'Reconcile the fireisp-voip RTC/VoIP address-list on this NAS from the configured provider ranges (voipRangesService). Idempotent; skips NAS without real-time priority seeded', operationId: 'refreshNasVoipRanges', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Reconcile result — added/removed/kept + sources') } },
+      '/nas/{id}/voip/refresh': { post: { tags: ['NAS'], summary: 'Reconcile the vigabss-voip RTC/VoIP address-list on this NAS from the configured provider ranges (voipRangesService). Idempotent; skips NAS without real-time priority seeded', operationId: 'refreshNasVoipRanges', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Reconcile result — added/removed/kept + sources') } },
 
       // ---- NAS WireGuard ----
       '/nas/{id}/wg': { get: { tags: ['NAS'], summary: 'Get WireGuard tunnel state for a NAS (redacted — private key never returned)', operationId: 'getNasWgTunnel', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('NasWgTunnel (redacted)') } },
@@ -771,7 +771,7 @@ function generateSpec() {
           routes: { type: 'array', items: { type: 'object', additionalProperties: true } },
         } },
       } } } } } } } } } },
-      '/nas/{id}/wg/routes': { put: { tags: ['NAS'], summary: 'Confirm routed CIDRs for a NAS WireGuard tunnel and re-sync the server-side peer on wg-fireisp', operationId: 'confirmNasWgRoutes', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('nas_confirmWgRoutes'), responses: r200('Updated NasWgTunnel') } },
+      '/nas/{id}/wg/routes': { put: { tags: ['NAS'], summary: 'Confirm routed CIDRs for a NAS WireGuard tunnel and re-sync the server-side peer on wg-vigabss', operationId: 'confirmNasWgRoutes', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('nas_confirmWgRoutes'), responses: r200('Updated NasWgTunnel') } },
 
       // ---- RADIUS ----
       ...crudPaths('radius', 'RADIUS', 'RadiusAccount'),
@@ -2485,7 +2485,7 @@ function generateSpec() {
         post: { tags: ['Portal Auth'], summary: 'Client portal login', description: 'Audited as portal_login_success / portal_login_failed / portal_account_locked; an IP blocked for repeated failures gets 429 LOGIN_IP_BLOCKED.', operationId: 'portalLogin', requestBody: jsonBody('email + password'), responses: { ...r200('AccessToken + RefreshToken'), 429: errorResponse('Too many attempts, or the IP is blocked at sign-in (LOGIN_IP_BLOCKED)') } },
       },
       '/portal/auth/refresh': {
-        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', description: 'Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.', operationId: 'portalRefreshToken', requestBody: typedJsonBody({ type: 'object', properties: { refreshToken: { type: 'string' } } }, 'refreshToken (API clients only)', false), responses: { ...r200('Token pair'), 401: errorResponse('No or invalid refresh token') } },
+        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', description: 'Reads the refresh token from the vigabss_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.', operationId: 'portalRefreshToken', requestBody: typedJsonBody({ type: 'object', properties: { refreshToken: { type: 'string' } } }, 'refreshToken (API clients only)', false), responses: { ...r200('Token pair'), 401: errorResponse('No or invalid refresh token') } },
       },
       '/portal/auth/logout': {
         post: { tags: ['Portal Auth'], summary: 'Portal logout', operationId: 'portalLogout', responses: r200('Message') },

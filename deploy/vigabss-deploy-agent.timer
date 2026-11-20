@@ -9,8 +9,7 @@ OnBootSec=60
 OnUnitActiveSec=30s
 AccuracySec=5s
 # Type=oneshot prevents overlap within this unit name. deploy-agent.sh also
-# holds a shared host lock, which covers the brief migration window where the
-# legacy fireisp timer and this canonical timer can both exist.
+# holds a host lock against a second copy started any other way.
 Unit=vigabss-deploy-agent.service
 
 [Install]

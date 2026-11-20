@@ -49,7 +49,7 @@ describe('AuthContext', () => {
     tokenStore.clear();
     localStorage.clear();
     // Clear the CSRF cookie between tests (cookie-first restore reads it).
-    document.cookie = 'fireisp_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = 'vigabss_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
   });
 
   it('settles logged-out when neither the access cookie nor refresh cookie is valid', async () => {
@@ -83,17 +83,17 @@ describe('AuthContext', () => {
       { ok: true, json: { data: user } }, // GET /auth/me → winner's cookie restores us
     ]);
     // The winning tab's refresh set a fresh CSRF cookie alongside the session.
-    document.cookie = 'fireisp_csrf=from-winner';
+    document.cookie = 'vigabss_csrf=from-winner';
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => expect(result.current.initialized).toBe(true), { timeout: 3000 });
     expect(result.current.user).toMatchObject({ id: 1, email: 'admin@test.com' });
-    document.cookie = 'fireisp_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'vigabss_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   });
 
   it('settles logged-out when the API client signals a dead session mid-use', async () => {
-    // doRefresh (api/client.ts) dispatches 'fireisp:session-expired' after a
+    // doRefresh (api/client.ts) dispatches 'vigabss:session-expired' after a
     // definitive double-401 on /auth/refresh. AuthContext must react by
     // clearing the user so PrivateRoute redirects — otherwise the user is
     // stuck in a rendered app where every call 401s until a manual reload.
@@ -105,7 +105,7 @@ describe('AuthContext', () => {
     authTestQueryClient.setQueryData(['private-tenant-record'], { organizationId: 1 });
 
     act(() => {
-      window.dispatchEvent(new Event('fireisp:session-expired'));
+      window.dispatchEvent(new Event('vigabss:session-expired'));
     });
 
     await waitFor(() => expect(result.current.user).toBeNull());
@@ -129,7 +129,7 @@ describe('AuthContext', () => {
   it('restores the session from the access cookie alone — no /refresh, no rotation', async () => {
     const user = { id: 1, email: 'admin@test.com', name: 'Admin', role: 'admin', organization_id: 1, is_active: true, email_verified: true, twofa_enabled: false };
     const fetchSpy = mockFetch([
-      // GET /auth/me → 200 via the httpOnly fireisp_access cookie
+      // GET /auth/me → 200 via the httpOnly vigabss_access cookie
       { ok: true, json: { data: user } },
     ]);
 
@@ -159,7 +159,7 @@ describe('AuthContext', () => {
 
     expect(result.current.user).toMatchObject({ id: 1, email: 'admin@test.com' });
     expect(tokenStore.getAccess()).toBe('access-1');
-    expect(localStorage.getItem('fireisp_refresh_token')).toBeNull();
+    expect(localStorage.getItem('vigabss_refresh_token')).toBeNull();
   });
 
   it('does NOT bounce to login on a transient 429 during bootstrap — retries then restores', async () => {
@@ -189,7 +189,7 @@ describe('AuthContext', () => {
     await waitFor(() => expect(result.current.initialized).toBe(true), { timeout: 3000 });
     expect(result.current.user).toBeNull();
     expect(tokenStore.getAccess()).toBeNull();
-    expect(localStorage.getItem('fireisp_refresh_token')).toBeNull();
+    expect(localStorage.getItem('vigabss_refresh_token')).toBeNull();
   });
 
   it('login() stores access token in memory and sets user; no localStorage refresh', async () => {
@@ -211,7 +211,7 @@ describe('AuthContext', () => {
 
     expect(result.current.user).toMatchObject({ id: 2, email: 'user@test.com' });
     expect(tokenStore.getAccess()).toBe('acc');
-    expect(localStorage.getItem('fireisp_refresh_token')).toBeNull();
+    expect(localStorage.getItem('vigabss_refresh_token')).toBeNull();
     expect(authTestQueryClient.getQueryData(['previous-user-secret'])).toBeUndefined();
   });
 
@@ -259,7 +259,7 @@ describe('AuthContext', () => {
     const user = { id: 1, email: 'admin@test.com', name: 'Admin', role: 'admin', organization_id: 1, is_active: true, email_verified: true, twofa_enabled: false };
 
     it('logout() still calls the server (cookie-auth + CSRF) when there is no in-memory token', async () => {
-      document.cookie = 'fireisp_csrf=csrf-tok; path=/';
+      document.cookie = 'vigabss_csrf=csrf-tok; path=/';
       const fetchSpy = mockFetch([
         { ok: true, json: { data: user } }, // mount GET /auth/me → restored via access cookie
         { ok: true, json: {} },             // POST /auth/logout
@@ -280,7 +280,7 @@ describe('AuthContext', () => {
     });
 
     it('switchOrganization() works via the access cookie without an in-memory token', async () => {
-      document.cookie = 'fireisp_csrf=csrf-tok; path=/';
+      document.cookie = 'vigabss_csrf=csrf-tok; path=/';
       const fetchSpy = mockFetch([
         { ok: true, json: { data: user } },                                                          // mount GET /auth/me
         { ok: true, json: { data: { accessToken: 'sw', refreshToken: 'r', organization: { id: 7 } } } }, // POST /switch-organization

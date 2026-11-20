@@ -39,8 +39,8 @@ test('a browser login sets the refresh cookie and leaves it out of the JSON', as
 
   expect(res.status).toBe(200);
   expect(res.body.data).toEqual({ accessToken: 'pa', expiresIn: 900, client: { id: 3 } });
-  const cookie = cookieNamed(res, 'fireisp_portal_refresh');
-  expect(cookie).toMatch(/^fireisp_portal_refresh=pr;/);
+  const cookie = cookieNamed(res, 'vigabss_portal_refresh');
+  expect(cookie).toMatch(/^vigabss_portal_refresh=pr;/);
   expect(cookie).toMatch(/HttpOnly/);
   expect(cookie).toMatch(/SameSite=Strict/);
   expect(cookie).toMatch(/Path=\/api\/v1\/portal\/auth/);
@@ -50,12 +50,12 @@ test('refresh reads the cookie, rotates it and returns only the access token', a
   portalAuthService.refreshToken.mockResolvedValueOnce({ accessToken: 'pa2', refreshToken: 'pr2' });
 
   const res = await request(app).post('/api/v1/portal/auth/refresh')
-    .set('Cookie', 'fireisp_portal_refresh=pr').send({});
+    .set('Cookie', 'vigabss_portal_refresh=pr').send({});
 
   expect(res.status).toBe(200);
   expect(portalAuthService.refreshToken).toHaveBeenCalledWith('pr');
   expect(res.body.data).toEqual({ accessToken: 'pa2' });
-  expect(cookieNamed(res, 'fireisp_portal_refresh')).toMatch(/^fireisp_portal_refresh=pr2;/);
+  expect(cookieNamed(res, 'vigabss_portal_refresh')).toMatch(/^vigabss_portal_refresh=pr2;/);
 });
 
 test('an API client can still refresh with the token in the body', async () => {
@@ -74,9 +74,9 @@ test('refresh without any token is 401', async () => {
 
 test('logout revokes the cookie token and clears the cookie', async () => {
   const res = await request(app).post('/api/v1/portal/auth/logout')
-    .set('Cookie', 'fireisp_portal_refresh=pr').send({});
+    .set('Cookie', 'vigabss_portal_refresh=pr').send({});
 
   expect(res.status).toBe(200);
   expect(portalAuthService.logout).toHaveBeenCalledWith('pr');
-  expect(cookieNamed(res, 'fireisp_portal_refresh')).toMatch(/^fireisp_portal_refresh=;.*Expires=Thu, 01 Jan 1970/);
+  expect(cookieNamed(res, 'vigabss_portal_refresh')).toMatch(/^vigabss_portal_refresh=;.*Expires=Thu, 01 Jan 1970/);
 });

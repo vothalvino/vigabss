@@ -208,7 +208,7 @@ describe('Layout — grouped sidebar navigation', () => {
   it('honors a stored expanded-sections array from localStorage instead of collapsing it', () => {
     // A section other than admin's persona default ('clients') so this test
     // can't pass by accident via the (now-removed) persona-seeding behavior.
-    localStorage.setItem('fireisp.nav.expanded', JSON.stringify(['support']));
+    localStorage.setItem('vigabss.nav.expanded', JSON.stringify(['support']));
     mockUseAuth(makeUser('admin'));
     renderLayout();
 

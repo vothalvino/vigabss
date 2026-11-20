@@ -10,8 +10,8 @@ for (const name of ['453_notification_resolution_state.sql', '455_pppoe_diagnost
 }
 afterAll(() => fs.rmSync(ROLLBACKS, { recursive: true, force: true }));
 
-const PRIMARY_DATABASE = 'fireisp_primary_test';
-const ISOLATED_DATABASE = 'fireisp_isolated_test';
+const PRIMARY_DATABASE = 'vigabss_primary_test';
+const ISOLATED_DATABASE = 'vigabss_isolated_test';
 
 const PRIMARY_ROWS = [
   { id: 9, filename: '455_pppoe_diagnostics_telemetry.sql' },
@@ -227,7 +227,7 @@ describe('rollback runner — isolated tenant databases', () => {
     expect(context.pools.every(pool => pool.end.mock.calls.length === 1)).toBe(true);
     expect(context.db.close).toHaveBeenCalledTimes(1);
     expect(context.logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ err: preflightError, target: 'org:27:fireisp_isolated_test' }),
+      expect.objectContaining({ err: preflightError, target: 'org:27:vigabss_isolated_test' }),
       'Rollback preflight failed; no changes were made',
     );
   });

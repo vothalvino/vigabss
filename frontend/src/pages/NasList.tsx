@@ -668,11 +668,11 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
     seedPppoeServer: false,
     pppoeInterface: '',
     pppoeServiceName: 'VigaBSS-Internet',
-    pppoeProfileName: 'fireisp-pppoe',
+    pppoeProfileName: 'vigabss-pppoe',
     pppoeLocalAddress: '',
     pppoeParentQueue: '',
     seedWalledGarden: false,
-    suspendedListName: 'fireisp-suspended',
+    suspendedListName: 'vigabss-suspended',
     portalAddress: '',
     redirectPorts: '80,443',
     redirectToPort: '80',
@@ -922,7 +922,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                     {t('ui.nasList.profileName')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeProfileName} onChange={e => setField('pppoeProfileName', e.target.value)}
-                      placeholder={t('ui.nasList.fireispPppoe')} aria-label={t('ui.nasList.pppoeProfileName')} />
+                      placeholder={t('ui.nasList.vigabssPppoe')} aria-label={t('ui.nasList.pppoeProfileName')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
                     {t('ui.nasList.localAddress')}
@@ -952,7 +952,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                     {t('ui.nasList.suspendedAddressList')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.suspendedListName} onChange={e => setField('suspendedListName', e.target.value)}
-                      placeholder={t('ui.nasList.fireispSuspended')} aria-label={t('ui.nasList.suspendedAddressList2')} />
+                      placeholder={t('ui.nasList.vigabssSuspended')} aria-label={t('ui.nasList.suspendedAddressList2')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
                     {t('ui.nasList.portalAddressOptional')}
@@ -1020,7 +1020,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                   </label>
                 </div>
                 <label style={{ ...modalStyles.label }}>
-                  {t('ui.nasList.ottProviderNetworksFireispVoip')}
+                  {t('ui.nasList.ottProviderNetworksVigabssVoip')}
                   <textarea style={{ ...modalStyles.input, minHeight: 44, fontFamily: 'monospace' }}
                     maxLength={2000}
                     value={form.voipNetworks} onChange={e => setField('voipNetworks', e.target.value)}

@@ -77,7 +77,7 @@ describe('the accounting pool', () => {
     const tenant = makePool();
     primary.execute.mockResolvedValueOnce([[{
       organization_id: 5, isolation_mode: 'isolated', db_host: 'tenant-db', db_port: 3306,
-      db_name: 'fireisp_org_5', db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
+      db_name: 'vigabss_org_5', db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
     }], []]);
     const { db } = load([primary, tenant]);
 

@@ -82,7 +82,7 @@ describe('NasWireguardModal', () => {
               method: 'snippet',
               state: 'pending',
               steps: [],
-              snippet: '/interface wireguard add name=wg-fireisp listen-port=51820',
+              snippet: '/interface wireguard add name=wg-vigabss listen-port=51820',
             },
           },
           error: undefined,

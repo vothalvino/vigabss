@@ -56,9 +56,8 @@ VigaBSS manages RADIUS subscriber accounts in the `radius` table. Each row repre
 
 ## FreeRADIUS SQL Module Configuration
 
-The examples use the fresh-install database name `vigabss`. For an upgraded
-installation, keep and enter its configured database name (commonly the legacy
-`fireisp`); no database rename is required for VigaBSS.
+The examples use the default database name `vigabss`. Enter the configured
+`DB_NAME` if the installation uses a different one.
 
 ### 1. Enable the SQL module
 

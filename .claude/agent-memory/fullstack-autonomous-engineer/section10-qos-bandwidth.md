@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-Migrations 286-294 complete on branch `10-of-isp-platform-feature.md` (worktree `fireisp-wt-sec10`). All §10.1-§10.4 items done.
+Migrations 286-294 complete on branch `10-of-isp-platform-feature.md`. All §10.1-§10.4 items done.
 
 **Tables added (§10.1-§10.2, migrations 286-289, 4 tables):**
 - `quality_classes`, `queue_tree_nodes`, `rate_limit_templates`, `protocol_shaping_rules`

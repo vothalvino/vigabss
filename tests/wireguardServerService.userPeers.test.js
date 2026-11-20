@@ -24,7 +24,7 @@ jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/config', () => ({
   wireguard: {
     serverEnabled: true,
-    serverInterface: 'wg-fireisp',
+    serverInterface: 'wg-vigabss',
     serverEndpoint: 'vpn.example.com',
     serverListenPort: 51820,
     serverPublicKey: '',
@@ -154,7 +154,7 @@ describe('syncUserPeer()', () => {
     // The argument after preshared-key must be a file path (temp file), not the PSK itself
     const pskFlagIdx = argv.indexOf('preshared-key');
     const pskArg = argv[pskFlagIdx + 1];
-    expect(pskArg).toContain('fireisp-wg-'); // temp file name pattern
+    expect(pskArg).toContain('vigabss-wg-'); // temp file name pattern
     expect(pskArg).not.toBe(PSK);
 
     // allowed-ips must still be the /32
@@ -241,7 +241,7 @@ describe('IPv6 for full-tunnel clients (WG_IPV6)', () => {
     failOnce('table not found'); okOnce();
     await service.ensureBaseFirewall();
     expect(writeFileSync.mock.calls[0][1])
-      .toContain('ip6 saddr fd99:7669:6761:0::/64 oifname != { "wg-clients", "wg-fireisp" } masquerade');
+      .toContain('ip6 saddr fd99:7669:6761:0::/64 oifname != { "wg-clients", "wg-vigabss" } masquerade');
   });
 });
 
@@ -343,10 +343,10 @@ describe('ensureBaseFirewall()', () => {
     expect(result).toEqual({ applied: true });
     expect(execFile).toHaveBeenCalledTimes(2);
 
-    // First call: nft list table inet fireisp_wg
+    // First call: nft list table inet vigabss_wg
     expect(execFile).toHaveBeenNthCalledWith(
       1,
-      'nft', ['list', 'table', 'inet', 'fireisp_wg'],
+      'nft', ['list', 'table', 'inet', 'vigabss_wg'],
       expect.any(Object),
       expect.any(Function),
     );
@@ -354,7 +354,7 @@ describe('ensureBaseFirewall()', () => {
     // Second call: nft -f <tmpFile>
     expect(execFile).toHaveBeenNthCalledWith(
       2,
-      'nft', ['-f', expect.stringContaining('fireisp-wg-')],
+      'nft', ['-f', expect.stringContaining('vigabss-wg-')],
       expect.any(Object),
       expect.any(Function),
     );
@@ -370,8 +370,8 @@ describe('ensureBaseFirewall()', () => {
     // writeFileSync is called with the nft script content
     expect(writeFileSync).toHaveBeenCalled();
     const [, nftContent] = writeFileSync.mock.calls[0];
-    expect(nftContent).toMatch(/fireisp_wg/);
-    expect(nftContent).toMatch(/wg-fireisp/);
+    expect(nftContent).toMatch(/vigabss_wg/);
+    expect(nftContent).toMatch(/wg-vigabss/);
     expect(nftContent).toMatch(/wg-clients/);
     expect(nftContent).toMatch(/masquerade/);
     expect(nftContent).toMatch(/wg_user_fwd/);
@@ -397,7 +397,7 @@ describe('ensureBaseFirewall()', () => {
   });
 
   test('is idempotent — returns {applied:false} and runs nothing when the table already exists', async () => {
-    okOnce('table inet fireisp_wg {}');
+    okOnce('table inet vigabss_wg {}');
 
     const result = await service.ensureBaseFirewall();
 
@@ -417,7 +417,7 @@ describe('ensureBaseFirewall()', () => {
     expect(writeFileSync).toHaveBeenCalled();
     const [, nftContent] = writeFileSync.mock.calls[0];
     // The fresh install must include BOTH the per-serverIface masq AND the WAN masq
-    expect(nftContent).toMatch(/oifname "wg-fireisp".*masquerade/s);
+    expect(nftContent).toMatch(/oifname "wg-vigabss".*masquerade/s);
     expect(nftContent).toMatch(/oifname != \{[^}]+\}.*masquerade/s);
   });
 
@@ -443,14 +443,14 @@ describe('ensureBaseFirewall()', () => {
       expect(internet).toBeGreaterThan(privateDrop);
       // Nothing in forward accepts traffic a NAS peer starts.
       const forward = nft.slice(nft.indexOf('chain forward {'), nft.indexOf('chain input {'));
-      expect(forward).not.toMatch(/iifname "wg-fireisp"[^\n]*accept/);
+      expect(forward).not.toMatch(/iifname "wg-vigabss"[^\n]*accept/);
     });
 
     test('input lets NAS peers reach only RADIUS and SNMP traps, and nothing reach the HTTP port', async () => {
       const nft = await freshInstall();
       const input = nft.slice(nft.indexOf('chain input {'), nft.indexOf('chain wg_user_fwd'));
-      expect(input).toMatch(/iifname "wg-fireisp" udp dport \{ 1812, 1813, 1620 \} accept/);
-      expect(input).toMatch(/iifname \{ "wg-clients", "wg-fireisp" \} drop/);
+      expect(input).toMatch(/iifname "wg-vigabss" udp dport \{ 1812, 1813, 1620 \} accept/);
+      expect(input).toMatch(/iifname \{ "wg-clients", "wg-vigabss" \} drop/);
       expect(input).not.toMatch(/tcp/);
     });
   });
@@ -482,7 +482,7 @@ describe('setUserForwardScope()', () => {
     // 3: nft -f (atomic flush+add elements)
     okOnce();
     // 4: nft list chain → chain found, dump does NOT contain @u7_dst (rule absent)
-    okOnce('chain inet fireisp_wg wg_user_fwd { }');
+    okOnce('chain inet vigabss_wg wg_user_fwd { }');
     // 5: nft -f (add rule)
     okOnce();
 
@@ -505,7 +505,7 @@ describe('setUserForwardScope()', () => {
 
     // writeFileSync call[0] = create-set script
     const [, createContent] = writeFileSync.mock.calls[0];
-    expect(createContent).toMatch(new RegExp(`add set inet fireisp_wg ${SET_NAME}`));
+    expect(createContent).toMatch(new RegExp(`add set inet vigabss_wg ${SET_NAME}`));
     expect(createContent).toMatch(/ipv4_addr/);
     expect(createContent).toMatch(/interval/);
   });
@@ -515,14 +515,14 @@ describe('setUserForwardScope()', () => {
     // Set already exists so no create call; then atomic flush, list chain, rule
     okOnce(); // nft list set → set exists
     okOnce(); // nft -f flush+add
-    okOnce('chain inet fireisp_wg wg_user_fwd { }'); // list chain (no rule)
+    okOnce('chain inet vigabss_wg wg_user_fwd { }'); // list chain (no rule)
     okOnce(); // nft -f add rule
 
     await service.setUserForwardScope({ peerId: PEER_ID, tunnelIp: TUNNEL_IP, subnets: SUBNETS });
 
     // writeFileSync call[0] = atomic flush+add script
     const [, atomicContent] = writeFileSync.mock.calls[0];
-    expect(atomicContent).toMatch(new RegExp(`flush set inet fireisp_wg ${SET_NAME}`));
+    expect(atomicContent).toMatch(new RegExp(`flush set inet vigabss_wg ${SET_NAME}`));
     for (const subnet of SUBNETS) {
       expect(atomicContent).toContain(subnet);
     }
@@ -532,7 +532,7 @@ describe('setUserForwardScope()', () => {
     const { writeFileSync } = require('fs');
     okOnce();  // list set → exists
     okOnce();  // flush+add
-    okOnce('chain inet fireisp_wg wg_user_fwd { }'); // list chain → no rule
+    okOnce('chain inet vigabss_wg wg_user_fwd { }'); // list chain → no rule
     okOnce();  // add rule
 
     await service.setUserForwardScope({ peerId: PEER_ID, tunnelIp: TUNNEL_IP, subnets: SUBNETS });
@@ -549,7 +549,7 @@ describe('setUserForwardScope()', () => {
     okOnce(); // list set → exists
     okOnce(); // flush+add
     // Chain dump already contains the set name reference
-    okOnce(`chain inet fireisp_wg wg_user_fwd { rule ... @${SET_NAME} ... }`);
+    okOnce(`chain inet vigabss_wg wg_user_fwd { rule ... @${SET_NAME} ... }`);
     // No 4th call expected
 
     const result = await service.setUserForwardScope({
@@ -581,7 +581,7 @@ describe('setUserForwardScope()', () => {
     failOnce('set not found'); // set doesn't exist
     okOnce(); // create set
     okOnce(); // flush (no add — empty subnets)
-    okOnce('chain inet fireisp_wg wg_user_fwd { }'); // list chain
+    okOnce('chain inet vigabss_wg wg_user_fwd { }'); // list chain
     okOnce(); // add rule
 
     const result = await service.setUserForwardScope({
@@ -659,7 +659,7 @@ describe('removeUserPeer()', () => {
 
     expect(execFile).toHaveBeenCalledWith(
       'nft',
-      ['-j', 'list', 'chain', 'inet', 'fireisp_wg', 'wg_user_fwd'],
+      ['-j', 'list', 'chain', 'inet', 'vigabss_wg', 'wg_user_fwd'],
       expect.any(Object),
       expect.any(Function),
     );
@@ -675,7 +675,7 @@ describe('removeUserPeer()', () => {
 
     expect(execFile).toHaveBeenCalledWith(
       'nft',
-      ['delete', 'rule', 'inet', 'fireisp_wg', 'wg_user_fwd', 'handle', '42'],
+      ['delete', 'rule', 'inet', 'vigabss_wg', 'wg_user_fwd', 'handle', '42'],
       expect.any(Object),
       expect.any(Function),
     );

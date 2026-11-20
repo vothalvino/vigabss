@@ -3,7 +3,7 @@
 // =============================================================================
 // Usage:
 //   BACKUP_ENCRYPTION_KEY=<base64 key> node src/scripts/decryptBackup.js \
-//     fireisp_2026-11-02T02-00-00.sql.gz.enc fireisp_2026-11-02T02-00-00.sql.gz
+//     vigabss_2026-11-02T02-00-00.sql.gz.enc vigabss_2026-11-02T02-00-00.sql.gz
 // The output is the plain gzip dump; restore it as docs/backup-restore.md says.
 // =============================================================================
 

@@ -157,7 +157,7 @@ async function testRemote() {
     };
   }
 
-  const objectKey = `${cloudStorage.normalizedPrefix(config)}fireisp-connection-test-${Date.now()}.txt`;
+  const objectKey = `${cloudStorage.normalizedPrefix(config)}vigabss-connection-test-${Date.now()}.txt`;
   const body = Buffer.from(`VigaBSS backup connection test ${new Date().toISOString()}\n`, 'utf8');
 
   try {

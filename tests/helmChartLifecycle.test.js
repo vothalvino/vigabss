@@ -2,7 +2,7 @@
 // OPS-16 — the chart installs with --create-namespace and keeps its PVC
 // =============================================================================
 // templates/namespace.yaml always rendered the release Namespace, so the
-// documented `helm install --namespace fireisp --create-namespace` failed, and
+// documented `helm install --namespace vigabss --create-namespace` failed, and
 // an uninstall would delete the namespace; the storage PVC had no keep policy
 // although the docs said Helm preserves it.
 // =============================================================================

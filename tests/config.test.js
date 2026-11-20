@@ -95,7 +95,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = 'short';
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     jest.resetModules();
     const config = require('../src/config');
     expect(() => config.validateEnv(null)).toThrow('JWT_SECRET');
@@ -106,7 +106,7 @@ describe('validateEnv', () => {
     process.env.JWT_SECRET = VALID_SECRET;
     process.env.JWT_ALGORITHM = 'RS256';
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     process.env.ENCRYPTION_KEY = 'b'.repeat(64);
     jest.resetModules();
     const config = require('../src/config');
@@ -117,7 +117,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = 'a'.repeat(65);
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     process.env.ENCRYPTION_KEY = 'b'.repeat(64);
     jest.resetModules();
     const config = require('../src/config');
@@ -128,7 +128,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = VALID_SECRET;
     delete process.env.DB_HOST;
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     jest.resetModules();
     const config = require('../src/config');
     expect(() => config.validateEnv(null)).toThrow('DB_HOST');
@@ -138,7 +138,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = VALID_SECRET;
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.APP_URL = 'https://isp.example.com';
     jest.resetModules();
@@ -150,7 +150,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = VALID_SECRET;
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.APP_URL = 'https://isp.example.com';
     delete process.env.ADMIN_IP_ALLOWLIST;
@@ -170,7 +170,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = VALID_SECRET;
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     delete process.env.ENCRYPTION_KEY;
     jest.resetModules();
     const config = require('../src/config');
@@ -181,7 +181,7 @@ describe('validateEnv', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = VALID_SECRET;
     process.env.DB_HOST = 'localhost';
-    process.env.DB_NAME = 'fireisp';
+    process.env.DB_NAME = 'vigabss';
     process.env.ENCRYPTION_KEY = 'z'.repeat(64);
     jest.resetModules();
     const config = require('../src/config');

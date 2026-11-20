@@ -9,9 +9,9 @@
     }
   ],
   "title": "VigaBSS — Billing & Revenue",
-  "uid": "fireisp-billing",
+  "uid": "vigabss-billing",
   "version": 1,
-  "tags": ["fireisp", "billing", "revenue"],
+  "tags": ["vigabss", "billing", "revenue"],
   "timezone": "browser",
   "refresh": "1m",
   "time": { "from": "now-24h", "to": "now" },

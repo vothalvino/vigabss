@@ -243,7 +243,7 @@ describe('auth middleware', () => {
   // authenticate – httpOnly cookie path (P3.4)
   // =========================================================================
   describe('authenticate – httpOnly cookie', () => {
-    test('succeeds when JWT is provided via fireisp_access cookie', async () => {
+    test('succeeds when JWT is provided via vigabss_access cookie', async () => {
       jwt.verify.mockReturnValue({ type: 'staff', sub: 1, orgId: 5 });
       User.findById.mockResolvedValueOnce({
         id: 1,
@@ -254,7 +254,7 @@ describe('auth middleware', () => {
       });
 
       const { req, res, next } = mockReqRes({
-        cookies: { fireisp_access: 'cookie-jwt-token' },
+        cookies: { vigabss_access: 'cookie-jwt-token' },
       });
 
       await authenticate(req, res, next);
@@ -268,7 +268,7 @@ describe('auth middleware', () => {
       jwt.verify.mockImplementation(() => { throw new Error('jwt malformed'); });
 
       const { req, res, next } = mockReqRes({
-        cookies: { fireisp_access: 'bad-cookie-jwt' },
+        cookies: { vigabss_access: 'bad-cookie-jwt' },
       });
 
       await authenticate(req, res, next);
@@ -290,7 +290,7 @@ describe('auth middleware', () => {
 
       const { req, res, next } = mockReqRes({
         headers: { authorization: 'Bearer bearer-wins' },
-        cookies: { fireisp_access: 'cookie-loses' },
+        cookies: { vigabss_access: 'cookie-loses' },
       });
 
       await authenticate(req, res, next);
@@ -311,7 +311,7 @@ describe('auth middleware', () => {
       });
 
       const { req, res, next } = mockReqRes({
-        cookies: { fireisp_access: 'optional-cookie-jwt' },
+        cookies: { vigabss_access: 'optional-cookie-jwt' },
       });
 
       await optionalAuth(req, res, next);

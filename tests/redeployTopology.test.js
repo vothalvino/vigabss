@@ -36,7 +36,7 @@ function installTopologyValue(envContents) {
     return spawnSync('bash', ['-c', [
       'set -euo pipefail',
       helpers,
-      'raw="$(get_compatible_env_value "$1" VIGABSS_HOST_NGINX FIREISP_HOST_NGINX)"',
+      'raw="$(get_env_value "$1" VIGABSS_HOST_NGINX)"',
       'normalize_boolean_value "$raw"',
     ].join('\n'), 'install-topology-test', envFile], {
       encoding: 'utf8',
@@ -79,15 +79,6 @@ describe('redeploy preserves the installer topology', () => {
     expect(output).not.toContain('docker-compose.host-nginx.yml');
   });
 
-  test('legacy topology markers remain supported for an existing install', () => {
-    expect(topology('FIREISP_HOST_NGINX=1\n')).toContain('docker-compose.host-nginx.yml');
-  });
-
-  test('the canonical topology marker wins when both spellings exist', () => {
-    expect(topology('FIREISP_HOST_NGINX=1\nVIGABSS_HOST_NGINX=0\n'))
-      .not.toContain('docker-compose.host-nginx.yml');
-  });
-
   test('an invalid persisted topology fails instead of guessing at production ports', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-topology-invalid-'));
     fs.writeFileSync(path.join(dir, '.env.prod'), 'VIGABSS_HOST_NGINX=maybe\n');
@@ -114,24 +105,23 @@ describe('redeploy preserves the installer topology', () => {
     expect(commandAt).toBeLessThan(tlsAt);
     expect(commandAt).toBeLessThan(startAt);
     expect(install).toContain('HOST_NGINX_CONF_DST="/etc/nginx/conf.d/vigabss.conf"');
-    expect(install).toContain('LEGACY_HOST_NGINX_CONF="/etc/nginx/conf.d/fireisp.conf"');
     expect(install).toMatch(/nginx -t[\s\S]+previous configuration was restored/i);
   });
 
-  test('installer reruns read canonical topology first and retain the legacy fallback', () => {
-    expect(installTopologyValue('FIREISP_HOST_NGINX=1\nVIGABSS_HOST_NGINX=0\n').stdout).toBe('0');
-    expect(installTopologyValue('FIREISP_HOST_NGINX=on\n').stdout).toBe('1');
+  test('installer reruns read the persisted topology', () => {
+    expect(installTopologyValue('VIGABSS_HOST_NGINX=0\n').stdout).toBe('0');
+    expect(installTopologyValue('VIGABSS_HOST_NGINX=on\n').stdout).toBe('1');
   });
 
-  test('an invalid canonical installer topology fails closed instead of using a valid legacy value', () => {
-    const result = installTopologyValue('VIGABSS_HOST_NGINX=maybe\nFIREISP_HOST_NGINX=1\n');
+  test('an invalid installer topology fails closed', () => {
+    const result = installTopologyValue('VIGABSS_HOST_NGINX=maybe\n');
     expect(result.status).not.toBe(0);
   });
 
   test('installer topology persistence precedes SKIP_TLS and all host heuristics', () => {
     const install = fs.readFileSync(INSTALL, 'utf8');
     const persistedAt = install.indexOf(
-      '_SAVED_HOST_NGINX_RAW="$(get_compatible_env_value "$ENV_FILE" VIGABSS_HOST_NGINX FIREISP_HOST_NGINX)"',
+      '_SAVED_HOST_NGINX_RAW="$(get_env_value "$ENV_FILE" VIGABSS_HOST_NGINX)"',
     );
     const skipTlsAt = install.indexOf('SKIP_TLS="${SKIP_TLS:-0}"');
     const heuristicAt = install.indexOf('if (( ! HOST_NGINX_TOPOLOGY_PERSISTED ))');

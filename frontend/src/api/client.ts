@@ -33,12 +33,12 @@ export const tokenStore = {
 let _refreshPromise: Promise<boolean> | null = null;
 
 async function doRefresh(): Promise<boolean> {
-  // No body needed — the browser sends the httpOnly `fireisp_refresh` cookie
+  // No body needed — the browser sends the httpOnly `vigabss_refresh` cookie
   // automatically.  `credentials: 'include'` is required for same-origin
   // cookie delivery on fetch calls.
   //
   // The CSRF middleware enforces X-CSRF-Token for cookie-authenticated POSTs.
-  // Read the non-httpOnly `fireisp_csrf` cookie and echo it back as the header.
+  // Read the non-httpOnly `vigabss_csrf` cookie and echo it back as the header.
   const post = async (): Promise<Response | null> => {
     try {
       const csrfToken = readCsrfCookie();
@@ -71,7 +71,7 @@ async function doRefresh(): Promise<boolean> {
       // PrivateRoute can redirect to /login. Without this the user is stuck
       // in a rendered app where every call 401s until they manually reload.
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('fireisp:session-expired'));
+        window.dispatchEvent(new Event('vigabss:session-expired'));
       }
       return false;
     }
@@ -110,9 +110,9 @@ const authMiddleware: Middleware = {
       request.headers.set('Authorization', `Bearer ${token}`);
     }
     // Right after a reload the in-memory token is gone; the request authenticates
-    // via the httpOnly `fireisp_access` cookie instead (createClient sends it with
+    // via the httpOnly `vigabss_access` cookie instead (createClient sends it with
     // credentials:'include'). That makes state-changing requests cookie-authenticated,
-    // which the server's CSRF guard requires the `fireisp_csrf` token for. Bearer
+    // which the server's CSRF guard requires the `vigabss_csrf` token for. Bearer
     // requests are CSRF-exempt and ignore it, so sending it always is safe.
     const csrf = readCsrfCookie();
     if (csrf) {
@@ -149,7 +149,7 @@ const refreshMiddleware: Middleware = {
     }
     const ok = await _refreshPromise;
     // Caller sees the original 401. If the session is genuinely dead,
-    // doRefresh has dispatched 'fireisp:session-expired' and AuthContext
+    // doRefresh has dispatched 'vigabss:session-expired' and AuthContext
     // settles logged-out; on transient failures the session stays intact.
     if (!ok) return response;
 
@@ -163,7 +163,7 @@ const refreshMiddleware: Middleware = {
 };
 
 // credentials:'include' sends the httpOnly auth cookies, so a reload within the
-// access-token lifetime authenticates via the `fireisp_access` cookie alone — no
+// access-token lifetime authenticates via the `vigabss_access` cookie alone — no
 // `/refresh` round-trip and no refresh-token rotation on every page load.
 export const api = createClient<paths>({ baseUrl: '/api/v1', credentials: 'include' });
 api.use(authMiddleware);
@@ -182,9 +182,9 @@ export async function authedFetch(input: RequestInfo | URL, init?: RequestInit):
     const token = tokenStore.getAccess();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     // When the in-memory Bearer token is absent (e.g. right after a page reload),
-    // the request authenticates via the httpOnly `fireisp_access` cookie instead —
+    // the request authenticates via the httpOnly `vigabss_access` cookie instead —
     // which makes this a cookie-authenticated POST that the server's CSRF guard
-    // rejects (403) unless we echo the `fireisp_csrf` cookie as a header. Bearer-
+    // rejects (403) unless we echo the `vigabss_csrf` cookie as a header. Bearer-
     // authenticated requests are CSRF-exempt and ignore it, so sending it always
     // is safe. Without this, GraphQL detail pages 403'd as "Client not found".
     const csrf = readCsrfCookie();
