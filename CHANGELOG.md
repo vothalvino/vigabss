@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.22 — 2026-11-20
+
+- **Dependency updates, three with security fixes.** nodemailer 10.6.0
+  (recipient-domain validation gaps), `ws` 8.23.0 (remote memory-exhaustion
+  denial of service) and `dompurify` 3.4.18 (sanitizer bypass), plus Node
+  24.22.3, refreshed Redis and nginx images, certbot 5.10.0 and smaller
+  library updates.
+
 - **Record Payment no longer overwrites an amount you have started typing.**
   The dialog fills the amount with the client's open balance once the
   invoices load. If they arrived after typing had begun, the typed amount was

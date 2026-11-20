@@ -1,14 +1,14 @@
-# VigaBSS 0.1.0-alpha.21
+# VigaBSS 0.1.0-alpha.22
 
 Open source ISP management software for customer operations, billing, network management, compliance, and modern self-service/admin workflows.
 
-> **Pre-release:** `0.1.0-alpha.21` is an early VigaBSS alpha. Test backups,
+> **Pre-release:** `0.1.0-alpha.22` is an early VigaBSS alpha. Test backups,
 > upgrades, network automation, and billing workflows in a non-production
 > environment before relying on them operationally.
 
 ## Quick Install
 
-Deploy VigaBSS 0.1.0-alpha.21 on Ubuntu/Debian in a single command (other Linux
+Deploy VigaBSS 0.1.0-alpha.22 on Ubuntu/Debian in a single command (other Linux
 distributions work when the prerequisites are installed first):
 
 ```bash
@@ -153,7 +153,7 @@ vigabss/
 
 ## Database
 
-VigaBSS 0.1.0-alpha.21 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
+VigaBSS 0.1.0-alpha.22 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
 
 ### Quick Start
 
