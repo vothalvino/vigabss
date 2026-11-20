@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The AI chat uses the connected model to understand a message.** It
+  classified every message by keyword only, so anything outside its word
+  lists counted as unclear and two unclear messages sent the conversation to
+  a person, even with a working provider. Keywords are still tried first; when
+  they cannot place a message, the organization's provider is asked.
+
 ## 0.1.0-alpha.24 — 2026-11-20
 
 - **One AI Support page.** The two AI menu items are now one, "AI Support",

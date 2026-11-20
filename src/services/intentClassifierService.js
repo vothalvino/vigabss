@@ -111,9 +111,10 @@ function _keywordClassify(sanitizedText) {
  *
  * @param {string}      text        — raw customer text
  * @param {number|null} [providerId] — ai_providers.id to use; falsy = keyword-only
+ * @param {{orgId?: number}} [opts]  — the provider's organization, when known
  * @returns {Promise<{ intent: string, confidence: number, entities: object }>}
  */
-async function classify(text, providerId) {
+async function classify(text, providerId, { orgId } = {}) {
   const sanitized = sanitize(text);
 
   if (providerId) {
@@ -143,6 +144,9 @@ ${sanitized}`;
         providerId,
         messages: [{ role: 'user', content: prompt }],
         jsonSchema: { intent: 'string', confidence: 'number', entities: 'object' },
+        // Scopes the provider lookup to the caller's organization and counts
+        // the call against its AI budget.
+        ...(orgId ? { orgId } : {}),
       });
 
       const parsed = result.json || {};
