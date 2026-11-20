@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.23 — 2026-11-20
+
 - **The Anthropic connection works with current Claude models.** The model
   list in AI Reply Assistant → Providers offers Claude Haiku 5.5, Sonnet 5.5
   and Opus 5.5 (any model id can still be typed). Replies are no longer cut
