@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **An escalated AI chat's ticket shows the conversation.** The ticket said
+  only which conversation it came from, so the agent could not see what the
+  customer had written without finding the chat on another page. The ticket
+  description now includes the reason and the chat so far.
+- The two AI menu items are renamed to say what they are: **AI Reply
+  Assistant** (settings for the reply drafts agents get) and **AI Customer
+  Chat** (the chatbot's conversations, knowledge base and metrics).
+
 - **What's New shows the real release notes.** The panel read a fixed list
   of six entries that was never updated, so no release ever appeared in it.
   It now shows the notes of each release, newest first, from the same

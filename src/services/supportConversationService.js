@@ -469,6 +469,50 @@ async function sendMessage({ conversationId, orgId, content, clientId }) {
   return _loadConversation(conversationId, orgId);
 }
 
+// tickets.description is TEXT (65,535 bytes). The transcript is cut to stay
+// well inside it; when it is cut, the oldest messages go, since the agent
+// needs the end of the conversation — what led to the escalation — most.
+const TRANSCRIPT_MAX_CHARS = 15000;
+const TRANSCRIPT_SPEAKER = { customer: 'Customer', assistant: 'Assistant', system: 'System' };
+
+/**
+ * The ticket description for an escalated conversation: why it was escalated
+ * and the chat so far. The ticket used to carry only the conversation number,
+ * so the agent picking it up could not see what the customer had said without
+ * going to find the chat on another page.
+ *
+ * The transcript read is scoped to the organization through the conversation,
+ * and a failure to read it still yields a usable description.
+ */
+async function _escalationDescription({ conversationId, orgId, reason }) {
+  const header = `Escalated from AI support conversation #${conversationId}. Reason: ${reason || 'manual'}`;
+  let messages = [];
+  try {
+    [messages] = await db.query(
+      `SELECT sm.role, sm.content, sm.created_at
+       FROM support_messages sm
+       JOIN support_conversations sc ON sc.id = sm.conversation_id
+       WHERE sm.conversation_id = ? AND sc.organization_id = ?
+       ORDER BY sm.created_at ASC, sm.id ASC`,
+      [conversationId, orgId],
+    );
+  } catch (err) {
+    logger.warn({ err: err.message, conversationId, orgId }, 'supportConversationService: could not read the transcript for the escalation ticket');
+  }
+  if (!Array.isArray(messages) || messages.length === 0) return header;
+
+  const lines = messages.map(m => `${TRANSCRIPT_SPEAKER[m.role] || m.role}: ${String(m.content ?? '').trim()}`);
+  let omitted = 0;
+  let length = lines.reduce((sum, line) => sum + line.length + 1, 0);
+  while (lines.length > 1 && length > TRANSCRIPT_MAX_CHARS) {
+    length -= lines.shift().length + 1;
+    omitted += 1;
+  }
+  if (lines[0].length > TRANSCRIPT_MAX_CHARS) lines[0] = `${lines[0].slice(0, TRANSCRIPT_MAX_CHARS)}…`;
+  const note = omitted ? `(${omitted} earlier message${omitted === 1 ? '' : 's'} not shown)\n` : '';
+  return `${header}\n\nConversation so far:\n${note}${lines.join('\n')}`;
+}
+
 /**
  * Create the escalation ticket for a conversation and link it back via
  * `ticket_id`. Used both on first escalation and to REPAIR a conversation
@@ -484,6 +528,7 @@ async function sendMessage({ conversationId, orgId, content, clientId }) {
  */
 async function _createEscalationTicket({ conversationId, orgId, reason }) {
   try {
+    const description = await _escalationDescription({ conversationId, orgId, reason });
     const [ticketResult] = await db.query(
       `INSERT INTO tickets (organization_id, client_id, subject, description, status, priority, source)
        SELECT
@@ -496,11 +541,7 @@ async function _createEscalationTicket({ conversationId, orgId, reason }) {
          'ai_escalated'
        FROM support_conversations sc
        WHERE sc.id = ? AND sc.organization_id = ?`,
-      [
-        `Escalated from AI support conversation #${conversationId}. Reason: ${reason || 'manual'}`,
-        conversationId,
-        orgId,
-      ],
+      [description, conversationId, orgId],
     );
 
     if (ticketResult.insertId) {
