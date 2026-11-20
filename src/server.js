@@ -108,6 +108,10 @@ async function start() {
     logger.warn({ err }, 'Update-check warm failed');
   }
 
+  // WhatsApp connection settings saved in the app are laid over the
+  // environment values before the first webhook can arrive.
+  await require('./services/whatsappSettingsService').initialize();
+
   // Restore the installation-wide GUI choice. The web/API process remains
   // non-root; an enabled hub delegates kernel operations to the isolated helper.
   try {

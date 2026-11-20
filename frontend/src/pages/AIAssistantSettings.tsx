@@ -15,13 +15,14 @@ import type { FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { WhatsAppSettingsTab } from './WhatsAppSettingsTab';
 import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type AiTab = 'general' | 'providers' | 'phrases' | 'forbiddenTerms' | 'audit';
+type AiTab = 'general' | 'providers' | 'phrases' | 'forbiddenTerms' | 'whatsapp' | 'audit';
 
 interface AiChannels {
   portal: boolean;
@@ -1395,10 +1396,7 @@ function actionBadge(action: string): React.CSSProperties {
 // Main page
 // ---------------------------------------------------------------------------
 
-/**
- * `embedded`: rendered as the Settings tab of the AI Support page — no page
- * title, and no Audit tab (AI Support shows that under Metrics).
- */
+/** `embedded`: the Settings tab of AI Support — no page title, no Audit tab (shown under Metrics there). */
 export function AIAssistantSettings({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AiTab>('general');
@@ -1408,6 +1406,7 @@ export function AIAssistantSettings({ embedded = false }: { embedded?: boolean }
     { id: 'providers',      label: t('aiAssistantSettings.tabs.providers') },
     { id: 'phrases',        label: t('aiAssistantSettings.tabs.phrases') },
     { id: 'forbiddenTerms', label: t('aiAssistantSettings.tabs.forbiddenTerms') },
+    { id: 'whatsapp',       label: t('aiAssistantSettings.tabs.whatsapp') },
     { id: 'audit',          label: t('aiAssistantSettings.tabs.audit') },
   ];
   const tabs = embedded ? allTabs.filter(x => x.id !== 'audit') : allTabs;
@@ -1433,6 +1432,7 @@ export function AIAssistantSettings({ embedded = false }: { embedded?: boolean }
         {tab === 'providers'     && <ProvidersTab />}
         {tab === 'phrases'       && <PhrasesTab />}
         {tab === 'forbiddenTerms' && <ForbiddenTermsTab />}
+        {tab === 'whatsapp'      && <WhatsAppSettingsTab />}
         {tab === 'audit'         && <AuditTab />}
       </div>
     </div>

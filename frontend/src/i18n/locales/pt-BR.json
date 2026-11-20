@@ -1471,7 +1471,8 @@
       "providers": "🔌 Provedores",
       "phrases": "💬 Biblioteca de frases",
       "forbiddenTerms": "🚫 Termos proibidos",
-      "audit": "📊 Auditoria e métricas"
+      "audit": "📊 Auditoria e métricas",
+      "whatsapp": "📱 WhatsApp"
     },
     "general": {
       "sectionTitle": "Configurações gerais",
@@ -11244,6 +11245,48 @@
     "ledger": {
       "inBags": "Em malotes aguardando coleta ou a caminho",
       "bag": "Malote {{serial}}"
+    }
+  },
+  "whatsappSettings": {
+    "title": "Conexão do WhatsApp (Meta Cloud API)",
+    "intro": "Conecta o bot do WhatsApp ao número da sua empresa na Meta. Estes valores valem para toda a instalação.",
+    "loading": "Carregando…",
+    "operatorOnly": "Somente o operador da instalação pode ver ou alterar a conexão do WhatsApp.",
+    "fromEnvironment": "(do ambiente do servidor)",
+    "secretSet": "— configurado",
+    "secretNotSet": "— não configurado",
+    "secretKeep": "Deixe em branco para manter o valor atual",
+    "save": "Salvar",
+    "saving": "Salvando…",
+    "saved": "Salvo.",
+    "test": "Testar conexão",
+    "testing": "Testando…",
+    "testOk": "Conectado: {{name}} ({{number}}).",
+    "testFailed": "O teste falhou: {{reason}}",
+    "testNote": "O teste verifica o ID do número e o token de acesso. O segredo do app e o webhook só são comprovados quando chega uma mensagem do WhatsApp.",
+    "status": {
+      "canReceive": "Pode receber mensagens",
+      "cannotReceive": "Ainda não pode receber",
+      "canSend": "Pode enviar respostas",
+      "cannotSend": "Ainda não pode enviar"
+    },
+    "webhook": {
+      "legend": "Webhook para a Meta",
+      "help": "No Meta for Developers, use esta URL de retorno de chamada, o token de verificação abaixo e assine o campo \"messages\".",
+      "copy": "Copiar",
+      "copied": "Copiado"
+    },
+    "fields": {
+      "phoneNumberId": "ID do número de telefone",
+      "phoneNumberIdHelp": "O ID numérico do número que envia, em WhatsApp → Configuração da API na Meta. Não é o número de telefone.",
+      "businessNumber": "Número de telefone da empresa",
+      "businessNumberHelp": "O número para o qual os clientes escrevem, com código do país. Usado no link \"abrir WhatsApp\" do portal.",
+      "access_token": "Token de acesso",
+      "access_tokenHelp": "Um token permanente de usuário do sistema com permissão de mensagens do WhatsApp. O token temporário da Meta expira em 24 horas.",
+      "app_secret": "Segredo do app",
+      "app_secretHelp": "Nas configurações básicas do app na Meta. Comprova que as chamadas do webhook vêm mesmo da Meta.",
+      "verify_token": "Token de verificação",
+      "verify_tokenHelp": "Qualquer texto que você escolher. Digite o mesmo texto na Meta ao configurar o webhook."
     }
   }
 }
