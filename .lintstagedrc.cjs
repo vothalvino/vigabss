@@ -1,4 +1,4 @@
-// lint-staged configuration for VigaBSS 0.1.0-alpha.22
+// lint-staged configuration for VigaBSS 0.1.0-alpha.23
 // Runs automatically on every `git commit` via the .husky/pre-commit hook.
 //
 // Backend (.js files under src/):
