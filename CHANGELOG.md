@@ -5,6 +5,9 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- WhatsApp (Meta Cloud API) calls use Graph API v26.0 by default. The
+  previous default, v21.0, stops working on 21 January 2027.
+
 ## 0.1.0-alpha.24 — 2026-11-20
 
 - **One AI Support page.** The two AI menu items are now one, "AI Support",
