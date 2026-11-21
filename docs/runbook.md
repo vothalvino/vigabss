@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.24 — Operational Runbook
+# VigaBSS 0.1.0-alpha.25 — Operational Runbook
 
 Common operational scenarios and troubleshooting guides.
 

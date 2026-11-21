@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.25 — 2026-11-20
+
 - **The support chat's replies can be written by the AI.** When the AI
   assistant is on for the channel, the chat (the Conversations tab and the
   WhatsApp bot) words each answer with the organization's model, for the
