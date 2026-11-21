@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- The verify token of the WhatsApp webhook handshake is no longer written to
+  the app log or the nginx access log. Meta sends it as a query parameter and
+  it was logged in clear. If you connected WhatsApp on 0.1.0-alpha.25, choose
+  a new verify token after upgrading.
+
 ## 0.1.0-alpha.25 — 2026-11-20
 
 - **The support chat's replies can be written by the AI.** When the AI

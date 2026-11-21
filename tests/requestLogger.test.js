@@ -86,6 +86,15 @@ describe('requestLogger middleware', () => {
 });
 
 describe('maskUrl', () => {
+  it('masks the verify token of the WhatsApp webhook handshake, in both spellings Meta sends', () => {
+    const url = '/api/v1/whatsapp/webhook?hub.mode=subscribe&hub.challenge=123&hub.verify_token=my-shared-secret&hub_mode=subscribe&hub_verify_token=my-shared-secret';
+    const masked = maskUrl(url);
+    expect(masked).not.toContain('my-shared-secret');
+    expect(masked).toContain('hub.verify_token=[REDACTED]');
+    expect(masked).toContain('hub_verify_token=[REDACTED]');
+    expect(masked).toContain('hub.challenge=123');
+  });
+
   test('masks password query parameter', () => {
     expect(maskUrl('/api/auth?password=secret123')).toBe('/api/auth?password=[REDACTED]');
   });
