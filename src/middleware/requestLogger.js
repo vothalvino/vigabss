@@ -12,7 +12,9 @@ const logger = require('../utils/logger');
 // `token` cannot partial-match `access_token` — add exact names as needed.
 // extensions/authorization: the GraphQL subscription client used to put the
 // staff JWT in the URL as extensions={"authorization":"Bearer …"} (FE-12).
-const SENSITIVE_PARAMS = /[?&](password|token|api_key|secret|access_token|refresh_token|username|email|phone|ip_address|source_ip|destination_ip|translated_source_ip|nat_ip|mac|session_id|acct_session_id|extensions|authorization)=[^&]*/gi;
+// hub.verify_token is the shared secret of Meta's WhatsApp webhook handshake,
+// which arrives as a GET query parameter (in both dotted and underscored form).
+const SENSITIVE_PARAMS = /[?&](password|token|api_key|secret|access_token|refresh_token|username|email|phone|ip_address|source_ip|destination_ip|translated_source_ip|nat_ip|mac|session_id|acct_session_id|extensions|authorization|hub\.verify_token|hub_verify_token)=[^&]*/gi;
 // A bearer token anywhere in a URL, raw or percent-encoded ("Bearer%20…").
 const BEARER_IN_URL = /Bearer(?:%20|\+|\s)+[A-Za-z0-9._~+/=-]+/gi;
 // Credentials carried in the PATH: the remote signing link (the customer's
