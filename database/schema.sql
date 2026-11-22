@@ -9406,6 +9406,8 @@ CREATE TABLE IF NOT EXISTS ai_policies (
                                               COMMENT 'Strip IP/MAC/phone/email/address before sending to LLM',
     active_provider_id      BIGINT UNSIGNED  NULL
                                               COMMENT 'Currently selected ai_providers.id',
+    voice_provider_id       BIGINT UNSIGNED  NULL
+                                              COMMENT 'ai_providers.id that transcribes voice notes; NULL = first enabled OpenAI/OpenRouter provider (migration 016)',
     monthly_budget_usd      DECIMAL(10,2)    NULL
                                               COMMENT 'Month-to-date AI spend cap in USD; NULL = no limit (migration 508)',
     created_at              TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,

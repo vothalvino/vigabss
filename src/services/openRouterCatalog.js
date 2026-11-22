@@ -89,6 +89,9 @@ function _normalise(raw) {
     // A model is only "free" when both rates are known AND zero. An unknown
     // rate must never render as free — that would read as "costs nothing".
     free: prompt === 0 && completion === 0,
+    // Accepts audio in a chat message: usable to transcribe voice notes.
+    audio_input: Array.isArray(raw.architecture?.input_modalities)
+      && raw.architecture.input_modalities.includes('audio'),
   };
 }
 

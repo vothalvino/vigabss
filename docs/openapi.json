@@ -30692,6 +30692,32 @@
         }
       }
     },
+    "/ai/voice-notes/status": {
+      "get": {
+        "tags": [
+          "AI Assistant"
+        ],
+        "summary": "Whether WhatsApp voice notes are transcribed for this organization, and what stops them if not",
+        "operationId": "getAiVoiceNotesStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ ready, reason, provider, model }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/logs": {
       "get": {
         "tags": [
@@ -81730,6 +81756,10 @@
             "type": "boolean"
           },
           "active_provider_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "voice_provider_id": {
             "type": "number",
             "minimum": 1
           },
