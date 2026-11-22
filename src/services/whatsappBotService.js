@@ -165,16 +165,18 @@ async function maybeSendEmailOtp({ phone, email }) {
  * @param {object} opts
  * @param {string} opts.phone  - normalized E.164
  * @param {string} opts.body
- * @returns {Promise<{reply: string, clientId?: number}>}
+ * @param {{id: string, mimeType?: string}} [opts.audio]  a voice note, when the message is one
+ * @param {string} [opts.provider]  the inbound provider ('meta' | 'twilio'), needed to fetch a voice note
+ * @returns {Promise<{reply: string, clientId?: number, interactive?: object, transcript?: string}>}
  */
-async function handleInbound({ phone, body }) {
+async function handleInbound({ phone, body, audio = null, provider = null }) {
   // 1. Already bound? Run the bound-client bot (menu + read-only capabilities)
   // in the client's organization's language.
   const binding = await wa.resolveBinding(phone);
   if (binding) {
     const locale = (await wa.botLocale?.(binding.organizationId)) || null;
     return botLocaleStore.run(locale, () =>
-      inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding })));
+      inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding, audio, provider })));
   }
   return botLocaleStore.run(null, () => handleUnbound({ phone, body }));
 }
@@ -555,11 +557,29 @@ async function runIntent(intent, { phone, orgId, clientId, natural = false, rewo
   }
 }
 
-async function handleBound({ phone, body, binding }) {
+async function handleBound({ phone, body, binding, audio = null, provider = null }) {
   const clientId = binding.clientId;
   // The org comes from the resolved link row, never from the inbound payload.
   const orgId = binding.organizationId ?? null;
-  const text = String(body || '').trim();
+
+  // A voice note is answered like the same words typed. It is transcribed
+  // only for a linked customer (the organization, and so whose provider and
+  // budget, is known) and only when that organization allows it.
+  if (audio && !String(body || '').trim()) {
+    await wa.touchBinding(binding.linkId);
+    if (await wa.recentInboundCount(phone, 60) > BOUND_MSG_LIMIT_PER_HOUR) {
+      return { reply: MSG.cooldown, clientId };
+    }
+    const transcript = await require('./whatsappVoice').transcribe({ orgId, provider, audio, locale: currentLocale() });
+    if (!transcript) return { reply: MSG.voiceUnavailable, clientId };
+    return { ...(await handleBoundText({ phone, text: transcript, binding })), transcript };
+  }
+  return handleBoundText({ phone, text: String(body || '').trim(), binding });
+}
+
+async function handleBoundText({ phone, text, binding }) {
+  const clientId = binding.clientId;
+  const orgId = binding.organizationId ?? null;
 
   await wa.touchBinding(binding.linkId);
 

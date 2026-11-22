@@ -492,6 +492,19 @@ async function recordInbound({ provider, providerMessageId, phone, toNumber = nu
   return { isNew: res.affectedRows > 0 };
 }
 
+/** Store what a voice note said on its inbound row (the audio itself is never kept). */
+async function setInboundBody({ provider, providerMessageId, body }) {
+  try {
+    await primaryQuery(
+      `UPDATE whatsapp_inbound_messages SET body = ?
+        WHERE provider = ? AND provider_message_id = ? AND body IS NULL`,
+      [redactSecrets(body), provider, providerMessageId],
+    );
+  } catch (err) {
+    logger.warn({ err }, 'whatsapp: setInboundBody failed');
+  }
+}
+
 /** Backfill the resolved org/client onto an inbound row once the sender is bound. */
 async function setInboundOwner({ provider, providerMessageId, clientId, organizationId }) {
   try {
@@ -621,6 +634,7 @@ module.exports = {
   recordInbound,
   redactSecrets,
   setInboundOwner,
+  setInboundBody,
   recentInboundCount,
   getConversationState,
   setConversationState,

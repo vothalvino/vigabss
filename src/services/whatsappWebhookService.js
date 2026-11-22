@@ -119,7 +119,7 @@ function metaChallenge(query) {
 
 /**
  * Extract user text messages from a provider payload as a normalized list:
- *   [{ providerMessageId, from, to, body }]
+ *   [{ providerMessageId, from, to, body, audio? }]
  * Non-message events (delivery/read receipts, Meta status callbacks) yield [].
  */
 function parseInboundMessages(provider, req) {
@@ -153,7 +153,12 @@ function parseMeta(body) {
       const to = value.metadata?.display_phone_number || value.metadata?.phone_number_id || null;
       for (const m of value.messages || []) {
         const bodyText = metaMessageText(m);
-        out.push({ providerMessageId: m.id, from: m.from, to, body: bodyText });
+        // A voice note (or any audio) carries a media id, not text; the bot
+        // transcribes it when the organization allows that.
+        const audio = m.type === 'audio' && m.audio?.id
+          ? { id: String(m.audio.id), mimeType: String(m.audio.mime_type || '') }
+          : null;
+        out.push({ providerMessageId: m.id, from: m.from, to, body: bodyText, ...(audio ? { audio } : {}) });
       }
     }
   }

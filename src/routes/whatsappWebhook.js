@@ -87,7 +87,11 @@ async function processMessage(provider, m) {
   });
   if (!isNew) return;
 
-  const { reply, clientId, interactive } = await bot.handleInbound({ phone, body: m.body || '' });
+  const { reply, clientId, interactive, transcript } = await bot.handleInbound({
+    phone, body: m.body || '', audio: m.audio || null, provider,
+  });
+  // What a voice note said, kept with the inbound message for the record.
+  if (transcript) await wa.setInboundBody({ provider, providerMessageId: m.providerMessageId, body: `[voice] ${transcript}` });
 
   // Org is only known once bound — resolve it so a connected client's reply is
   // logged to sms_logs (unbound replies are sent but not logged: org is NOT NULL),
