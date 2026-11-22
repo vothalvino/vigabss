@@ -1,6 +1,6 @@
-# VigaBSS 0.1.0-alpha.27 — Database Test Suite
+# VigaBSS 0.1.0-alpha.28 — Database Test Suite
 
-Comprehensive SQL-based tests for the VigaBSS 0.1.0-alpha.27 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
+Comprehensive SQL-based tests for the VigaBSS 0.1.0-alpha.28 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
 
 ## Prerequisites
 

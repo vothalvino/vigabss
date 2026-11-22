@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.28 — 2026-11-22
+
 - **Whisper and OpenRouter's other speech-to-text models can transcribe voice
   notes.** The voice-note model picker on an OpenRouter provider now also
   lists OpenRouter's dedicated transcription models (Whisper, GPT Transcribe,
