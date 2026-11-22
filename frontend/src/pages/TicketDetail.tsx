@@ -1006,37 +1006,37 @@ function AiTriagePanel({ ticketId }: { ticketId: number }) {
   const kbIds: number[] = parseKbArticleIds(triage?.kb_article_ids ?? null);
 
   return (
-    <div style={{ ...card, marginTop: '1.5rem', border: '1px solid #e0e7ff', background: 'var(--bg-card)' }}>
-      <h3 style={{ ...cardTitle, color: '#4338ca' }}>{t('ticketDetail.aiTriage')}</h3>
+    <div style={{ ...card, marginTop: '1.5rem', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+      <h3 style={{ ...cardTitle, color: 'var(--accent)' }}>{t('ticketDetail.aiTriage')}</h3>
 
       {!triage ? (
-        <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.aiTriageNone')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.aiTriageNone')}</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', fontSize: '0.85rem' }}>
           {triage.suggested_category && (
             <div>
-              <div style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageCategory')}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageCategory')}</div>
               <div>{triage.suggested_category}</div>
             </div>
           )}
           {triage.suggested_priority && (
             <div>
-              <div style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriagePriority')}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriagePriority')}</div>
               <PriorityBadge priority={triage.suggested_priority} />
             </div>
           )}
           {triage.suggested_resolution && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageResolution')}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageResolution')}</div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, marginTop: 2 }}>{triage.suggested_resolution}</div>
             </div>
           )}
           {kbIds.length > 0 && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageKb')}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('ticketDetail.aiTriageKb')}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                 {kbIds.map(id => (
-                  <span key={id} style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 10, fontSize: '0.78rem' }}>
+                  <span key={id} style={{ background: 'var(--accent-soft)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 10, fontSize: '0.78rem' }}>
                     KB #{id}
                   </span>
                 ))}
@@ -1046,12 +1046,12 @@ function AiTriagePanel({ ticketId }: { ticketId: number }) {
         </div>
       )}
 
-      <div style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
-        <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#374151', marginBottom: 6 }}>{t('ticketDetail.aiSummary')}</div>
+      <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+        <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: 6 }}>{t('ticketDetail.aiSummary')}</div>
         {summaryErr && <div style={errStyle}>{summaryErr}</div>}
         {summary && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
-            <div style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.75rem', marginBottom: 4 }}>{t('ticketDetail.aiSummaryResult')}</div>
+          <div style={{ background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
+            <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: 4 }}>{t('ticketDetail.aiSummaryResult')}</div>
             {summary}
           </div>
         )}

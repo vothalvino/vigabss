@@ -68,3 +68,21 @@ describe('parseKbArticleIds', () => {
     expect(parseKbArticleIds('')).toEqual([]);
   });
 });
+
+// The summary box had a fixed light background and inherited the page's text
+// colour, so in dark mode it was light text on a light box. The panel's
+// colours come from the theme.
+describe('AI panel colours', () => {
+  it('uses theme colours, never fixed ones', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../TicketDetail.tsx'), 'utf8');
+    const start = src.indexOf("t('ticketDetail.aiTriage')");
+    const end = src.indexOf("t('ticketDetail.aiSummaryGenerate')");
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const panel = src.slice(start - 200, end);
+    expect(panel.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).toEqual([]);
+    expect(panel).toContain("background: 'var(--bg-subtle)', color: 'var(--text-primary)'");
+  });
+});
