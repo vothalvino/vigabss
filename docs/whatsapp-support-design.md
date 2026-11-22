@@ -293,3 +293,35 @@ flows reuse `whatsapp_conversation_state` (PR 2).
   client at apply time** (TOCTOU on contract reassignment) for both Wi-Fi and visit; the visit flow
   got the **multi-contract picker** it was missing; and `parseVisitDate` rejects overflow (Feb 30)
   and past dates. The binding-OTP email is likewise org-routed now.
+
+## Natural conversation and tappable replies
+
+With the organization's AI assistant enabled for the WhatsApp channel (and an
+active provider, within budget), a bound client can write in their own words.
+`src/services/whatsappUnderstanding.js` asks the organization's model one
+narrow question per message and validates the answer:
+
+| Where | The model returns | Checked against |
+|---|---|---|
+| Outside a flow | an intent | a fixed list (balance, plan, invoices, report, wifi, visit, human, greeting, thanks, question, unclear) |
+| Choosing a service | an option number | the options that were offered |
+| Visit day / time | a date and a slot | date format, not in the past, the three slots |
+| Confirming a Wi-Fi reset | yes / no / unclear | only an explicit yes resets |
+
+It never writes facts. Balance, plan and invoice answers are still produced by
+`whatsappCapabilityService`; the model may reword them, and a rewrite that
+contains a number or a link not present in that text is discarded. A described
+problem or a real question ("question") goes to `supportConversationService`,
+which checks the account and connection and escalates by its own rules.
+
+Any failure (assistant off, no provider, over budget, provider error, an
+unexpected answer) returns null and the numbered menu bot handles the message
+as before. Two messages in a row that cannot be understood show the menu.
+
+Replies may carry an `interactive` form next to their text: a list (menu,
+choice of service) or up to three buttons (confirm/cancel, tomorrow/the day
+after, the three time slots). `whatsappOutbound` sends it through Meta's
+interactive message types and falls back to the text if Meta refuses it; Twilio
+always gets the text. Option ids are words a customer could type ("1",
+"confirm", "morning", an ISO date), so `parseMeta` turns a tap into that text
+and no flow has a separate path for taps.

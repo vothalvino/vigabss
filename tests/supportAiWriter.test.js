@@ -160,3 +160,9 @@ test('with masking off, the text is sent as written', async () => {
   expect(mockChat.mock.calls[0][0].messages[0].content).toContain('ana@example.com');
   expect(mockChat.mock.calls[0][0].messages[0].content).not.toMatch(/Placeholders such as/);
 });
+
+test('without a stored conversation the customer\'s message is the only turn', async () => {
+  expect(await writeReply({ ...ARGS, conversationId: null })).toMatch(/\$232\.00/);
+  expect(db.query).not.toHaveBeenCalled();
+  expect(mockChat.mock.calls[0][0].messages.slice(1)).toEqual([{ role: 'user', content: 'cuanto debo' }]);
+});

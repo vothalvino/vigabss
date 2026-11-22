@@ -128,6 +128,22 @@ function parseInboundMessages(provider, req) {
   return [];
 }
 
+/**
+ * The text a Meta message stands for. A tapped button or list row carries the
+ * id the bot gave it, and those ids are the same words a customer could type
+ * ("1", "confirm", "morning", a date), so a tap and a typed answer take the
+ * same path. Media and other types carry nothing the bot can act on.
+ */
+function metaMessageText(m) {
+  if (m.type === 'text') return m.text?.body || '';
+  if (m.type === 'interactive') {
+    const reply = m.interactive?.button_reply || m.interactive?.list_reply;
+    return String(reply?.id || reply?.title || '');
+  }
+  if (m.type === 'button') return String(m.button?.payload || m.button?.text || '');
+  return '';
+}
+
 function parseMeta(body) {
   const out = [];
   if (!body || !Array.isArray(body.entry)) return out;
@@ -136,8 +152,7 @@ function parseMeta(body) {
       const value = change.value || {};
       const to = value.metadata?.display_phone_number || value.metadata?.phone_number_id || null;
       for (const m of value.messages || []) {
-        // Only text messages carry a body we can act on in this phase.
-        const bodyText = m.type === 'text' ? (m.text?.body || '') : '';
+        const bodyText = metaMessageText(m);
         out.push({ providerMessageId: m.id, from: m.from, to, body: bodyText });
       }
     }

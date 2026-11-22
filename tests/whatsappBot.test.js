@@ -7,6 +7,9 @@ jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassTh
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/services/whatsappService');
 jest.mock('../src/services/whatsappCapabilityService');
+// The natural-language layer has its own tests; here the assistant is off,
+// so this is the numbered menu bot.
+jest.mock('../src/services/whatsappUnderstanding');
 // The §21 engine is required lazily inside the bot's AI branch.
 jest.mock('../src/services/supportConversationService', () => ({
   startConversation: jest.fn(), sendMessage: jest.fn(),
