@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Whisper and OpenRouter's other speech-to-text models can transcribe voice
+  notes.** The voice-note model picker on an OpenRouter provider now also
+  lists OpenRouter's dedicated transcription models (Whisper, GPT Transcribe,
+  Voxtral and others), marked "Speech to text" with their price per minute of
+  audio where OpenRouter prices them that way. Before, only chat models that
+  accept audio were offered, because the model list was fetched without them.
+  A dedicated model is called through OpenRouter's transcription service; a
+  chat model keeps being asked to write down what it hears. The cost OpenRouter
+  reports for a transcription is what counts against the AI budget.
 ## 0.1.0-alpha.27 — 2026-11-22
 
 - **Dropdowns and fields that were unreadable in dark mode.** The request type

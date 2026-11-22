@@ -377,3 +377,22 @@ offers the catalog's models flagged `audio_input` (OpenRouter's
 `whatsappVoice.status(orgId)` (`GET /ai/voice-notes/status`) reports whether
 voice notes are transcribed right now and, if not, the first thing that stops
 them. The settings screens show it.
+
+### OpenRouter: two kinds of model can transcribe
+
+`openRouterCatalog` fetches `…/models?output_modalities=all` (the default
+list only has models that answer with text) and keeps chat models and
+speech-to-text models, the latter flagged `transcription` with
+`audio_minute_price` when priced per second of audio.
+
+`llmProviderService.transcribe` asks `openRouterCatalog.isTranscriptionModel`:
+
+- a speech-to-text model (Whisper and the like) goes to
+  `POST /api/v1/audio/transcriptions` as JSON
+  `{ model, input_audio: { data: <base64>, format }, language }`, which
+  answers `{ text, usage: { seconds, cost } }`;
+- a chat model that accepts audio goes to chat completions with an
+  `input_audio` part and an instruction to output only the words spoken.
+
+The reported `usage.cost` is recorded when present, else the size-based
+estimate.

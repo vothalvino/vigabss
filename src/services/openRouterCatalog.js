@@ -29,7 +29,10 @@
 
 const logger = require('../utils/logger').child({ service: 'openRouterCatalog' });
 
-const MODELS_URL = process.env.OPENROUTER_MODELS_URL || 'https://openrouter.ai/api/v1/models';
+// `output_modalities=all`: without it OpenRouter lists only the models that
+// answer with text, and leaves out its dedicated speech-to-text models
+// (Whisper and the like), which answer with a transcription.
+const MODELS_URL = process.env.OPENROUTER_MODELS_URL || 'https://openrouter.ai/api/v1/models?output_modalities=all';
 
 // How long a successful fetch is served from memory. The roster moves in days,
 // not seconds; an admin who needs a just-released model can force a refresh.
@@ -75,6 +78,14 @@ function _rate(value) {
 function _normalise(raw) {
   if (!raw || typeof raw.id !== 'string' || !raw.id) return null;
 
+  // The full list also carries image, video, speech, embedding and rerank
+  // models. Keep what a provider here can use: models that answer with text
+  // (chat) and models that answer with a transcription (speech to text). An
+  // entry that does not say is kept as a chat model.
+  const outputs = raw.architecture?.output_modalities;
+  const transcription = Array.isArray(outputs) && outputs.includes('transcription');
+  if (Array.isArray(outputs) && !transcription && !outputs.includes('text')) return null;
+
   const pricing = raw.pricing || {};
   const prompt = _rate(pricing.prompt);
   const completion = _rate(pricing.completion);
@@ -90,8 +101,18 @@ function _normalise(raw) {
     // rate must never render as free — that would read as "costs nothing".
     free: prompt === 0 && completion === 0,
     // Accepts audio in a chat message: usable to transcribe voice notes.
-    audio_input: Array.isArray(raw.architecture?.input_modalities)
+    audio_input: !transcription && Array.isArray(raw.architecture?.input_modalities)
       && raw.architecture.input_modalities.includes('audio'),
+    // A dedicated speech-to-text model, called at /audio/transcriptions and
+    // never as a chat model.
+    transcription,
+    // USD per minute of audio, when the model is priced per second of audio
+    // (one rate, no output rate, and small enough to be a per-second figure).
+    // Some transcription models are priced per token or per hour instead;
+    // for those the unit is not stated in the list, so no figure is shown.
+    audio_minute_price: transcription && prompt !== null && prompt > 0 && prompt < 0.01 && completion === 0
+      ? Number((prompt * 60).toFixed(6))
+      : null,
   };
 }
 
@@ -215,4 +236,17 @@ function _resetCache() {
   lastForcedAt = 0;
 }
 
-module.exports = { getModels, estimateCost, _resetCache, MODELS_URL, TTL_MS, ERROR_TTL_MS, FORCE_MIN_INTERVAL_MS };
+/**
+ * Is this id one of OpenRouter's dedicated speech-to-text models? From the
+ * cached list when it is there; otherwise from the id itself, so a
+ * transcription does not wait on, or fail with, a list refresh.
+ */
+async function isTranscriptionModel(id) {
+  const wanted = String(id || '').trim();
+  if (!wanted) return false;
+  const known = (cache?.models?.length ? cache.models : (await getModels()).models).find(m => m.id === wanted);
+  if (known) return known.transcription === true;
+  return /whisper|transcri|[-/]asr\b|[-/]stt\b|parakeet|scribe|chirp/i.test(wanted);
+}
+
+module.exports = { getModels, estimateCost, isTranscriptionModel, _resetCache, MODELS_URL, TTL_MS, ERROR_TTL_MS, FORCE_MIN_INTERVAL_MS };

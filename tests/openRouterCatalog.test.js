@@ -59,7 +59,7 @@ describe('fetching and shaping the catalog', () => {
     const { models } = await catalog.getModels();
     // A 5 KB description per model, times ~340 models, shipped to every browser.
     expect(Object.keys(models[0]).sort()).toEqual(
-      ['audio_input', 'completion_price', 'context_length', 'free', 'id', 'name', 'prompt_price'],
+      ['audio_input', 'audio_minute_price', 'completion_price', 'context_length', 'free', 'id', 'name', 'prompt_price', 'transcription'],
     );
   });
 
@@ -72,6 +72,45 @@ describe('fetching and shaping the catalog', () => {
     const { models } = await catalog.getModels({ force: true });
     const byId = Object.fromEntries(models.map((m) => [m.id, m.audio_input]));
     expect(byId).toEqual({ 'hears/audio': true, 'reads/text': false, 'says/nothing': false });
+  });
+
+  it('asks for every kind of model, and keeps the chat and the speech-to-text ones', async () => {
+    const out = (id, outputs, extra = {}) => ({ ...MODEL(id, '0.000001', '0.000002'), architecture: { input_modalities: ['text'], output_modalities: outputs }, ...extra });
+    fetchMock.mockResolvedValue(okResponse([
+      out('chat/model', ['text']),
+      out('chat/with-images', ['image', 'text']),
+      { ...MODEL('openai/whisper-large-v3-turbo', '0.00000333', '0'), architecture: { input_modalities: ['audio'], output_modalities: ['transcription'] } },
+      { ...MODEL('token/priced-transcribe', '0.00000125', '0.000005'), architecture: { input_modalities: ['audio'], output_modalities: ['transcription'] } },
+      { ...MODEL('hour/priced-transcribe', '0.36', '0'), architecture: { input_modalities: ['audio'], output_modalities: ['transcription'] } },
+      out('draws/pictures', ['image']),
+      out('embeds/text', ['embeddings']),
+      out('speaks/aloud', ['speech']),
+    ]));
+    const { models } = await catalog.getModels({ force: true });
+    expect(fetchMock.mock.calls[0][0]).toMatch(/output_modalities=all/);
+    const byId = Object.fromEntries(models.map((m) => [m.id, m]));
+    expect(Object.keys(byId).sort()).toEqual([
+      'chat/model', 'chat/with-images', 'hour/priced-transcribe', 'openai/whisper-large-v3-turbo', 'token/priced-transcribe',
+    ]);
+    expect(byId['chat/model']).toMatchObject({ transcription: false, audio_minute_price: null });
+    // Priced per second of audio: shown per minute.
+    expect(byId['openai/whisper-large-v3-turbo']).toMatchObject({ transcription: true, audio_input: false, audio_minute_price: 0.0002 });
+    // A unit the list does not state is not turned into a per-minute price.
+    expect(byId['token/priced-transcribe']).toMatchObject({ transcription: true, audio_minute_price: null });
+    expect(byId['hour/priced-transcribe']).toMatchObject({ transcription: true, audio_minute_price: null });
+  });
+
+  it('isTranscriptionModel answers from the list, and from the id when the model is not in it', async () => {
+    fetchMock.mockResolvedValue(okResponse([
+      { ...MODEL('vendor/hears', '0.00001', '0'), architecture: { output_modalities: ['transcription'] } },
+      { ...MODEL('google/gemini-2.5-flash', '0.0000003', '0.0000025'), architecture: { input_modalities: ['text', 'audio'], output_modalities: ['text'] } },
+    ]));
+    await catalog.getModels({ force: true });
+    expect(await catalog.isTranscriptionModel('vendor/hears')).toBe(true);
+    expect(await catalog.isTranscriptionModel('google/gemini-2.5-flash')).toBe(false);
+    expect(await catalog.isTranscriptionModel('openai/whisper-large-v3-turbo')).toBe(true);
+    expect(await catalog.isTranscriptionModel('anthropic/claude-haiku')).toBe(false);
+    expect(await catalog.isTranscriptionModel('')).toBe(false);
   });
 
   it('flags a model as free only when BOTH rates are known and zero', async () => {

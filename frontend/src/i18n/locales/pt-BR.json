@@ -1534,6 +1534,8 @@
       "addTitle": "Adicionar provedor",
       "editTitle": "Editar provedor",
       "openrouter": {
+        "speechToText": "Voz para texto",
+        "perMinute": "cerca de {{price}} por minuto",
         "listLabel": "{{label}}: modelos para escolher",
         "updated": "Atualizado {{time}}",
         "search": "Buscar modelos",

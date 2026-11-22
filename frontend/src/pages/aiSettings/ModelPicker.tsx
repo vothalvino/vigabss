@@ -7,8 +7,10 @@
 // model is a click away. The id can still be typed by hand: OpenRouter adds
 // models faster than any list is refreshed.
 //
-// `audioOnly` keeps only the models that accept audio in a message, which is
-// what transcribing a voice note needs.
+// `audioOnly` is the voice-note picker: OpenRouter's dedicated speech-to-text
+// models (Whisper and the like, priced per minute of audio) and the chat
+// models that accept audio in a message. The text picker leaves the
+// speech-to-text models out, since they cannot answer a chat.
 // =============================================================================
 
 import { useMemo, useState } from 'react';
@@ -25,6 +27,10 @@ export interface OpenRouterModel {
   free: boolean;
   /** Accepts audio in a chat message (can transcribe a voice note). */
   audio_input?: boolean;
+  /** A dedicated speech-to-text model (Whisper and the like); not a chat model. */
+  transcription?: boolean;
+  /** USD per minute of audio, when the model is priced by audio time. */
+  audio_minute_price?: number | null;
 }
 
 export interface ModelCatalogState {
@@ -64,6 +70,18 @@ function cost(m: OpenRouterModel): number {
   return m.prompt_price + m.completion_price;
 }
 
+// Speech-to-text models are priced by the minute of audio and chat models by
+// the token, which cannot be compared: cheapest-first lists the per-minute
+// ones first, by that price, then the rest by token price.
+function compareByPrice(a: OpenRouterModel, b: OpenRouterModel): number {
+  const am = a.audio_minute_price ?? null;
+  const bm = b.audio_minute_price ?? null;
+  if (am !== null && bm !== null) return am - bm || a.id.localeCompare(b.id);
+  if (am !== null) return -1;
+  if (bm !== null) return 1;
+  return cost(a) - cost(b) || a.id.localeCompare(b.id);
+}
+
 interface ModelPickerProps {
   /** id of the text input, so the label and tests can find it. */
   id: string;
@@ -87,7 +105,11 @@ export function ModelPicker({
   const [sort, setSort] = useState<'name' | 'price'>('name');
 
   const pool = useMemo(
-    () => (audioOnly ? catalog.models.filter(m => m.audio_input) : catalog.models),
+    // Voice notes: the dedicated speech-to-text models and the chat models
+    // that accept audio. Text: everything that is a chat model.
+    () => (audioOnly
+      ? catalog.models.filter(m => m.transcription || m.audio_input)
+      : catalog.models.filter(m => !m.transcription)),
     [catalog.models, audioOnly],
   );
   const matches = useMemo(() => {
@@ -97,13 +119,19 @@ export function ModelPicker({
       const text = `${m.id} ${m.name ?? ''}`.toLowerCase();
       return words.every(w => text.includes(w));
     });
-    return sort === 'price'
-      ? [...found].sort((a, b) => cost(a) - cost(b) || a.id.localeCompare(b.id))
-      : found;
+    return sort === 'price' ? [...found].sort(compareByPrice) : found;
   }, [pool, search, freeOnly, sort]);
 
   function summary(m: OpenRouterModel): string {
     const parts: string[] = [];
+    if (m.transcription) {
+      parts.push(t('aiAssistantSettings.providers.openrouter.speechToText'));
+      if (m.audio_minute_price != null) {
+        const digits = m.audio_minute_price >= 0.01 ? 3 : 4;
+        parts.push(t('aiAssistantSettings.providers.openrouter.perMinute', { price: `$${m.audio_minute_price.toFixed(digits)}` }));
+      }
+      return parts.join(' · ');
+    }
     const ctx = formatContext(m.context_length);
     if (ctx) parts.push(t('aiAssistantSettings.providers.openrouter.context', { tokens: ctx }));
     if (m.free) {
