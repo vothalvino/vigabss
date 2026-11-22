@@ -17,6 +17,8 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 const wa = require('./whatsappService');
 const cap = require('./whatsappCapabilityService');
+const understanding = require('./whatsappUnderstanding');
+const { businessToday, addDays } = require('../utils/businessDate');
 
 // Coarse per-phone throttle for UNBOUND numbers (binding-attempt flood / code
 // brute-force). Legitimate linking is 1-3 messages; 20/hr is generous.
@@ -47,6 +49,7 @@ const withName = (name) => (name ? ` ${name}` : '');
 const MSG_FORMATTERS = {
   bindOk: (name) => tr('bindOk', { name: name ? `, ${name}` : '' }),
   menu: (name) => tr('menu', { name: withName(name) }),
+  greeting: (name) => tr('greeting', { name: withName(name) }),
   pickService: (contracts) => tr('pickService', { list: contracts.map((c, i) => `${i + 1}) ${c.label}`).join('\n') }),
   problemLogged: (id) => tr('problemLogged', { id }),
   humanLogged: (id) => tr('humanLogged', { id }),
@@ -251,7 +254,7 @@ async function handleUnbound({ phone, body }) {
  * returns null: an LLM outage, a missing provider, a DB error — none of them
  * may surface as an error message to a customer on WhatsApp.
  */
-async function tryAiSupport({ phone, orgId, clientId, text, state }) {
+async function tryAiSupport({ phone, orgId, clientId, text, state, natural = false }) {
   try {
     const support = require('./supportConversationService');
     // Continue the client's escalated WhatsApp conversation, if one is open,
@@ -293,7 +296,9 @@ async function tryAiSupport({ phone, orgId, clientId, text, state }) {
 
     // Remember the thread so the next message continues it.
     await wa.setConversationState(phone, clientId, 'ai_support', { supportConversationId: conv.id });
-    return `${lastAssistant.content}\n\n_${MSG.aiMenuHint}_`;
+    // In a natural conversation the answer stands on its own; the menu bot
+    // adds how to get back to the menu.
+    return natural ? lastAssistant.content : `${lastAssistant.content}\n\n_${MSG.aiMenuHint}_`;
   } catch (err) {
     logger.warn({ err: err.message, clientId }, 'WhatsApp AI support unavailable — falling back to the menu');
     return null;
@@ -358,11 +363,86 @@ function parseVisitDate(text) {
   // Reject overflow days that V8 silently rolls over (Feb 30 -> Mar 2): the
   // round-trip must match the literal components.
   if (dt.getUTCFullYear() !== Number(y) || dt.getUTCMonth() + 1 !== Number(mo) || dt.getUTCDate() !== Number(d)) return null;
-  // Reject past dates (a visit can't be scheduled in the past); today is allowed.
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  if (dt < today) return null;
+  // Reject past dates (a visit can't be scheduled in the past); today, in the
+  // business time zone, is allowed.
+  if (iso < businessToday()) return null;
   return iso;
+}
+
+function isCancelCommand(text) {
+  return /^\s*(cancel|cancelar|no)\s*$/i.test(text || '');
+}
+
+// ---------------------------------------------------------------------------
+// Replies with tappable options
+// ---------------------------------------------------------------------------
+// `reply` is always the whole answer as text (what Twilio, or Meta after a
+// refused interactive message, sends). `interactive` is the same answer as
+// WhatsApp buttons or a list. Every option id is something the customer could
+// also type ("1", "confirm", "morning", a date), so a tap needs no code path
+// of its own.
+
+const button = (id, key) => ({ id, title: tr(`buttons.${key}`) });
+
+function menuReply(name) {
+  return {
+    reply: MSG.menu(name),
+    interactive: {
+      body: tr('menuIntro', { name: withName(name) }),
+      list: {
+        button: tr('buttons.options'),
+        rows: [1, 2, 3, 4, 5, 6, 7].map(n => ({ id: String(n), title: tr(`menuRows.${n}`) })),
+      },
+    },
+  };
+}
+
+function pickReply(contracts, { invalid = false } = {}) {
+  return {
+    reply: invalid ? MSG.pickInvalid : MSG.pickService(contracts),
+    // Past ten rows WhatsApp has no list; the numbered text is the reply.
+    interactive: contracts.length <= 10 ? {
+      body: tr('pickServiceBody'),
+      list: {
+        button: tr('buttons.options'),
+        rows: contracts.map((c, i) => ({ id: String(i + 1), title: `${i + 1}. ${c.planName || c.label}`, description: c.label })),
+      },
+    } : null,
+  };
+}
+
+function wifiConfirmReply(emailMasked, { again = false } = {}) {
+  return {
+    reply: again ? MSG.confirmInvalid : MSG.wifiConfirm(emailMasked),
+    interactive: {
+      body: again ? tr('wifiConfirmAgainBody') : tr('wifiConfirmBody', { email: emailMasked || tr('emailOnFile') }),
+      buttons: [button('confirm', 'confirm'), button('cancel', 'cancel')],
+    },
+  };
+}
+
+function visitDateReply(natural, { again = false } = {}) {
+  const today = businessToday();
+  const text = natural
+    ? tr(again ? 'visitDateInvalidNatural' : 'askVisitDateNatural')
+    : (again ? MSG.visitDateInvalid : MSG.askVisitDate);
+  return {
+    reply: text,
+    interactive: {
+      body: text,
+      buttons: [{ id: addDays(today, 1), title: tr('buttons.tomorrow') }, { id: addDays(today, 2), title: tr('buttons.dayAfter') }],
+    },
+  };
+}
+
+function slotReply() {
+  return {
+    reply: MSG.askVisitSlot,
+    interactive: {
+      body: tr('askVisitSlotBody'),
+      buttons: [button('morning', 'morning'), button('afternoon', 'afternoon'), button('evening', 'evening')],
+    },
+  };
 }
 
 /** Masked email on file, or null when none — gates the Wi-Fi reset (must deliver the new PSK). */
@@ -380,7 +460,7 @@ async function startReport(phone, orgId, clientId) {
   const contracts = await cap.getActiveContracts(orgId, clientId);
   if (contracts.length > 1) {
     await wa.setConversationState(phone, clientId, 'await_contract_pick', { contracts });
-    return { reply: MSG.pickService(contracts) };
+    return pickReply(contracts);
   }
   await wa.setConversationState(phone, clientId, 'await_problem_desc', { contract: contracts[0] || null });
   return { reply: MSG.askProblem };
@@ -394,10 +474,10 @@ async function startWifiReset(phone, orgId, clientId) {
   if (!emailMasked) return { reply: MSG.wifiNoEmail };
   if (contracts.length > 1) {
     await wa.setConversationState(phone, clientId, 'await_wifi_pick', { contracts, emailMasked });
-    return { reply: MSG.pickService(contracts) };
+    return pickReply(contracts);
   }
   await wa.setConversationState(phone, clientId, 'await_wifi_confirm', { contract: contracts[0] || null, emailMasked });
-  return { reply: MSG.wifiConfirm(emailMasked) };
+  return wifiConfirmReply(emailMasked);
 }
 
 async function applyWifiReset(phone, clientId, orgId, contract) {
@@ -418,15 +498,61 @@ async function applyWifiReset(phone, clientId, orgId, contract) {
   return { reply: MSG.wifiFiled(r.requestId), clientId };
 }
 
-async function startVisit(phone, orgId, clientId) {
+async function startVisit(phone, orgId, clientId, natural = false) {
   const contracts = await cap.getActiveContracts(orgId, clientId);
   if (contracts.length === 0) return { reply: MSG.noService };
   if (contracts.length > 1) {
     await wa.setConversationState(phone, clientId, 'await_visit_pick', { contracts });
-    return { reply: MSG.pickService(contracts) };
+    return pickReply(contracts);
   }
   await wa.setConversationState(phone, clientId, 'await_visit_date', { contract: contracts[0] || null });
-  return { reply: MSG.askVisitDate };
+  return visitDateReply(natural);
+}
+
+async function finishVisit(phone, orgId, clientId, contract, date, slot) {
+  await wa.clearConversationState(phone);
+  if (await cap.recentServiceRequestCount(orgId, clientId, 'visit_schedule') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
+    return { reply: MSG.actionCapped, clientId };
+  }
+  const id = await cap.scheduleVisit({ orgId, clientId, contract, preferredDate: date, slot });
+  return { reply: MSG.visitLogged(id, date, slot), clientId };
+}
+
+/** The contract the customer picked: by its number, or, with the assistant on, by how they described it. */
+async function pickContract(orgId, ai, text, contracts) {
+  const byNumber = contracts[parseInt(text.replace(/\D/g, ''), 10) - 1];
+  if (byNumber || !ai || !text) return byNumber || null;
+  const index = await understanding.readChoice(orgId, ai, text, contracts.map(c => c.label));
+  return index === null ? null : contracts[index];
+}
+
+/**
+ * Carry out one of the bot's capabilities. `reword` is the customer's own
+ * message when the assistant should phrase a read-only answer for it; the
+ * facts are always the rule-based text.
+ */
+async function runIntent(intent, { phone, orgId, clientId, natural = false, reword = null }) {
+  const say = async (facts) => ({
+    reply: (reword && await understanding.word(orgId, reword, facts)) || facts,
+    clientId,
+  });
+  switch (intent) {
+    case 'balance': return say(await cap.balanceText(orgId, clientId, currentLocale()));
+    case 'plan': return say(await cap.planText(orgId, clientId, currentLocale()));
+    case 'invoices': return say(await cap.invoicesText(orgId, clientId, currentLocale()));
+    case 'report': return { ...(await startReport(phone, orgId, clientId)), clientId };
+    case 'wifi': return { ...(await startWifiReset(phone, orgId, clientId)), clientId };
+    case 'visit': return { ...(await startVisit(phone, orgId, clientId, natural)), clientId };
+    case 'human': {
+      await wa.clearConversationState(phone);
+      if (await cap.recentWhatsappTicketCount(orgId, clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
+        return { reply: MSG.ticketCapped, clientId };
+      }
+      const id = await cap.createHumanHandoffTicket({ orgId, clientId });
+      return { reply: MSG.humanLogged(id), clientId };
+    }
+    default: return { ...menuReply(await clientFirstName(clientId)), clientId };
+  }
 }
 
 async function handleBound({ phone, body, binding }) {
@@ -458,19 +584,33 @@ async function handleBound({ phone, body, binding }) {
     state = null;
   }
 
+  // The organization's assistant, when it is on for WhatsApp: the customer can
+  // then answer in their own words. null = the numbered menu bot, unchanged.
+  const ai = await understanding.availableFor(orgId) || null;
+  const turn = { phone, orgId, clientId, natural: Boolean(ai) };
+
   // MENU/cancel always escapes an in-progress flow.
   if (state && isMenuCommand(text)) {
     await wa.clearConversationState(phone);
-    return { reply: MSG.menu(await clientFirstName(clientId)), clientId };
+    if (ai && isCancelCommand(text)) return { reply: MSG.cancelled, clientId };
+    return { ...menuReply(await clientFirstName(clientId)), clientId };
   }
 
   // In an active flow — the message is the flow's input.
-  if (state && state.state === 'await_contract_pick') {
+  if (state && ['await_contract_pick', 'await_wifi_pick', 'await_visit_pick'].includes(state.state)) {
     const contracts = state.context?.contracts || [];
-    const chosen = contracts[parseInt(text.replace(/\D/g, ''), 10) - 1];
-    if (!chosen) return { reply: MSG.pickInvalid, clientId };
-    await wa.setConversationState(phone, clientId, 'await_problem_desc', { contract: chosen });
-    return { reply: MSG.askProblem, clientId };
+    const chosen = await pickContract(orgId, ai, text, contracts);
+    if (!chosen) return { ...pickReply(contracts, { invalid: true }), clientId };
+    if (state.state === 'await_contract_pick') {
+      await wa.setConversationState(phone, clientId, 'await_problem_desc', { contract: chosen });
+      return { reply: MSG.askProblem, clientId };
+    }
+    if (state.state === 'await_wifi_pick') {
+      await wa.setConversationState(phone, clientId, 'await_wifi_confirm', { contract: chosen, emailMasked: state.context?.emailMasked });
+      return { ...wifiConfirmReply(state.context?.emailMasked), clientId };
+    }
+    await wa.setConversationState(phone, clientId, 'await_visit_date', { contract: chosen });
+    return { ...visitDateReply(turn.natural), clientId };
   }
   if (state && state.state === 'await_problem_desc') {
     await wa.clearConversationState(phone);
@@ -480,42 +620,52 @@ async function handleBound({ phone, body, binding }) {
     const id = await cap.createProblemTicket({ orgId, clientId, description: text, contract: state.context?.contract || null });
     return { reply: MSG.problemLogged(id), clientId };
   }
-  if (state && state.state === 'await_wifi_pick') {
-    const contracts = state.context?.contracts || [];
-    const chosen = contracts[parseInt(text.replace(/\D/g, ''), 10) - 1];
-    if (!chosen) return { reply: MSG.pickInvalid, clientId };
-    await wa.setConversationState(phone, clientId, 'await_wifi_confirm', { contract: chosen, emailMasked: state.context?.emailMasked });
-    return { reply: MSG.wifiConfirm(state.context?.emailMasked), clientId };
-  }
   if (state && state.state === 'await_wifi_confirm') {
-    if (!isConfirmCommand(text)) return { reply: MSG.confirmInvalid, clientId };
-    return applyWifiReset(phone, clientId, orgId, state.context?.contract || null);
-  }
-  if (state && state.state === 'await_visit_pick') {
-    const contracts = state.context?.contracts || [];
-    const chosen = contracts[parseInt(text.replace(/\D/g, ''), 10) - 1];
-    if (!chosen) return { reply: MSG.pickInvalid, clientId };
-    await wa.setConversationState(phone, clientId, 'await_visit_date', { contract: chosen });
-    return { reply: MSG.askVisitDate, clientId };
+    // The reset only ever runs on a clear yes: the fixed word, the button, or
+    // the assistant reading the customer's answer as agreement.
+    let answer = isConfirmCommand(text) ? 'yes' : (isCancelCommand(text) ? 'no' : null);
+    if (!answer && ai && text) answer = await understanding.readConfirm(orgId, ai, text);
+    if (answer === 'yes') return applyWifiReset(phone, clientId, orgId, state.context?.contract || null);
+    if (answer === 'no') {
+      await wa.clearConversationState(phone);
+      return { reply: MSG.cancelled, clientId };
+    }
+    return { ...wifiConfirmReply(state.context?.emailMasked, { again: true }), clientId };
   }
   if (state && state.state === 'await_visit_date') {
-    const date = parseVisitDate(text);
-    if (!date) return { reply: MSG.visitDateInvalid, clientId };
-    await wa.setConversationState(phone, clientId, 'await_visit_slot', { contract: state.context?.contract || null, date });
-    return { reply: MSG.askVisitSlot, clientId };
+    const contract = state.context?.contract || null;
+    let date = parseVisitDate(text);
+    let slot = null;
+    if (!date && ai && text) {
+      // "mañana en la tarde", "el viernes": the day, and the time if given.
+      const read = await understanding.readVisit(orgId, ai, text, businessToday());
+      date = read?.date ? parseVisitDate(read.date) : null;
+      slot = date ? (read.slot || null) : null;
+    }
+    if (!date) return { ...visitDateReply(turn.natural, { again: true }), clientId };
+    if (slot) return finishVisit(phone, orgId, clientId, contract, date, slot);
+    await wa.setConversationState(phone, clientId, 'await_visit_slot', { contract, date });
+    return { ...slotReply(), clientId };
   }
   if (state && state.state === 'await_visit_slot') {
-    const slot = parseSlot(text);
-    if (!slot) return { reply: MSG.askVisitSlot, clientId };
-    await wa.clearConversationState(phone);
-    if (await cap.recentServiceRequestCount(orgId, clientId, 'visit_schedule') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
-      return { reply: MSG.actionCapped, clientId };
-    }
-    const id = await cap.scheduleVisit({ orgId, clientId, contract: state.context?.contract || null, preferredDate: state.context?.date, slot });
-    return { reply: MSG.visitLogged(id, state.context?.date, slot), clientId };
+    let slot = parseSlot(text);
+    if (!slot && ai && text) slot = (await understanding.readVisit(orgId, ai, text, businessToday()))?.slot || null;
+    if (!slot) return { ...slotReply(), clientId };
+    return finishVisit(phone, orgId, clientId, state.context?.contract || null, state.context?.date, slot);
   }
 
-  // No active flow. Before falling back to the numbered menu, give real
+  // No active flow. A menu number (typed, or tapped in the list) always works.
+  if (/^[1-7]$/.test(text)) return runIntent(parseIntent(text), turn);
+
+  // With the assistant on, the customer writes what they need and the model
+  // says which capability that is. It only picks from a fixed list; when it
+  // cannot answer (or the call fails) the menu bot below takes over.
+  if (ai && text) {
+    const intent = await understanding.readIntent(orgId, ai, text);
+    if (intent) return naturalTurn(intent, { ...turn, text, state });
+  }
+
+  // Before falling back to the numbered menu, give real
   // free text to the §21 engine — intent classification, diagnostics against
   // the actual account and connection, and confidence-scored escalation. The
   // menu stays as the fallback for everything else.
@@ -533,23 +683,39 @@ async function handleBound({ phone, body, binding }) {
   }
 
   // No active flow — parse an intent.
-  switch (parseIntent(text)) {
-    case 'balance': return { reply: await cap.balanceText(orgId, clientId, currentLocale()), clientId };
-    case 'plan': return { reply: await cap.planText(orgId, clientId, currentLocale()), clientId };
-    case 'invoices': return { reply: await cap.invoicesText(orgId, clientId, currentLocale()), clientId };
-    case 'report': return { ...(await startReport(phone, orgId, clientId)), clientId };
-    case 'wifi': return { ...(await startWifiReset(phone, orgId, clientId)), clientId };
-    case 'visit': return { ...(await startVisit(phone, orgId, clientId)), clientId };
-    case 'human': {
+  return runIntent(parseIntent(text), turn);
+}
+
+// How many messages in a row the assistant may fail to understand before the
+// customer is shown the menu instead of being asked to rephrase again.
+const MAX_MISSES = 2;
+
+/**
+ * One turn of the natural conversation, for a message outside any flow whose
+ * intent the assistant has named.
+ */
+async function naturalTurn(intent, { phone, orgId, clientId, text, state }) {
+  const missed = async () => {
+    const misses = Number(state?.context?.misses || 0) + 1;
+    if (misses >= MAX_MISSES) {
       await wa.clearConversationState(phone);
-      if (await cap.recentWhatsappTicketCount(orgId, clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
-        return { reply: MSG.ticketCapped, clientId };
-      }
-      const id = await cap.createHumanHandoffTicket({ orgId, clientId });
-      return { reply: MSG.humanLogged(id), clientId };
+      return { ...menuReply(await clientFirstName(clientId)), clientId };
     }
-    default: return { reply: MSG.menu(await clientFirstName(clientId)), clientId };
+    await wa.setConversationState(phone, clientId, state?.state || 'chat', { ...(state?.context || {}), misses });
+    return { reply: MSG.notUnderstood, clientId };
+  };
+
+  if (intent === 'greeting') return { reply: MSG.greeting(await clientFirstName(clientId)), clientId };
+  if (intent === 'thanks') return { reply: MSG.youreWelcome, clientId };
+  if (intent === 'unclear') return missed();
+  if (intent === 'question') {
+    // A described problem or a real question: the support engine checks the
+    // account and the connection, answers, and hands off to staff when it
+    // should.
+    const answer = await tryAiSupport({ phone, orgId, clientId, text, state, natural: true });
+    return answer ? { reply: answer, clientId } : missed();
   }
+  return runIntent(intent, { phone, orgId, clientId, natural: true, reword: text });
 }
 
 module.exports = { handleInbound, UNBOUND_MSG_LIMIT_PER_HOUR };

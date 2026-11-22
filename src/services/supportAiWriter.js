@@ -81,7 +81,7 @@ function systemPrompt({ tone, locale, facts, forbidden, masked = false }) {
  *
  * @param {object} opts
  * @param {number} opts.orgId
- * @param {number} opts.conversationId
+ * @param {number|null} opts.conversationId  null when there is no stored conversation
  * @param {string} opts.channel          support_conversations.channel
  * @param {string} opts.customerMessage  already sanitized by the caller
  * @param {string} opts.ruleReply        the rule-based answer: the facts
@@ -104,7 +104,9 @@ async function writeReply({ orgId, conversationId, channel, customerMessage, rul
 
     // The conversation so far, oldest first. The latest customer message is
     // already stored, so it arrives as the last turn.
-    const [rows] = await db.query(
+    // No conversation (a WhatsApp menu answer being reworded): the customer's
+    // message is the only turn.
+    const [rows] = conversationId ? await db.query(
       `SELECT sm.role, sm.content
          FROM support_messages sm
          JOIN support_conversations sc ON sc.id = sm.conversation_id
@@ -112,7 +114,7 @@ async function writeReply({ orgId, conversationId, channel, customerMessage, rul
         ORDER BY sm.created_at DESC, sm.id DESC
         LIMIT ?`,
       [conversationId, orgId, HISTORY_MESSAGES],
-    );
+    ) : [[]];
     const turns = (Array.isArray(rows) ? rows : []).reverse()
       .map(m => ({ role: m.role === 'customer' ? 'user' : 'assistant', content: String(m.content || '') }))
       .filter(m => m.content.trim());

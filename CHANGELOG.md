@@ -5,6 +5,28 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The WhatsApp bot understands what customers write.** With the AI
+  assistant on for WhatsApp, a linked customer no longer has to pick numbers:
+  - "cuánto debo", "mi factura" or "quiero cambiar la clave del wifi" reach
+    the right answer or start the right step, and balance, plan and invoice
+    answers are worded for the question. A greeting gets a conversational
+    greeting; the numbered menu appears when the customer types MENÚ or was
+    not understood twice.
+  - Inside a step the customer can answer freely: "el de la oficina" picks a
+    service, "mañana en la tarde" gives the day and time of a visit in one
+    message, "sí, hazlo" confirms a Wi-Fi password reset and "mejor no"
+    cancels it.
+  - The model only chooses among things the bot already offers (a capability,
+    one of the listed services, a date, yes or no) and each answer is checked.
+    Amounts, dates and payment links always come from the system: a reworded
+    answer that changes a number or a link is discarded and the standard text
+    is sent. Numbers still work, and with the assistant off, over budget or
+    failing the bot behaves as before.
+- **Tappable options on WhatsApp** (Meta Cloud API): the menu and the choice
+  of service are lists, and confirming a Wi-Fi reset, the day of a visit
+  (tomorrow / the day after) and its time are buttons. A tap is read like the
+  typed answer. If Meta refuses the interactive form, the same reply is sent
+  as text.
 - The AI panel on a ticket (triage suggestions and the AI summary) is readable
   in dark mode. The summary box had a fixed light background behind the dark
   theme's light text.
