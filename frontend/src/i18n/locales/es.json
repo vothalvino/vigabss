@@ -1496,6 +1496,7 @@
       "spentOfBudget": "Gastado este mes: ${{spent}} de ${{budget}}. Las respuestas de IA se detienen al alcanzar el presupuesto."
     },
     "providers": {
+      "voiceUse": "Usar {{name}} para notas de voz",
       "sectionTitle": "Proveedores LLM",
       "addProvider": "+ Agregar proveedor",
       "loading": "Cargando proveedores…",
@@ -1503,6 +1504,7 @@
       "catalogError": "No se pudo cargar el catálogo de proveedores; los tipos y campos pueden estar incompletos.",
       "empty": "No hay proveedores configurados. Agrega uno para habilitar las respuestas IA.",
       "cols": {
+        "voice": "Notas de voz",
         "active": "Activo",
         "priority": "Prioridad",
         "name": "Nombre",
@@ -1532,6 +1534,15 @@
       "addTitle": "Agregar proveedor",
       "editTitle": "Editar proveedor",
       "openrouter": {
+        "listLabel": "{{label}}: modelos para elegir",
+        "updated": "Actualizado {{time}}",
+        "search": "Buscar modelos",
+        "freeOnly": "Solo gratuitos",
+        "sort": "Ordenar modelos",
+        "sortName": "Por nombre",
+        "sortPrice": "Más baratos primero",
+        "showing": "Mostrando {{shown}} de {{total}} resultados. Busca para reducirlos.",
+        "matching": "{{count}} de {{total}} modelos",
         "label": "Modelo",
         "loading": "Cargando la lista de modelos de OpenRouter…",
         "refresh": "↻ Actualizar",
@@ -11261,6 +11272,17 @@
     "testing": "Probando…",
     "testOk": "La conexión funciona (llave de tipo {{mode}}).",
     "testFailed": "La conexión falló: {{error}}"
+  },
+  "voiceNotes": {
+    "label": "Notas de voz:",
+    "ready": "listas. Las transcribe {{provider}} con {{model}}.",
+    "reason": {
+      "not_connected": "no disponibles. WhatsApp aún no está conectado mediante Meta.",
+      "assistant_off": "apagadas. Enciende el asistente de IA en General.",
+      "channel_off": "apagadas. Activa el canal de WhatsApp en General.",
+      "no_provider": "no disponibles. Agrega un proveedor OpenAI u OpenRouter activo en Proveedores.",
+      "over_budget": "en pausa. Se agotó el presupuesto de IA de este mes."
+    }
   },
   "whatsappSettings": {
     "sendFailure": {

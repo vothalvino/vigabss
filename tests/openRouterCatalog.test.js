@@ -59,8 +59,19 @@ describe('fetching and shaping the catalog', () => {
     const { models } = await catalog.getModels();
     // A 5 KB description per model, times ~340 models, shipped to every browser.
     expect(Object.keys(models[0]).sort()).toEqual(
-      ['completion_price', 'context_length', 'free', 'id', 'name', 'prompt_price'],
+      ['audio_input', 'completion_price', 'context_length', 'free', 'id', 'name', 'prompt_price'],
     );
+  });
+
+  it('flags the models that accept audio, the ones that can transcribe a voice note', async () => {
+    fetchMock.mockResolvedValue(okResponse([
+      { ...MODEL('hears/audio', '0.000001', '0.000002'), architecture: { input_modalities: ['text', 'audio'] } },
+      { ...MODEL('reads/text', '0.000001', '0.000002'), architecture: { input_modalities: ['text', 'image'] } },
+      MODEL('says/nothing', '0.000001', '0.000002'),
+    ]));
+    const { models } = await catalog.getModels({ force: true });
+    const byId = Object.fromEntries(models.map((m) => [m.id, m.audio_input]));
+    expect(byId).toEqual({ 'hears/audio': true, 'reads/text': false, 'says/nothing': false });
   });
 
   it('flags a model as free only when BOTH rates are known and zero', async () => {

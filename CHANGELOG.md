@@ -12,6 +12,26 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   browser then drew its default light background under the dark theme's light
   text. Those names now follow the theme, and a test fails when a screen uses
   a colour name that is defined nowhere.
+- **A model picker for OpenRouter providers.** The model field was a text box
+  with the browser's autocomplete over several hundred ids. It is now a list
+  you can search, limit to free models and sort cheapest first, showing each
+  model's price per million tokens and context size, with the time the list
+  was last fetched from OpenRouter and a refresh button. A model id can still
+  be typed by hand.
+- **The voice-note model is picked from the models that accept audio.** On an
+  OpenRouter provider the "Voice note model" field uses the same picker,
+  limited to models OpenRouter marks as accepting audio. One provider can so
+  use one model for text and another for voice notes.
+- **The provider that transcribes voice notes is chosen.** The Providers table
+  has a "Voice notes" column: select which OpenAI or OpenRouter provider
+  transcribes them. Before, the first one enabled was used and nothing showed
+  which. Unset, that automatic choice still applies. Migration 016 adds
+  `ai_policies.voice_provider_id`.
+- **"Voice notes: ready / not ready, and why"** on the WhatsApp and Providers
+  screens: the provider and model in use, or the one thing that stops them
+  (assistant off, WhatsApp channel off, no OpenAI/OpenRouter provider, budget
+  used up, WhatsApp not connected). The bot's "I couldn't listen" reply is the
+  same whatever the cause.
 - **The WhatsApp settings screen warns when replies are not being
   delivered.** When Meta refuses a reply, the screen shows a warning with how
   many failed, since when and Meta's own message, and says what to do when the

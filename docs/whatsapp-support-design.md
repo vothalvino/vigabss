@@ -363,3 +363,17 @@ written at most once a minute and cleared by the next delivered reply or when
 the token or number is replaced. `GET /whatsapp-settings` returns it as
 `send_failure`, with `auth: true` when the token or its permissions were
 rejected, and the settings screen shows it as a warning.
+
+## Choosing the voice-note provider and model
+
+`llmProviderService.transcriptionProvider(orgId)` returns the provider the
+organization chose (`ai_policies.voice_provider_id`, set from the Providers
+table's "Voice notes" column and validated to be its own enabled OpenAI or
+OpenRouter provider), else the first such provider by priority. The model is
+`extra_config.transcription_model` on that provider; on OpenRouter the form
+offers the catalog's models flagged `audio_input` (OpenRouter's
+`architecture.input_modalities` contains `audio`).
+
+`whatsappVoice.status(orgId)` (`GET /ai/voice-notes/status`) reports whether
+voice notes are transcribed right now and, if not, the first thing that stops
+them. The settings screens show it.

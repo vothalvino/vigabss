@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch, ApiRequestError } from '@/api/apiFetch';
+import { VoiceNotesStatus } from './aiSettings/VoiceNotesStatus';
 
 type Source = 'settings' | 'environment' | null;
 
@@ -144,6 +145,7 @@ export function WhatsAppSettingsTab() {
           {view.send_failure.auth && t('whatsappSettings.sendFailure.authHint')}
         </div>
       )}
+      <VoiceNotesStatus />
       <div style={sty.statusRow}>
         <span style={{ ...sty.pill, background: view.can_receive ? '#16a34a' : '#b45309' }}>
           {view.can_receive ? t('whatsappSettings.status.canReceive') : t('whatsappSettings.status.cannotReceive')}

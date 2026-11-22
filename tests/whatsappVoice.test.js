@@ -51,8 +51,10 @@ describe('llmProviderService.transcribe', () => {
   test('uses the organization\'s enabled OpenAI provider and returns the text', async () => {
     const result = await llm.transcribe({ orgId: 3, audio: AUDIO, mimeType: 'audio/ogg; codecs=opus', language: 'es' });
     expect(result).toEqual({ text: 'No tengo internet desde ayer.', providerId: 9, cost_usd: 0.012 });
-    expect(db.query.mock.calls[0][0]).toMatch(/organization_id = \? AND kind IN \('openai', 'openrouter'\) AND enabled = 1 AND deleted_at IS NULL/);
-    expect(db.query.mock.calls[0][1]).toEqual([3]);
+    // First the organization's choice (none here), then the first that can.
+    expect(db.query.mock.calls[0][0]).toMatch(/SELECT voice_provider_id FROM ai_policies WHERE organization_id = \?/);
+    expect(db.query.mock.calls[1][0]).toMatch(/organization_id = \? AND kind IN \('openai', 'openrouter'\) AND enabled = 1 AND deleted_at IS NULL/);
+    expect(db.query.mock.calls[1][1]).toEqual([3]);
     expect(OpenAI).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'example-openai-key' }));
     expect(mockCreate).toHaveBeenCalledWith({
       file: { name: 'voice.ogg', type: 'audio/ogg', size: 300000 }, model: 'gpt-transcribe', language: 'es',
@@ -94,6 +96,35 @@ describe('llmProviderService.transcribe', () => {
     db.query.mockResolvedValue([[{ ...PROVIDER, extra_config: { transcription_model: '  ' } }]]);
     await llm.transcribe({ orgId: 3, audio: AUDIO });
     expect(mockCreate.mock.calls[1][0].model).toBe('env-model');
+  });
+
+  test('the provider the organization chose for voice notes is used, scoped to that organization', async () => {
+    const CHOSEN = { ...PROVIDER, id: 12, kind: 'openai' };
+    db.query.mockImplementation(async (sql, params) => {
+      if (/FROM ai_policies/.test(sql)) return [[{ voice_provider_id: 12 }]];
+      if (/WHERE id = \?/.test(sql)) return [params[0] === 12 && params[1] === 3 ? [CHOSEN] : []];
+      return [[PROVIDER]];
+    });
+    expect((await llm.transcriptionProvider(3)).id).toBe(12);
+    const byId = db.query.mock.calls.find(([sql]) => /WHERE id = \?/.test(sql));
+    expect(byId[0]).toMatch(/organization_id = \? AND kind IN \('openai', 'openrouter'\) AND enabled = 1 AND deleted_at IS NULL/);
+    expect(byId[1]).toEqual([12, 3]);
+  });
+
+  test('a chosen provider that was disabled or deleted falls back to the first that can', async () => {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM ai_policies/.test(sql)) return [[{ voice_provider_id: 12 }]];
+      if (/WHERE id = \?/.test(sql)) return [[]];
+      return [[PROVIDER]];
+    });
+    expect((await llm.transcriptionProvider(3)).id).toBe(9);
+  });
+
+  test('transcriptionModelFor names the model a provider will use', () => {
+    expect(llm.transcriptionModelFor({ kind: 'openai' })).toBe('gpt-transcribe');
+    expect(llm.transcriptionModelFor({ kind: 'openrouter' })).toBe('google/gemini-2.5-flash');
+    expect(llm.transcriptionModelFor({ kind: 'openrouter', extra_config: { transcription_model: 'x/y' } })).toBe('x/y');
+    expect(llm.transcriptionModelFor(null)).toBeNull();
   });
 
   test('counts against the AI budget: checked before, recorded after', async () => {
@@ -223,4 +254,36 @@ test('migration 015 adds the transcribe operation only when missing', () => {
   const read = dir => fs.readFileSync(path.join(__dirname, '..', 'database', dir, '015_ai_usage_transcribe.sql'), 'utf8');
   expect(read('migrations')).toMatch(/NOT LIKE '%''transcribe''%'[\s\S]*ENUM\('chat','embed','transcribe'\)/);
   expect(read('rollbacks')).toMatch(/DELETE FROM ai_usage_events WHERE operation = 'transcribe'[\s\S]*ENUM\('chat','embed'\)/);
+});
+
+describe('whatsappVoice.status', () => {
+  const webhook = require('../src/services/whatsappWebhookService');
+  const fakeLlm = { transcriptionProvider: jest.fn(), transcriptionModelFor: jest.fn() };
+  const run = () => voice.status(3, { llm: fakeLlm });
+  let detect;
+  beforeEach(() => {
+    detect = jest.spyOn(webhook, 'detectProvider').mockReturnValue('meta');
+    fakeLlm.transcriptionProvider.mockReset().mockResolvedValue({ ...PROVIDER, name: 'OpenRouter', kind: 'openrouter' });
+    fakeLlm.transcriptionModelFor.mockReset().mockReturnValue('google/gemini-2.5-flash');
+    aiBudget.overBudget.mockResolvedValue(false);
+  });
+  afterEach(() => detect.mockRestore());
+
+  test('ready: names the provider and the model, and nothing secret', async () => {
+    const result = await run();
+    expect(result).toEqual({ ready: true, reason: null, provider: { id: 9, name: 'OpenRouter', kind: 'openrouter' }, model: 'google/gemini-2.5-flash' });
+    expect(JSON.stringify(result)).not.toContain('example-openai-key');
+  });
+
+  test.each([
+    ['not_connected', () => { config.whatsapp.accessToken = ''; }],
+    ['not_connected', () => { detect.mockReturnValue('twilio'); }],
+    ['assistant_off', () => { AiPolicy.findByOrgId.mockResolvedValue({ enabled: 0, enabled_channels: { whatsapp: true } }); }],
+    ['channel_off', () => { AiPolicy.findByOrgId.mockResolvedValue({ enabled: 1, enabled_channels: { whatsapp: false } }); }],
+    ['no_provider', () => { fakeLlm.transcriptionProvider.mockResolvedValue(null); fakeLlm.transcriptionModelFor.mockReturnValue(null); }],
+    ['over_budget', () => { aiBudget.overBudget.mockResolvedValue(true); }],
+  ])('not ready: %s', async (reason, arrange) => {
+    arrange();
+    expect(await run()).toMatchObject({ ready: false, reason });
+  });
 });
