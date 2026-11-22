@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.27 — 2026-11-22
+
 - **Dropdowns and fields that were unreadable in dark mode.** The request type
   dropdown under Account → New request in the customer portal, and fields on
   several other screens (portal chat and help articles, device and site
