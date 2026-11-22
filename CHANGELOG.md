@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Dropdowns and fields that were unreadable in dark mode.** The request type
+  dropdown under Account → New request in the customer portal, and fields on
+  several other screens (portal chat and help articles, device and site
+  details, PAC providers), used colour names the theme never defined. The
+  browser then drew its default light background under the dark theme's light
+  text. Those names now follow the theme, and a test fails when a screen uses
+  a colour name that is defined nowhere.
 - **The WhatsApp settings screen warns when replies are not being
   delivered.** When Meta refuses a reply, the screen shows a warning with how
   many failed, since when and Meta's own message, and says what to do when the
