@@ -67,7 +67,7 @@ function respond(over: Record<string, unknown> = {}) {
   mockApiGet.mockResolvedValue({
     data: {
       data: {
-        release_version: '0.1.0-alpha.27',
+        release_version: '0.1.0-alpha.28',
         running_sha: 'aaaaaaaaaaaaaaaa',
         latest_sha: 'bbbbbbbbbbbbbbbb',
         update_available: true,
