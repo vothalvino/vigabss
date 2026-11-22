@@ -78,5 +78,7 @@ test('portal chat stops calling the AI past the per-session and per-client turn 
   const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'portal.js'), 'utf8');
   expect(src).toMatch(/PORTAL_CHAT_MAX_TURNS/);
   expect(src).toMatch(/PORTAL_CHAT_CLIENT_DAILY_TURNS/);
-  expect(src).toMatch(/capped \? \{ skipped: true, reason: 'turn_limit' \} : await aiReplyService\.generate/);
+  // Past a cap neither the support engine nor the ticket-reply writer is called.
+  expect(src).toMatch(/const useEngine = !capped && /);
+  expect(src).toMatch(/\(capped \|\| useEngine\) \? \{ skipped: true, reason: capped \? 'turn_limit' : 'handed_to_staff' \} : await aiReplyService\.generate/);
 });

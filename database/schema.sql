@@ -12850,6 +12850,7 @@ CREATE TABLE IF NOT EXISTS portal_chat_sessions (
   messages        JSON NOT NULL DEFAULT (JSON_ARRAY()),
   status          ENUM('active','resolved','escalated') NOT NULL DEFAULT 'active',
   ticket_id       BIGINT UNSIGNED NULL,
+  support_conversation_id BIGINT UNSIGNED NULL COMMENT 'support_conversations.id answering this chat; NULL = ticket-per-session (migration 014)',
   ai_reply_log_id BIGINT UNSIGNED NULL,
   turn_count      SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -12859,6 +12860,7 @@ CREATE TABLE IF NOT EXISTS portal_chat_sessions (
   KEY idx_pcs_client (client_id),
   KEY idx_pcs_org (organization_id),
   KEY idx_pcs_status (status),
+  KEY idx_pcs_conversation (support_conversation_id),
   CONSTRAINT fk_pcs_org FOREIGN KEY (organization_id)
     REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_pcs_client FOREIGN KEY (client_id)
