@@ -17,6 +17,10 @@ jest.mock('openai', () => ({
   })),
   toFile: jest.fn(async (data, name, opts) => ({ name, type: opts.type, size: data.length })),
 }));
+// No network in tests: the list that says which OpenRouter models are
+// dedicated speech-to-text models is stubbed.
+const mockIsTranscription = jest.fn();
+jest.mock('../src/services/openRouterCatalog', () => ({ isTranscriptionModel: (...a) => mockIsTranscription(...a) }));
 jest.mock('../src/utils/logger', () => {
   const m = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), child: jest.fn(() => m) };
   return m;
@@ -41,6 +45,7 @@ beforeEach(() => {
   aiBudget.assertWithinBudget.mockResolvedValue();
   db.query.mockResolvedValue([[PROVIDER]]);
   mockCreate.mockResolvedValue({ text: ' No tengo internet desde ayer. ' });
+  mockIsTranscription.mockResolvedValue(false);
   config.whatsapp.accessToken = 'example-meta-token';
   delete process.env.AI_TRANSCRIPTION_MODEL;
   delete process.env.AI_TRANSCRIPTION_USD_PER_MINUTE;
@@ -79,6 +84,55 @@ describe('llmProviderService.transcribe', () => {
     await llm.transcribe({ orgId: 3, audio: AUDIO });
     expect(mockChat.mock.calls[1][0].model).toBe('another/audio-model');
     delete process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL;
+  });
+
+  describe('an OpenRouter speech-to-text model (Whisper and the like)', () => {
+    const realFetch = global.fetch;
+    const answer = (status, body) => { global.fetch = jest.fn().mockResolvedValue({ ok: status < 400, status, json: async () => body }); };
+    beforeEach(() => {
+      db.query.mockResolvedValue([[{ ...PROVIDER, kind: 'openrouter', extra_config: { transcription_model: 'openai/whisper-large-v3-turbo' } }]]);
+      mockIsTranscription.mockResolvedValue(true);
+    });
+    afterEach(() => { global.fetch = realFetch; });
+
+    test('goes to the transcription endpoint as base64 JSON, not to a chat model', async () => {
+      answer(200, { text: ' No tengo internet. ', usage: { cost: 0.000041 } });
+      const result = await llm.transcribe({ orgId: 3, audio: AUDIO, mimeType: 'audio/ogg; codecs=opus', language: 'es' });
+      expect(result).toEqual({ text: 'No tengo internet.', providerId: 9, cost_usd: 0.000041 });
+      expect(mockIsTranscription).toHaveBeenCalledWith('openai/whisper-large-v3-turbo');
+      const [url, init] = global.fetch.mock.calls[0];
+      expect(url).toBe('https://openrouter.ai/api/v1/audio/transcriptions');
+      expect(init.headers).toMatchObject({ Authorization: 'Bearer example-openai-key', 'Content-Type': 'application/json' });
+      expect(JSON.parse(init.body)).toEqual({
+        model: 'openai/whisper-large-v3-turbo', input_audio: { data: AUDIO.toString('base64'), format: 'ogg' }, language: 'es',
+      });
+      expect(mockChat).not.toHaveBeenCalled();
+      // What OpenRouter says it charged is what counts against the budget.
+      expect(aiBudget.recordUsage).toHaveBeenCalledWith(3, { providerId: 9, operation: 'transcribe', costUsd: 0.000041 });
+    });
+
+    test('without a reported cost the estimate is recorded', async () => {
+      answer(200, { text: 'hola' });
+      expect((await llm.transcribe({ orgId: 3, audio: AUDIO })).cost_usd).toBe(0.012);
+    });
+
+    test('a refusal carries OpenRouter\'s reason and never the key', async () => {
+      answer(400, { error: { message: 'Unsupported audio format: ogg' } });
+      await expect(llm.transcribe({ orgId: 3, audio: AUDIO })).rejects.toMatchObject({
+        code: 'LLM_TRANSCRIBE_FAILED', message: expect.stringContaining('Unsupported audio format: ogg'),
+      });
+      await expect(llm.transcribe({ orgId: 3, audio: AUDIO })).rejects.not.toMatchObject({ message: expect.stringContaining('example-openai-key') });
+      expect(aiBudget.recordUsage).not.toHaveBeenCalled();
+    });
+
+    test('a chat model that accepts audio still goes through chat', async () => {
+      mockIsTranscription.mockResolvedValue(false);
+      global.fetch = jest.fn();
+      mockChat.mockResolvedValue({ choices: [{ message: { content: 'hola' } }] });
+      await llm.transcribe({ orgId: 3, audio: AUDIO });
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(mockChat).toHaveBeenCalled();
+    });
   });
 
   test('the model chosen on the provider wins over the environment and the default', async () => {

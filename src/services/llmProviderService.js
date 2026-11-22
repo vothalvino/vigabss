@@ -878,6 +878,40 @@ function transcriptionModelFor(provider) {
 }
 
 /**
+ * POST https://openrouter.ai/api/v1/audio/transcriptions. Unlike OpenAI's
+ * endpoint of the same name it takes JSON: { model, input_audio: { data,
+ * format } } and answers { text, usage }.
+ */
+async function _openRouterTranscription({ apiKey, model, audio, format, language, timeout }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(`${OPENROUTER_BASE_URL}/audio/transcriptions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        input_audio: { data: audio.toString('base64'), format },
+        ...(language ? { language } : {}),
+      }),
+    });
+    let body = null;
+    try { body = await res.json(); } catch { /* not JSON */ }
+    if (!res.ok || body?.error) {
+      // OpenRouter's message says what was wrong (model, format, credit) and
+      // never contains the key.
+      const reason = String(body?.error?.message || `HTTP ${res.status}`).slice(0, 300);
+      throw new AppError(`OpenRouter could not transcribe the audio: ${reason}`, 502, 'LLM_TRANSCRIBE_FAILED');
+    }
+    const cost = Number(body?.usage?.cost);
+    return { text: body?.text, cost: Number.isFinite(cost) && cost >= 0 ? cost : null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Transcribe a short audio recording with the organization's OpenAI or
  * OpenRouter provider.
  *
@@ -912,10 +946,21 @@ async function transcribe({ orgId, audio, mimeType = 'audio/ogg', language = nul
   const timeout = Math.max(provider.timeout_ms || 0, 30000);
   const chosenModel = _chosenTranscriptionModel(provider);
   let text;
-  if (provider.kind === 'openrouter') {
+  let reportedCost = null;
+  const openRouterModel = chosenModel || process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL || DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL;
+  if (provider.kind === 'openrouter' && await require('./openRouterCatalog').isTranscriptionModel(openRouterModel)) {
+    // A dedicated speech-to-text model (Whisper and the like): OpenRouter's
+    // transcription endpoint, which takes the audio as base64 in JSON.
+    const result = await _openRouterTranscription({
+      apiKey, model: openRouterModel, audio, format: extension, language, timeout,
+    });
+    text = result.text;
+    reportedCost = result.cost;
+  } else if (provider.kind === 'openrouter') {
+    // A chat model that accepts audio, told only to write down what it hears.
     const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL, timeout, maxRetries: 1 });
     const completion = await client.chat.completions.create({
-      model: chosenModel || process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL || DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL,
+      model: openRouterModel,
       temperature: 0,
       max_tokens: 1000,
       messages: [{
@@ -939,7 +984,10 @@ async function transcribe({ orgId, audio, mimeType = 'audio/ogg', language = nul
 
   const perMinute = Number.parseFloat(process.env.AI_TRANSCRIPTION_USD_PER_MINUTE);
   const minutes = Math.max(audio.length / VOICE_NOTE_BYTES_PER_MINUTE, 0.1);
-  const costUsd = Number((minutes * (Number.isFinite(perMinute) && perMinute >= 0 ? perMinute : DEFAULT_TRANSCRIPTION_USD_PER_MINUTE)).toFixed(6));
+  // What the provider says it charged, when it says; else the estimate.
+  const costUsd = reportedCost !== null
+    ? Number(reportedCost.toFixed(6))
+    : Number((minutes * (Number.isFinite(perMinute) && perMinute >= 0 ? perMinute : DEFAULT_TRANSCRIPTION_USD_PER_MINUTE)).toFixed(6));
   await aiBudget.recordUsage(orgId, { providerId: provider.id, operation: 'transcribe', costUsd });
 
   return { text: typeof text === 'string' ? text.trim() : '', providerId: provider.id, cost_usd: costUsd };

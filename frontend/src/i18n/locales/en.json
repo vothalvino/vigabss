@@ -1534,6 +1534,8 @@
       "addTitle": "Add Provider",
       "editTitle": "Edit Provider",
       "openrouter": {
+        "speechToText": "Speech to text",
+        "perMinute": "about {{price}} per minute",
         "listLabel": "{{label}}: models to choose from",
         "updated": "Updated {{time}}",
         "search": "Search models",

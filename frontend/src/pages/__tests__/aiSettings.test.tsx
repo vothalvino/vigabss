@@ -586,6 +586,32 @@ describe('AIAssistantSettings page', () => {
       expect(screen.getAllByRole('button', { name: /Refresh/i })).toHaveLength(1);
     });
 
+    it('speech-to-text models are offered for voice notes only, with their price per minute', async () => {
+      modelsPayload = { data: { ...DEFAULT_MODELS_PAYLOAD.data, models: [
+        ...openRouterModels,
+        { id: 'google/gemini-flash', name: 'Gemini Flash', context_length: 1000000, prompt_price: 0.0000003, completion_price: 0.0000025, free: false, audio_input: true },
+        { id: 'openai/whisper-large-v3', name: 'Whisper Large V3', context_length: null, prompt_price: 0.0000075, completion_price: 0, free: false, transcription: true, audio_minute_price: 0.00045 },
+        { id: 'openai/whisper-large-v3-turbo', name: 'Whisper Large V3 Turbo', context_length: null, prompt_price: 0.00000333, completion_price: 0, free: false, transcription: true, audio_minute_price: 0.0002 },
+      ] } };
+      await openAddProviderModal();
+      selectKind('openrouter');
+      await screen.findByLabelText('Voice note model');
+
+      // The text model cannot be a speech-to-text model.
+      expect(modelRows().map(r => r.textContent).join(' ')).not.toMatch(/whisper/i);
+
+      const voiceList = screen.getByRole('listbox', { name: /^Voice note model: models/ });
+      const voiceRows = () => within(voiceList).getAllByRole('option').map(r => r.textContent ?? '');
+      expect(voiceRows()).toHaveLength(3);
+      expect(voiceRows().find(r => r.includes('whisper-large-v3-turbo'))).toMatch(/Speech to text · about \$0\.0002 per minute/);
+
+      // Cheapest first: per-minute models by that price, then the chat models.
+      fireEvent.change(screen.getAllByRole('combobox', { name: 'Sort models' })[1], { target: { value: 'price' } });
+      expect(voiceRows().map(r => ['openai/whisper-large-v3-turbo', 'openai/whisper-large-v3', 'google/gemini-flash'].find(id => r.includes(`${id} ·`)))).toEqual([
+        'openai/whisper-large-v3-turbo', 'openai/whisper-large-v3', 'google/gemini-flash',
+      ]);
+    });
+
     it('does not refetch when the kind is switched away and back', async () => {
       await openAddProviderModal();
       selectKind('openrouter');
