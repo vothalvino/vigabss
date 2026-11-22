@@ -36,6 +36,10 @@ class CfdiDocument extends BaseModel {
   // the CFDI list page filters by it (draft/vigente/cancelado/cancel_pending).
   static get filterableColumns() { return ['sat_status']; }
 
+  // The list page sorts by these too. They are set by the stamp/cancel flows,
+  // so they are not fillable, but ordering by them forges nothing.
+  static get sortable() { return [...super.sortable, 'sat_status', 'stamp_date', 'pac_provider', 'uuid']; }
+
   // Both children are scoped through the parent CFDI's organization_id
   // (neither child table has an org column of its own).
   static async getConceptos(cfdiId, orgId) {

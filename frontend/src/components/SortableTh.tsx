@@ -65,7 +65,7 @@ export function SortableTh({
       aria-sort={active ? (sort.sortDir === 'ASC' ? 'ascending' : 'descending') : 'none'}
       title={`Sort by ${typeof label === 'string' ? label : col}`}
       style={{
-        padding: '10px 14px', textAlign: align, fontWeight: 600, color: '#374151',
+        padding: '10px 14px', textAlign: align, fontWeight: 600, color: 'var(--text-secondary)',
         whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...style,
       }}
     >
