@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The portal chat answers from the customer's account.** When the AI
+  assistant answers on the portal by itself (assistant on, portal channel on,
+  mode "auto-send", a provider selected), the customer portal's chat is now
+  answered by the support conversation engine, the one behind the WhatsApp
+  bot and the Conversations tab. It reads the customer's account and
+  connection and answers in a few sentences, where the chat used to open a
+  ticket on the first message and reply with a long letter asking for details
+  the system already has. A ticket, with the transcript, is opened only when
+  the chat is handed to staff, and the conversation appears under AI Support →
+  Conversations. Every other configuration is unchanged: a ticket per chat,
+  and a draft kept for staff review is never shown to the customer.
+  Migration 014 adds `portal_chat_sessions.support_conversation_id`.
 - **The WhatsApp bot understands what customers write.** With the AI
   assistant on for WhatsApp, a linked customer no longer has to pick numbers:
   - "cuánto debo", "mi factura" or "quiero cambiar la clave del wifi" reach
