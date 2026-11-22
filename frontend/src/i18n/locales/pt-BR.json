@@ -1520,6 +1520,8 @@
         "model": "Modelo (ex. gpt-4o, claude-haiku-5-5)",
         "endpoint": "URL do endpoint",
         "deployment": "Nome do deployment Azure",
+        "voiceModel": "Modelo para notas de voz",
+        "voiceModelHint": "Transcreve as notas de voz do WhatsApp. Deixe vazio para usar {{model}}.",
         "apiKey": "Chave de API",
         "apiKeyKeep": "(deixe em branco para manter a chave existente)",
         "priority": "Prioridade (menor = maior)",
@@ -11261,6 +11263,11 @@
     "testFailed": "A conexão falhou: {{error}}"
   },
   "whatsappSettings": {
+    "sendFailure": {
+      "title": "As respostas do WhatsApp não estão sendo entregues.",
+      "detail": "{{count}} falharam desde {{since}}. Resposta da Meta: {{message}}.",
+      "authHint": "O token de acesso foi rejeitado, geralmente porque expirou. Gere um novo na Meta e salve-o aqui."
+    },
     "title": "Conexão do WhatsApp (Meta Cloud API)",
     "intro": "Conecta o bot do WhatsApp ao número da sua empresa na Meta. Estes valores valem para toda a instalação.",
     "loading": "Carregando…",

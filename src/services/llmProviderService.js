@@ -877,11 +877,15 @@ async function transcribe({ orgId, audio, mimeType = 'audio/ogg', language = nul
   const apiKey = decrypt(provider.api_key_encrypted) || null;
   const { OpenAI, toFile } = require('openai');
   const timeout = Math.max(provider.timeout_ms || 0, 30000);
+  // The model chosen on the provider (AI Support → Settings → Providers →
+  // "Voice note model"), else the environment's, else the built-in default.
+  const chosen = _parseExtraConfig(provider.extra_config).transcription_model;
+  const chosenModel = typeof chosen === 'string' && chosen.trim() ? chosen.trim().slice(0, 100) : null;
   let text;
   if (provider.kind === 'openrouter') {
     const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL, timeout, maxRetries: 1 });
     const completion = await client.chat.completions.create({
-      model: process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL || DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL,
+      model: chosenModel || process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL || DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL,
       temperature: 0,
       max_tokens: 1000,
       messages: [{
@@ -897,7 +901,7 @@ async function transcribe({ orgId, audio, mimeType = 'audio/ogg', language = nul
     const client = new OpenAI({ apiKey, timeout, maxRetries: 1 });
     const result = await client.audio.transcriptions.create({
       file: await toFile(audio, `voice.${extension}`, { type: baseType }),
-      model: process.env.AI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL,
+      model: chosenModel || process.env.AI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL,
       ...(language ? { language } : {}),
     });
     text = result?.text;
@@ -1027,6 +1031,8 @@ module.exports = {
   transcribe,
   transcriptionProvider,
   TRANSCRIPTION_KINDS,
+  DEFAULT_TRANSCRIPTION_MODEL,
+  DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL,
   // Exported for testing
   _computeCost,
   _parseJson,

@@ -135,6 +135,62 @@ describe('testing the connection', () => {
   });
 });
 
+describe('failing replies', () => {
+  test('a refused reply is remembered and shown, and flagged when the token is the cause', async () => {
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    const view = service.getView();
+    expect(view.send_failure).toMatchObject({ message: 'Authentication Error', auth: true, count: 1 });
+    expect(view.send_failure.since).toBe(view.send_failure.last);
+    expect(JSON.parse(mockRows.get('whatsapp_last_send_failure'))).toMatchObject({ message: 'Authentication Error', code: '190' });
+  });
+
+  test('a run of failures is one record that keeps when it started', async () => {
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    const { since } = service.getView().send_failure;
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    expect(service.getView().send_failure).toMatchObject({ count: 3, since });
+  });
+
+  test('a failure that is not about the token is shown without the token hint', async () => {
+    await service.noteSendFailure({ message: '(#131030) Recipient phone number not in allowed list', code: 131030 });
+    expect(service.getView().send_failure.auth).toBe(false);
+  });
+
+  test('the next reply that goes out clears it', async () => {
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    await service.noteSendSuccess();
+    expect(service.getView().send_failure).toBeNull();
+    expect(mockRows.get('whatsapp_last_send_failure')).toBe('');
+  });
+
+  test('saving a new access token clears it', async () => {
+    await service.noteSendFailure({ message: 'Authentication Error', code: 190 });
+    await service.save({ access_token: SECRET_VALUES[0] });
+    expect(service.getView().send_failure).toBeNull();
+  });
+
+  test('another server instance sees it after its next refresh', async () => {
+    mockRows.set('whatsapp_last_send_failure', JSON.stringify({ message: 'Authentication Error', code: '190', since: '2026-11-22T05:17:35.000Z', last: '2026-11-22T05:17:35.000Z', count: 2 }));
+    await service.refresh();
+    expect(service.getView().send_failure).toMatchObject({ count: 2, auth: true });
+  });
+
+  test('nothing is written while replies work, and recording never throws', async () => {
+    const db = require('../src/config/database');
+    db.query.mockClear();
+    await service.noteSendSuccess();
+    expect(db.query).not.toHaveBeenCalled();
+    db.query.mockRejectedValueOnce(new Error('db down'));
+    await expect(service.noteSendFailure({ message: 'x' })).resolves.toBeUndefined();
+  });
+
+  test('the message is never a secret: it is Meta\'s text, cut to a sane length', async () => {
+    await service.noteSendFailure({ message: 'e'.repeat(1000) });
+    expect(service.getView().send_failure.message).toHaveLength(300);
+  });
+});
+
 describe('the routes', () => {
   test('only the install operator may read, change or test the connection', async () => {
     mockOperator = false;

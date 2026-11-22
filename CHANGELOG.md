@@ -5,6 +5,20 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The WhatsApp settings screen warns when replies are not being
+  delivered.** When Meta refuses a reply, the screen shows a warning with how
+  many failed, since when and Meta's own message, and says what to do when the
+  access token was rejected (the usual cause: a temporary token that expired).
+  It clears by itself with the next reply that goes out, or when a new token
+  or number is saved. Before, a rejected token was only visible in the server
+  log while customers got no answer.
+- **The model that transcribes voice notes is chosen on the provider.** An
+  OpenAI or OpenRouter provider has a "Voice note model" field under AI
+  Support → Settings → Providers. Left empty it uses the default
+  (`gpt-transcribe` for OpenAI, `google/gemini-2.5-flash` for OpenRouter). The
+  environment variables remain as a fallback, so nothing has to be set on the
+  server.
+
 ## 0.1.0-alpha.26 — 2026-11-21
 
 - **The WhatsApp bot answers voice notes.** A linked customer can send a
