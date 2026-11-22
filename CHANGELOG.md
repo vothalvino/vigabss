@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.26 — 2026-11-21
+
 - **The WhatsApp bot answers voice notes.** A linked customer can send a
   voice note and gets the same text answer as if they had typed it; it also
   works as the answer inside a step ("sí, hazlo", "mañana en la tarde"). The
