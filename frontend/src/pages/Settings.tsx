@@ -5,7 +5,7 @@
 //
 //   1. Org Config       — key/value settings from GET/PUT /api/v1/settings
 //   2. Alert Rules      — CRUD on alert rules via /api/v1/alerts/rules
-//   3. Payment Gateways — CRUD on payment gateways via /api/v1/payment-gateways
+//   3. Payment Gateways — settings/PaymentGatewaysTab.tsx
 //   4. Quotas           — per-tenant resource usage + limit management
 //   5. Email            — per-organization outbound SMTP
 //   6. Version          — what this instance is running, and whether a newer
@@ -21,10 +21,11 @@ import type { FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { gatewayPayload, type GatewayForm } from './paymentGatewayPayload';
 import { useAuth } from '@/auth/AuthContext';
 import { apiFetch } from '@/api/apiFetch';
 import { QuotaBar } from './settings/QuotaBar';
+import { PaymentGatewaysTab } from './settings/PaymentGatewaysTab';
+import { sty, Modal, ConfirmDialog } from './settings/shared';
 import { SETTING_ENUM_OPTIONS, SETTING_LABEL_KEYS, SETTING_NUMBER_INPUTS } from './settings/orgSettingInputs';
 
 // ---------------------------------------------------------------------------
@@ -64,20 +65,6 @@ interface AlertRule {
   created_at: string;
 }
 
-interface PaymentGateway {
-  id: number;
-  provider: string;
-  name: string;
-  environment: string;
-  public_key: string | null;
-  // Secrets are write-only: the API only says whether one is stored.
-  has_secret_key: boolean;
-  has_webhook_secret: boolean;
-  status: string;
-  organization_id?: number | null;
-  created_at: string;
-}
-
 interface EmailSettingsData {
   organization_id: number;
   enabled: boolean;
@@ -114,8 +101,6 @@ const METRICS = [
 const OPERATORS = ['>', '>=', '<', '<=', '=='];
 // Must match the alert_rules.severity DB enum (migration 134): info/warning/major/critical.
 const SEVERITIES = ['critical', 'major', 'warning', 'info'];
-const PROVIDERS = ['stripe', 'conekta', 'openpay', 'mercadopago', 'paypal', 'manual', 'other'];
-const ENVIRONMENTS = ['sandbox', 'production'];
 
 // ---------------------------------------------------------------------------
 // API helpers
@@ -498,260 +483,8 @@ function AlertRulesTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Payment Gateways tab
-// ---------------------------------------------------------------------------
-
-const EMPTY_GW: GatewayForm = {
-  provider: 'stripe', name: '', environment: 'sandbox',
-  public_key: '', secret_key: '', webhook_secret: '', status: 'active',
-};
-
-function PaymentGatewaysTab() {
-  const { t } = useTranslation();
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<PaymentGateway | null>(null);
-  const [form, setForm] = useState({ ...EMPTY_GW });
-  const [formError, setFormError] = useState('');
-  const [copied, setCopied] = useState<null | 'ok' | 'fail'>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const qc = useQueryClient();
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['payment-gateways'],
-    queryFn: () =>
-      apiFetch<{ data: PaymentGateway[]; meta: { total: number } }>(`${API_BASE}/payment-gateways?limit=100`),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (body: Record<string, string>) =>
-      editing
-        ? apiFetch(`${API_BASE}/payment-gateways/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) })
-        : apiFetch(`${API_BASE}/payment-gateways`, { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment-gateways'] }); closeModal(); },
-    onError: (err: Error) => setFormError(err.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiFetch(`${API_BASE}/payment-gateways/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment-gateways'] }); setDeleteId(null); },
-  });
-
-  function openNew() { setEditing(null); setForm({ ...EMPTY_GW }); setFormError(''); setShowModal(true); }
-  function openEdit(gw: PaymentGateway) {
-    setEditing(gw);
-    setForm({
-      provider: gw.provider, name: gw.name ?? '', environment: gw.environment,
-      public_key: gw.public_key ?? '', secret_key: '',
-      webhook_secret: '', status: gw.status,
-    });
-    setFormError(''); setShowModal(true);
-  }
-  function closeModal() { setShowModal(false); setEditing(null); }
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setFormError('');
-    saveMutation.mutate(gatewayPayload(form));
-  }
-
-  const gateways = data?.data ?? [];
-
-  return (
-    <div>
-      <div style={sty.tabBar}>
-        <h3 style={sty.sectionTitle}>{t('ui.settings.paymentGateways')}</h3>
-        <button style={sty.btnPrimary} onClick={openNew}>{t('ui.settings.addGateway')}</button>
-      </div>
-
-      {isLoading && <p style={sty.muted}>{t('ui.settings.loadingGateways')}</p>}
-      {error && <p style={sty.errorText}>{t('ui.settings.failedToLoadPaymentGateways')}</p>}
-      {!isLoading && gateways.length === 0 && <p style={sty.muted}>{t('ui.settings.noPaymentGatewaysConfigured')}</p>}
-
-      {gateways.length > 0 && (
-        <table style={sty.table}>
-          <thead>
-            <tr>{['Provider', 'Name', 'Environment', 'Secret key', 'Webhook secret', 'Status', ''].map(h => <th key={h} style={sty.th}>{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {gateways.map(gw => (
-              <tr key={gw.id}>
-                <td style={sty.td}><span style={channelBadge(gw.provider)}>{gw.provider}</span></td>
-                <td style={sty.td}>{gw.name}</td>
-                <td style={sty.td}>{gw.environment}</td>
-                <td style={sty.td}>{gw.has_secret_key ? 'Set' : <em style={sty.muted}>{t('ui.settings.notSet')}</em>}</td>
-                <td style={sty.td}>{gw.has_webhook_secret ? 'Set' : <em style={sty.muted}>{t('ui.settings.notSet')}</em>}</td>
-                <td style={sty.td}><span style={statusBadge(gw.status)}>{gw.status}</span></td>
-                <td style={sty.td}>
-                  <span style={sty.rowActions}>
-                    <button style={sty.btnGhost} onClick={() => openEdit(gw)}>{t('ui.settings.edit')}</button>
-                    <button style={sty.btnDanger} onClick={() => setDeleteId(gw.id)}>{t('ui.settings.delete')}</button>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {showModal && (
-        <Modal title={editing ? 'Edit Gateway' : 'Add Payment Gateway'} onClose={closeModal}>
-          <form onSubmit={handleSubmit} style={sty.form}>
-            <div style={sty.row2}>
-              <label style={sty.label}>{t('ui.settings.provider')}
-                <select style={sty.select} value={form.provider} disabled={!!editing}
-                  onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}>
-                  {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                {editing && <span style={sty.hint}>{t('ui.settings.providerIsFixedForAn')}</span>}
-              </label>
-              <label style={sty.label}>{t('ui.settings.name')}
-                <input style={sty.input} value={form.name} placeholder={t('ui.settings.eGStripeMx')} required maxLength={100}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </label>
-            </div>
-            <div style={sty.row2}>
-              <label style={sty.label}>{t('ui.settings.environment')}
-                <select style={sty.select} value={form.environment} onChange={e => setForm(f => ({ ...f, environment: e.target.value }))}>
-                  {ENVIRONMENTS.map(env => <option key={env} value={env}>{env}</option>)}
-                </select>
-              </label>
-              <label style={sty.label}>{t('ui.settings.status')}
-                <select style={sty.select} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                  <option value="active">{t('ui.settings.active')}</option>
-                  <option value="inactive">{t('ui.settings.inactive')}</option>
-                </select>
-              </label>
-            </div>
-            <label style={sty.label}>{t('ui.settings.publicKey')}
-              <input style={sty.input} value={form.public_key} placeholder={t('ui.settings.pkLive')}
-                onChange={e => setForm(f => ({ ...f, public_key: e.target.value }))} />
-            </label>
-            <label style={sty.label}>
-              {t('ui.settings.secretKey')}{editing?.has_secret_key && <span style={sty.hint}>{t('ui.settings.leaveBlankToKeepExisting')}</span>}
-              <input style={sty.input} type="password" value={form.secret_key} autoComplete="new-password"
-                placeholder={editing?.has_secret_key ? '••••••••' : 'sk_live_…'}
-                onChange={e => setForm(f => ({ ...f, secret_key: e.target.value }))} />
-            </label>
-            <label style={sty.label}>
-              {form.provider === 'conekta' ? 'Webhook Public Key (PEM)' : 'Webhook Secret'}
-              {editing?.has_webhook_secret && <span style={sty.hint}> {t('ui.settings.leaveBlankToKeepExisting2')}</span>}
-              {form.provider === 'conekta' ? (
-                // Conekta signs webhooks with RSA; the verifier needs the
-                // multi-line public key from POST /webhook_keys.
-                <textarea style={{ ...sty.input, minHeight: 96, fontFamily: 'monospace' }} value={form.webhook_secret}
-                  placeholder={editing?.has_webhook_secret ? '••••••••' : '-----BEGIN PUBLIC KEY-----'}
-                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
-              ) : (
-                <input style={sty.input} type="password" value={form.webhook_secret} autoComplete="new-password"
-                  placeholder={editing?.has_webhook_secret ? '••••••••' : 'whsec_…'}
-                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
-              )}
-            </label>
-            {editing && (editing.provider === 'stripe' || editing.provider === 'conekta') && (() => {
-              // Organization-scoped URL: the event is processed in this
-              // organization's own database when it has one (WHK-11).
-              const webhookUrl = editing.organization_id
-                ? `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.organization_id}/${editing.id}`
-                : `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
-              return (
-                <div style={sty.label}>
-                  <span>{t('ui.settings.webhookUrl')}<span style={sty.hint}>{t('ui.settings.pasteIntoYour')}{editing.provider} {t('ui.settings.dashboard')}</span></span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <code style={{ ...sty.code, flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>{webhookUrl}</code>
-                    <button type="button" style={sty.btnGhost} onClick={async () => {
-                      try {
-                        if (!navigator.clipboard) throw new Error('clipboard unavailable');
-                        await navigator.clipboard.writeText(webhookUrl);
-                        setCopied('ok');
-                      } catch {
-                        setCopied('fail');  // e.g. plain-HTTP admin panel — the URL above is selectable
-                      }
-                      setTimeout(() => setCopied(null), 2000);
-                    }}>{copied === 'ok' ? 'Copied!' : copied === 'fail' ? 'Select it ↑' : 'Copy'}</button>
-                  </div>
-                  <span style={sty.hint}>{t('ui.settings.setThisAsTheWebhook')}{editing.provider}{t('ui.settings.thenPasteTheSigningSecret')}</span>
-                  <span style={sty.hint}>
-                    {t('ui.settings.subscribeItTo')}{editing.provider === 'stripe'
-                      ? 'checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, charge.dispute.created'
-                      : 'order.paid, order.payment_failed, charge.refunded, charge.chargeback.created'}
-                  </span>
-                </div>
-              );
-            })()}
-            {formError && <p style={sty.errorText}>{formError}</p>}
-            <div style={sty.modalFooter}>
-              <button type="button" style={sty.btnGhost} onClick={closeModal}>{t('ui.settings.cancel')}</button>
-              <button type="submit" style={sty.btnPrimary} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? 'Saving…' : editing ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {deleteId !== null && (
-        <ConfirmDialog
-          message="Delete this payment gateway? Existing transactions linked to it will be preserved."
-          onConfirm={() => deleteMutation.mutate(deleteId!)}
-          onCancel={() => setDeleteId(null)}
-          loading={deleteMutation.isPending}
-        />
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Shared helper components
-// ---------------------------------------------------------------------------
-
-interface ModalProps { title: string; onClose: () => void; children: React.ReactNode; }
-function Modal({ title, onClose, children }: ModalProps) {
-  return (
-    <div style={sty.overlay}>
-      <div style={sty.modal}>
-        <div style={sty.modalHeader}>
-          <span style={{ fontWeight: 600 }}>{title}</span>
-          <button style={sty.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <div style={sty.modalBody}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-interface ConfirmProps { message: string; onConfirm: () => void; onCancel: () => void; loading: boolean; }
-function ConfirmDialog({ message, onConfirm, onCancel, loading }: ConfirmProps) {
-  const { t } = useTranslation();
-  return (
-    <div style={sty.overlay}>
-      <div style={{ ...sty.modal, maxWidth: 400 }}>
-        <div style={sty.modalBody}>
-          <p style={{ marginTop: 0 }}>{message}</p>
-          <div style={sty.modalFooter}>
-            <button style={sty.btnGhost} onClick={onCancel} disabled={loading}>{t('ui.settings.cancel')}</button>
-            <button style={sty.btnDanger} onClick={onConfirm} disabled={loading}>
-              {loading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Badge helpers
 // ---------------------------------------------------------------------------
-
-function channelBadge(label: string) {
-  const colours: Record<string, string> = {
-    email: '#3b82f6', sms: '#8b5cf6', whatsapp: '#22c55e', push: '#f59e0b',
-    stripe: '#635bff', conekta: '#e74c3c', openpay: '#2ecc71', paypal: '#003087',
-    mercadopago: '#009ee3', manual: '#888', other: '#888',
-  };
-  return { ...sty.badge, background: colours[label] ?? '#888' };
-}
 
 function severityBadge(level: string) {
   const colours: Record<string, string> = {
@@ -760,13 +493,6 @@ function severityBadge(level: string) {
   return {
     padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
     background: colours[level] ?? '#888', color: '#fff',
-  };
-}
-
-function statusBadge(st: string) {
-  return {
-    padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
-    background: st === 'active' ? '#16a34a' : '#888', color: '#fff',
   };
 }
 
@@ -1462,56 +1188,3 @@ export function Settings() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const sty = {
-  page: { padding: '1.5rem 2rem', fontFamily: 'var(--font-sans)', maxWidth: 1000 },
-  pageTitle: { margin: '0 0 1rem', fontSize: '1.4rem' },
-  tabs: { display: 'flex', gap: 4, borderBottom: '2px solid var(--border)', marginBottom: '1.25rem' },
-  tabBtn: {
-    background: 'none', border: 'none', borderBottom: '2px solid transparent',
-    padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-muted)',
-    marginBottom: -2, transition: 'color .15s',
-  } as React.CSSProperties,
-  tabBtnActive: { color: 'var(--accent)', borderBottomColor: 'var(--accent)', fontWeight: 600 } as React.CSSProperties,
-  card: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '1.5rem' },
-  sectionTitle: { margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 },
-  tabBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
-  muted: { color: 'var(--text-faint)', fontStyle: 'italic' as const, fontSize: '0.875rem' },
-  table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.875rem' },
-  th: { textAlign: 'left' as const, padding: '0.5rem 0.75rem', borderBottom: '2px solid var(--border)', fontWeight: 600, color: 'var(--text-secondary)' },
-  td: { padding: '0.6rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', verticalAlign: 'middle' as const },
-  code: { background: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.82rem' },
-  valueCap: { display: 'block', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
-  badge: { padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600, color: '#fff' },
-  rowActions: { display: 'flex', gap: 6 },
-  errorText: { color: '#dc2626', fontSize: '0.85rem', margin: '0.5rem 0 0' },
-  hint: { fontWeight: 400, color: 'var(--text-faint)', fontSize: '0.8rem' },
-  // modal
-  overlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 80, zIndex: 1000 },
-  modal: { background: 'var(--bg-card)', borderRadius: 8, width: '100%', maxWidth: 560, boxShadow: '0 8px 32px rgba(0,0,0,.2)', maxHeight: '80vh', overflow: 'auto' as const },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' },
-  modalBody: { padding: '1.25rem' },
-  modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1rem' },
-  closeBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-faint)' },
-  form: { display: 'flex', flexDirection: 'column' as const, gap: 12 },
-  label: { display: 'flex', flexDirection: 'column' as const, gap: 4, fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' },
-  input: { padding: '0.45rem 0.65rem', border: '1px solid var(--input-border)', borderRadius: 6, fontSize: '0.875rem', width: '100%', boxSizing: 'border-box' as const },
-  select: { padding: '0.45rem 0.65rem', border: '1px solid var(--input-border)', borderRadius: 6, fontSize: '0.875rem', background: 'var(--input-bg)', width: '100%', boxSizing: 'border-box' as const },
-  row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-  verList: { display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.5rem 1.25rem', margin: 0, fontSize: '0.9rem' },
-  verKey: { color: 'var(--text-secondary)', fontWeight: 500 },
-  verVal: { margin: 0 },
-  verNote: { marginTop: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 },
-  verRule: { border: 0, borderTop: '1px solid var(--border)', margin: '1.75rem 0 1.25rem' },
-  verPre: { background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem', fontSize: '0.78rem', overflowX: 'auto' as const, whiteSpace: 'pre' as const, margin: '0.75rem 0' },
-  btnDisabled: { opacity: 0.55, cursor: 'not-allowed' as const },
-  checkRow: { display: 'flex', gap: 24, fontSize: '0.875rem' },
-  // buttons
-  btnPrimary: { padding: '0.4rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 500 },
-  btnGhost: { padding: '0.4rem 1rem', background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
-  btnDanger: { padding: '0.4rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
-};

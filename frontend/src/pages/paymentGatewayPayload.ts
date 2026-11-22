@@ -14,8 +14,10 @@ export interface GatewayForm {
 // them. A blank one is left out so the stored secret is kept (the form used to
 // send an empty secret key on every edit, wiping it).
 export function gatewayPayload(form: GatewayForm): Record<string, string> {
-  const { secret_key, webhook_secret, ...rest } = form;
+  const { secret_key, webhook_secret, environment, ...rest } = form;
   const body: Record<string, string> = { ...rest, name: form.name.trim() };
+  // A Stripe gateway's environment is read from its key by the server.
+  if (form.provider !== 'stripe') body.environment = environment;
   if (secret_key.trim()) body.secret_key = secret_key.trim();
   if (webhook_secret.trim()) body.webhook_secret = webhook_secret.trim();
   return body;

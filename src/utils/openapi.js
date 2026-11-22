@@ -1183,6 +1183,12 @@ function generateSpec() {
 
       // ---- Payment Gateways ----
       ...crudPaths('payment-gateways', 'Payment Gateways', 'PaymentGateway'),
+      '/payment-gateways/mode': {
+        get: { tags: ['Payment Gateways'], summary: 'Whether this install accepts test or live gateway keys (PAYMENT_MODE)', operationId: 'getPaymentMode', security: [{ bearerAuth: [] }], responses: r200('{ payment_mode: "test" | "live" }') },
+      },
+      '/payment-gateways/{id}/test': {
+        post: { tags: ['Payment Gateways'], summary: 'Ask the provider whether the stored key works (Stripe only; moves no money)', operationId: 'testPaymentGateway', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('{ ok, mode?, error? }'), 404: errorResponse('Gateway not found') } },
+      },
       '/payment-gateways/webhook-events': {
         get: {
           tags: ['Payment Gateways'], summary: 'List the organization\'s payment webhook events (no payloads), newest first', operationId: 'listPaymentWebhookEvents', security: [{ bearerAuth: [] }],

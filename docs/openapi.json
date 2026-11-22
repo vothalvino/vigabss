@@ -25075,6 +25075,95 @@
         }
       }
     },
+    "/payment-gateways/mode": {
+      "get": {
+        "tags": [
+          "Payment Gateways"
+        ],
+        "summary": "Whether this install accepts test or live gateway keys (PAYMENT_MODE)",
+        "operationId": "getPaymentMode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ payment_mode: \"test\" | \"live\" }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment-gateways/{id}/test": {
+      "post": {
+        "tags": [
+          "Payment Gateways"
+        ],
+        "summary": "Ask the provider whether the stored key works (Stripe only; moves no money)",
+        "operationId": "testPaymentGateway",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ ok, mode?, error? }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Gateway not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/payment-gateways/webhook-events": {
       "get": {
         "tags": [

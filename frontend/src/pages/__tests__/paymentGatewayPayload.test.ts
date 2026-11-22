@@ -11,8 +11,9 @@ const base = {
 describe('gatewayPayload', () => {
   it('create: sends name and both secrets under their write-only fields', () => {
     const body = gatewayPayload({ ...base, secret_key: 'sk_test_1', webhook_secret: 'whsec_1' });
+    // No environment for Stripe: the server reads it from the key.
     expect(body).toEqual({
-      provider: 'stripe', name: 'Stripe MX', environment: 'sandbox',
+      provider: 'stripe', name: 'Stripe MX',
       public_key: 'pk_test_1', secret_key: 'sk_test_1', webhook_secret: 'whsec_1', status: 'active',
     });
     expect(body).not.toHaveProperty('label');
@@ -25,5 +26,10 @@ describe('gatewayPayload', () => {
     expect(body).not.toHaveProperty('secret_key');
     expect(body).not.toHaveProperty('webhook_secret');
     expect(body.name).toBe('Stripe MX');
+  });
+
+  it('other providers still send the environment label', () => {
+    expect(gatewayPayload({ ...base, provider: 'conekta' }).environment).toBe('sandbox');
+    expect(gatewayPayload(base)).not.toHaveProperty('environment');
   });
 });

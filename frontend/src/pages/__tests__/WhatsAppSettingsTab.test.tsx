@@ -102,4 +102,21 @@ describe('WhatsAppSettingsTab', () => {
     expect(await screen.findByText(/Only the install operator/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
+
+  it('marks a test install and says when the number is Meta\'s test number', async () => {
+    mockApiFetch.mockImplementation((path: string) => {
+      if (path === '/whatsapp-settings') return Promise.resolve({ data: { ...VIEW, install_mode: 'test' } });
+      return Promise.resolve({ data: { ok: true, display_phone_number: '+1 555 010 0000', verified_name: 'Test Number', test_number: true } });
+    });
+    render(<WhatsAppSettingsTab />);
+    expect(await screen.findByText('TEST MODE')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect(await screen.findByText(/Meta's test number/)).toBeInTheDocument();
+  });
+
+  it('shows no test badge on a live install', async () => {
+    render(<WhatsAppSettingsTab />);
+    await screen.findByTestId('whatsapp-webhook-url');
+    expect(screen.queryByText('TEST MODE')).not.toBeInTheDocument();
+  });
 });

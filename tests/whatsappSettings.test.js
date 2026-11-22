@@ -117,9 +117,15 @@ describe('testing the connection', () => {
     await service.save({ phone_number_id: '123456789012345', access_token: SECRET_VALUES[0] });
     const get = jest.fn().mockResolvedValue({ status: 200, body: { display_phone_number: '+52 55 1234 5678', verified_name: 'Example ISP' } });
     const result = await service.testConnection({ get });
-    expect(result).toEqual({ ok: true, display_phone_number: '+52 55 1234 5678', verified_name: 'Example ISP' });
+    expect(result).toEqual({ ok: true, display_phone_number: '+52 55 1234 5678', verified_name: 'Example ISP', test_number: false });
     expect(get.mock.calls[0][0]).toMatch(/^\/v\d+\.\d+\/123456789012345\?fields=/);
     expect(get.mock.calls[0][1]).toBe(SECRET_VALUES[0]);
+  });
+
+  test('says when the connected number is Meta\'s sandbox number', async () => {
+    await service.save({ phone_number_id: '123456789012345', access_token: SECRET_VALUES[0] });
+    const get = jest.fn().mockResolvedValue({ status: 200, body: { display_phone_number: '+1 555 010 0000', verified_name: 'Test Number' } });
+    expect((await service.testConnection({ get })).test_number).toBe(true);
   });
 
   test('passes on Meta\'s reason when the token or number is wrong', async () => {

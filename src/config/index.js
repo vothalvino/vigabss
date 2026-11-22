@@ -252,6 +252,13 @@ const config = {
     timeoutMs: parseIntEnv('GEOCODING_TIMEOUT_MS', 8000),
   },
 
+  // Whether this install moves real money (src/utils/paymentMode.js). 'live'
+  // is the default; a demo or maintenance server sets PAYMENT_MODE=test and can
+  // then only hold test gateway keys.
+  payments: {
+    mode: (process.env.PAYMENT_MODE || 'live').trim().toLowerCase(),
+  },
+
   // WhatsApp customer support (docs/whatsapp-support-design.md). Inbound webhook
   // + number->client linking. Provider auto-detected from configured secrets:
   //   meta   — WHATSAPP_APP_SECRET set (Cloud API, X-Hub-Signature-256 HMAC)
@@ -388,6 +395,10 @@ function validateEnv(logger) {
 
   // Links in emails, OAuth redirects and the Secure cookie flag assume HTTPS;
   // an http APP_URL in production sends portal and reset links in clear text.
+  if (!['live', 'test'].includes(config.payments.mode)) {
+    errors.push(`PAYMENT_MODE must be "live" or "test" (got "${config.payments.mode}")`);
+  }
+
   if (isProduction && !/^https:\/\//i.test(config.appUrl)) {
     errors.push(`APP_URL must be an https:// URL in production (got "${config.appUrl}")`);
   }

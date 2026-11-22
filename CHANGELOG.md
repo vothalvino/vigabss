@@ -5,6 +5,23 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Test or live payments are decided once per install.** A new
+  `PAYMENT_MODE` setting in the server's environment file (`live` by default,
+  `test` for a demo or maintenance server) says whether the install moves real
+  money. A Stripe gateway accepts only a secret key from that side (`sk_live_…`
+  on a live install, `sk_test_…` on a test one), and a Stripe webhook event
+  from the other side is refused. A test install shows a "TEST MODE" banner on
+  Settings → Payment Gateways and a badge on the WhatsApp settings.
+- The "sandbox / production" choice on a Stripe gateway is gone: it was a
+  label nothing read, and it could disagree with the key. The server now reads
+  it from the key. Other providers keep the label.
+- **Payment gateways have a "Test connection" button** (Stripe): it asks
+  Stripe whether the stored key works, without moving money.
+- The list of Stripe events to subscribe to, shown on the gateway, now
+  includes `charge.dispute.closed`. Without it a lost dispute was never
+  recorded.
+- The WhatsApp "Test connection" result says when the connected number is
+  Meta's test number, which only reaches approved recipients.
 - The verify token of the WhatsApp webhook handshake is no longer written to
   the app log or the nginx access log. Meta sends it as a query parameter and
   it was logged in clear. If you connected WhatsApp on 0.1.0-alpha.25, choose

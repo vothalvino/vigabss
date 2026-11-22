@@ -11253,7 +11253,19 @@
       "bag": "Bag {{serial}}"
     }
   },
+  "paymentMode": {
+    "testBanner": "TEST MODE: this server accepts only test keys. No real money moves.",
+    "test": "Test",
+    "live": "Live",
+    "envFromKey": "Read from the secret key.",
+    "testConnection": "Test connection",
+    "testing": "Testing…",
+    "testOk": "Connection works ({{mode}} key).",
+    "testFailed": "Connection failed: {{error}}"
+  },
   "whatsappSettings": {
+    "testModeBadge": "TEST MODE",
+    "testNumberNote": "This is Meta's test number: it only reaches the recipients approved in your Meta app.",
     "title": "WhatsApp connection (Meta Cloud API)",
     "intro": "Connects the WhatsApp bot to your Meta business number. These values apply to the whole installation.",
     "loading": "Loading…",

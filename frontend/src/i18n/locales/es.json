@@ -11247,7 +11247,19 @@
       "bag": "Bolsa {{serial}}"
     }
   },
+  "paymentMode": {
+    "testBanner": "MODO DE PRUEBA: este servidor solo acepta llaves de prueba. No se mueve dinero real.",
+    "test": "Prueba",
+    "live": "Real",
+    "envFromKey": "Se lee de la llave secreta.",
+    "testConnection": "Probar conexión",
+    "testing": "Probando…",
+    "testOk": "La conexión funciona (llave de tipo {{mode}}).",
+    "testFailed": "La conexión falló: {{error}}"
+  },
   "whatsappSettings": {
+    "testModeBadge": "MODO DE PRUEBA",
+    "testNumberNote": "Este es el número de prueba de Meta: solo llega a los destinatarios aprobados en tu app de Meta.",
     "title": "Conexión de WhatsApp (Meta Cloud API)",
     "intro": "Conecta el bot de WhatsApp con tu número de empresa en Meta. Estos valores aplican a toda la instalación.",
     "loading": "Cargando…",

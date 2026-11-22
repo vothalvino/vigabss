@@ -28,12 +28,14 @@ interface WhatsAppView {
   graph_version: string;
   can_receive: boolean;
   can_send: boolean;
+  install_mode?: 'test' | 'live';
 }
 
 interface TestResult {
   ok: boolean;
   display_phone_number?: string | null;
   verified_name?: string | null;
+  test_number?: boolean;
   error?: string;
 }
 
@@ -132,6 +134,9 @@ export function WhatsAppSettingsTab() {
       <p style={sty.muted}>{t('whatsappSettings.intro')}</p>
 
       <div style={sty.statusRow}>
+        {view.install_mode === 'test' && (
+          <span style={{ ...sty.pill, background: '#92400e' }}>{t('whatsappSettings.testModeBadge')}</span>
+        )}
         <span style={{ ...sty.pill, background: view.can_receive ? '#16a34a' : '#b45309' }}>
           {view.can_receive ? t('whatsappSettings.status.canReceive') : t('whatsappSettings.status.cannotReceive')}
         </span>
@@ -202,6 +207,7 @@ export function WhatsAppSettingsTab() {
             : t('whatsappSettings.testFailed', { reason: testResult.error || '' })}
         </p>
       )}
+      {testResult?.ok && testResult.test_number && <p style={sty.hint}>{t('whatsappSettings.testNumberNote')}</p>}
       <p style={sty.hint}>{t('whatsappSettings.testNote')}</p>
     </form>
   );
