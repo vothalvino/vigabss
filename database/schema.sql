@@ -9431,7 +9431,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_events (
     id                  BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     organization_id     BIGINT UNSIGNED  NOT NULL,
     ai_provider_id      BIGINT UNSIGNED  NULL,
-    operation           ENUM('chat','embed') NOT NULL,
+    operation           ENUM('chat','embed','transcribe') NOT NULL,
     prompt_tokens       INT UNSIGNED     NULL,
     completion_tokens   INT UNSIGNED     NULL,
     cost_usd            DECIMAL(12,6)    NULL COMMENT 'NULL when the provider price is unknown',

@@ -87,7 +87,9 @@ async function processMessage(provider, m) {
   });
   if (!isNew) return;
 
-  const { reply, clientId, interactive } = await bot.handleInbound({ phone, body: m.body || '' });
+  const { reply, clientId, interactive, transcript } = await bot.handleInbound({
+    phone, body: m.body || '', audio: m.audio || null, provider,
+  });
 
   // Org is only known once bound — resolve it so a connected client's reply is
   // logged to sms_logs (unbound replies are sent but not logged: org is NOT NULL),
@@ -97,6 +99,11 @@ async function processMessage(provider, m) {
     const binding = await wa.resolveBinding(phone);
     organizationId = binding?.organizationId ?? null;
     await wa.setInboundOwner({ provider, providerMessageId: m.providerMessageId, clientId, organizationId });
+    // What a voice note said, kept with the inbound message for the record
+    // (only a bound client's note is ever transcribed).
+    if (transcript) {
+      await wa.setInboundBody({ provider, providerMessageId: m.providerMessageId, organizationId, body: `[voice] ${transcript}` });
+    }
   }
   if (!reply) return;
   await outbound.sendReply({ provider, to: phone, body: reply, interactive: interactive || null, organizationId, clientId: clientId || null });

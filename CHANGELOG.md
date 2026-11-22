@@ -5,6 +5,27 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The WhatsApp bot answers voice notes.** A linked customer can send a
+  voice note and gets the same text answer as if they had typed it; it also
+  works as the answer inside a step ("sí, hazlo", "mañana en la tarde"). The
+  note is transcribed with the organization's OpenAI or OpenRouter provider,
+  so an organization that answers with Claude adds one of those under AI
+  Support → Settings → Providers for this (it does not need to be the active
+  one). OpenAI uses its speech-to-text model; OpenRouter has none, so there
+  the audio goes to a chat model that accepts audio
+  (`AI_TRANSCRIPTION_OPENROUTER_MODEL`, default `google/gemini-2.5-flash`).
+  Requirements and limits:
+  - Only with the AI assistant on for WhatsApp, only for linked numbers, and
+    only through Meta's Cloud API.
+  - The audio is fetched from Meta, sent to that provider and not stored; the
+    transcript is kept with the inbound message.
+  - Notes over 3 MB (several minutes) are not transcribed. When a note cannot
+    be transcribed for any reason, the bot asks the customer to type.
+  - Each transcription counts against the AI budget, at an estimated cost
+    (`AI_TRANSCRIPTION_USD_PER_MINUTE`, default 0.006; the length is
+    estimated from the file size). `AI_TRANSCRIPTION_MODEL` (default
+    `gpt-transcribe`) sets the model. Migration 015 adds the `transcribe`
+    usage type.
 - **The portal chat answers from the customer's account.** When the AI
   assistant answers on the portal by itself (assistant on, portal channel on,
   mode "auto-send", a provider selected), the customer portal's chat is now

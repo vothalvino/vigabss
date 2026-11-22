@@ -135,6 +135,7 @@
     "locked": "Too many incorrect attempts. Please wait a bit, then request a new code.",
     "cooldown": "You've sent a lot of messages recently — please wait a few minutes and try again.",
     "emailOnFile": "your email on file",
+    "voiceUnavailable": "I couldn't listen to your voice message. Could you type it for me, please?",
     "greeting": "Hi{{name}}! 👋 How can I help? Just tell me in your own words, for example: “how much do I owe?”, “my internet is slow” or “I want to change my Wi-Fi password”.",
     "notUnderstood": "Sorry, I didn't quite get that. Could you say it another way? I can help with your balance and invoices, your service, connection problems, your Wi-Fi password, a technician visit, or put you through to a person.",
     "cancelled": "Done, I cancelled that. If you need anything else, I'm here.",

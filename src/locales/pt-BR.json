@@ -135,6 +135,7 @@
     "locked": "Tentativas incorretas demais. Aguarde um pouco e depois peça um novo código.",
     "cooldown": "Você enviou muitas mensagens recentemente; aguarde alguns minutos e tente novamente.",
     "emailOnFile": "seu e-mail cadastrado",
+    "voiceUnavailable": "Não consegui ouvir seu áudio. Pode escrever para mim, por favor?",
     "greeting": "Olá{{name}}! 👋 Como posso ajudar? Escreva com suas palavras, por exemplo: “quanto eu devo?”, “minha internet está lenta” ou “quero trocar a senha do wifi”.",
     "notUnderstood": "Desculpe, não entendi bem. Pode dizer de outra forma? Posso ajudar com seu saldo e faturas, seu serviço, problemas de conexão, a senha do wifi, uma visita técnica ou chamar uma pessoa.",
     "cancelled": "Pronto, cancelei. Se precisar de mais alguma coisa, estou aqui.",

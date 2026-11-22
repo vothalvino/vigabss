@@ -325,3 +325,26 @@ interactive message types and falls back to the text if Meta refuses it; Twilio
 always gets the text. Option ids are words a customer could type ("1",
 "confirm", "morning", an ISO date), so `parseMeta` turns a tap into that text
 and no flow has a separate path for taps.
+
+## Voice notes
+
+A Meta `audio` message from a bound client is transcribed and then handled
+exactly like typed text (`src/services/whatsappVoice.js`):
+
+1. `parseMeta` keeps the media id; the message has no body.
+2. The bot checks the per-phone message cap, then asks `whatsappVoice` for the
+   text. That requires the organization's AI assistant to be on for WhatsApp
+   and an enabled OpenAI or OpenRouter provider
+   (`llmProviderService.transcriptionProvider`).
+3. The file is fetched from Meta in two steps (media object, then its
+   short-lived URL). The access token is only ever sent to Meta's hosts, and
+   a file over 3 MB is refused before it is downloaded.
+4. `llmProviderService.transcribe` checks the AI budget, sends the audio and
+   records the usage. OpenAI: the transcription endpoint. OpenRouter (which
+   has no such endpoint): a chat model that accepts audio, instructed to
+   output the words spoken and nothing else.
+5. The transcript (cut at 1,500 characters) is the message. It is stored on
+   the inbound row as `[voice] …`; the audio is not stored anywhere.
+
+Every failure returns null and the customer is asked to type instead. Unbound
+numbers and Twilio are not transcribed.
