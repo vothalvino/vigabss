@@ -6,6 +6,7 @@
 
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ModelPicker, type ModelCatalogState } from './aiSettings/ModelPicker';
 
 export interface ProviderForm {
   name: string;
@@ -63,13 +64,35 @@ interface VoiceModelFieldProps {
   labelStyle: React.CSSProperties;
   inputStyle: React.CSSProperties;
   hintStyle: React.CSSProperties;
+  /** The provider's live model list, when it has one (OpenRouter). */
+  catalog?: ModelCatalogState;
+  onRefresh?: () => void;
 }
 
 /** Shown for the kinds that can transcribe; nothing for the others. */
-export function VoiceModelField({ kind, value, onChange, labelStyle, inputStyle, hintStyle }: VoiceModelFieldProps) {
+export function VoiceModelField({
+  kind, value, onChange, labelStyle, inputStyle, hintStyle, catalog, onRefresh,
+}: VoiceModelFieldProps) {
   const { t } = useTranslation();
   const fallback = VOICE_MODEL_DEFAULTS[kind];
   if (!fallback) return null;
+  // With a live list: the same picker as the text model, limited to the
+  // models that accept audio.
+  if (catalog && onRefresh) {
+    return (
+      <ModelPicker
+        id="ai-provider-voice-model"
+        label={t('aiAssistantSettings.providers.form.voiceModel')}
+        placeholder={fallback}
+        hint={t('aiAssistantSettings.providers.form.voiceModelHint', { model: fallback })}
+        value={value}
+        catalog={catalog}
+        onChange={onChange}
+        onRefresh={onRefresh}
+        audioOnly
+      />
+    );
+  }
   return (
     <label style={labelStyle}>{t('aiAssistantSettings.providers.form.voiceModel')}
       <input style={inputStyle} value={value} maxLength={100} placeholder={fallback}

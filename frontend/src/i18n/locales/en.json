@@ -1496,6 +1496,7 @@
       "spentOfBudget": "Spent this month: ${{spent}} of ${{budget}}. AI replies stop when the budget is reached."
     },
     "providers": {
+      "voiceUse": "Use {{name}} for voice notes",
       "sectionTitle": "LLM Providers",
       "addProvider": "+ Add Provider",
       "loading": "Loading providers…",
@@ -1503,6 +1504,7 @@
       "catalogError": "Could not load the provider catalog — kinds and fields may be incomplete.",
       "empty": "No providers configured. Add one to enable AI replies.",
       "cols": {
+        "voice": "Voice notes",
         "active": "Active",
         "priority": "Priority",
         "name": "Name",
@@ -1532,6 +1534,15 @@
       "addTitle": "Add Provider",
       "editTitle": "Edit Provider",
       "openrouter": {
+        "listLabel": "{{label}}: models to choose from",
+        "updated": "Updated {{time}}",
+        "search": "Search models",
+        "freeOnly": "Free only",
+        "sort": "Sort models",
+        "sortName": "By name",
+        "sortPrice": "Cheapest first",
+        "showing": "Showing {{shown}} of {{total}} matches. Search to narrow them down.",
+        "matching": "{{count}} of {{total}} models",
         "label": "Model",
         "loading": "Loading the OpenRouter model list…",
         "refresh": "↻ Refresh",
@@ -11267,6 +11278,17 @@
     "testing": "Testing…",
     "testOk": "Connection works ({{mode}} key).",
     "testFailed": "Connection failed: {{error}}"
+  },
+  "voiceNotes": {
+    "label": "Voice notes:",
+    "ready": "ready. Transcribed by {{provider}} with {{model}}.",
+    "reason": {
+      "not_connected": "not available. WhatsApp is not connected through Meta yet.",
+      "assistant_off": "off. Turn the AI assistant on under General.",
+      "channel_off": "off. Enable the WhatsApp channel under General.",
+      "no_provider": "not available. Add an enabled OpenAI or OpenRouter provider under Providers.",
+      "over_budget": "paused. This month's AI budget is used up."
+    }
   },
   "whatsappSettings": {
     "sendFailure": {

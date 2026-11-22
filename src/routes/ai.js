@@ -96,9 +96,32 @@ router.put('/policy', requirePermission('ai.policy.write'), validate(updateAiPol
         throw new ValidationError('active_provider_id must be an enabled AI provider of this organization');
       }
     }
+    // Same ownership rule for the voice-note provider, which must also be of
+    // a kind that can transcribe.
+    const voiceProviderId = req.body.voice_provider_id;
+    if (voiceProviderId !== undefined && voiceProviderId !== null) {
+      const [rows] = await db.query(
+        'SELECT kind FROM ai_providers WHERE id = ? AND organization_id = ? AND enabled = 1 AND deleted_at IS NULL LIMIT 1',
+        [voiceProviderId, req.orgId],
+      );
+      if (!rows.length || !llmProviderService.TRANSCRIPTION_KINDS.includes(rows[0].kind)) {
+        throw new ValidationError('voice_provider_id must be an enabled OpenAI or OpenRouter provider of this organization');
+      }
+    }
     const policy = await AiPolicy.upsert(req.orgId, req.body);
     logger.info({ orgId: req.orgId, userId: req.user?.id }, 'AI policy updated');
     res.json({ data: policy });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/v1/ai/voice-notes/status
+ * Whether WhatsApp voice notes are transcribed for this organization right
+ * now, and if not, the one thing that stops them.
+ */
+router.get('/voice-notes/status', requirePermission('ai.policy.read'), async (req, res, next) => {
+  try {
+    res.json({ data: await require('../services/whatsappVoice').status(req.orgId) });
   } catch (err) { next(err); }
 });
 

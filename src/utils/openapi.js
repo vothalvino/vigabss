@@ -1468,6 +1468,9 @@ function generateSpec() {
       '/ai/reply/send': {
         post: { tags: ['AI Assistant'], summary: 'Record reviewer decision and optionally send reply', operationId: 'aiReplySend', security: [{ bearerAuth: [] }], requestBody: jsonBody('ai_replySend'), responses: r200('AiSendResult') },
       },
+      '/ai/voice-notes/status': {
+        get: { tags: ['AI Assistant'], summary: 'Whether WhatsApp voice notes are transcribed for this organization, and what stops them if not', operationId: 'getAiVoiceNotesStatus', security: [{ bearerAuth: [] }], responses: r200('{ ready, reason, provider, model }') },
+      },
       '/ai/logs': {
         get: {
           tags: ['AI Assistant'],

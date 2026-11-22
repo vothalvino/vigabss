@@ -88,6 +88,35 @@ async function enabledFor(orgId) {
 }
 
 /**
+ * Whether this organization's voice notes are transcribed right now, and if
+ * not, the first thing that stops them. For the settings screens: the bot's
+ * "I couldn't listen" reply is the same whatever the cause.
+ *
+ * reason: 'not_connected'  WhatsApp is not connected through Meta's Cloud API
+ *         'assistant_off'  the AI assistant is off
+ *         'channel_off'    the assistant is not enabled for WhatsApp
+ *         'no_provider'    no enabled OpenAI or OpenRouter provider
+ *         'over_budget'    the monthly AI budget is used up
+ *
+ * @returns {Promise<{ready: boolean, reason: string|null, provider: {id: number, name: string, kind: string}|null, model: string|null}>}
+ */
+async function status(orgId, deps = {}) {
+  const llm = deps.llm || require('./llmProviderService');
+  const provider = orgId ? await llm.transcriptionProvider(orgId) : null;
+  const shown = provider ? { id: provider.id, name: provider.name, kind: provider.kind } : null;
+  const result = reason => ({ ready: !reason, reason, provider: shown, model: llm.transcriptionModelFor(provider) });
+
+  const webhook = require('./whatsappWebhookService');
+  if (webhook.detectProvider() !== 'meta' || !config.whatsapp.accessToken) return result('not_connected');
+  const policy = orgId ? await AiPolicy.findByOrgId(orgId) : null;
+  if (!policy || !Number(policy.enabled)) return result('assistant_off');
+  if (!supportAiWriter.enabledFor(policy, 'whatsapp')) return result('channel_off');
+  if (!provider) return result('no_provider');
+  if (await require('./aiBudgetService').overBudget(orgId)) return result('over_budget');
+  return result(null);
+}
+
+/**
  * The text of a voice note, or null when there is nothing to act on.
  * Never throws.
  *
@@ -117,4 +146,4 @@ async function transcribe({ orgId, provider, audio, locale = null }, deps = {}) 
   }
 }
 
-module.exports = { transcribe, downloadMetaMedia, enabledFor, MAX_AUDIO_BYTES, MAX_TRANSCRIPT_CHARS };
+module.exports = { transcribe, status, downloadMetaMedia, enabledFor, MAX_AUDIO_BYTES, MAX_TRANSCRIPT_CHARS };

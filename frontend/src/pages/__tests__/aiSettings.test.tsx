@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — AIAssistantSettings page tests (P1 §6.4)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AIAssistantSettings } from '../AIAssistantSettings';
@@ -374,6 +374,23 @@ describe('AIAssistantSettings page', () => {
       await waitFor(() => expect(screen.getByText(/Invalid API key/i)).toBeInTheDocument());
     });
 
+    it('choosing a provider for voice notes calls PUT /ai/policy with voice_provider_id', async () => {
+      goToProviders();
+      await waitFor(() => expect(screen.getByText('OpenAI Main')).toBeInTheDocument());
+
+      // An OpenAI provider can transcribe, so it offers the choice.
+      fireEvent.click(screen.getByRole('radio', { name: 'Use OpenAI Main for voice notes' }));
+
+      await waitFor(() => {
+        const calls = (mockFetch.mock.calls as Array<[string, RequestInit]>).filter(
+          ([url, init]) =>
+            url.endsWith('/ai/policy') && (init?.method ?? '').toUpperCase() === 'PUT',
+        );
+        expect(calls.length).toBeGreaterThan(0);
+        expect(JSON.parse(calls[0][1].body as string)).toEqual({ voice_provider_id: 1 });
+      });
+    });
+
     it('selecting a provider radio calls PUT /ai/policy with active_provider_id', async () => {
       goToProviders();
       await waitFor(() => expect(screen.getByText('OpenAI Main')).toBeInTheDocument());
@@ -492,31 +509,81 @@ describe('AIAssistantSettings page', () => {
       });
     });
 
-    it('selecting openrouter loads the list and shows a datalist-backed picker', async () => {
-      const { container } = await openAddProviderModal();
+    const modelList = () => screen.getByRole('listbox', { name: /^Model: models/ });
+    const modelRows = () => within(modelList()).getAllByRole('option');
+
+    it('selecting openrouter loads the list and shows it as a list to pick from', async () => {
+      await openAddProviderModal();
       selectKind('openrouter');
 
       await waitFor(() => expect(modelCalls()).toHaveLength(1));
-
-      const input = await screen.findByLabelText('Model');
-      expect(input).toHaveAttribute('list', 'ai-provider-model-options');
-
-      const options = [...container.querySelectorAll('datalist#ai-provider-model-options option')];
-      expect(options.map(o => o.getAttribute('value'))).toEqual([
-        'anthropic/claude-sonnet-4.5',
-        'meta-llama/llama-3.1-8b-instruct:free',
-        'somevendor/mystery-model',
+      await screen.findByLabelText('Model');
+      const rows = modelRows();
+      expect(rows.map(r => r.textContent)).toEqual([
+        expect.stringContaining('anthropic/claude-sonnet-4.5'),
+        expect.stringContaining('meta-llama/llama-3.1-8b-instruct:free'),
+        expect.stringContaining('somevendor/mystery-model'),
       ]);
 
       // Prices are per token upstream; the picker quotes them per 1M tokens.
-      expect(options[0].getAttribute('label')).toContain('$3.00/M in');
-      expect(options[0].getAttribute('label')).toContain('$15.00/M out');
-      expect(options[0].getAttribute('label')).toContain('200K ctx');
+      expect(rows[0].textContent).toContain('$3.00/M in');
+      expect(rows[0].textContent).toContain('$15.00/M out');
+      expect(rows[0].textContent).toContain('200K ctx');
       // free === true is labelled Free …
-      expect(options[1].getAttribute('label')).toContain('Free');
+      expect(rows[1].textContent).toContain('Free');
       // … while unknown prices show nothing at all, never "$0".
-      expect(options[2].getAttribute('label')).not.toContain('$');
-      expect(options[2].getAttribute('label')).not.toContain('Free');
+      expect(rows[2].textContent).not.toContain('$');
+      expect(rows[2].textContent).not.toContain('Free');
+      // When the list was fetched from OpenRouter.
+      expect(screen.getByText(/^Updated /)).toBeInTheDocument();
+    });
+
+    it('clicking a model selects it', async () => {
+      await openAddProviderModal();
+      selectKind('openrouter');
+      const input = await screen.findByLabelText('Model') as HTMLInputElement;
+      fireEvent.click(within(modelRows()[1]).getByRole('button'));
+      expect(input.value).toBe('meta-llama/llama-3.1-8b-instruct:free');
+      expect(modelRows()[1]).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('search, free-only and cheapest-first narrow and order the list', async () => {
+      await openAddProviderModal();
+      selectKind('openrouter');
+      await screen.findByLabelText('Model');
+
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search models' }), { target: { value: 'claude' } });
+      expect(modelRows()).toHaveLength(1);
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search models' }), { target: { value: '' } });
+
+      fireEvent.click(screen.getByLabelText('Free only'));
+      expect(modelRows().map(r => r.textContent)).toEqual([expect.stringContaining(':free')]);
+      fireEvent.click(screen.getByLabelText('Free only'));
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Sort models' }), { target: { value: 'price' } });
+      // Free first, the priced one next, unknown prices last.
+      expect(modelRows().map(r => r.textContent)).toEqual([
+        expect.stringContaining(':free'),
+        expect.stringContaining('anthropic/claude-sonnet-4.5'),
+        expect.stringContaining('somevendor/mystery-model'),
+      ]);
+    });
+
+    it('the voice-note model offers only the models that accept audio', async () => {
+      modelsPayload = { data: { ...DEFAULT_MODELS_PAYLOAD.data, models: [
+        ...openRouterModels,
+        { id: 'google/gemini-flash', name: 'Gemini Flash', context_length: 1000000, prompt_price: 0.0000003, completion_price: 0.0000025, free: false, audio_input: true },
+      ] } };
+      await openAddProviderModal();
+      selectKind('openrouter');
+      const voice = await screen.findByLabelText('Voice note model') as HTMLInputElement;
+      expect(modelRows()).toHaveLength(4);
+      const voiceRows = within(screen.getByRole('listbox', { name: /^Voice note model: models/ })).getAllByRole('option');
+      expect(voiceRows.map(r => r.textContent)).toEqual([expect.stringContaining('google/gemini-flash')]);
+      fireEvent.click(within(voiceRows[0]).getByRole('button'));
+      expect(voice.value).toBe('google/gemini-flash');
+      // One refresh button for the shared list.
+      expect(screen.getAllByRole('button', { name: /Refresh/i })).toHaveLength(1);
     });
 
     it('does not refetch when the kind is switched away and back', async () => {
@@ -532,7 +599,7 @@ describe('AIAssistantSettings page', () => {
       );
 
       selectKind('openrouter');
-      await waitFor(() => expect(screen.getByLabelText('Model')).toHaveAttribute('list'));
+      await waitFor(() => expect(modelList()).toBeInTheDocument());
       expect(modelCalls()).toHaveLength(1);
     });
 
@@ -548,11 +615,11 @@ describe('AIAssistantSettings page', () => {
 
     it('flags a stale list but still uses it', async () => {
       modelsPayload = { data: { ...DEFAULT_MODELS_PAYLOAD.data, stale: true } };
-      const { container } = await openAddProviderModal();
+      await openAddProviderModal();
       selectKind('openrouter');
 
       await waitFor(() => expect(screen.getByText(/may be out of date/i)).toBeInTheDocument());
-      expect(container.querySelectorAll('datalist#ai-provider-model-options option')).toHaveLength(3);
+      expect(modelRows()).toHaveLength(3);
     });
 
     it('an upstream error falls back to a free-text model field', async () => {
@@ -562,14 +629,13 @@ describe('AIAssistantSettings page', () => {
           error: 'OpenRouter unreachable (502)',
         },
       };
-      const { container } = await openAddProviderModal();
+      await openAddProviderModal();
       selectKind('openrouter');
 
       await waitFor(() => expect(screen.getByText(/OpenRouter unreachable \(502\)/)).toBeInTheDocument());
 
       const input = screen.getByLabelText('Model') as HTMLInputElement;
-      expect(input).not.toHaveAttribute('list');
-      expect(container.querySelector('datalist')).toBeNull();
+      expect(screen.queryByRole('listbox')).toBeNull();
 
       // The provider must still be configurable by typing the id.
       fireEvent.change(input, { target: { value: 'anthropic/claude-sonnet-4.5' } });
@@ -577,7 +643,7 @@ describe('AIAssistantSettings page', () => {
     });
 
     it('a thrown fetch error also falls back to free text', async () => {
-      const rendered = setup();
+      setup();
       const realImpl = mockFetch.getMockImplementation()!;
       mockFetch.mockImplementation((url: string, init?: RequestInit) => {
         if (typeof url === 'string' && url.includes('/ai/providers/models'))
@@ -591,8 +657,8 @@ describe('AIAssistantSettings page', () => {
       selectKind('openrouter');
 
       await waitFor(() => expect(screen.getByText(/Boom/)).toBeInTheDocument());
-      expect(screen.getByLabelText('Model')).not.toHaveAttribute('list');
-      expect(rendered.container.querySelector('datalist')).toBeNull();
+      expect(screen.getByLabelText('Model')).toBeInTheDocument();
+      expect(screen.queryByRole('listbox')).toBeNull();
     });
   });
 

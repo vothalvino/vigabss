@@ -41,14 +41,18 @@ const db = require('../src/config/database');
 const app = require('../src/app');
 const llmProviderService = require('../src/services/llmProviderService');
 
-// Provider 5 is org 1's; provider 9 is org 2's.
-const PROVIDERS = { 5: { id: 5, organization_id: 1 }, 9: { id: 9, organization_id: 2 } };
+// Providers 5 (OpenRouter) and 6 (Anthropic) are org 1's; provider 9 is org 2's.
+const PROVIDERS = {
+  5: { id: 5, organization_id: 1, kind: 'openrouter' },
+  6: { id: 6, organization_id: 1, kind: 'anthropic' },
+  9: { id: 9, organization_id: 2, kind: 'openrouter' },
+};
 
 function wire() {
   db.query.mockImplementation(async (sql, params = []) => {
     if (/FROM ai_providers WHERE id = \? AND organization_id = \?/.test(sql)) {
       const p = PROVIDERS[Number(params[0])];
-      return [p && p.organization_id === params[1] ? [{ id: p.id }] : []];
+      return [p && p.organization_id === params[1] ? [{ id: p.id, kind: p.kind }] : []];
     }
     if (/FROM `ai_providers` WHERE id = \?/.test(sql)) {
       const p = PROVIDERS[Number(params[0])];
@@ -88,6 +92,26 @@ describe('PUT /ai/policy', () => {
   it('allows clearing the provider without a lookup', async () => {
     const res = await request(app).put('/api/v1/ai/policy').send({ active_provider_id: null });
     expect(res.status).not.toBe(422);
+  });
+
+  it('the voice-note provider must be this organization\'s, enabled, and able to transcribe', async () => {
+    const put = body => request(app).put('/api/v1/ai/policy').send(body);
+    // Another organization's provider.
+    let res = await put({ voice_provider_id: 9 });
+    expect(res.status).toBe(422);
+    // Its own, but Anthropic has no speech to text.
+    res = await put({ voice_provider_id: 6 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/OpenAI or OpenRouter/);
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO ai_policies/.test(sql))).toBe(false);
+    // Its own OpenRouter provider.
+    res = await put({ voice_provider_id: 5 });
+    expect(res.status).toBe(200);
+    const lookup = db.query.mock.calls.filter(([sql]) => /SELECT kind FROM ai_providers/.test(sql)).pop();
+    expect(lookup[0]).toMatch(/organization_id = \? AND enabled = 1 AND deleted_at IS NULL/);
+    expect(lookup[1]).toEqual([5, 1]);
+    // Back to automatic.
+    expect((await put({ voice_provider_id: null })).status).not.toBe(422);
   });
 });
 

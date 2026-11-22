@@ -826,14 +826,32 @@ const TRANSCRIPTION_EXTENSIONS = {
 };
 
 /**
- * The organization's provider that can transcribe audio: its first enabled
- * OpenAI or OpenRouter provider (by priority). Anthropic has no speech-to-text,
- * so an organization that answers with Claude adds one of those for this.
- * Returns null when there is none.
+ * The organization's provider that transcribes audio: the one it chose
+ * (ai_policies.voice_provider_id), else its first enabled OpenAI or OpenRouter
+ * provider by priority. Anthropic has no speech-to-text, so an organization
+ * that answers with Claude adds one of those for this. Returns null when
+ * there is none.
  */
 async function transcriptionProvider(orgId) {
   if (!orgId) return null;
   const db = require('../config/database');
+  // The provider the organization chose for voice notes, while it is still
+  // enabled and of a kind that can transcribe.
+  const [policies] = await db.query(
+    'SELECT voice_provider_id FROM ai_policies WHERE organization_id = ? LIMIT 1',
+    [orgId],
+  );
+  const chosenId = policies?.[0]?.voice_provider_id;
+  if (chosenId) {
+    const [chosen] = await db.query(
+      `SELECT * FROM ai_providers
+        WHERE id = ? AND organization_id = ? AND kind IN ('openai', 'openrouter') AND enabled = 1 AND deleted_at IS NULL
+        LIMIT 1`,
+      [chosenId, orgId],
+    );
+    if (chosen?.[0]) return chosen[0];
+  }
+  // No choice (or it is gone): the first one that can.
   const [rows] = await db.query(
     `SELECT * FROM ai_providers
       WHERE organization_id = ? AND kind IN ('openai', 'openrouter') AND enabled = 1 AND deleted_at IS NULL
@@ -842,6 +860,21 @@ async function transcriptionProvider(orgId) {
     [orgId],
   );
   return rows[0] || null;
+}
+
+// The model chosen on the provider (AI Support → Settings → Providers →
+// "Voice note model"), or null.
+function _chosenTranscriptionModel(provider) {
+  const chosen = _parseExtraConfig(provider?.extra_config).transcription_model;
+  return typeof chosen === 'string' && chosen.trim() ? chosen.trim().slice(0, 100) : null;
+}
+
+/** The model a provider transcribes with: its own choice, else the environment's, else the default. */
+function transcriptionModelFor(provider) {
+  if (!provider) return null;
+  return _chosenTranscriptionModel(provider) || (provider.kind === 'openrouter'
+    ? (process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL || DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL)
+    : (process.env.AI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL));
 }
 
 /**
@@ -877,10 +910,7 @@ async function transcribe({ orgId, audio, mimeType = 'audio/ogg', language = nul
   const apiKey = decrypt(provider.api_key_encrypted) || null;
   const { OpenAI, toFile } = require('openai');
   const timeout = Math.max(provider.timeout_ms || 0, 30000);
-  // The model chosen on the provider (AI Support → Settings → Providers →
-  // "Voice note model"), else the environment's, else the built-in default.
-  const chosen = _parseExtraConfig(provider.extra_config).transcription_model;
-  const chosenModel = typeof chosen === 'string' && chosen.trim() ? chosen.trim().slice(0, 100) : null;
+  const chosenModel = _chosenTranscriptionModel(provider);
   let text;
   if (provider.kind === 'openrouter') {
     const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL, timeout, maxRetries: 1 });
@@ -1030,6 +1060,7 @@ module.exports = {
   embed,
   transcribe,
   transcriptionProvider,
+  transcriptionModelFor,
   TRANSCRIPTION_KINDS,
   DEFAULT_TRANSCRIPTION_MODEL,
   DEFAULT_OPENROUTER_TRANSCRIPTION_MODEL,
