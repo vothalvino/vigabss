@@ -712,8 +712,8 @@ function generateSpec() {
         put: { tags: ['PAC Providers'], summary: 'Turn automatic stamping of generated invoices on or off', operationId: 'setCfdiAutoStamp', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['cfdi_auto_stamp'], properties: { cfdi_auto_stamp: { type: 'boolean' } } }, 'The setting'), responses: r200('{ cfdi_auto_stamp: boolean }') },
       },
       '/pac-providers/environment': {
-        get: { tags: ['PAC Providers'], summary: "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment, sandbox_vigente_count }') },
-        put: { tags: ['PAC Providers'], summary: "Set the org's active fiscal environment (sandbox|production)", operationId: 'setPacEnvironment', security: [{ bearerAuth: [] }], requestBody: jsonBody('pac_environment: sandbox|production'), responses: r200('{ pac_environment }') },
+        get: { tags: ['PAC Providers'], summary: "The fiscal environment (sandbox|production) PACs stamp in. It follows the install's live/test switch (INSTALL_MODE) and cannot be set; a CFDI is cancelled in the environment that stamped it", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment, sandbox_vigente_count }') },
+        put: { tags: ['PAC Providers'], summary: 'Removed: the fiscal environment follows the install mode and cannot be set', operationId: 'setPacEnvironment', deprecated: true, security: [{ bearerAuth: [] }], responses: { 409: errorResponse('FISCAL_ENVIRONMENT_FIXED') } },
       },
       ...crudPaths('pac-providers', 'PAC Providers', 'PacProvider'),
 
@@ -1183,9 +1183,6 @@ function generateSpec() {
 
       // ---- Payment Gateways ----
       ...crudPaths('payment-gateways', 'Payment Gateways', 'PaymentGateway'),
-      '/payment-gateways/mode': {
-        get: { tags: ['Payment Gateways'], summary: 'Whether this install accepts test or live gateway keys (PAYMENT_MODE)', operationId: 'getPaymentMode', security: [{ bearerAuth: [] }], responses: r200('{ payment_mode: "test" | "live" }') },
-      },
       '/payment-gateways/{id}/test': {
         post: { tags: ['Payment Gateways'], summary: 'Ask the provider whether the stored key works (Stripe only; moves no money)', operationId: 'testPaymentGateway', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('{ ok, mode?, error? }'), 404: errorResponse('Gateway not found') } },
       },

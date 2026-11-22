@@ -45,6 +45,9 @@ export interface AuthUser {
    *  per-tenant Admin persona and every org has one. Gates install-wide UI:
    *  the version tab, the update banner, the sidebar entry. */
   is_install_operator?: boolean;
+  /** The install's one live/test switch. 'test' is the developer's demo
+   *  server: the DEV MODE badge shows and test-only options appear. */
+  install_mode?: 'live' | 'test';
   /** Must set a new password before using the app (migration 480). */
   must_change_password?: boolean | number;
   /** True only for an account in the exact seeded system super_admin group. */

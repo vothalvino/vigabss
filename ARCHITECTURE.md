@@ -91,6 +91,43 @@ pnpm version is pinned by `packageManager` in `package.json`.
 | `k8s/`, `charts/` | Kubernetes manifests and Helm chart |
 | `install.sh`, `redeploy.sh`, `deploy/` | Installation and operational deployment tooling |
 
+## Install mode: live or test
+
+There is exactly ONE live/test switch, for the whole install: the environment
+variable `INSTALL_MODE` (`config.install.mode`), read through
+`src/utils/installMode.js` (`installMode()`, `isTestInstall()`,
+`fiscalEnvironment()`, `environmentForMode()`).
+
+- `live` is the default. A production install sets nothing. Real payments,
+  fiscally valid invoices; test credentials are refused.
+- `test` is only for the developer's demo or maintenance server. Nothing real
+  can happen from it; live credentials are refused.
+
+What follows the switch:
+
+| Area | live | test |
+|---|---|---|
+| Stripe gateway keys (`routes/paymentGateways.js`) | only `sk_live_`/`rk_live_` | only `sk_test_`/`rk_test_` |
+| Stripe webhook events (`routes/paymentWebhooks.js`) | only `livemode: true` | only `livemode: false` |
+| CFDI stamping and new PAC rows (`cfdiService`, `routes/pacProviders.js`) | `production` | `sandbox` |
+| Simulator PAC | refused | available |
+| Web interface | nothing | DEV MODE badge beside the version (`Layout.tsx`), notices on gateways, PACs and billing pages |
+
+The signed-in user carries `install_mode` (`enrichAuthUser` in
+`routes/auth.js`); the frontend reads `user.install_mode` and asks no other
+endpoint. WhatsApp does not follow the switch: Meta's test and real numbers use
+the same kind of credentials.
+
+Rules for new work:
+
+- An integration with a sandbox reads `isTestInstall()`. Do not add an
+  "environment", "sandbox" or "test mode" field for a person to choose, per
+  organization, per provider row or per record, and do not add a second switch.
+- A stored `environment` column (`payment_gateways.environment`,
+  `pac_providers.environment`, `cfdi_documents.pac_environment`) is derived by
+  the server and records what happened; it is never taken from a request.
+- A production install must work with `INSTALL_MODE` unset.
+
 ## Backend runtime and HTTP surfaces
 
 `src/server.js` validates production configuration, verifies the primary
@@ -893,13 +930,15 @@ inserts the note) post at creation. A posted note cannot return to draft,
 Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
 audit record and feeds no balance.
 
-The organization's switch (`organization_mx_profiles.pac_environment`) picks
-the PAC rows that stamp; each CFDI records the environment that stamped it in
-`cfdi_documents.pac_environment`, and cancellation uses PAC rows of that
-environment, not the current switch (CFD-13). A sandbox CFDI was never
-registered at SAT: it does not block voiding its invoice and its UUID stays
-out of `/billing/tax-reports`. `GET /pac-providers/environment` reports
-`sandbox_vigente_count` so the switch to production can warn about them.
+The install mode (see "Install mode" below) picks the PAC rows that stamp:
+`production` rows on a live install, `sandbox` rows on a test install
+(`cfdiService.orgPacEnvironment`). `organization_mx_profiles.pac_environment`
+is no longer read or written. Each CFDI records the environment that stamped
+it in `cfdi_documents.pac_environment`, and cancellation uses PAC rows of that
+environment (CFD-13). A sandbox CFDI was never registered at SAT: it does not
+block voiding its invoice and its UUID stays out of `/billing/tax-reports`.
+`GET /pac-providers/environment` reports the derived environment and
+`sandbox_vigente_count`.
 
 A succeeded gateway capture is money like any other payment:
 `paymentGatewayService.reconcilePayment` posts one `completed` `payments` row,

@@ -1,17 +1,16 @@
 // =============================================================================
 // Sandbox fiscal environment markers (BIL-35)
 // =============================================================================
-// A CFDI stamped by a sandbox PAC (or the simulator) looks like a real one,
-// and a production install whose organization still points at the sandbox
-// PAC issues CFDIs that are not fiscally valid. These mark both.
+// A CFDI stamped by a sandbox PAC (or the simulator) looks like a real one.
+// Only a test install (the install's live/test switch) stamps in the sandbox;
+// these mark its CFDIs, and remind every billing page that nothing stamped
+// there is fiscally valid.
 // =============================================================================
 
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
-import { api } from '@/api/client';
 
 interface SandboxCandidate {
   pac_environment?: string | null;
@@ -39,31 +38,11 @@ export function SandboxCfdiBadge({ doc }: { doc: SandboxCandidate | null | undef
   );
 }
 
-interface FiscalEnvironment {
-  pac_environment: 'sandbox' | 'production';
-  production_install: boolean;
-}
-
-async function fetchEnvironment(): Promise<FiscalEnvironment> {
-  const get = api.GET as unknown as (path: string) => Promise<{ data?: unknown; error?: unknown }>;
-  const response = await get('/cfdi-documents/environment');
-  if (response.error || !response.data) throw new Error('Failed to load the fiscal environment');
-  return (response.data as { data: FiscalEnvironment }).data;
-}
-
-/** Persistent warning on billing and CFDI pages of a production install still on the sandbox PAC. */
+/** Persistent reminder on billing and CFDI pages of a test install: its CFDIs are not fiscally valid. */
 export function SandboxEnvironmentBanner() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const allowed = can(user, 'cfdi_documents.view');
-  const { data } = useQuery<FiscalEnvironment>({
-    queryKey: ['cfdi-environment', user?.organization_id],
-    queryFn: fetchEnvironment,
-    enabled: allowed,
-    staleTime: 60 * 1000,
-    retry: false,
-  });
-  if (!allowed || !data || !data.production_install || data.pac_environment !== 'sandbox') return null;
+  if (user?.install_mode !== 'test' || !can(user, 'cfdi_documents.view')) return null;
   return (
     <div
       role="status"

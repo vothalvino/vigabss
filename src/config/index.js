@@ -252,11 +252,12 @@ const config = {
     timeoutMs: parseIntEnv('GEOCODING_TIMEOUT_MS', 8000),
   },
 
-  // Whether this install moves real money (src/utils/paymentMode.js). 'live'
-  // is the default; a demo or maintenance server sets PAYMENT_MODE=test and can
-  // then only hold test gateway keys.
-  payments: {
-    mode: (process.env.PAYMENT_MODE || 'live').trim().toLowerCase(),
+  // The one live/test switch of the install (src/utils/installMode.js).
+  // 'live' is the default: real payments, fiscally valid invoices. The
+  // developer's demo or maintenance server sets INSTALL_MODE=test, and then
+  // only test payment keys and sandbox invoice stamping work.
+  install: {
+    mode: (process.env.INSTALL_MODE || 'live').trim().toLowerCase(),
   },
 
   // WhatsApp customer support (docs/whatsapp-support-design.md). Inbound webhook
@@ -395,8 +396,8 @@ function validateEnv(logger) {
 
   // Links in emails, OAuth redirects and the Secure cookie flag assume HTTPS;
   // an http APP_URL in production sends portal and reset links in clear text.
-  if (!['live', 'test'].includes(config.payments.mode)) {
-    errors.push(`PAYMENT_MODE must be "live" or "test" (got "${config.payments.mode}")`);
+  if (!['live', 'test'].includes(config.install.mode)) {
+    errors.push(`INSTALL_MODE must be "live" or "test" (got "${config.install.mode}")`);
   }
 
   if (isProduction && !/^https:\/\//i.test(config.appUrl)) {

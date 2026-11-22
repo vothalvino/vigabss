@@ -63,23 +63,36 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 - The AI panel on a ticket (triage suggestions and the AI summary) is readable
   in dark mode. The summary box had a fixed light background behind the dark
   theme's light text.
-- **Test or live payments are decided once per install.** A new
-  `PAYMENT_MODE` setting in the server's environment file (`live` by default,
-  `test` for a demo or maintenance server) says whether the install moves real
-  money. A Stripe gateway accepts only a secret key from that side (`sk_live_…`
-  on a live install, `sk_test_…` on a test one), and a Stripe webhook event
-  from the other side is refused. A test install shows a "TEST MODE" banner on
-  Settings → Payment Gateways and a badge on the WhatsApp settings.
-- The "sandbox / production" choice on a Stripe gateway is gone: it was a
-  label nothing read, and it could disagree with the key. The server now reads
-  it from the key. Other providers keep the label.
+- **One live/test switch for the whole install.** `INSTALL_MODE` in the
+  server's environment file is `live` by default, and a production install
+  sets nothing. Only the developer's demo or maintenance server sets
+  `INSTALL_MODE=test`. Everything with a sandbox side follows it, and nobody
+  chooses a sandbox per organization or per record any more:
+  - **Payments:** a Stripe gateway accepts only a secret key from the
+    install's side (`sk_live_…` on a live install, `sk_test_…` on a test one),
+    and a Stripe webhook event from the other side is refused. The "sandbox /
+    production" choice on a Stripe gateway is gone; the server reads it from
+    the key. Other providers keep the label.
+  - **SAT invoices:** a live install stamps and cancels only through
+    production PACs, a test install only through sandbox PACs. The "Fiscal
+    environment" selector on PAC Providers and the environment choice on each
+    PAC are removed; a PAC gets the install's environment when it is created.
+    The simulator PAC exists only on a test install. An organization that was
+    still set to sandbox stamps in production after this update, and needs an
+    active production PAC to stamp at all; its sandbox PAC rows stay but are no
+    longer used. A CFDI is still cancelled in the environment that stamped it.
+    (The simulator PAC can now actually be created from the screen: its
+    placeholder address used to be refused by the outbound-address check.)
+  - **Web interface:** a test install shows a flashing "DEV MODE" badge beside
+    the version at the top left, and a notice on Payment Gateways, PAC
+    Providers and the billing pages.
+  - WhatsApp is not affected: Meta's test number and a real number use the
+    same kind of credentials.
 - **Payment gateways have a "Test connection" button** (Stripe): it asks
   Stripe whether the stored key works, without moving money.
 - The list of Stripe events to subscribe to, shown on the gateway, now
   includes `charge.dispute.closed`. Without it a lost dispute was never
   recorded.
-- The WhatsApp "Test connection" result says when the connected number is
-  Meta's test number, which only reaches approved recipients.
 - The verify token of the WhatsApp webhook handshake is no longer written to
   the app log or the nginx access log. Meta sends it as a query parameter and
   it was logged in clear. If you connected WhatsApp on 0.1.0-alpha.25, choose

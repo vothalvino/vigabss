@@ -491,6 +491,8 @@
     "documentTemplates": "Documentos Legais"
   },
   "layout": {
+    "devMode": "MODO DEV",
+    "devModeTitle": "Instalação de teste: sem pagamentos reais, e as faturas não são válidas perante o SAT.",
     "brandName": "VigaBSS Alpha",
     "sidebarSubtitle": "Espaço de operações",
     "skipToContent": "Pular para o conteúdo",
@@ -4749,8 +4751,9 @@
   "sandboxFiscal": {
     "badge": "Testes",
     "badgeTitle": "Carimbado por um PAC de testes: este CFDI não tem validade fiscal",
-    "bannerTitle": "Os CFDI estão sendo carimbados no ambiente de testes.",
-    "bannerDetail": "Esta organização usa o PAC de testes, então os novos CFDI não têm validade fiscal. Mude o ambiente fiscal para produção antes de faturar clientes reais.",
+    "bannerTitle": "MODO DEV: os CFDI são carimbados no ambiente de testes.",
+    "bannerDetail": "Esta é uma instalação de teste, portanto nada carimbado aqui tem validade fiscal.",
+    "pacNote": "MODO DEV: todos os PAC aqui carimbam no ambiente de testes. Nada do que carimbam é válido perante o SAT.",
     "bannerAction": "Provedores PAC"
   },
   "adminIpAllowlistBanner": {
@@ -11248,7 +11251,7 @@
     }
   },
   "paymentMode": {
-    "testBanner": "MODO DE TESTE: este servidor aceita apenas chaves de teste. Nenhum dinheiro real é movimentado.",
+    "testBanner": "MODO DEV: este servidor aceita apenas chaves de teste. Nenhum dinheiro real é movimentado.",
     "test": "Teste",
     "live": "Real",
     "envFromKey": "Lido da chave secreta.",
@@ -11258,8 +11261,6 @@
     "testFailed": "A conexão falhou: {{error}}"
   },
   "whatsappSettings": {
-    "testModeBadge": "MODO DE TESTE",
-    "testNumberNote": "Este é o número de teste da Meta: só alcança os destinatários aprovados no seu app da Meta.",
     "title": "Conexão do WhatsApp (Meta Cloud API)",
     "intro": "Conecta o bot do WhatsApp ao número da sua empresa na Meta. Estes valores valem para toda a instalação.",
     "loading": "Carregando…",

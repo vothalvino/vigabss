@@ -1,13 +1,16 @@
-// BIL-35 — sandbox CFDIs are badged, and a production install still on the
-// sandbox PAC shows a persistent banner.
-import { render, screen, waitFor } from '@testing-library/react';
+// BIL-35 — sandbox CFDIs are badged, and a test install (the install's
+// live/test switch) shows a persistent banner on billing pages.
+import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const getMock = vi.fn();
 vi.mock('@/api/client', () => ({ api: { GET: (...args: unknown[]) => getMock(...args) } }));
-vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: { organization_id: 1, permissions: ['cfdi_documents.view'] } }) }));
+let installMode: 'live' | 'test' | undefined;
+vi.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({ user: { organization_id: 1, permissions: ['cfdi_documents.view'], install_mode: installMode } }),
+}));
 vi.mock('@/auth/permissions', () => ({ can: () => true }));
 
 import { isSandboxCfdi, SandboxCfdiBadge, SandboxEnvironmentBanner } from '../SandboxFiscal';
@@ -38,19 +41,16 @@ describe('SandboxCfdiBadge', () => {
 });
 
 describe('SandboxEnvironmentBanner', () => {
-  it('warns on a production install whose organization uses the sandbox PAC', async () => {
-    getMock.mockResolvedValue({ data: { data: { pac_environment: 'sandbox', production_install: true } } });
+  it('shows on a test install, without asking the server', () => {
+    installMode = 'test';
     wrap(<SandboxEnvironmentBanner />);
-    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
+    expect(screen.getByRole('status')).toHaveTextContent(/DEV MODE/);
+    expect(getMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [{ pac_environment: 'production', production_install: true }],
-    [{ pac_environment: 'sandbox', production_install: false }],
-  ])('stays hidden for %o', async (env) => {
-    getMock.mockResolvedValue({ data: { data: env } });
+  it.each([['live' as const], [undefined]])('stays hidden when the install mode is %s', (mode) => {
+    installMode = mode;
     wrap(<SandboxEnvironmentBanner />);
-    await waitFor(() => expect(getMock).toHaveBeenCalled());
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

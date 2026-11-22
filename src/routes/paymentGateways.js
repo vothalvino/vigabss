@@ -13,7 +13,7 @@ const { createPaymentGateway, updatePaymentGateway } = require('../middleware/sc
 const { sealSecretFields } = require('../utils/sealSecrets');
 const paymentGatewayService = require('../services/paymentGatewayService');
 const { ValidationError } = require('../utils/errors');
-const { installPaymentMode, stripeKeyMode, environmentForMode } = require('../utils/paymentMode');
+const { installPaymentMode, stripeKeyMode, environmentForMode } = require('../utils/installMode');
 
 const router = Router();
 
@@ -80,11 +80,6 @@ router.get('/refunded-with-live-rep', requirePermission('payment_gateways.view')
   } catch (err) { next(err); }
 });
 
-// Whether this install takes test or live keys (PAYMENT_MODE). Before /:id.
-router.get('/mode', requirePermission('payment_gateways.view'), (_req, res) => {
-  res.json({ data: { payment_mode: installPaymentMode() } });
-});
-
 router.get('/:id', requirePermission('payment_gateways.view'), ctrl.get);
 // secret_key_encrypted is NOT NULL; a gateway with no secret (manual) stores ''.
 const sealGatewaySecrets = sealSecretFields(
@@ -93,7 +88,7 @@ const sealGatewaySecrets = sealSecretFields(
 );
 
 // A Stripe gateway's environment is read from its key, never chosen, and the
-// key must belong to this install's payment mode (src/utils/paymentMode.js).
+// key must belong to this install's mode (src/utils/installMode.js).
 // Runs before the key is sealed. Other providers' keys do not say which side
 // they are on, so their environment stays the label the admin gives it.
 async function enforceStripeKeyMode(req, _res, next) {

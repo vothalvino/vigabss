@@ -37,7 +37,7 @@ beforeEach(() => {
   User.findById.mockResolvedValue({ id: 1, email: 'a@test.com', status: 'active', role: 'admin', organization_id: 1 });
 });
 
-test('a sandbox CFDI is cancelled through a sandbox PAC after the organization went live', async () => {
+test('a sandbox CFDI is cancelled through a sandbox PAC even on a live install', async () => {
   const doc = { id: 1, organization_id: 1, uuid: 'SIMULADO-1', sat_status: 'vigente', pac_environment: 'sandbox' };
   db.query.mockImplementation(async (sql) => {
     if (/FROM cfdi_documents WHERE id = \?/.test(sql)) return [[doc]];
@@ -79,7 +79,6 @@ test('the tax report only carries UUIDs of production CFDIs', async () => {
 test('the environment endpoint reports sandbox CFDIs still marked vigente', async () => {
   db.query.mockImplementation(async (sql) => {
     if (/SELECT locale FROM organizations/i.test(sql)) return [[{ locale: 'MX' }]]; // the cfdi feature gate
-    if (/FROM organization_mx_profiles/.test(sql)) return [[{ pac_environment: 'sandbox' }]];
     if (/COUNT\(\*\) AS n FROM cfdi_documents/.test(sql)) return [[{ n: 4 }]];
     return [[]];
   });
@@ -87,5 +86,6 @@ test('the environment endpoint reports sandbox CFDIs still marked vigente', asyn
   const res = await request(app).get('/api/v1/pac-providers/environment').set('Authorization', AUTH);
 
   expect(res.status).toBe(200);
-  expect(res.body.data).toEqual({ pac_environment: 'sandbox', sandbox_vigente_count: 4 });
+  // A live install: production. Sandbox CFDIs left from before are still counted.
+  expect(res.body.data).toEqual({ pac_environment: 'production', sandbox_vigente_count: 4 });
 });

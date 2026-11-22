@@ -11813,7 +11813,7 @@
         "tags": [
           "PAC Providers"
         ],
-        "summary": "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it",
+        "summary": "The fiscal environment (sandbox|production) PACs stamp in. It follows the install's live/test switch (INSTALL_MODE) and cannot be set; a CFDI is cancelled in the environment that stamped it",
         "operationId": "getPacEnvironment",
         "security": [
           {
@@ -11837,30 +11837,38 @@
         "tags": [
           "PAC Providers"
         ],
-        "summary": "Set the org's active fiscal environment (sandbox|production)",
+        "summary": "Removed: the fiscal environment follows the install mode and cannot be set",
         "operationId": "setPacEnvironment",
+        "deprecated": true,
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "requestBody": {
-          "description": "pac_environment: sandbox|production",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
         "responses": {
-          "200": {
-            "description": "{ pac_environment }",
+          "409": {
+            "description": "FISCAL_ENVIRONMENT_FIXED",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -25071,32 +25079,6 @@
         "responses": {
           "204": {
             "description": "No content"
-          }
-        }
-      }
-    },
-    "/payment-gateways/mode": {
-      "get": {
-        "tags": [
-          "Payment Gateways"
-        ],
-        "summary": "Whether this install accepts test or live gateway keys (PAYMENT_MODE)",
-        "operationId": "getPaymentMode",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "{ payment_mode: \"test\" | \"live\" }",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
           }
         }
       }

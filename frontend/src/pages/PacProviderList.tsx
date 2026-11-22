@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
+import { useAuth } from '@/auth/AuthContext';
 import { styles, capitalize, fmtDate, RequiredMark } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
@@ -102,13 +103,18 @@ interface PacModalProps {
 
 function PacModal({ existing, onClose, onSaved }: PacModalProps) {
   const { t } = useTranslation();
+  // The environment is the install's (live: production, test: sandbox); the
+  // server sets it. Here it only picks the endpoint preset.
+  const { user } = useAuth();
+  const testInstall = user?.install_mode === 'test';
+  const environment = testInstall ? 'sandbox' : 'production';
+  const providers = PROVIDERS.filter(p => p !== 'simulator' || testInstall);
   const [form, setForm] = useState({
     provider_name: existing?.provider_name ?? 'sw_sapien',
     label: existing?.label ?? '',
-    environment: existing?.environment ?? 'sandbox',
     seal_mode: (existing as { seal_mode?: string } | null)?.seal_mode ?? 'pac',
     priority: String((existing as { priority?: number } | null)?.priority ?? 100),
-    api_url: existing?.api_url ?? API_URL_PRESETS.sw_sapien.sandbox ?? '',
+    api_url: existing?.api_url ?? API_URL_PRESETS.sw_sapien[environment] ?? '',
     username: '',
     password: '',
     token: '',
@@ -117,10 +123,9 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
   const [error, setError] = useState('');
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  // Changing provider/environment refreshes the endpoint preset — but never
-  // clobbers a URL the operator already typed by hand for that combo.
-  function applyPreset(provider: string, environment: string) {
-    const preset = API_URL_PRESETS[provider]?.[environment as 'sandbox' | 'production'];
+  // Changing the provider refreshes the endpoint preset.
+  function applyPreset(provider: string) {
+    const preset = API_URL_PRESETS[provider]?.[environment];
     if (preset) set('api_url', preset);
   }
 
@@ -129,7 +134,6 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
       const body: Record<string, string | number> = {
         provider_name: form.provider_name,
         label: form.label.trim(),
-        environment: form.environment,
         seal_mode: form.provider_name === 'finkok' ? 'local' : form.seal_mode,
         // priority is a NUMBER column — validate() does not coerce strings, so
         // sending form.priority verbatim 422s every save (review-confirmed).
@@ -162,10 +166,6 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
       setError('Label and API URL are required.');
       return;
     }
-    if (form.provider_name === 'simulator' && form.environment !== 'sandbox') {
-      setError("The simulator only runs with environment 'sandbox' — it never produces fiscally valid CFDIs.");
-      return;
-    }
     mutation.mutate();
   }
 
@@ -182,19 +182,12 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
         <form onSubmit={submit}>
           <label style={label} htmlFor="pac-provider">{t('ui.pacProviderList.provider')}<RequiredMark /></label>
           <select id="pac-provider" style={input} value={form.provider_name}
-            onChange={e => { set('provider_name', e.target.value); applyPreset(e.target.value, form.environment); }}>
-            {PROVIDERS.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
+            onChange={e => { set('provider_name', e.target.value); applyPreset(e.target.value); }}>
+            {providers.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
           </select>
 
           <label style={label} htmlFor="pac-label">{t('ui.pacProviderList.label')}<RequiredMark /></label>
           <input id="pac-label" style={input} maxLength={100} placeholder={t('ui.pacProviderList.swSapienSandbox')} value={form.label} onChange={e => set('label', e.target.value)} />
-
-          <label style={label} htmlFor="pac-env">{t('ui.pacProviderList.environment')}<RequiredMark /></label>
-          <select id="pac-env" style={input} value={form.environment}
-            onChange={e => { set('environment', e.target.value); applyPreset(form.provider_name, e.target.value); }}>
-            <option value="sandbox">{t('ui.pacProviderList.sandbox')}</option>
-            <option value="production">{t('ui.pacProviderList.production')}</option>
-          </select>
 
           <label style={label} htmlFor="pac-seal">{t('ui.pacProviderList.sealing')}</label>
           <select id="pac-seal" style={input} value={form.seal_mode} onChange={e => set('seal_mode', e.target.value)}>
@@ -261,80 +254,19 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Fiscal environment switch — the single control that decides which PAC rows
-// (sandbox vs production, each with its own credentials) actually stamp and
-// cancel. Backed by /pac-providers/environment (org-scoped).
+// On a test install (the install's live/test switch) every PAC here is a
+// sandbox PAC and nothing it stamps is valid before SAT. A live install shows
+// nothing: there is no environment to choose.
 // ---------------------------------------------------------------------------
 
-function FiscalEnvironmentBar() {
+function TestInstallNote() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [err, setErr] = useState<string | null>(null);
-
-  const envQ = useQuery({
-    queryKey: ['pac-environment'],
-    queryFn: async () => {
-      const res = await api.GET('/pac-providers/environment');
-      if ((res as { error?: unknown }).error) throw new Error('load failed');
-      const data = (res.data as { data: { pac_environment: string; sandbox_vigente_count?: number } })?.data;
-      return { env: data?.pac_environment ?? 'sandbox', sandboxVigente: Number(data?.sandbox_vigente_count ?? 0) };
-    },
-  });
-
-  const setEnv = useMutation({
-    mutationFn: async (value: string) => {
-      const res = await api.PUT('/pac-providers/environment', { body: { pac_environment: value } });
-      const e = (res as { error?: { error?: { message?: string } } }).error;
-      if (e) throw new Error(e.error?.message || 'Could not change the fiscal environment.');
-    },
-    onSuccess: () => { setErr(null); qc.invalidateQueries({ queryKey: ['pac-environment'] }); },
-    onError: (e: unknown) => setErr(e instanceof Error ? e.message : 'Could not change the fiscal environment.'),
-  });
-
-  const env = envQ.data?.env ?? 'sandbox';
-  const sandboxVigente = envQ.data?.sandboxVigente ?? 0;
-  const isProd = env === 'production';
-
-  function onSelect(value: string) {
-    if (value === env) return;
-    // Guard the jump to live SAT stamping behind an explicit confirmation.
-    // Sandbox CFDIs stamped so far stay sandbox: say how many (CFD-13).
-    if (value === 'production' && !window.confirm(
-      'Switch to PRODUCTION? CFDIs will be stamped against the real SAT with legal validity. '
-      + 'Make sure your production PAC entries have real credentials and your active CSD is a real (non-test) certificate.'
-      + (sandboxVigente > 0
-        ? `\n\n${sandboxVigente} sandbox CFDI(s) still show as vigente. They were never registered at SAT: they stay marked sandbox, `
-          + 'are left out of tax reports, do not block voiding their invoice, and are cancelled through a sandbox PAC.'
-        : ''),
-    )) return;
-    setEnv.mutate(value);
-  }
-
+  const { user } = useAuth();
+  if (user?.install_mode !== 'test') return null;
   return (
-    <div style={{ background: isProd ? '#fffbeb' : 'var(--bg-secondary, #f8fafc)', border: `1px solid ${isProd ? '#fde68a' : 'var(--border-color, #e2e8f0)'}`, borderRadius: 8, padding: '10px 14px', margin: '4px 0 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t('ui.pacProviderList.fiscalEnvironment')}</span>
-        <select
-          value={env}
-          disabled={envQ.isLoading || setEnv.isPending}
-          onChange={e => onSelect(e.target.value)}
-          style={{ padding: '6px 10px', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, background: 'var(--bg-primary, #fff)', color: 'inherit', fontSize: '0.85rem', fontWeight: 600 }}
-        >
-          <option value="sandbox">{t('ui.pacProviderList.sandboxTesting')}</option>
-          <option value="production">{t('ui.pacProviderList.productionLiveSat')}</option>
-        </select>
-        <span style={{ fontSize: '0.8rem', color: isProd ? '#92400e' : 'var(--text-muted)' }}>
-          {setEnv.isPending ? 'Saving…' : isProd
-            ? 'Live: stamping real, legally-valid CFDIs against the SAT.'
-            : 'Testing: CFDIs are not fiscally valid.'}
-        </span>
-      </div>
-      <p style={{ margin: '8px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-        {t('ui.pacProviderList.onlyProvidersWhose')}<strong>{t('ui.pacProviderList.environment2')}</strong> {t('ui.pacProviderList.matchesThisSettingStampAnd')}{' '}
-        <strong>{t('ui.pacProviderList.failoverPriority2')}</strong> {t('ui.pacProviderList.firstTheRestAsBackups')}
-      </p>
-      {err && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#991b1b' }}>{err}</p>}
-    </div>
+    <p role="status" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, margin: '4px 0 12px' }}>
+      {t('sandboxFiscal.pacNote')}
+    </p>
   );
 }
 
@@ -414,7 +346,7 @@ export function PacProviderList() {
         </button>
       </div>
 
-      <FiscalEnvironmentBar />
+      <TestInstallNote />
       <AutoStampBar />
 
       <div style={styles.tableCard}>

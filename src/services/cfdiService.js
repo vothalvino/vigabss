@@ -14,6 +14,7 @@ const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = requ
 const money = require('../utils/money');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
+const { fiscalEnvironment, isTestInstall } = require('../utils/installMode');
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
 const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
 const { cfdiText, isPublicoEnGeneral } = require('../utils/satCatalogs');
@@ -156,20 +157,15 @@ async function getEmisorProfile(organizationId) {
 }
 
 /**
- * The org's active fiscal environment (organization_mx_profiles.pac_environment:
- * 'sandbox' | 'production'). This is the SINGLE switch that decides which PAC
- * rows are eligible for stamping/cancellation: sandbox and production
- * credentials/endpoints differ per PAC, so each lives on its own pac_providers
- * row (unique key is org+provider+environment) and only the rows matching this
- * value are used. Defaults to 'sandbox' when no profile exists yet — a brand-new
- * org must never accidentally stamp against a production account.
+ * The fiscal environment new CFDIs are stamped in: 'production' on a live
+ * install, 'sandbox' on a test install. It follows the install's one live/test
+ * switch (src/utils/installMode.js) and nothing else: there is no
+ * per-organization choice, so an ISP cannot be left issuing sandbox CFDIs it
+ * believes are real. Only pac_providers rows of this environment stamp.
+ * (organization_mx_profiles.pac_environment is no longer read.)
  */
-async function orgPacEnvironment(organizationId) {
-  const [rows] = await db.query(
-    'SELECT pac_environment FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
-    [organizationId],
-  );
-  return rows[0]?.pac_environment || 'sandbox';
+async function orgPacEnvironment(_organizationId) {
+  return fiscalEnvironment();
 }
 
 /**
@@ -638,7 +634,7 @@ async function stamp(cfdiDocumentId, { userId = null } = {}) {
   );
   if (pacs.length === 0) {
     throw new AppError(
-      `No active PAC provider configured for this organization in ${pacEnv} mode — add or activate a ${pacEnv} PAC, or change the fiscal environment under Organization → Fiscal (SAT).`,
+      `No active PAC provider configured for this organization — add or activate one under PAC Providers${pacEnv === 'sandbox' ? ' (this is a test install: it stamps with sandbox PACs)' : ''}.`,
       422, 'CFDI_NO_ACTIVE_PAC',
     );
   }
@@ -971,17 +967,16 @@ async function callPacStamp(pac, xmlContent) {
     };
   }
 
-  // First-class SIMULATOR provider — for demo/dev/test installs. Unlike the
-  // dev fallback below it is ALLOWED in production, but only with
-  // environment='sandbox', and its UUIDs are unmistakably fake: the first
+  // First-class SIMULATOR provider — only on a test install (INSTALL_MODE=test,
+  // where every PAC row is environment='sandbox'). Its UUIDs are unmistakably fake: the first
   // UUID block is the literal 'SIMULADO' (not valid hex — no real SAT folio
   // fiscal can ever look like this), keeping the value exactly 36 chars so it
   // fits cfdi_documents.uuid CHAR(36) and every downstream uuid column
   // (cfdi_cancellations, payment-complement DoctoRelacionado).
   // A 'simulator' row with environment='production' is a misconfiguration.
   if (pac.provider_name === 'simulator') {
-    if (pac.environment !== 'sandbox') {
-      throw new Error("The 'simulator' PAC only runs with environment='sandbox' — it never produces fiscally valid CFDIs.");
+    if (pac.environment !== 'sandbox' || !isTestInstall()) {
+      throw new Error("The 'simulator' PAC only runs on a test install — it never produces fiscally valid CFDIs.");
     }
     logger.warn({ provider: 'simulator' }, 'SIMULATED stamping — NOT a fiscally valid CFDI');
     return {

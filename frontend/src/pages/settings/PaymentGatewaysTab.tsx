@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — Settings: Payment Gateways tab
 // =============================================================================
 // CRUD on payment gateways via /api/v1/payment-gateways. Whether the install
-// takes test or live keys is the server's PAYMENT_MODE, shown here as a banner;
+// takes test or live keys is the install's live/test switch, shown here as a banner;
 // a Stripe gateway's environment is read from its key by the server.
 // =============================================================================
 
@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/api/apiFetch';
+import { useAuth } from '@/auth/AuthContext';
 import { gatewayPayload, type GatewayForm } from '../paymentGatewayPayload';
 import { sty, Modal, ConfirmDialog, channelBadge, statusBadge } from './shared';
 
@@ -56,12 +57,9 @@ export function PaymentGatewaysTab() {
   const [testingId, setTestingId] = useState<number | null>(null);
   const qc = useQueryClient();
 
-  // Whether this install takes test or live keys (PAYMENT_MODE on the server).
-  const { data: modeData } = useQuery({
-    queryKey: ['payment-gateways', 'mode'],
-    queryFn: () => apiFetch<{ data: { payment_mode: 'test' | 'live' } }>(`${API_BASE}/payment-gateways/mode`),
-  });
-  const testMode = modeData?.data.payment_mode === 'test';
+  // Whether this install takes test or live keys: the install's one switch.
+  const { user } = useAuth();
+  const testMode = user?.install_mode === 'test';
   const keyPrefix = testMode ? 'sk_test_…' : 'sk_live_…';
 
   async function handleTest(id: number) {

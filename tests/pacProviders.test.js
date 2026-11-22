@@ -18,6 +18,13 @@ jest.mock('../src/config/database', () => ({
 }));
 
 jest.mock('../src/models/PacProvider');
+// The outbound-address check resolves the host for real; these tests are
+// about what is stored, so the lookup is skipped (it has its own tests) and a
+// DNS hiccup cannot fail them.
+jest.mock('../src/utils/safeOutboundUrl', () => ({
+  ...jest.requireActual('../src/utils/safeOutboundUrl'),
+  assertSafeOutboundUrl: jest.fn(async url => url),
+}));
 jest.mock('../src/models/User');
 
 const request = require('supertest');
@@ -158,89 +165,71 @@ describe('PAC Provider routes — secret redaction', () => {
 // ===========================================================================
 // Active fiscal environment switch (GET/PUT /pac-providers/environment)
 // ===========================================================================
-describe('PAC Provider fiscal-environment switch', () => {
+describe('PAC fiscal environment follows the install switch', () => {
+  const originalMode = config.install.mode;
   beforeEach(() => {
     jest.clearAllMocks();
     User.findById.mockResolvedValue({ id: 1, email: 'admin@test.com', status: 'active', role: 'admin', organization_id: 1 });
-  });
-
-  // Route the queries the endpoint makes (requireMxLocale's locale lookup, the
-  // org_mx_profiles read/existence/update, and the production-PAC readiness
-  // check). `profileRow` = the org's stored pac_environment row (or null for
-  // none); `hasProdPac` = whether an active production PAC exists.
-  function wireEnv({ profileRow, hasProdPac = true }) {
     db.query.mockImplementation(async (sql) => {
       if (/SELECT locale FROM organizations/i.test(sql)) return [[{ locale: 'MX' }]];
-      if (/SELECT pac_environment FROM organization_mx_profiles/i.test(sql)) return [profileRow ? [profileRow] : []];
-      if (/SELECT id FROM organization_mx_profiles/i.test(sql)) return [profileRow ? [{ id: 3 }] : []];
-      if (/FROM pac_providers.*environment = 'production'/is.test(sql)) return [hasProdPac ? [{ id: 9 }] : []];
-      if (/UPDATE organization_mx_profiles/i.test(sql)) return [{ affectedRows: 1 }];
+      if (/COUNT\(\*\) AS n FROM cfdi_documents/.test(sql)) return [[{ n: 0 }]];
       return [[]];
     });
-  }
+  });
+  afterEach(() => { config.install.mode = originalMode; });
+  const call = (method, path) => request(app)[method](path)
+    .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1');
 
-  test('GET returns the stored environment', async () => {
-    wireEnv({ profileRow: { pac_environment: 'production' } });
-    const res = await request(app).get('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1');
+  test('GET reports production on a live install and sandbox on a test install', async () => {
+    let res = await call('get', '/api/v1/pac-providers/environment');
     expect(res.status).toBe(200);
-    expect(res.body.data.pac_environment).toBe('production');
+    expect(res.body.data).toEqual({ pac_environment: 'production', sandbox_vigente_count: 0 });
+
+    config.install.mode = 'test';
+    res = await call('get', '/api/v1/pac-providers/environment');
+    expect(res.body.data).toMatchObject({ pac_environment: 'sandbox' });
+    // The organization's fiscal profile is not consulted.
+    expect(db.query.mock.calls.some(([sql]) => /pac_environment FROM organization_mx_profiles/i.test(sql))).toBe(false);
   });
 
-  test('GET defaults to sandbox when the org has no fiscal profile yet', async () => {
-    wireEnv({ profileRow: null });
-    const res = await request(app).get('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1');
-    expect(res.status).toBe(200);
-    expect(res.body.data.pac_environment).toBe('sandbox');
-  });
-
-  test('PUT updates the environment when a profile exists', async () => {
-    wireEnv({ profileRow: { pac_environment: 'sandbox' } });
-    const res = await request(app).put('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1')
-      .send({ pac_environment: 'production' });
-    expect(res.status).toBe(200);
-    expect(res.body.data.pac_environment).toBe('production');
-    const update = db.query.mock.calls.find(c => /UPDATE organization_mx_profiles/i.test(c[0]));
-    expect(update[1]).toEqual(['production', 1]);
-  });
-
-  test('PUT rejects an invalid value (422) without writing', async () => {
-    wireEnv({ profileRow: { pac_environment: 'sandbox' } });
-    const res = await request(app).put('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1')
-      .send({ pac_environment: 'staging' });
-    expect(res.status).toBe(422);
+  test('the environment can no longer be set', async () => {
+    const res = await call('put', '/api/v1/pac-providers/environment').send({ pac_environment: 'sandbox' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('FISCAL_ENVIRONMENT_FIXED');
     expect(db.query.mock.calls.find(c => /UPDATE organization_mx_profiles/i.test(c[0]))).toBeFalsy();
   });
 
-  test('PUT 422s with an actionable code when there is no fiscal profile yet', async () => {
-    wireEnv({ profileRow: null });
-    const res = await request(app).put('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1')
-      .send({ pac_environment: 'production' });
-    expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe('ORG_MX_PROFILE_MISSING');
-    expect(db.query.mock.calls.find(c => /UPDATE organization_mx_profiles/i.test(c[0]))).toBeFalsy();
+  const NEW_PAC = { provider_name: 'sw_sapien', label: 'SW', api_url: 'https://services.sw.com.mx', token: 'example-token' };
+
+  test('a new PAC gets the install\'s environment, whatever the request says', async () => {
+    PacProvider.create.mockImplementation(async data => ({ id: 1, ...data }));
+    let res = await call('post', '/api/v1/pac-providers').send({ ...NEW_PAC, environment: 'sandbox' });
+    expect(res.status).toBe(201);
+    expect(PacProvider.create.mock.calls[0][0].environment).toBe('production');
+
+    config.install.mode = 'test';
+    res = await call('post', '/api/v1/pac-providers').send({ ...NEW_PAC, environment: 'production' });
+    expect(PacProvider.create.mock.calls[1][0].environment).toBe('sandbox');
   });
 
-  test('PUT to production is refused (422 NO_PRODUCTION_PAC) when no active production PAC exists', async () => {
-    wireEnv({ profileRow: { pac_environment: 'sandbox' }, hasProdPac: false });
-    const res = await request(app).put('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1')
-      .send({ pac_environment: 'production' });
-    expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe('NO_PRODUCTION_PAC');
-    expect(db.query.mock.calls.find(c => /UPDATE organization_mx_profiles/i.test(c[0]))).toBeFalsy();
-  });
-
-  test('PUT back to sandbox needs no production PAC (no readiness gate)', async () => {
-    wireEnv({ profileRow: { pac_environment: 'production' }, hasProdPac: false });
-    const res = await request(app).put('/api/v1/pac-providers/environment')
-      .set('Authorization', `Bearer ${adminToken}`).set('X-Org-Id', '1')
-      .send({ pac_environment: 'sandbox' });
+  test('an edit cannot move a PAC to the other environment', async () => {
+    PacProvider.findByIdOrFail.mockResolvedValue({ id: 5, organization_id: 1, environment: 'production' });
+    PacProvider.update.mockImplementation(async (_id, data) => ({ id: 5, ...data }));
+    const res = await call('put', '/api/v1/pac-providers/5').send({ label: 'Renamed', environment: 'sandbox' });
     expect(res.status).toBe(200);
-    expect(res.body.data.pac_environment).toBe('sandbox');
+    expect(PacProvider.update.mock.calls[0][1]).not.toHaveProperty('environment');
+  });
+
+  test('the simulator exists only on a test install', async () => {
+    PacProvider.create.mockImplementation(async data => ({ id: 1, ...data }));
+    const simulator = { provider_name: 'simulator', label: 'Simulator', api_url: 'https://simulator.invalid' };
+    let res = await call('post', '/api/v1/pac-providers').send(simulator);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('PAC_SIMULATOR_TEST_ONLY');
+    expect(PacProvider.create).not.toHaveBeenCalled();
+
+    config.install.mode = 'test';
+    res = await call('post', '/api/v1/pac-providers').send(simulator);
+    expect(res.status).toBe(201);
   });
 });

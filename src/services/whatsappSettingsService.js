@@ -22,7 +22,6 @@ const config = require('../config');
 const db = require('../config/database');
 const { encrypt, decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger').child({ service: 'whatsappSettings' });
-const { installPaymentMode } = require('../utils/paymentMode');
 
 const REFRESH_MS = 60 * 1000;
 
@@ -118,8 +117,6 @@ function getView() {
     sources: Object.fromEntries(FIELD_NAMES.map(f => [f, sourceOf(f)])),
     webhook_url: webhookUrl,
     graph_version: config.whatsapp.graphVersion,
-    // The install's test/live setting (PAYMENT_MODE), for the screen's badge.
-    install_mode: installPaymentMode(),
   };
   // Receiving needs the secret (signature) and the verify token (handshake);
   // replying needs the number ID and the access token.
@@ -189,8 +186,6 @@ function graphGet(path, accessToken) {
  * number ID and access token; it cannot prove the app secret or the webhook,
  * which only an inbound message does.
  */
-const META_TEST_NUMBER_NAME = 'Test Number';
-
 async function testConnection({ get = graphGet } = {}) {
   const { phoneNumberId, accessToken, graphVersion } = config.whatsapp;
   if (!phoneNumberId || !accessToken) {
@@ -206,9 +201,6 @@ async function testConnection({ get = graphGet } = {}) {
         ok: true,
         display_phone_number: body.display_phone_number || null,
         verified_name: body.verified_name || null,
-        // Meta names its sandbox number "Test Number"; it only reaches the
-        // recipients approved in the Meta app.
-        test_number: body.verified_name === META_TEST_NUMBER_NAME,
       };
     }
     // Meta's own message says what is wrong (expired token, wrong ID, missing

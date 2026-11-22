@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — Payment mode: Stripe webhooks from the other side
 // =============================================================================
 // A Stripe event says whether it is live. One that does not match the
-// install's PAYMENT_MODE is refused before anything is stored.
+// install's INSTALL_MODE is refused before anything is stored.
 // =============================================================================
 
 const crypto = require('crypto');
@@ -23,9 +23,9 @@ const db = require('../src/config/database');
 const paymentGatewayService = require('../src/services/paymentGatewayService');
 const app = require('../src/app');
 
-const originalMode = config.payments.mode;
+const originalMode = config.install.mode;
 beforeEach(() => { jest.clearAllMocks(); });
-afterEach(() => { config.payments.mode = originalMode; });
+afterEach(() => { config.install.mode = originalMode; });
 
 describe('a Stripe webhook from the other side', () => {
   const SECRET = 'whsec_exampleExampleExampleExampleExample';
@@ -43,7 +43,7 @@ describe('a Stripe webhook from the other side', () => {
   });
 
   test('a live event on a test install is refused before anything is stored', async () => {
-    config.payments.mode = 'test';
+    config.install.mode = 'test';
     const res = await post({ id: 'evt_1', type: 'checkout.session.completed', livemode: true, data: { object: {} } });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('WEBHOOK_MODE_MISMATCH');
