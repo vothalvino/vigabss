@@ -5,6 +5,9 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- The AI panel on a ticket (triage suggestions and the AI summary) is readable
+  in dark mode. The summary box had a fixed light background behind the dark
+  theme's light text.
 - **Test or live payments are decided once per install.** A new
   `PAYMENT_MODE` setting in the server's environment file (`live` by default,
   `test` for a demo or maintenance server) says whether the install moves real
