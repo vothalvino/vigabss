@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { WhatsAppSettingsTab } from './WhatsAppSettingsTab';
+import { providerPayload, VoiceModelField, type ProviderExtraConfig, type ProviderForm } from './aiProviderForm';
 import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
@@ -54,7 +55,7 @@ interface AiProvider {
   kind: string;
   model: string | null;
   endpoint_url: string | null;
-  extra_config: { deployment?: string | null } | null;
+  extra_config: ProviderExtraConfig | null;
   priority: number;
   enabled: boolean;
   created_at: string;
@@ -391,8 +392,8 @@ function GeneralTab() {
 // Providers tab
 // ---------------------------------------------------------------------------
 
-const EMPTY_PROVIDER = {
-  name: '', kind: 'openai', model: '', endpoint: '', deployment: '',
+const EMPTY_PROVIDER: ProviderForm = {
+  name: '', kind: 'openai', model: '', endpoint: '', deployment: '', voiceModel: '',
   api_key: '', priority: 10, is_enabled: true,
 };
 
@@ -696,6 +697,7 @@ function ProvidersTab() {
     setForm({
       name: p.name, kind: p.kind, model: p.model ?? '',
       endpoint: p.endpoint_url ?? '', deployment: p.extra_config?.deployment ?? '',
+      voiceModel: p.extra_config?.transcription_model ?? '',
       api_key: '', priority: p.priority, is_enabled: !!p.enabled,
     });
     setFormError('');
@@ -708,16 +710,7 @@ function ProvidersTab() {
     e.preventDefault();
     setFormError('');
     if (!form.name.trim()) { setFormError(t('aiAssistantSettings.errors.nameRequired')); return; }
-    const body: Record<string, unknown> = {
-      name: form.name, kind: form.kind,
-      priority: Number(form.priority),
-      enabled: form.is_enabled,
-    };
-    if (form.model) body.model = form.model;
-    if (form.endpoint) body.endpoint_url = form.endpoint;
-    if (form.deployment) body.extra_config = { deployment: form.deployment };
-    if (form.api_key) body.api_key = form.api_key;
-    saveMutation.mutate(body);
+    saveMutation.mutate(providerPayload(form, editing?.extra_config));
   }
 
   async function handleVerify(id: number) {
@@ -902,6 +895,8 @@ function ProvidersTab() {
                   onChange={e => setForm(f => ({ ...f, deployment: e.target.value }))} />
               </label>
             )}
+            <VoiceModelField kind={form.kind} value={form.voiceModel} labelStyle={sty.label} inputStyle={sty.input}
+              hintStyle={sty.hint} onChange={voiceModel => setForm(f => ({ ...f, voiceModel }))} />
             {showApiKey && (
               <label style={sty.label}>
                 {t('aiAssistantSettings.providers.form.apiKey')} {editing && <span style={sty.hint}>{t('aiAssistantSettings.providers.form.apiKeyKeep')}</span>}

@@ -102,4 +102,26 @@ describe('WhatsAppSettingsTab', () => {
     expect(await screen.findByText(/Only the install operator/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
+
+  it('warns when replies are failing, with what to do about a rejected token', async () => {
+    mockApiFetch.mockImplementation((path: string) => {
+      if (path === '/whatsapp-settings') {
+        return Promise.resolve({ data: { ...VIEW, send_failure: {
+          message: 'Authentication Error', auth: true, since: '2026-11-22T05:17:35.000Z', last: '2026-11-22T05:20:00.000Z', count: 3,
+        } } });
+      }
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<WhatsAppSettingsTab />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('WhatsApp replies are not being delivered.');
+    expect(alert).toHaveTextContent(/3 failed since .*Authentication Error/);
+    expect(alert).toHaveTextContent(/access token was rejected/);
+  });
+
+  it('shows no warning while replies go out', async () => {
+    render(<WhatsAppSettingsTab />);
+    await screen.findByTestId('whatsapp-webhook-url');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

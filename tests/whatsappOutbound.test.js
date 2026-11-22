@@ -168,6 +168,22 @@ describe('whatsappOutbound tappable replies (Meta)', () => {
     });
   });
 
+  test('a refused reply is reported to the settings service, and a delivered one clears it', async () => {
+    const settings = require('../src/services/whatsappSettingsService');
+    const failure = jest.spyOn(settings, 'noteSendFailure').mockResolvedValue();
+    const success = jest.spyOn(settings, 'noteSendSuccess').mockResolvedValue();
+
+    answerWith({ status: 401, body: { error: { message: 'Authentication Error', code: 190 } } });
+    expect((await send(null)).success).toBe(false);
+    expect(failure).toHaveBeenCalledWith({ message: 'Authentication Error', code: '190' });
+    expect(success).not.toHaveBeenCalled();
+
+    answerWith(OK);
+    expect((await send(null)).success).toBe(true);
+    expect(success).toHaveBeenCalledTimes(1);
+    failure.mockRestore(); success.mockRestore();
+  });
+
   test('a reply without options is plain text', async () => {
     answerWith(OK);
     await send(null);

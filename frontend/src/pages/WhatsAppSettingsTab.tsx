@@ -28,6 +28,8 @@ interface WhatsAppView {
   graph_version: string;
   can_receive: boolean;
   can_send: boolean;
+  /** The last reply Meta refused, while replies are failing. */
+  send_failure?: { message: string; auth: boolean; since: string; last: string; count: number } | null;
 }
 
 interface TestResult {
@@ -131,6 +133,17 @@ export function WhatsAppSettingsTab() {
       <h3 style={sty.title}>{t('whatsappSettings.title')}</h3>
       <p style={sty.muted}>{t('whatsappSettings.intro')}</p>
 
+      {view.send_failure && (
+        <div role="alert" style={sty.failure}>
+          <strong>{t('whatsappSettings.sendFailure.title')}</strong>{' '}
+          {t('whatsappSettings.sendFailure.detail', {
+            count: view.send_failure.count,
+            since: new Date(view.send_failure.since).toLocaleString(),
+            message: view.send_failure.message,
+          })}{' '}
+          {view.send_failure.auth && t('whatsappSettings.sendFailure.authHint')}
+        </div>
+      )}
       <div style={sty.statusRow}>
         <span style={{ ...sty.pill, background: view.can_receive ? '#16a34a' : '#b45309' }}>
           {view.can_receive ? t('whatsappSettings.status.canReceive') : t('whatsappSettings.status.cannotReceive')}
@@ -224,5 +237,6 @@ const sty = {
   btnPrimary: { padding: '0.4rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
   btnGhost: { padding: '0.4rem 1rem', background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
   error: { color: '#dc2626', fontSize: '0.85rem', margin: 0 },
+  failure: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.6rem 0.8rem', fontSize: '0.875rem', lineHeight: 1.5 },
   success: { color: '#16a34a', fontSize: '0.85rem', margin: 0 },
 };

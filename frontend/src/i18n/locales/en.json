@@ -1520,6 +1520,8 @@
         "model": "Model (e.g. gpt-4o, claude-haiku-5-5)",
         "endpoint": "Endpoint URL",
         "deployment": "Azure deployment name",
+        "voiceModel": "Voice note model",
+        "voiceModelHint": "Transcribes WhatsApp voice notes. Leave empty to use {{model}}.",
         "apiKey": "API key",
         "apiKeyKeep": "(leave blank to keep existing key)",
         "priority": "Priority (lower = higher priority)",
@@ -11267,6 +11269,11 @@
     "testFailed": "Connection failed: {{error}}"
   },
   "whatsappSettings": {
+    "sendFailure": {
+      "title": "WhatsApp replies are not being delivered.",
+      "detail": "{{count}} failed since {{since}}. Meta's answer: {{message}}.",
+      "authHint": "The access token was rejected, usually because it expired. Generate a new one in Meta and save it here."
+    },
     "title": "WhatsApp connection (Meta Cloud API)",
     "intro": "Connects the WhatsApp bot to your Meta business number. These values apply to the whole installation.",
     "loading": "Loading…",

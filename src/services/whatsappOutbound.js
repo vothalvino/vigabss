@@ -19,6 +19,9 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const communicationPreferences = require('./clientCommunicationPreferenceService');
 
+// Lazy: the settings service reads the database at load in some test setups.
+const whatsappSettings = () => require('./whatsappSettingsService');
+
 /** POST helper returning { sid, status } or throwing. */
 function httpsPost({ hostname, path, headers, body }) {
   return new Promise((resolve, reject) => {
@@ -229,10 +232,16 @@ async function sendReply({ provider, to, body, interactive = null, organizationI
     } else if (!result) {
       throw new Error(`Unsupported WhatsApp provider: ${provider}`);
     }
-    if (!result) result = { success: true, sid: sent.sid, error: null };
+    if (!result) {
+      result = { success: true, sid: sent.sid, error: null };
+      if (provider === 'meta') await whatsappSettings().noteSendSuccess();
+    }
   } catch (err) {
     result = { success: false, sid: null, error: err.message || String(err) };
     logger.warn({ err, to, provider }, 'whatsapp: outbound reply failed');
+    // Shown on the WhatsApp settings screen, so a rejected token does not
+    // stay hidden in this log.
+    if (provider === 'meta') await whatsappSettings().noteSendFailure({ message: result.error, code: err.code });
   }
 
   // Log to sms_logs only when we know the org (bound client) — org is NOT NULL.

@@ -79,6 +79,23 @@ describe('llmProviderService.transcribe', () => {
     delete process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL;
   });
 
+  test('the model chosen on the provider wins over the environment and the default', async () => {
+    process.env.AI_TRANSCRIPTION_MODEL = 'env-model';
+    db.query.mockResolvedValue([[{ ...PROVIDER, extra_config: JSON.stringify({ transcription_model: ' chosen-model ' }) }]]);
+    await llm.transcribe({ orgId: 3, audio: AUDIO });
+    expect(mockCreate.mock.calls[0][0].model).toBe('chosen-model');
+
+    db.query.mockResolvedValue([[{ ...PROVIDER, kind: 'openrouter', extra_config: { transcription_model: 'vendor/audio-model' } }]]);
+    mockChat.mockResolvedValue({ choices: [{ message: { content: 'hola' } }] });
+    await llm.transcribe({ orgId: 3, audio: AUDIO });
+    expect(mockChat.mock.calls[0][0].model).toBe('vendor/audio-model');
+
+    // An empty choice falls back.
+    db.query.mockResolvedValue([[{ ...PROVIDER, extra_config: { transcription_model: '  ' } }]]);
+    await llm.transcribe({ orgId: 3, audio: AUDIO });
+    expect(mockCreate.mock.calls[1][0].model).toBe('env-model');
+  });
+
   test('counts against the AI budget: checked before, recorded after', async () => {
     await llm.transcribe({ orgId: 3, audio: AUDIO });
     expect(aiBudget.assertWithinBudget).toHaveBeenCalledWith(3);

@@ -41,6 +41,17 @@ const ENV_BASE = Object.fromEntries(FIELD_NAMES.map(f => [f, config.whatsapp?.[F
 let stored = {};          // field -> plaintext value saved in `settings`
 let refreshTimer = null;
 
+// The last reply Meta refused, kept so the settings screen can say that
+// replies are failing (an expired access token is otherwise only visible in
+// the server log). One install-wide `settings` row, cleared by the next reply
+// that goes out and when the token or number is replaced.
+const SEND_FAILURE_KEY = 'whatsapp_last_send_failure';
+// Meta error codes that mean the token or its permissions are the problem.
+const AUTH_ERROR_CODES = new Set(['190', '10', '200', '401', '403', '131005']);
+const FAILURE_WRITE_INTERVAL_MS = 60 * 1000;
+let sendFailure = null;   // { message, code, since, last, count } | null
+let lastFailureWrite = 0;
+
 function validationProblem(field, value) {
   if (typeof value !== 'string') return 'must be a string';
   if (value.length > 600) return 'is too long';
@@ -52,19 +63,70 @@ function validationProblem(field, value) {
 }
 
 async function readStored() {
-  const keys = FIELD_NAMES.map(f => `'${FIELDS[f].key}'`).join(', '); // code constants
+  const keys = [...FIELD_NAMES.map(f => FIELDS[f].key), SEND_FAILURE_KEY].map(k => `'${k}'`).join(', '); // code constants
   const [rows] = await db.withPrimaryContext(() => db.query(
     `SELECT setting_key, setting_value FROM settings WHERE setting_key IN (${keys})`,
   ));
   const out = {};
+  let failure = null;
   for (const row of rows || []) {
+    if (row.setting_key === SEND_FAILURE_KEY) {
+      try { failure = row.setting_value ? JSON.parse(row.setting_value) : null; } catch { failure = null; }
+      continue;
+    }
     const field = FIELD_NAMES.find(f => FIELDS[f].key === row.setting_key);
     const raw = row.setting_value;
     if (!field || raw === null || raw === undefined || raw === '') continue;
     const value = FIELDS[field].secret ? decrypt(raw) : raw;
     if (value) out[field] = String(value);
   }
+  sendFailure = failure && typeof failure === 'object' && failure.message ? failure : null;
   return out;
+}
+
+async function writeSendFailure(value) {
+  await db.withPrimaryContext(() => db.query(
+    `INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [SEND_FAILURE_KEY, value ? JSON.stringify(value) : ''],
+  ));
+}
+
+/**
+ * Meta refused a reply. Remembered for the settings screen; a run of failures
+ * is one record (first time, last time, how many), written at most once a
+ * minute. Never throws: this must not turn a failed send into a crash.
+ */
+async function noteSendFailure({ message, code = null } = {}) {
+  try {
+    const now = new Date().toISOString();
+    const first = !sendFailure;
+    sendFailure = {
+      message: String(message || 'unknown error').slice(0, 300),
+      code: code === null || code === undefined ? null : String(code),
+      since: sendFailure?.since || now,
+      last: now,
+      count: Number(sendFailure?.count || 0) + 1,
+    };
+    if (first || Date.now() - lastFailureWrite >= FAILURE_WRITE_INTERVAL_MS) {
+      lastFailureWrite = Date.now();
+      await writeSendFailure(sendFailure);
+    }
+  } catch (err) {
+    logger.warn({ err: err.message }, 'whatsappSettings: could not record the send failure');
+  }
+}
+
+/** A reply went out: whatever was failing is over. Never throws. */
+async function noteSendSuccess() {
+  if (!sendFailure) return;
+  try {
+    sendFailure = null;
+    lastFailureWrite = 0;
+    await writeSendFailure(null);
+  } catch (err) {
+    logger.warn({ err: err.message }, 'whatsappSettings: could not clear the send failure');
+  }
 }
 
 /** Lay the stored values over config.whatsapp; empty fields fall back to the environment. */
@@ -120,6 +182,16 @@ function getView() {
   };
   // Receiving needs the secret (signature) and the verify token (handshake);
   // replying needs the number ID and the access token.
+  // The last reply Meta refused, if replies are failing right now. `auth`
+  // says the token or its permissions were rejected (the usual cause: a
+  // temporary token that expired).
+  view.send_failure = sendFailure ? {
+    message: sendFailure.message,
+    auth: AUTH_ERROR_CODES.has(String(sendFailure.code)) || /authenticat|access token|session has expired/i.test(sendFailure.message),
+    since: sendFailure.since,
+    last: sendFailure.last,
+    count: sendFailure.count,
+  } : null;
   view.can_receive = view.has_app_secret && view.has_verify_token;
   view.can_send = Boolean(view.phone_number_id) && view.has_access_token;
   return view;
@@ -156,6 +228,11 @@ async function save(input = {}) {
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
       [FIELDS[field].key, toStore],
     ));
+  }
+  // A new token or number makes the recorded failure stale: the next reply
+  // says whether it works.
+  if (sendFailure && ('access_token' in updates || 'phone_number_id' in updates)) {
+    await noteSendSuccess();
   }
   await refresh();
   return { changed: Object.keys(updates) };
@@ -213,6 +290,6 @@ async function testConnection({ get = graphGet } = {}) {
 }
 
 module.exports = {
-  initialize, stop, refresh, getView, save, testConnection,
+  initialize, stop, refresh, getView, save, testConnection, noteSendFailure, noteSendSuccess,
   FIELDS, FIELD_NAMES, REFRESH_MS,
 };

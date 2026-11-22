@@ -348,3 +348,18 @@ exactly like typed text (`src/services/whatsappVoice.js`):
 
 Every failure returns null and the customer is asked to type instead. Unbound
 numbers and Twilio are not transcribed.
+
+The model is the one set on that provider ("Voice note model", stored as
+`extra_config.transcription_model`), else `AI_TRANSCRIPTION_MODEL` /
+`AI_TRANSCRIPTION_OPENROUTER_MODEL`, else the built-in default.
+
+## Failing replies
+
+`whatsappOutbound` tells `whatsappSettingsService` about every reply Meta
+refuses (`noteSendFailure`) and every reply that goes out (`noteSendSuccess`).
+A run of failures is one record (message, Meta's code, first and last time,
+count) in the install-wide `settings` row `whatsapp_last_send_failure`,
+written at most once a minute and cleared by the next delivered reply or when
+the token or number is replaced. `GET /whatsapp-settings` returns it as
+`send_failure`, with `auth: true` when the token or its permissions were
+rejected, and the settings screen shows it as a warning.
