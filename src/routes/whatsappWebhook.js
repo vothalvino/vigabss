@@ -87,7 +87,7 @@ async function processMessage(provider, m) {
   });
   if (!isNew) return;
 
-  const { reply, clientId } = await bot.handleInbound({ phone, body: m.body || '' });
+  const { reply, clientId, interactive } = await bot.handleInbound({ phone, body: m.body || '' });
 
   // Org is only known once bound — resolve it so a connected client's reply is
   // logged to sms_logs (unbound replies are sent but not logged: org is NOT NULL),
@@ -99,7 +99,7 @@ async function processMessage(provider, m) {
     await wa.setInboundOwner({ provider, providerMessageId: m.providerMessageId, clientId, organizationId });
   }
   if (!reply) return;
-  await outbound.sendReply({ provider, to: phone, body: reply, organizationId, clientId: clientId || null });
+  await outbound.sendReply({ provider, to: phone, body: reply, interactive: interactive || null, organizationId, clientId: clientId || null });
 }
 
 module.exports = router;

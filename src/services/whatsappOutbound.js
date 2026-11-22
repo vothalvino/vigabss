@@ -61,13 +61,65 @@ function sendViaTwilio({ to, body }) {
   }).then((r) => ({ sid: r.sid || null }));
 }
 
-function sendViaMeta({ to, body }) {
+// Meta's limits for interactive messages. Anything past them is rejected, so
+// a message that does not fit is sent as plain text instead.
+const META_LIMITS = { body: 1024, buttons: 3, buttonTitle: 20, rows: 10, rowTitle: 24, rowDescription: 72, listButton: 20 };
+const clip = (value, max) => {
+  const text = String(value ?? '').trim();
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+};
+
+/**
+ * The Meta `interactive` object for tappable replies, or null when the
+ * request cannot be one (no options, too many, an empty or oversized body).
+ *
+ * @param {object} interactive
+ * @param {string} interactive.body                    text above the options
+ * @param {Array<{id: string, title: string}>} [interactive.buttons]   up to 3
+ * @param {{button: string, rows: Array<{id: string, title: string, description?: string}>}} [interactive.list]  up to 10 rows
+ */
+function metaInteractive(interactive) {
+  const text = String(interactive?.body || '').trim();
+  if (!text || text.length > META_LIMITS.body) return null;
+  const usable = option => option && String(option.id || '').trim() && String(option.title || '').trim();
+  const buttons = (interactive.buttons || []).filter(usable);
+  if (buttons.length >= 1 && buttons.length <= META_LIMITS.buttons) {
+    return {
+      type: 'button',
+      body: { text },
+      action: {
+        buttons: buttons.map(b => ({ type: 'reply', reply: { id: String(b.id), title: clip(b.title, META_LIMITS.buttonTitle) } })),
+      },
+    };
+  }
+  const rows = (interactive.list?.rows || []).filter(usable);
+  if (rows.length >= 1 && rows.length <= META_LIMITS.rows && String(interactive.list.button || '').trim()) {
+    return {
+      type: 'list',
+      body: { text },
+      action: {
+        button: clip(interactive.list.button, META_LIMITS.listButton),
+        sections: [{
+          rows: rows.map(r => ({
+            id: String(r.id),
+            title: clip(r.title, META_LIMITS.rowTitle),
+            ...(r.description ? { description: clip(r.description, META_LIMITS.rowDescription) } : {}),
+          })),
+        }],
+      },
+    };
+  }
+  return null;
+}
+
+function sendViaMeta({ to, body, interactive = null }) {
   const { phoneNumberId, accessToken, graphVersion } = config.whatsapp;
   const payload = JSON.stringify({
     messaging_product: 'whatsapp',
     to: to.replace(/^\+/, ''),
-    type: 'text',
-    text: { preview_url: false, body },
+    ...(interactive
+      ? { type: 'interactive', interactive }
+      : { type: 'text', text: { preview_url: false, body } }),
   });
   return httpsPost({
     hostname: 'graph.facebook.com',
@@ -86,11 +138,12 @@ function sendViaMeta({ to, body }) {
  * @param {object} opts
  * @param {'twilio'|'meta'} opts.provider
  * @param {string} opts.to              - E.164 destination (no 'whatsapp:' prefix)
- * @param {string} opts.body
+ * @param {string} opts.body            - the full reply as text; always sendable on its own
+ * @param {object} [opts.interactive]   - tappable form of the same reply (Meta only), see metaInteractive
  * @param {number|null} [opts.organizationId]  - when set, the send is logged to sms_logs
  * @param {number|null} [opts.clientId]
  */
-async function sendReply({ provider, to, body, organizationId = null, clientId = null }) {
+async function sendReply({ provider, to, body, interactive = null, organizationId = null, clientId = null }) {
   let result;
   const organizationState = await communicationPreferences.getOrganizationDeliveryState(organizationId);
   let clientContactEpoch = 0;
@@ -157,7 +210,17 @@ async function sendReply({ provider, to, body, organizationId = null, clientId =
       if (!config.whatsapp.phoneNumberId || !config.whatsapp.accessToken) {
         throw new Error('Meta WhatsApp outbound not configured (WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN)');
       }
-      sent = await sendViaMeta({ to, body });
+      // Tappable options when the reply has them. If Meta refuses that form,
+      // the same reply goes as plain text: it always spells the options out.
+      const tappable = interactive ? metaInteractive(interactive) : null;
+      if (tappable) {
+        try {
+          sent = await sendViaMeta({ to, interactive: tappable });
+        } catch (interactiveErr) {
+          logger.warn({ err: interactiveErr, provider }, 'whatsapp: interactive reply refused — sending it as text');
+        }
+      }
+      if (!sent) sent = await sendViaMeta({ to, body });
     } else if (!result && provider === 'twilio') {
       if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
         throw new Error('Twilio WhatsApp outbound not configured');
@@ -207,4 +270,4 @@ async function sendReply({ provider, to, body, organizationId = null, clientId =
   };
 }
 
-module.exports = { sendReply };
+module.exports = { sendReply, metaInteractive, META_LIMITS };

@@ -266,6 +266,15 @@ describe('webhook signature verification', () => {
     expect(webhookSvc.parseInboundMessages('meta', statusOnly)).toEqual([]);
   });
 
+  it('parseInboundMessages reads a tapped button or list row as the id the bot gave it', () => {
+    const wrap = message => ({ body: { entry: [{ changes: [{ value: { metadata: { display_phone_number: '5215500000000' }, messages: [message] } }] }] } });
+    const read = message => webhookSvc.parseInboundMessages('meta', wrap(message))[0].body;
+    expect(read({ id: 'wamid.1', from: '5215512345678', type: 'interactive', interactive: { type: 'button_reply', button_reply: { id: 'confirm', title: 'Yes, change it' } } })).toBe('confirm');
+    expect(read({ id: 'wamid.2', from: '5215512345678', type: 'interactive', interactive: { type: 'list_reply', list_reply: { id: '4', title: 'Report a problem' } } })).toBe('4');
+    expect(read({ id: 'wamid.3', from: '5215512345678', type: 'button', button: { text: 'Hola' } })).toBe('Hola');
+    expect(read({ id: 'wamid.4', from: '5215512345678', type: 'image', image: { id: 'x' } })).toBe('');
+  });
+
   it('parseInboundMessages extracts a Twilio message and rejects a probe', () => {
     expect(webhookSvc.parseInboundMessages('twilio', { body: { MessageSid: 'SM1', From: 'whatsapp:+521', Body: 'yo' } }))
       .toEqual([{ providerMessageId: 'SM1', from: 'whatsapp:+521', to: null, body: 'yo' }]);
