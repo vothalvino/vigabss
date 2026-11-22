@@ -258,6 +258,47 @@
 }
 
 /* =============================================================================
+   2b. Names older screens use for the tokens above
+   =============================================================================
+   Several pages were written against names that were never defined
+   (--bg-input, --bg-primary, --primary, --border-color ...). An undefined
+   variable makes the whole declaration invalid, so those screens fell back to
+   the browser's default colours or to a hard-coded light fallback: a select
+   with no background and the dark theme's light text was unreadable. Each
+   name is an alias of a real token, so it follows both themes. New code uses
+   the tokens in sections 1 and 2; frontend/src/test/cssTokens.test.ts fails
+   when a screen uses a name that is defined nowhere. */
+:root {
+  --bg:             var(--bg-body);
+  --bg-primary:     var(--bg-card);
+  --bg-secondary:   var(--bg-subtle);
+  --bg-surface:     var(--bg-card);
+  --bg-panel:       var(--bg-card);
+  --bg-elevated:    var(--bg-card);
+  --bg-hover:       var(--bg-subtle);
+  --bg-input:       var(--input-bg);
+  --border-color:   var(--border);
+  --text:           var(--text-primary);
+  --muted:          var(--text-muted);
+  --primary:        var(--accent);
+  --color-accent:   var(--accent);
+  --color-danger:   var(--danger);
+  --mono:           var(--font-mono);
+  --warning-bg:     var(--warning-soft);
+  --warning-border: color-mix(in srgb, var(--warning) 45%, transparent);
+  --info:           #2563eb;
+  --info-text:      #1e40af;
+  --info-soft:      #eff6ff;
+  --info-border:    #bfdbfe;
+}
+[data-theme="dark"] {
+  --info:           #60a5fa;
+  --info-text:      #93c5fd;
+  --info-soft:      #172554;
+  --info-border:    #1e3a8a;
+}
+
+/* =============================================================================
    Accent option: emerald green (data-accent="green" on <html>)
    -----------------------------------------------------------------------------
    Orange is the default (no selector needed). These override only the --accent*
