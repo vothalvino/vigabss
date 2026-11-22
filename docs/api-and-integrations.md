@@ -84,6 +84,14 @@ Two receiver shapes per provider:
 | `POST /api/v1/payment-webhooks/stripe` (and `/conekta`) | `STRIPE_WEBHOOK_SECRET` / `CONEKTA_WEBHOOK_KEY` env var | all transactions (global) |
 | `POST /api/v1/payment-webhooks/stripe/{gatewayId}` (and `/conekta/{gatewayId}`) | that gateway's **Webhook Secret** (Settings → Payment Gateways) | only that gateway's org (multi-tenant) |
 
+**Test or live (`PAYMENT_MODE`).** The install is either `live` (the default)
+or `test`, set in the server's environment file. A Stripe gateway accepts only
+a secret key from that side, its `environment` is read from the key, and a
+Stripe event whose `livemode` is from the other side is answered 400
+(`WEBHOOK_MODE_MISMATCH`). `GET /api/v1/payment-gateways/mode` reports the
+setting; `POST /api/v1/payment-gateways/{id}/test` checks a stored Stripe key
+by reading the account balance.
+
 Register **one** of these per provider account, not both. Each endpoint dedups
 events on its own, so an account sending to both delivers every event twice.
 Settlement is idempotent per transaction (the second delivery answers

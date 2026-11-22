@@ -11247,7 +11247,19 @@
       "bag": "Malote {{serial}}"
     }
   },
+  "paymentMode": {
+    "testBanner": "MODO DE TESTE: este servidor aceita apenas chaves de teste. Nenhum dinheiro real é movimentado.",
+    "test": "Teste",
+    "live": "Real",
+    "envFromKey": "Lido da chave secreta.",
+    "testConnection": "Testar conexão",
+    "testing": "Testando…",
+    "testOk": "A conexão funciona (chave de {{mode}}).",
+    "testFailed": "A conexão falhou: {{error}}"
+  },
   "whatsappSettings": {
+    "testModeBadge": "MODO DE TESTE",
+    "testNumberNote": "Este é o número de teste da Meta: só alcança os destinatários aprovados no seu app da Meta.",
     "title": "Conexão do WhatsApp (Meta Cloud API)",
     "intro": "Conecta o bot do WhatsApp ao número da sua empresa na Meta. Estes valores valem para toda a instalação.",
     "loading": "Carregando…",

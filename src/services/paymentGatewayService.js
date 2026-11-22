@@ -14,7 +14,7 @@ const { URLSearchParams } = require('url');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const { decrypt, isConfigured: isEncryptionConfigured } = require('../utils/encryption');
 const logger = require('../utils/logger');
-const { PaymentGatewayError, ValidationError, AppError } = require('../utils/errors');
+const { PaymentGatewayError, ValidationError, NotFoundError, AppError } = require('../utils/errors');
 
 // Default idempotency key TTL: 24 hours
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -516,6 +516,37 @@ function stripeRequest(secretKey, method, path, body, timeout = 30000) {
     if (body) req.write(body);
     req.end();
   });
+}
+
+/**
+ * Ask the provider whether a gateway's stored key works, without moving any
+ * money. Stripe only: reading the balance needs nothing but a valid key, and
+ * the answer says which side (test or live) the key is on.
+ *
+ * @returns {Promise<{ok: boolean, mode?: 'test'|'live', error?: string}>}
+ */
+async function testGatewayConnection(gatewayId, organizationId, { request = stripeRequest } = {}) {
+  const [rows] = await db.query(
+    `SELECT id, provider, secret_key_encrypted FROM payment_gateways
+      WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
+    [gatewayId, organizationId],
+  );
+  if (!rows[0]) throw new NotFoundError('payment_gateways');
+  const gateway = rows[0];
+  if (gateway.provider !== 'stripe') {
+    return { ok: false, error: 'The connection test is available for Stripe gateways only.' };
+  }
+  if (!gateway.secret_key_encrypted) {
+    return { ok: false, error: 'This gateway has no secret key yet.' };
+  }
+  try {
+    const balance = await request(decrypt(gateway.secret_key_encrypted), 'GET', '/v1/balance', null, 15000);
+    return { ok: true, mode: balance.livemode === true ? 'live' : 'test' };
+  } catch (err) {
+    // stripeRequest already keeps Stripe's own wording (it can name part of
+    // the key) in the log and out of this message.
+    return { ok: false, error: String(err.message || err).slice(0, 300) };
+  }
 }
 
 /** Create a Stripe customer (for off-session autopay). Returns the cus_ id. */
@@ -1870,6 +1901,7 @@ module.exports = {
   createStripeCheckoutSession,
   createConektaCheckoutSession,
   createStripeCustomer,
+  testGatewayConnection,
   createStripeSetupSession,
   retrieveStripeCheckoutSession,
   chargeConekta,

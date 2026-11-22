@@ -31,6 +31,7 @@ const paymentGatewayService = require('../services/paymentGatewayService');
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const { unsignedWebhooksAllowed } = require('../utils/unsignedWebhooks');
+const { installPaymentMode } = require('../utils/paymentMode');
 
 const router = Router();
 
@@ -123,6 +124,22 @@ async function processWebhook(req, res, { provider, secret, organizationId, conf
   if (shapeErr) {
     logger.warn({ provider }, `Rejected malformed ${provider} webhook payload`);
     return sendError(res, shapeErr);
+  }
+
+  // A Stripe event says which side it is from. One from the other side than
+  // this install's (a live event on a test server, or the reverse) is not
+  // acted on: 400, so the mistake shows in Stripe's dashboard as failing
+  // deliveries. It can only arrive when a signing secret from the wrong mode
+  // was stored, since test and live endpoints have different secrets.
+  if (provider === 'stripe' && typeof event.livemode === 'boolean') {
+    const mode = installPaymentMode();
+    if ((event.livemode ? 'live' : 'test') !== mode) {
+      logger.warn({ provider, eventId: event.id, livemode: event.livemode, mode }, 'Stripe webhook from the wrong payment mode rejected');
+      return sendError(res, {
+        status: 400, code: 'WEBHOOK_MODE_MISMATCH',
+        message: `This server accepts only ${mode}-mode events`,
+      });
+    }
   }
 
   try {
