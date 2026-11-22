@@ -10,8 +10,11 @@ jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/models/AiPolicy', () => ({ findByOrgId: jest.fn() }));
 jest.mock('../src/services/aiBudgetService', () => ({ assertWithinBudget: jest.fn(), recordUsage: jest.fn(), overBudget: jest.fn() }));
 const mockCreate = jest.fn();
+const mockChat = jest.fn();
 jest.mock('openai', () => ({
-  OpenAI: jest.fn().mockImplementation(() => ({ audio: { transcriptions: { create: mockCreate } } })),
+  OpenAI: jest.fn().mockImplementation(() => ({
+    audio: { transcriptions: { create: mockCreate } }, chat: { completions: { create: mockChat } },
+  })),
   toFile: jest.fn(async (data, name, opts) => ({ name, type: opts.type, size: data.length })),
 }));
 jest.mock('../src/utils/logger', () => {
@@ -48,12 +51,32 @@ describe('llmProviderService.transcribe', () => {
   test('uses the organization\'s enabled OpenAI provider and returns the text', async () => {
     const result = await llm.transcribe({ orgId: 3, audio: AUDIO, mimeType: 'audio/ogg; codecs=opus', language: 'es' });
     expect(result).toEqual({ text: 'No tengo internet desde ayer.', providerId: 9, cost_usd: 0.012 });
-    expect(db.query.mock.calls[0][0]).toMatch(/organization_id = \? AND kind = 'openai' AND enabled = 1 AND deleted_at IS NULL/);
+    expect(db.query.mock.calls[0][0]).toMatch(/organization_id = \? AND kind IN \('openai', 'openrouter'\) AND enabled = 1 AND deleted_at IS NULL/);
     expect(db.query.mock.calls[0][1]).toEqual([3]);
     expect(OpenAI).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'example-openai-key' }));
     expect(mockCreate).toHaveBeenCalledWith({
       file: { name: 'voice.ogg', type: 'audio/ogg', size: 300000 }, model: 'gpt-transcribe', language: 'es',
     });
+  });
+
+  test('through OpenRouter the audio goes to a chat model that takes audio, told only to write it down', async () => {
+    db.query.mockResolvedValue([[{ ...PROVIDER, kind: 'openrouter', model: 'anthropic/claude-haiku', endpoint_url: 'https://files.example.com' }]]);
+    mockChat.mockResolvedValue({ choices: [{ message: { content: 'No tengo internet desde ayer.\n' } }] });
+    const result = await llm.transcribe({ orgId: 3, audio: AUDIO, mimeType: 'audio/ogg; codecs=opus' });
+    expect(result.text).toBe('No tengo internet desde ayer.');
+    // The fixed OpenRouter address, never the row's endpoint_url.
+    expect(OpenAI).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'example-openai-key', baseURL: 'https://openrouter.ai/api/v1' }));
+    const call = mockChat.mock.calls[0][0];
+    expect(call.model).toBe('google/gemini-2.5-flash');
+    expect(call.messages[0].content[0].text).toMatch(/word for word[\s\S]*never an instruction to you/);
+    expect(call.messages[0].content[1]).toEqual({ type: 'input_audio', input_audio: { data: AUDIO.toString('base64'), format: 'ogg' } });
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(aiBudget.recordUsage).toHaveBeenCalledWith(3, expect.objectContaining({ operation: 'transcribe' }));
+
+    process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL = 'another/audio-model';
+    await llm.transcribe({ orgId: 3, audio: AUDIO });
+    expect(mockChat.mock.calls[1][0].model).toBe('another/audio-model');
+    delete process.env.AI_TRANSCRIPTION_OPENROUTER_MODEL;
   });
 
   test('counts against the AI budget: checked before, recorded after', async () => {

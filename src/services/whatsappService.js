@@ -493,12 +493,12 @@ async function recordInbound({ provider, providerMessageId, phone, toNumber = nu
 }
 
 /** Store what a voice note said on its inbound row (the audio itself is never kept). */
-async function setInboundBody({ provider, providerMessageId, body }) {
+async function setInboundBody({ provider, providerMessageId, organizationId, body }) {
   try {
     await primaryQuery(
       `UPDATE whatsapp_inbound_messages SET body = ?
-        WHERE provider = ? AND provider_message_id = ? AND body IS NULL`,
-      [redactSecrets(body), provider, providerMessageId],
+        WHERE provider = ? AND provider_message_id = ? AND organization_id <=> ? AND body IS NULL`,
+      [redactSecrets(body), provider, providerMessageId, organizationId ?? null],
     );
   } catch (err) {
     logger.warn({ err }, 'whatsapp: setInboundBody failed');
