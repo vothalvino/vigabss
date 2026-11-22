@@ -16,6 +16,7 @@ const { sealSecretFields } = require('../utils/sealSecrets');
 const db = require('../config/database');
 const auditLog = require('../services/auditLog');
 const { AppError } = require('../utils/errors');
+const { isTestInstall, fiscalEnvironment } = require('../utils/installMode');
 
 const router = Router();
 
@@ -55,8 +56,16 @@ router.use(requireMxLocale);
 // api_url is a server-side outbound target — reject SSRF destinations
 // (non-https, private/loopback/metadata) before it can be stored and used
 // as a PAC endpoint. Only runs when api_url is present in the body.
+// The simulator never calls out; its row carries this placeholder, which does
+// not resolve and so could never pass the outbound check below.
+const SIMULATOR_API_URL = 'https://simulator.invalid';
+
 async function guardApiUrl(req, _res, next) {
   try {
+    if (req.body && req.body.provider_name === 'simulator') {
+      req.body.api_url = SIMULATOR_API_URL;
+      return next();
+    }
     if (req.body && req.body.api_url !== undefined && req.body.api_url !== null && req.body.api_url !== '') {
       req.body.api_url = await assertSafeOutboundUrl(req.body.api_url, 'api_url');
     }
@@ -67,30 +76,23 @@ async function guardApiUrl(req, _res, next) {
 }
 
 // -----------------------------------------------------------------------------
-// Active fiscal environment (sandbox | production) for the caller's org.
-// This single switch decides which PAC rows stamp/cancel: sandbox and
-// production PACs are separate rows with different credentials/endpoints, so
-// cfdiService only uses the rows whose `environment` matches this value. It
-// lives on organization_mx_profiles.pac_environment and is read by
-// cfdiService.orgPacEnvironment(). Declared BEFORE '/:id' so 'environment' is
-// not captured as an :id.
+// The fiscal environment (sandbox | production) PACs stamp and cancel in. It
+// follows the install's one live/test switch (src/utils/installMode.js): a
+// live install is 'production', a test install 'sandbox'. Nobody chooses it,
+// per organization or per PAC. Declared BEFORE '/:id' so 'environment' is not
+// captured as an :id.
 router.get('/environment', requirePermission('pac_providers.view'), async (req, res, next) => {
   try {
-    const [rows] = await db.query(
-      'SELECT pac_environment FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
-      [req.orgId],
-    );
-    // Sandbox CFDIs still marked vigente stay sandbox after going live; the
-    // switch warns about them (CFD-13).
+    // CFDIs stamped in the sandbox that are still marked vigente (a test
+    // install's own, or left from before the switch existed).
     const [[sandbox]] = await db.query(
       `SELECT COUNT(*) AS n FROM cfdi_documents
         WHERE organization_id = ? AND pac_environment = 'sandbox' AND sat_status IN ('vigente', 'cancel_pending')`,
       [req.orgId],
     );
-    // No fiscal profile yet → the effective environment is the column default.
     res.json({
       data: {
-        pac_environment: rows[0]?.pac_environment || 'sandbox',
+        pac_environment: fiscalEnvironment(),
         sandbox_vigente_count: Number(sandbox?.n || 0),
       },
     });
@@ -144,53 +146,13 @@ router.put('/auto-stamp', requirePermission('pac_providers.update'), async (req,
   }
 });
 
-router.put('/environment', requirePermission('pac_providers.update'), async (req, res, next) => {
-  try {
-    const value = req.body?.pac_environment;
-    if (value !== 'sandbox' && value !== 'production') {
-      throw new AppError("pac_environment must be 'sandbox' or 'production'.", 422, 'VALIDATION_ERROR');
-    }
-    // The switch lives on the fiscal profile, which requires the emisor identity
-    // (RFC, razón social, …) to exist first. Refuse clearly rather than silently
-    // creating a half-built profile — you cannot stamp without one anyway.
-    const [existing] = await db.query(
-      'SELECT id FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
-      [req.orgId],
-    );
-    if (!existing[0]) {
-      throw new AppError(
-        'Configure the organization fiscal profile (Organization → Fiscal) before choosing a PAC environment.',
-        422, 'ORG_MX_PROFILE_MISSING',
-      );
-    }
-    // Going live must not leave the org unable to stamp: refuse 'production'
-    // unless at least one active production PAC exists (otherwise every stamp
-    // would fail "no active PAC in production mode"). Sandbox has no such gate.
-    if (value === 'production') {
-      const [prodPacs] = await db.query(
-        "SELECT id FROM pac_providers WHERE organization_id = ? AND status = 'active' AND environment = 'production' AND deleted_at IS NULL LIMIT 1",
-        [req.orgId],
-      );
-      if (!prodPacs[0]) {
-        throw new AppError(
-          'Add and activate at least one PAC with Environment = production before switching to production.',
-          422, 'NO_PRODUCTION_PAC',
-        );
-      }
-    }
-    await db.query(
-      'UPDATE organization_mx_profiles SET pac_environment = ? WHERE organization_id = ? AND deleted_at IS NULL',
-      [value, req.orgId],
-    );
-    await auditLog.log({
-      userId: req.user?.id, organizationId: req.orgId, action: 'update',
-      tableName: 'organization_mx_profiles', recordId: existing[0].id,
-      summary: `Set PAC fiscal environment to ${value}`,
-    });
-    res.json({ data: { pac_environment: value } });
-  } catch (err) {
-    next(err);
-  }
+// The environment used to be chosen per organization here. It now follows the
+// install (see GET above); say so instead of letting '/:id' answer.
+router.put('/environment', requirePermission('pac_providers.update'), (_req, _res, next) => {
+  next(new AppError(
+    'The fiscal environment follows the install mode (live or test) and cannot be set.',
+    409, 'FISCAL_ENVIRONMENT_FIXED',
+  ));
 });
 
 router.get('/', requirePermission('pac_providers.view'), ctrl.list);
@@ -201,8 +163,23 @@ const sealPacCredentials = sealSecretFields({
   token: 'token_encrypted',
 });
 
-router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider, { strip: false }), guardApiUrl, sealPacCredentials, ctrl.create);
-router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider, { strip: false }), guardApiUrl, sealPacCredentials, ctrl.update);
+// A PAC's environment is the install's, never chosen (src/utils/installMode.js),
+// and the simulator, which stamps nothing real, exists only on a test install.
+function applyInstallMode(req, _res, next) {
+  try {
+    const body = req.body || {};
+    if (body.provider_name === 'simulator' && !isTestInstall()) {
+      throw new AppError('The simulator PAC is only available on a test install.', 422, 'PAC_SIMULATOR_TEST_ONLY');
+    }
+    if (req.method === 'POST') body.environment = fiscalEnvironment();
+    else delete body.environment;
+    req.body = body;
+    return next();
+  } catch (err) { return next(err); }
+}
+
+router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider, { strip: false }), applyInstallMode, guardApiUrl, sealPacCredentials, ctrl.create);
+router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider, { strip: false }), applyInstallMode, guardApiUrl, sealPacCredentials, ctrl.update);
 router.delete('/:id', requirePermission('pac_providers.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('pac_providers.update'), ctrl.restore);
 

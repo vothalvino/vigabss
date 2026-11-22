@@ -22,6 +22,7 @@ const { BROWSER_WS_PATH, BROWSER_WS_COOKIE } = require('../services/browserWebSo
 const loginSecurity = require('../services/loginSecurityService');
 const { loginIpGuard } = require('../middleware/loginIpGuard');
 
+const { installMode } = require('../utils/installMode');
 const router = Router();
 
 // ---------------------------------------------------------------------------
@@ -189,6 +190,9 @@ async function enrichAuthUser(user, activeOrgId) {
     is_install_operator: isOperator,
     is_super_admin: isSuperAdmin,
     has_global_organization_access: isOperator || isSuperAdmin,
+    // The install's live/test switch (src/utils/installMode.js). 'test' puts
+    // the DEV MODE badge beside the version and drives every test-only screen.
+    install_mode: installMode(),
   };
 }
 

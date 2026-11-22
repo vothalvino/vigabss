@@ -1,9 +1,10 @@
 // =============================================================================
-// VigaBSS 5.0 — Payment mode (PAYMENT_MODE: test or live)
+// VigaBSS 5.0 — Install mode (INSTALL_MODE: live or test)
 // =============================================================================
-// The install decides whether real money moves, and a Stripe key or event
-// from the other side is refused. A Stripe gateway's environment is read from
-// its key; nobody chooses it.
+// One switch for the install decides whether anything real happens. A Stripe
+// key or event from the other side is refused, a Stripe gateway's environment
+// is read from its key, and the fiscal (SAT) environment follows the same
+// switch; nobody chooses any of it.
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({
@@ -23,7 +24,7 @@ const db = require('../src/config/database');
 const PaymentGateway = require('../src/models/PaymentGateway');
 const User = require('../src/models/User');
 const paymentGatewayService = require('../src/services/paymentGatewayService');
-const { stripeKeyMode, installPaymentMode, environmentForMode } = require('../src/utils/paymentMode');
+const { stripeKeyMode, installPaymentMode, environmentForMode, fiscalEnvironment, isTestInstall } = require('../src/utils/installMode');
 const app = require('../src/app');
 
 const token = jwt.sign({ sub: 1, email: 'admin@test.com', role: 'admin', orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
@@ -36,7 +37,7 @@ const send = (method, path, body) => {
   return body === undefined ? req : req.send(body);
 };
 
-const originalMode = config.payments.mode;
+const originalMode = config.install.mode;
 beforeEach(() => {
   jest.clearAllMocks();
   User.findById.mockResolvedValue({ id: 1, email: 'admin@test.com', status: 'active', role: 'admin', organization_id: 1 });
@@ -44,7 +45,7 @@ beforeEach(() => {
   PaymentGateway.update.mockImplementation(async (_id, data) => ({ ...row, ...data }));
   PaymentGateway.findByIdOrFail.mockResolvedValue(row);
 });
-afterEach(() => { config.payments.mode = originalMode; });
+afterEach(() => { config.install.mode = originalMode; });
 
 describe('reading the mode', () => {
   test('a Stripe key says which side it is on', () => {
@@ -59,18 +60,22 @@ describe('reading the mode', () => {
 
   test('the install is live unless it is explicitly test', () => {
     expect(installPaymentMode()).toBe('live');
-    config.payments.mode = 'test';
+    config.install.mode = 'test';
     expect(installPaymentMode()).toBe('test');
-    config.payments.mode = 'anything';
+    config.install.mode = 'anything';
     expect(installPaymentMode()).toBe('live');
     expect(environmentForMode('test')).toBe('sandbox');
     expect(environmentForMode('live')).toBe('production');
+    // The fiscal (SAT) environment follows the same switch.
+    expect(fiscalEnvironment()).toBe('production');
+    config.install.mode = 'test';
+    expect(fiscalEnvironment()).toBe('sandbox');
+    expect(isTestInstall()).toBe(true);
   });
 
-  test('GET /payment-gateways/mode reports it', async () => {
-    expect((await send('get', '/api/v1/payment-gateways/mode')).body.data).toEqual({ payment_mode: 'live' });
-    config.payments.mode = 'test';
-    expect((await send('get', '/api/v1/payment-gateways/mode')).body.data).toEqual({ payment_mode: 'test' });
+  test('the signed-in user carries the install mode, for the DEV MODE badge', () => {
+    const source = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'auth.js'), 'utf8');
+    expect(source).toMatch(/install_mode: installMode\(\),/);
   });
 });
 
@@ -84,7 +89,7 @@ describe('saving a Stripe gateway', () => {
   });
 
   test('a test install refuses a live key and stores nothing', async () => {
-    config.payments.mode = 'test';
+    config.install.mode = 'test';
     const res = await send('post', '/api/v1/payment-gateways', { name: 'Stripe', provider: 'stripe', secret_key: LIVE_KEY });
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/test mode/);
@@ -92,12 +97,12 @@ describe('saving a Stripe gateway', () => {
   });
 
   test('the environment comes from the key, whatever the request says', async () => {
-    config.payments.mode = 'test';
+    config.install.mode = 'test';
     const res = await send('post', '/api/v1/payment-gateways', { name: 'Stripe', provider: 'stripe', environment: 'production', secret_key: TEST_KEY });
     expect(res.status).toBe(201);
     expect(PaymentGateway.create.mock.calls[0][0].environment).toBe('sandbox');
 
-    config.payments.mode = 'live';
+    config.install.mode = 'live';
     await send('post', '/api/v1/payment-gateways', { name: 'Stripe', provider: 'stripe', environment: 'sandbox', secret_key: LIVE_KEY });
     expect(PaymentGateway.create.mock.calls[1][0].environment).toBe('production');
   });

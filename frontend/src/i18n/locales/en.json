@@ -491,6 +491,8 @@
     "documentTemplates": "Legal Documents"
   },
   "layout": {
+    "devMode": "DEV MODE",
+    "devModeTitle": "Test install: no real payments, and invoices are not valid before SAT.",
     "brandName": "VigaBSS Alpha",
     "sidebarSubtitle": "Operations workspace",
     "skipToContent": "Skip to content",
@@ -4749,8 +4751,9 @@
   "sandboxFiscal": {
     "badge": "Sandbox",
     "badgeTitle": "Stamped by a sandbox PAC: this CFDI is not fiscally valid",
-    "bannerTitle": "CFDIs are being stamped in the sandbox.",
-    "bannerDetail": "This organization uses its sandbox PAC, so new CFDIs are not fiscally valid. Switch the fiscal environment to production before invoicing real clients.",
+    "bannerTitle": "DEV MODE: CFDIs are stamped in the sandbox.",
+    "bannerDetail": "This is a test install, so nothing stamped here is fiscally valid.",
+    "pacNote": "DEV MODE: every PAC here stamps in the sandbox. Nothing it stamps is valid before SAT.",
     "bannerAction": "PAC providers"
   },
   "adminIpAllowlistBanner": {
@@ -11254,7 +11257,7 @@
     }
   },
   "paymentMode": {
-    "testBanner": "TEST MODE: this server accepts only test keys. No real money moves.",
+    "testBanner": "DEV MODE: this server accepts only test keys. No real money moves.",
     "test": "Test",
     "live": "Live",
     "envFromKey": "Read from the secret key.",
@@ -11264,8 +11267,6 @@
     "testFailed": "Connection failed: {{error}}"
   },
   "whatsappSettings": {
-    "testModeBadge": "TEST MODE",
-    "testNumberNote": "This is Meta's test number: it only reaches the recipients approved in your Meta app.",
     "title": "WhatsApp connection (Meta Cloud API)",
     "intro": "Connects the WhatsApp bot to your Meta business number. These values apply to the whole installation.",
     "loading": "Loading…",

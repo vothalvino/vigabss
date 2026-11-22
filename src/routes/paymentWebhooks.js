@@ -31,7 +31,7 @@ const paymentGatewayService = require('../services/paymentGatewayService');
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const { unsignedWebhooksAllowed } = require('../utils/unsignedWebhooks');
-const { installPaymentMode } = require('../utils/paymentMode');
+const { installPaymentMode } = require('../utils/installMode');
 
 const router = Router();
 

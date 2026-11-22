@@ -491,6 +491,8 @@
     "documentTemplates": "Documentos Legales"
   },
   "layout": {
+    "devMode": "MODO DEV",
+    "devModeTitle": "Instalación de prueba: sin pagos reales, y las facturas no son válidas ante el SAT.",
     "brandName": "VigaBSS Alpha",
     "sidebarSubtitle": "Espacio de operaciones",
     "skipToContent": "Saltar al contenido",
@@ -4749,8 +4751,9 @@
   "sandboxFiscal": {
     "badge": "Pruebas",
     "badgeTitle": "Timbrado por un PAC de pruebas: este CFDI no tiene validez fiscal",
-    "bannerTitle": "Los CFDI se están timbrando en el ambiente de pruebas.",
-    "bannerDetail": "Esta organización usa su PAC de pruebas, así que los CFDI nuevos no tienen validez fiscal. Cambie el ambiente fiscal a producción antes de facturar a clientes reales.",
+    "bannerTitle": "MODO DEV: los CFDI se timbran en el entorno de pruebas.",
+    "bannerDetail": "Esta es una instalación de prueba, así que nada de lo timbrado aquí tiene validez fiscal.",
+    "pacNote": "MODO DEV: todos los PAC aquí timbran en el entorno de pruebas. Nada de lo que timbran es válido ante el SAT.",
     "bannerAction": "Proveedores PAC"
   },
   "adminIpAllowlistBanner": {
@@ -11248,7 +11251,7 @@
     }
   },
   "paymentMode": {
-    "testBanner": "MODO DE PRUEBA: este servidor solo acepta llaves de prueba. No se mueve dinero real.",
+    "testBanner": "MODO DEV: este servidor solo acepta llaves de prueba. No se mueve dinero real.",
     "test": "Prueba",
     "live": "Real",
     "envFromKey": "Se lee de la llave secreta.",
@@ -11258,8 +11261,6 @@
     "testFailed": "La conexión falló: {{error}}"
   },
   "whatsappSettings": {
-    "testModeBadge": "MODO DE PRUEBA",
-    "testNumberNote": "Este es el número de prueba de Meta: solo llega a los destinatarios aprobados en tu app de Meta.",
     "title": "Conexión de WhatsApp (Meta Cloud API)",
     "intro": "Conecta el bot de WhatsApp con tu número de empresa en Meta. Estos valores aplican a toda la instalación.",
     "loading": "Cargando…",

@@ -11,15 +11,20 @@ invoice cancel, and payment complement (REP / Complemento de Pago 2.0) stamp.
 
 ## 1. Environment: sandbox vs production
 
-The org's active fiscal environment is a single switch on
-**PAC Providers → Fiscal environment** (stored on
-`organization_mx_profiles.pac_environment`). It decides which `pac_providers`
-rows are used for stamping and cancellation:
+The fiscal environment is not chosen per organization. It follows the
+install's one live/test switch, `INSTALL_MODE` in the server's environment
+file (see "Install mode" in `ARCHITECTURE.md`): a live install (the default)
+stamps in **production**, and a test install (`INSTALL_MODE=test`, the
+developer's demo server) stamps in the **sandbox**. Everything in this guide
+therefore applies to a test install only. The environment decides which
+`pac_providers` rows are used for stamping and cancellation:
 
 - Sandbox and production are **separate PAC rows** (unique per
   `org + provider + environment`) because their credentials **differ**
   (Finkok username/password, SW token are not the same between environments).
-- Only rows whose `environment` matches the switch are used — lowest
+- A PAC row gets the install's environment when it is created; there is no
+  environment field to fill in.
+- Only rows whose `environment` matches the install's are used — lowest
   `priority` first, the rest as failover backups. Rows in the other environment
   stay dormant.
 - Switching to `production` is refused unless an active production PAC exists.

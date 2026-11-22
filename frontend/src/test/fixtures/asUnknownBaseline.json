@@ -11,7 +11,6 @@
   "components/MxRegisteredContractSourceField.tsx": 2,
   "components/NewContractModal.tsx": 2,
   "components/RecordPaymentModal.tsx": 1,
-  "components/SandboxFiscal.tsx": 1,
   "components/UpdateAvailableBanner.tsx": 2,
   "pages/AlertChannelList.tsx": 1,
   "pages/AlertEscalationChainList.tsx": 1,

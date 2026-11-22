@@ -347,6 +347,9 @@ export function Layout() {
           <div>
             <div className="sidebar-brand-name">
               <BrandLockup size="compact" showVersion inverse />
+              {user?.install_mode === 'test' && (
+                <span className="dev-mode-badge" role="status" title={t('layout.devModeTitle')}>{t('layout.devMode')}</span>
+              )}
             </div>
             <div className="sidebar-brand-subtitle">{t('layout.sidebarSubtitle')}</div>
           </div>
