@@ -773,11 +773,12 @@ jobs:
     # them locally in seconds; e2e needs Docker plus a full stack, so it is the
     # one gate that cannot be reproduced on every dev box. Main-push-only here
     # would mean the core money flow is never checked until after merge.
-    # Pinned to 24.04: ubuntu-latest moved to 26.04, which Playwright 1.59
-    # cannot install browser dependencies on ("does not support chromium on
-    # ubuntu26.04-x64"). Move back to ubuntu-latest once Playwright supports it.
+    # On Ubuntu 26.04. It was pinned to 24.04 while Playwright 1.59 could not
+    # install browser dependencies there; 1.65 can. Ubuntu 24.04 stays covered
+    # by the installer jobs below, which is where the host release matters:
+    # this job runs the app in containers either way.
     timeout-minutes: 45
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1319,6 +1320,118 @@ jobs:
             report_html.html
             report_json.json
           retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Supported host releases: Ubuntu 24.04 LTS and 26.04 LTS
+  # ---------------------------------------------------------------------------
+  # The app runs in containers, so the host release matters in two places only:
+  # what install.sh installs on it, and whether the stack then starts on its
+  # kernel and Docker. Both are run for real on both releases, so support for
+  # either cannot be broken, or dropped, without a red check.
+  installer-deps:
+    # A clean image of the release with nothing preinstalled (no curl, no Git,
+    # no Docker): the path a new server takes. Checks that every package
+    # install.sh needs, including Docker's own repository for that release,
+    # really installs there. No service manager runs in a container, so this
+    # stops before starting anything (INSTALL_DEPS_ONLY).
+    name: Installer dependencies (Ubuntu ${{ matrix.ubuntu }})
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
+    container:
+      image: ubuntu:${{ matrix.ubuntu }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The image is the release under test
+        run: |
+          . /etc/os-release
+          echo "Running on ${PRETTY_NAME}"
+          test "${VERSION_ID}" = "${{ matrix.ubuntu }}"
+
+      - name: install.sh installs the host dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          INSTALL_DEPS_ONLY: '1'
+          # Skips the "use screen or tmux" pause, which is for people.
+          STY: ci
+        run: bash install.sh
+
+      - name: Docker and Compose v2 are usable
+        run: |
+          docker --version
+          docker compose version
+          git --version
+          openssl version
+
+  installer-smoke:
+    # A complete install on a real machine of each release: install.sh, as an
+    # operator runs it, through to a stack that answers over HTTPS. It installs
+    # the current release (what a new server gets) with a self-signed
+    # certificate, since a runner has no public name for Let's Encrypt.
+    name: Install on Ubuntu ${{ matrix.ubuntu }}
+    timeout-minutes: 30
+    runs-on: ubuntu-${{ matrix.ubuntu }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The runner is the release under test
+        run: |
+          . /etc/os-release
+          echo "Running on ${PRETTY_NAME}, kernel $(uname -r), $(docker --version)"
+          test "${VERSION_ID}" = "${{ matrix.ubuntu }}"
+
+      - name: install.sh installs and starts VigaBSS
+        run: |
+          sudo env STY=ci SKIP_TLS=1 \
+            DOMAIN=install.example.com EMAIL=admin@example.com \
+            ORG_NAME="Example ISP" ORG_COUNTRY=MX \
+            INSTALL_DIR=/opt/vigabss \
+            bash install.sh
+
+      - name: Every container is healthy and the app answers over HTTPS
+        run: |
+          cd /opt/vigabss
+          compose="sudo docker compose -f docker-compose.prod.yml --env-file .env.prod"
+          $compose ps
+          # Each service that declares a health check reports healthy.
+          unhealthy="$($compose ps --format '{{.Service}} {{.Health}}' | awk '$2 != "" && $2 != "healthy" { print }')"
+          if [ -n "$unhealthy" ]; then echo "Not healthy:"; echo "$unhealthy"; exit 1; fi
+          curl -fksS --max-time 10 --resolve install.example.com:443:127.0.0.1 \
+            https://install.example.com/health/ready
+          echo
+          # The login page is served, so nginx, the app and the built frontend line up.
+          curl -fksS --max-time 10 --resolve install.example.com:443:127.0.0.1 \
+            -o /dev/null -w 'frontend: HTTP %{http_code}\n' https://install.example.com/
+
+      - name: A second run of the installer still succeeds
+        # What an operator does after an interrupted install: run it again.
+        run: |
+          sudo env STY=ci SKIP_TLS=1 \
+            DOMAIN=install.example.com EMAIL=admin@example.com \
+            ORG_NAME="Example ISP" ORG_COUNTRY=MX \
+            INSTALL_DIR=/opt/vigabss \
+            bash install.sh
+
+      - name: Logs (on failure)
+        if: failure()
+        run: |
+          cd /opt/vigabss 2>/dev/null || exit 0
+          sudo docker compose -f docker-compose.prod.yml --env-file .env.prod ps -a || true
+          sudo docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=80 || true
 
   # ---------------------------------------------------------------------------
   # Helm chart lint + release
