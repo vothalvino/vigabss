@@ -85,6 +85,7 @@ const pdfService = require('../services/pdfService');
 const signedDocumentPdf = require('../services/signedDocumentPdf');
 const legalDocumentService = require('../services/legalDocumentService');
 const aiReplyService = require('../services/aiReplyService');
+const portalChatEngine = require('../services/portalChatEngine');
 const { computeClientBalance } = require('../services/clientBalanceService');
 const whatsappService = require('../services/whatsappService');
 const config = require('../config');
@@ -1463,7 +1464,7 @@ router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }
 
     // Verify session belongs to this client, in this client's organization.
     const [sessions] = await db.query(
-      `SELECT id, messages, status, turn_count, ticket_id
+      `SELECT id, messages, status, turn_count, ticket_id, support_conversation_id
        FROM portal_chat_sessions
        WHERE session_token = ? AND client_id = ? AND organization_id <=> ?`,
       [token, req.client.id, req.client.organizationId],
@@ -1481,43 +1482,6 @@ router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }
     // Append client message
     messages.push({ role: 'client', content: message, ts: new Date().toISOString() });
 
-    // One ticket per session (ASY-09): it used to INSERT a new open ticket
-    // holding the whole transcript on every message, so with AI off (the
-    // default) each message left another open ticket. The first message opens
-    // it; later ones are added to it as the customer's comments.
-    let ticketId = session.ticket_id || null;
-    if (ticketId) {
-      const [[live]] = await db.query(
-        'SELECT id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
-        [ticketId, req.client.id, req.client.organizationId],
-      );
-      if (!live) ticketId = null;
-    }
-    if (ticketId) {
-      const [comment] = await db.query(
-        "INSERT INTO ticket_comments (ticket_id, author_type, client_id, body, is_internal) VALUES (?, 'client', ?, ?, 0)",
-        [ticketId, req.client.id, message],
-      );
-      require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketId, { id: comment.insertId, ticket_id: ticketId });
-    } else {
-      const [ticketResult] = await db.query(
-        `INSERT INTO tickets
-           (organization_id, client_id, subject, description, priority, category, status, source)
-         VALUES (?, ?, ?, ?, 'medium', 'general', 'open', 'portal')`,
-        [req.client.organizationId, req.client.id, `Chat session ${token.slice(0, 8)}`, message],
-      );
-      ticketId = ticketResult.insertId;
-      await require('../services/businessEvents').emitTicketCreated(req.client.organizationId, ticketId);
-    }
-
-    // The subscriber sees AI text only when the policy auto-sends it and the
-    // reply was actually posted ('auto_sent'). A draft (draft_only, the
-    // default, or suggest) is kept for staff review, and a failed or skipped
-    // generation hands the chat to staff: the ticket stays open and the
-    // session is escalated, so the promise of a follow-up is kept.
-    const HOLDING_REPLY = 'Thanks — a member of our support team will reply on your ticket shortly.';
-    let aiText = HOLDING_REPLY;
-    let handedToStaff = true;
     // Spend caps (ASY-34): a session gets PORTAL_CHAT_MAX_TURNS AI turns and a
     // client PORTAL_CHAT_CLIENT_DAILY_TURNS across sessions per day. Past
     // either, the chat goes to staff without a provider call.
@@ -1529,26 +1493,89 @@ router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }
       [req.client.id, req.client.organizationId],
     );
     const capped = (session.turn_count || 0) >= maxTurns || Number(recent?.turns || 0) >= dailyTurns;
-    if (capped) logger.info({ ticketId, sessionId: session.id }, 'Portal chat AI turn cap reached; handing the chat to staff');
-    try {
-      const aiResult = capped ? { skipped: true, reason: 'turn_limit' } : await aiReplyService.generate({
-        orgId: req.client.organizationId,
-        ticketId,
-        channel: 'portal',
-        inboundText: message,
+    if (capped) logger.info({ ticketId: session.ticket_id || null, sessionId: session.id }, 'Portal chat AI turn cap reached; handing the chat to staff');
+    const HOLDING_REPLY = 'Thanks — a member of our support team will reply on your ticket shortly.';
+    let aiText = HOLDING_REPLY;
+    let handedToStaff = true;
+    let ticketId = session.ticket_id || null;
+    let conversationId = session.support_conversation_id || null;
+
+    // When the assistant answers on the portal by itself, the support engine
+    // takes the chat (services/portalChatEngine.js): it reads the account and
+    // the connection, answers briefly, and opens a ticket only on a hand-off.
+    // A session that already has a ticket from the earlier way stays on it.
+    let engine = null;
+    const useEngine = !capped && !ticketId
+      && Boolean(conversationId || await portalChatEngine.enabledFor(req.client.organizationId));
+    if (useEngine) {
+      engine = await portalChatEngine.answer({
+        orgId: req.client.organizationId, clientId: req.client.id, conversationId, message,
       });
-      if (!aiResult.skipped && aiResult.action === 'auto_sent' && aiResult.draftText) {
-        aiText = aiResult.draftText;
-        handedToStaff = false;
-        // Answered; the ticket waits for the customer instead of a 48 h
-        // escalation.
-        await db.query(
-          "UPDATE tickets SET status = 'waiting' WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'open'",
+    }
+    if (engine) {
+      conversationId = engine.conversationId;
+      ticketId = engine.ticketId;
+      handedToStaff = engine.escalated;
+      if (engine.text) aiText = engine.text;
+    }
+    // Handed to staff with no ticket to show for it (the engine failed, was
+    // not used, or could not open its own): the earlier path opens one.
+    if (!engine || (engine.escalated && !ticketId)) {
+      // One ticket per session (ASY-09): it used to INSERT a new open ticket
+      // holding the whole transcript on every message, so with AI off (the
+      // default) each message left another open ticket. The first message opens
+      // it; later ones are added to it as the customer's comments.
+      if (ticketId) {
+        const [[live]] = await db.query(
+          'SELECT id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
           [ticketId, req.client.id, req.client.organizationId],
         );
+        if (!live) ticketId = null;
       }
-    } catch (aiErr) {
-      logger.warn({ err: aiErr.message, ticketId }, 'Portal chat AI reply failed; handing the chat to staff');
+      if (ticketId) {
+        const [comment] = await db.query(
+          "INSERT INTO ticket_comments (ticket_id, author_type, client_id, body, is_internal) VALUES (?, 'client', ?, ?, 0)",
+          [ticketId, req.client.id, message],
+        );
+        require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketId, { id: comment.insertId, ticket_id: ticketId });
+      } else {
+        const [ticketResult] = await db.query(
+          `INSERT INTO tickets
+             (organization_id, client_id, subject, description, priority, category, status, source)
+           VALUES (?, ?, ?, ?, 'medium', 'general', 'open', 'portal')`,
+          [req.client.organizationId, req.client.id, `Chat session ${token.slice(0, 8)}`, message],
+        );
+        ticketId = ticketResult.insertId;
+        await require('../services/businessEvents').emitTicketCreated(req.client.organizationId, ticketId);
+      }
+
+      // The subscriber sees AI text only when the policy auto-sends it and the
+      // reply was actually posted ('auto_sent'). A draft (draft_only, the
+      // default, or suggest) is kept for staff review, and a failed or skipped
+      // generation hands the chat to staff: the ticket stays open and the
+      // session is escalated, so the promise of a follow-up is kept.
+      try {
+        // The engine's chat goes to staff as it is: the ticket-reply pipeline
+        // is not asked to answer in its place.
+        const aiResult = (capped || useEngine) ? { skipped: true, reason: capped ? 'turn_limit' : 'handed_to_staff' } : await aiReplyService.generate({
+          orgId: req.client.organizationId,
+          ticketId,
+          channel: 'portal',
+          inboundText: message,
+        });
+        if (!aiResult.skipped && aiResult.action === 'auto_sent' && aiResult.draftText) {
+          aiText = aiResult.draftText;
+          handedToStaff = false;
+          // Answered; the ticket waits for the customer instead of a 48 h
+          // escalation.
+          await db.query(
+            "UPDATE tickets SET status = 'waiting' WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'open'",
+            [ticketId, req.client.id, req.client.organizationId],
+          );
+        }
+      } catch (aiErr) {
+        logger.warn({ err: aiErr.message, ticketId }, 'Portal chat AI reply failed; handing the chat to staff');
+      }
     }
 
     messages.push({ role: 'ai', content: aiText, ts: new Date().toISOString() });
@@ -1558,9 +1585,9 @@ router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }
 
     await db.query(
       `UPDATE portal_chat_sessions
-       SET messages = ?, turn_count = ?, status = ?, ticket_id = ?, updated_at = NOW()
+       SET messages = ?, turn_count = ?, status = ?, ticket_id = ?, support_conversation_id = ?, updated_at = NOW()
        WHERE id = ? AND client_id = ? AND organization_id <=> ?`,
-      [JSON.stringify(messages), newTurnCount, newStatus, ticketId,
+      [JSON.stringify(messages), newTurnCount, newStatus, ticketId, conversationId,
         session.id, req.client.id, req.client.organizationId],
     );
 
