@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **CFDI page: sortable columns, newest first.** The column headers of the
+  CFDI list are now clickable and sort the whole list (ID, type, receptor,
+  total, date, status, PAC); a second click reverses the order. The list
+  opens with the newest documents first, where it used to show the oldest.
+  Sorting keeps the status and type filters and returns to the first page.
+- **CFDI page readable in dark mode.** The table, the status and type filter
+  buttons, the page switcher and the stamp and cancel dialogs used fixed
+  light colours; they now follow the theme. An empty result reads
+  "Page 1 / 1" where it read "1 / 0".
+- Sortable column headers on every list no longer force a dark grey label,
+  which was hard to read in dark mode.
 ## 0.1.0-alpha.28 — 2026-11-22
 
 - **Whisper and OpenRouter's other speech-to-text models can transcribe voice

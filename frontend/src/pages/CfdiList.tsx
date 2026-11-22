@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch, tokenStore } from '@/api/client';
 import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
 import { formatMoney } from '@/lib/money';
+import { useTableSort, SortableTh } from '@/components/SortableTh';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,8 +71,10 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function fetchCfdi(page: number, statusFilter: string, typeFilter: string): Promise<CfdiListResponse> {
-  const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+async function fetchCfdi(
+  page: number, statusFilter: string, typeFilter: string, orderBy: string, order: 'ASC' | 'DESC',
+): Promise<CfdiListResponse> {
+  const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), order_by: orderBy, order });
   if (statusFilter) params.set('sat_status', statusFilter);
   if (typeFilter) params.set('tipo_comprobante', typeFilter);
   const res = await authedFetch(`${API_BASE}/cfdi-documents?${params}`, { headers: authHeaders() });
@@ -188,14 +191,14 @@ function tipoLabel(tipo: string | null): string {
 // against an imagined 'generated'/'stamped' vocabulary, so the badge and the
 // stamp/cancel buttons never worked.)
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
-  draft:          { label: 'Draft', bg: '#f3f4f6', color: '#6b7280' },
+  draft:          { label: 'Draft', bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   vigente:        { label: 'Vigente', bg: '#d1fae5', color: '#065f46' },
   cancelado:      { label: 'Cancelado', bg: '#fee2e2', color: '#991b1b' },
   cancel_pending: { label: 'Cancel pending', bg: '#fef3c7', color: '#92400e' },
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const m = STATUS_META[status] ?? { label: status || '—', bg: '#f3f4f6', color: '#374151' };
+  const m = STATUS_META[status] ?? { label: status || '—', bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: m.bg, color: m.color,
@@ -256,7 +259,7 @@ function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
     <div style={overlay}>
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.cfdiList.cancelCfdi')}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           UUID: {doc.uuid ?? `#${doc.id}`}
         </p>
         {error && <div style={errorBox}>{error}</div>}
@@ -332,12 +335,12 @@ function StampModal({ doc, onClose, onStamped }: StampModalProps) {
     <div style={overlay}>
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.cfdiList.stampTimbrarCfdi')}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {t('ui.cfdiList.document')}{doc.id} — {doc.serie ?? ''}{doc.folio ? ` Folio ${doc.folio}` : ''}<br />
           {t('ui.cfdiList.receptor')}{doc.receptor_rfc ?? '—'} — {doc.receptor_nombre ?? '—'}<br />
           {t('ui.cfdiList.total')}{formatMoney(doc.total, doc.moneda)}
         </p>
-        <p style={{ fontSize: '0.85rem', color: '#374151' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {t('ui.cfdiList.thisWillSubmitTheDocument')}
         </p>
         {error && <div style={errorBox}>{error}</div>}
@@ -357,6 +360,16 @@ function StampModal({ doc, onClose, onStamped }: StampModalProps) {
 // ---------------------------------------------------------------------------
 
 const STATUS_OPTIONS = ['', 'draft', 'vigente', 'cancelado', 'cancel_pending'];
+// Column headers, and the server column each one sorts by (none for Actions).
+const COLUMNS: Array<{ label: string; col?: string }> = [
+  { label: 'UUID / ID', col: 'id' }, { label: 'Type', col: 'tipo_comprobante' },
+  { label: 'Receptor', col: 'receptor_rfc' }, { label: 'Total', col: 'total' },
+  { label: 'Date', col: 'created_at' }, { label: 'Status', col: 'sat_status' },
+  { label: 'PAC', col: 'pac_provider' }, { label: 'Actions' },
+];
+const thStyle: React.CSSProperties = {
+  padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+};
 const TYPE_OPTIONS   = ['', 'I', 'E', 'P', 'T', 'N'];
 
 export function CfdiList() {
@@ -367,10 +380,13 @@ export function CfdiList() {
   const [stampTarget, setStampTarget] = useState<CfdiDocument | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CfdiDocument | null>(null);
   const qc = useQueryClient();
+  // Newest first by default; a click on a column header sorts the whole list
+  // on the server, not just the page shown.
+  const sort = useTableSort('id', 'DESC');
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['cfdi', page, statusFilter, typeFilter],
-    queryFn: () => fetchCfdi(page, statusFilter, typeFilter),
+    queryKey: ['cfdi', page, statusFilter, typeFilter, sort.order_by, sort.order],
+    queryFn: () => fetchCfdi(page, statusFilter, typeFilter, sort.order_by, sort.order),
     placeholderData: prev => prev,
   });
 
@@ -430,7 +446,10 @@ export function CfdiList() {
     setPage(1);
   }
 
-  const totalPages = data?.meta?.totalPages ?? 1;
+  // A sort applies to the whole list, so it starts again from the first page.
+  const sortFromFirstPage = { ...sort, toggle: (col: string) => { sort.toggle(col); setPage(1); } };
+  // An empty result has no pages; the pager still reads "1 / 1".
+  const totalPages = Math.max(1, data?.meta?.totalPages ?? 1);
   const total = data?.meta?.total ?? 0;
 
   return (
@@ -445,16 +464,16 @@ export function CfdiList() {
       <div style={{ display: 'flex', gap: 16, marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Status filter */}
         <div>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.status')}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.status')}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {STATUS_OPTIONS.map(s => (
               <button
                 key={s || 'all'}
                 onClick={() => handleFilterChange(s)}
                 style={{
-                  padding: '3px 10px', borderRadius: 20, border: '1px solid #d1d5db',
-                  background: statusFilter === s ? 'var(--accent)' : '#fff',
-                  color: statusFilter === s ? '#fff' : '#374151',
+                  padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border-strong)',
+                  background: statusFilter === s ? 'var(--accent)' : 'var(--bg-card)',
+                  color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
                   cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500,
                 }}
               >
@@ -466,16 +485,16 @@ export function CfdiList() {
 
         {/* Type filter */}
         <div>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.type')}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.type')}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {TYPE_OPTIONS.map(t => (
               <button
                 key={t || 'all'}
                 onClick={() => handleTypeChange(t)}
                 style={{
-                  padding: '3px 10px', borderRadius: 20, border: '1px solid #d1d5db',
-                  background: typeFilter === t ? 'var(--accent)' : '#fff',
-                  color: typeFilter === t ? '#fff' : '#374151',
+                  padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border-strong)',
+                  background: typeFilter === t ? 'var(--accent)' : 'var(--bg-card)',
+                  color: typeFilter === t ? '#fff' : 'var(--text-secondary)',
                   cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500,
                 }}
               >
@@ -487,42 +506,42 @@ export function CfdiList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>{t('ui.cfdiList.loading')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.cfdiList.loading')}</p>}
       {isError && <p style={{ color: 'var(--accent)' }}>{t('ui.cfdiList.failedToLoadCfdiDocuments')}</p>}
       {statusNotice && <p role="status" style={{ fontSize: '0.85rem' }}>{statusNotice}</p>}
       {data && (
         <>
-          <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'auto' }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.855rem' }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                  {['UUID / ID', 'Type', 'Receptor', 'Total', 'Date', 'Status', 'PAC', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
+                <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
+                  {COLUMNS.map(c => (c.col
+                    ? <SortableTh key={c.label} label={c.label} col={c.col} sort={sortFromFirstPage} style={thStyle} />
+                    : <th key={c.label} style={thStyle}>{c.label}</th>))}
                 </tr>
               </thead>
               <tbody>
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
+                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-faint)' }}>
                       {t('ui.cfdiList.noCfdiDocumentsFound')}
                     </td>
                   </tr>
                 )}
                 {data.data.map((doc, idx) => (
-                  <tr key={doc.id} style={{ borderBottom: '1px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <tr key={doc.id} style={{ borderBottom: '1px solid var(--border-subtle)', background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-muted)' }}>
                     {/* UUID / ID */}
                     <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '0.78rem' }}>
                       {doc.uuid
                         ? <span title={doc.uuid}>{doc.uuid.substring(0, 8)}…</span>
-                        : <span style={{ color: '#9ca3af' }}>#{doc.id}</span>
+                        : <span style={{ color: 'var(--text-faint)' }}>#{doc.id}</span>
                       }
                     </td>
 
                     {/* Type */}
                     <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{
-                        background: '#f3f4f6', color: '#374151',
+                        background: 'var(--bg-subtle)', color: 'var(--text-secondary)',
                         padding: '2px 7px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
                       }}>
                         {tipoLabel(doc.tipo_comprobante)}
@@ -533,7 +552,7 @@ export function CfdiList() {
                     <td style={{ padding: '9px 12px' }}>
                       <div style={{ fontWeight: 500 }}>{doc.receptor_rfc ?? '—'}</div>
                       {doc.receptor_nombre && (
-                        <div style={{ fontSize: '0.77rem', color: '#6b7280', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.77rem', color: 'var(--text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {doc.receptor_nombre}
                         </div>
                       )}
@@ -545,7 +564,7 @@ export function CfdiList() {
                     </td>
 
                     {/* Date */}
-                    <td style={{ padding: '9px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '9px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       {fmt(doc.stamp_date || doc.created_at)}
                     </td>
 
@@ -556,7 +575,7 @@ export function CfdiList() {
                     </td>
 
                     {/* PAC that stamped it */}
-                    <td style={{ padding: '9px 12px', color: doc.pac_provider ? '#374151' : '#9ca3af', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                    <td style={{ padding: '9px 12px', color: doc.pac_provider ? 'var(--text-secondary)' : 'var(--text-faint)', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
                       {pacLabel(doc.pac_provider)}
                     </td>
 
@@ -652,7 +671,7 @@ export function CfdiList() {
           </div>
 
           {/* Pagination */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>{total} {t('ui.cfdiList.document2')}{total !== 1 ? 's' : ''}</span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button style={pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.cfdiList.prev')}</button>
@@ -693,7 +712,7 @@ const overlay: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
 };
 const modalBox: React.CSSProperties = {
-  background: '#fff', borderRadius: 10, padding: '1.5rem',
+  background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: 10, padding: '1.5rem',
   width: 460, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 const errorBox: React.CSSProperties = {
@@ -702,11 +721,12 @@ const errorBox: React.CSSProperties = {
 };
 const labelStyle: React.CSSProperties = {
   display: 'block', fontWeight: 600, fontSize: '0.8rem',
-  color: '#374151', marginBottom: 4, marginTop: 12,
+  color: 'var(--text-secondary)', marginBottom: 4, marginTop: 12,
 };
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '7px 10px',
-  border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.875rem',
+  border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: '0.875rem',
+  background: 'var(--input-bg)', color: 'var(--text-primary)',
 };
 const submitBtn: React.CSSProperties = {
   background: 'var(--accent)', color: '#fff', border: 'none',
@@ -719,16 +739,16 @@ const dangerBtn: React.CSSProperties = {
   fontWeight: 600, fontSize: '0.875rem',
 };
 const cancelBtn: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '7px 18px', borderRadius: 6, cursor: 'pointer',
   fontWeight: 600, fontSize: '0.875rem',
 };
 const actionBtn: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '3px 9px', borderRadius: 5, cursor: 'pointer',
   fontSize: '0.78rem', fontWeight: 500, whiteSpace: 'nowrap',
 };
 const pageBtn: React.CSSProperties = {
-  padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: 4,
-  background: '#fff', cursor: 'pointer', fontSize: '0.8rem',
+  padding: '4px 10px', border: '1px solid var(--border-strong)', borderRadius: 4,
+  background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.8rem',
 };
