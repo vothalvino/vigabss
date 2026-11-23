@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Client portal: "Pay another way".** A subscriber who started a payment
+  (for example took an OXXO voucher) and then wants to pay by card can now
+  cancel it from the invoice. Before, Pay Now sent them back to the finished
+  Stripe page for a day, and the voucher stayed payable after a new checkout
+  was opened, so an invoice could be paid twice. The button warns that the
+  voucher will stop working, voids it at Stripe, and opens a new checkout. A
+  payment that has already arrived or is being processed is never cancelled.
+  Stripe only; no new webhook event is needed.
 - **A WireGuard client that opens this install's own site is now seen with its
   own tunnel address.** A full-tunnel client used to arrive as the Docker
   gateway address, the same for every client, so the admin IP allowlist could

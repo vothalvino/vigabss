@@ -627,6 +627,8 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
       invoiceId: rows[0].id,
       clientId: req.client.id,
       returnUrl: req.body.return_url || null,
+      // "Pay another way": withdraw the unpaid voucher or page first.
+      fresh: req.body.fresh === true,
     });
 
     res.status(201).json({ data: session });
@@ -649,6 +651,7 @@ router.post('/payments/advance', async (req, res, next) => {
       clientId: req.client.id,
       amount: req.body.amount,
       returnUrl: req.body.return_url || null,
+      fresh: req.body.fresh === true,
     });
     res.status(201).json({ data: session });
   } catch (err) {

@@ -18,7 +18,7 @@ const paymentGatewayService = require('./paymentGatewayService');
 const paymentRetryService = require('./paymentRetryService');
 const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
 const Organization = require('../models/Organization');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { parseJsonColumn } = require('../utils/jsonColumn');
@@ -63,6 +63,44 @@ async function openCheckout(organizationId, invoiceId, clientId, gatewayId, amou
   return { tx, saved };
 }
 
+/**
+ * "Pay another way": withdraw every unpaid checkout for this invoice (or this
+ * advance payment) so a new one can be opened. A subscriber who took an OXXO
+ * voucher and then wants to pay by card was otherwise sent back to the
+ * finished page for a day, and the voucher stayed payable after that, which
+ * is how an invoice got paid twice. The voucher is voided at the gateway
+ * BEFORE the transaction is closed here, and a payment that has arrived or is
+ * on its way is never withdrawn (409).
+ *
+ * Stripe only. Other gateways keep their one page, where the customer can
+ * already choose another method; returns false so the caller reuses it.
+ */
+async function releaseOpenCheckouts(organizationId, invoiceId, clientId, gateway) {
+  if (gateway.provider !== 'stripe') return false;
+  const [rows] = await db.query(
+    `SELECT id, gateway_reference_id FROM payment_transactions
+      WHERE organization_id = ? AND invoice_id <=> ? AND client_id = ? AND payment_gateway_id = ?
+        AND gateway_status = 'pending' AND payment_id IS NULL
+      ORDER BY id DESC LIMIT 20`,
+    [organizationId, invoiceId, clientId, gateway.id],
+  );
+  for (const tx of rows) {
+    const result = await paymentGatewayService.cancelStripeCheckout(gateway, tx.gateway_reference_id);
+    if (!result.cancelled) {
+      throw new ConflictError(result.reason === 'paid'
+        ? 'This payment has already been received. It will show as paid in a moment.'
+        : 'A payment for this is already being processed. Please wait for it to finish.');
+    }
+    await db.query(
+      `UPDATE payment_transactions
+          SET gateway_status = 'cancelled', gateway_response_message = ?
+        WHERE id = ? AND organization_id = ? AND gateway_status = 'pending' AND payment_id IS NULL`,
+      ['Withdrawn by the customer to pay another way', tx.id, organizationId],
+    );
+  }
+  return rows.length > 0;
+}
+
 /** Keep the hosted page's URL so a second Pay Now reopens it. */
 async function rememberCheckout(transactionId, paymentUrl, expiresAt, provider) {
   await db.query(
@@ -75,7 +113,7 @@ async function rememberCheckout(transactionId, paymentUrl, expiresAt, provider) 
  * Create a checkout session for a specific invoice.
  * Returns a payment link or redirect URL.
  */
-async function createCheckoutSession({ organizationId, invoiceId, clientId, returnUrl }) {
+async function createCheckoutSession({ organizationId, invoiceId, clientId, returnUrl, fresh = false }) {
   // Get the invoice
   const [invoices] = await db.query(
     `SELECT i.*, ${BALANCE_DUE_SQL} FROM invoices i WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL`,
@@ -122,6 +160,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     note: `Checkout for invoice ${invoice.invoice_number}`,
     returnUrl,
     defaultPath: '/portal/invoices',
+    fresh,
   });
 }
 
@@ -149,7 +188,7 @@ const ADVANCE_MAX = 100000;
  * pays the client's open invoices oldest first and keeps the rest as its
  * credit, which pays its next invoices on its own (clientCreditService).
  */
-async function createAdvanceCheckout({ organizationId, clientId, amount, returnUrl }) {
+async function createAdvanceCheckout({ organizationId, clientId, amount, returnUrl, fresh = false }) {
   const value = Math.round(Number(amount) * 100) / 100;
   if (!Number.isFinite(value) || value < ADVANCE_MIN || value > ADVANCE_MAX || Math.round(Number(amount) * 100) !== value * 100) {
     throw new ValidationError(`amount must be between ${ADVANCE_MIN} and ${ADVANCE_MAX}, with at most 2 decimals`);
@@ -173,6 +212,7 @@ async function createAdvanceCheckout({ organizationId, clientId, amount, returnU
     note: 'Checkout for an advance payment (credit)',
     returnUrl,
     defaultPath: '/portal/payments',
+    fresh,
   });
 }
 
@@ -182,6 +222,7 @@ async function createAdvanceCheckout({ organizationId, clientId, amount, returnU
  */
 async function startHostedCheckout({
   organizationId, clientId, gateway, invoiceId, invoiceNumber, amount, currency, label, note, returnUrl, defaultPath,
+  fresh = false,
 }) {
   const resolvedClientId = clientId;
   const amountDue = amount;
@@ -198,6 +239,8 @@ async function startHostedCheckout({
     return_url: returnUrl || null,
     ...(extra.reused ? { reused: true } : {}),
   });
+
+  if (fresh) await releaseOpenCheckouts(organizationId, invoiceId, resolvedClientId, gateway);
 
   const reusable = await openCheckout(organizationId, invoiceId, resolvedClientId, gateway.id, amountDue);
   if (reusable) {
