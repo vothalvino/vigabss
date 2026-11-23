@@ -7,6 +7,7 @@
 
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { PortalAutopayCard } from './PortalAutopayCard';
 import { useTranslation } from 'react-i18next';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { calendarDay } from '@/lib/dates';
@@ -105,6 +106,9 @@ export function PortalDashboard() {
 
       {overview && (
         <div style={styles.grid}>
+          {/* Autopay: status and the one action that fits it */}
+          <PortalAutopayCard cardStyle={styles.card} titleStyle={styles.cardTitle} />
+
           {/* Plan & Account */}
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>{t('portalDashboard.myPlan')}</h2>

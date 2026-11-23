@@ -13,6 +13,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   voucher will stop working, voids it at Stripe, and opens a new checkout. A
   payment that has already arrived or is being processed is never cancelled.
   Stripe only; no new webhook event is needed.
+- **Client portal home: autopay status with its action.** The home page shows
+  whether autopay is on (and the card it uses) with one button: set it up when
+  it is off, turn it off when it is on. Turning it off now asks for
+  confirmation. The Account page shows the same card.
+- **Client portal: the Data packs tab only appears when it applies**, that is
+  when the subscriber's plan has a data allowance or they still hold a pack.
+  For a subscriber with several services, data packs and the allowance now use
+  the service whose plan has an allowance instead of an arbitrary one.
+- Client portal: the Help and Account menu entries are now translated into
+  Spanish and Portuguese (they were English in every language).
 - **A WireGuard client that opens this install's own site is now seen with its
   own tunnel address.** A full-tunnel client used to arrive as the Docker
   gateway address, the same for every client, so the admin IP allowlist could

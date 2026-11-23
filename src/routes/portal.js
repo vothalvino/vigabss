@@ -809,6 +809,21 @@ router.post('/tickets/:id/comments', validate(createCommentSchema, { strip: fals
 // DATA PACKS (§10.3 — portal self-service)
 // ---------------------------------------------------------------------------
 
+// The subscriber's active contract for data packs and allowance. A client can
+// hold several contracts: the one whose plan has a data allowance comes first,
+// so a second, unlimited service never hides the capped one.
+async function dataPackContracts(client) {
+  const [contracts] = await db.query(
+    `SELECT c.id FROM contracts c
+       LEFT JOIN plans p ON p.id = c.plan_id AND p.deleted_at IS NULL
+      WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
+      ORDER BY (COALESCE(p.data_cap_gb, 0) > 0) DESC, c.id ASC
+      LIMIT 1`,
+    [client.id, client.organizationId],
+  );
+  return contracts;
+}
+
 // GET /portal/data-packs — list available packs for this org
 router.get('/data-packs', async (req, res, next) => {
   try {
@@ -823,12 +838,7 @@ router.get('/data-packs', async (req, res, next) => {
 router.post('/data-packs/:packId/purchase', async (req, res, next) => {
   try {
     // Resolve the subscriber's active contract
-    const [contracts] = await db.query(
-      `SELECT id FROM contracts
-       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
-       LIMIT 1`,
-      [req.client.id, req.client.organizationId],
-    );
+    const contracts = await dataPackContracts(req.client);
     if (!contracts[0]) throw new NotFoundError('Active contract');
 
     const purchase = await dataPackService.purchasePack(
@@ -846,12 +856,7 @@ router.post('/data-packs/:packId/purchase', async (req, res, next) => {
 // GET /portal/data-packs/my-purchases — list this client's purchases
 router.get('/data-packs/my-purchases', async (req, res, next) => {
   try {
-    const [contracts] = await db.query(
-      `SELECT id FROM contracts
-       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
-       LIMIT 1`,
-      [req.client.id, req.client.organizationId],
-    );
+    const contracts = await dataPackContracts(req.client);
     if (!contracts[0]) return res.json({ data: [] });
 
     const purchases = await dataPackService.listPurchases(
@@ -867,12 +872,7 @@ router.get('/data-packs/my-purchases', async (req, res, next) => {
 // GET /portal/usage/allowance — effective total data allowance
 router.get('/usage/allowance', async (req, res, next) => {
   try {
-    const [contracts] = await db.query(
-      `SELECT id FROM contracts
-       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
-       LIMIT 1`,
-      [req.client.id, req.client.organizationId],
-    );
+    const contracts = await dataPackContracts(req.client);
     if (!contracts[0]) return res.json({ data: null });
 
     const allowance = await dataPackService.getEffectiveAllowance(contracts[0].id, req.client.organizationId);

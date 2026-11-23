@@ -49,6 +49,21 @@ export function PortalLayout() {
   });
   const cartaUrl = legalInfo.data?.data.locale === 'MX' ? legalInfo.data.data.carta_derechos_url : null;
 
+  // The Data packs tab is for subscribers whose plan has a data allowance (or
+  // who still hold a pack). Same query key as the Data packs page.
+  const allowance = useQuery({
+    queryKey: ['portal-allowance'],
+    queryFn: async () => {
+      const res = await portalAuthedFetch('/api/v1/portal/usage/allowance');
+      if (!res.ok) throw new Error('allowance fetch failed');
+      return res.json() as Promise<{ data: { base_cap_gb: number; pack_gb: number } | null }>;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const usesDataPacks = Boolean(allowance.data?.data
+    && (Number(allowance.data.data.base_cap_gb) > 0 || Number(allowance.data.data.pack_gb) > 0));
+
   async function handleLogout() {
     await logout();
   }
@@ -86,12 +101,14 @@ export function PortalLayout() {
           >
             {t('portalLayout.navPayments')}
           </NavLink>
-          <NavLink
-            to="/portal/data-packs"
-            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
-          >
-            {t('portalLayout.navDataPacks')}
-          </NavLink>
+          {usesDataPacks && (
+            <NavLink
+              to="/portal/data-packs"
+              style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+            >
+              {t('portalLayout.navDataPacks')}
+            </NavLink>
+          )}
           <NavLink
             to="/portal/tickets"
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
@@ -108,13 +125,13 @@ export function PortalLayout() {
             to="/portal/kb"
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
           >
-            {t('portalLayout.navKb', 'Help')}
+            {t('portalLayout.navKb')}
           </NavLink>
           <NavLink
             to="/portal/account"
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
           >
-            {t('portalLayout.navAccount', 'Account')}
+            {t('portalLayout.navAccount')}
           </NavLink>
           <NavLink
             to="/portal/security"
