@@ -50,6 +50,9 @@
 # never goes on to migrate against a stale container.
 #
 set -euo pipefail
+# MySQL ignores a world-writable config file; keep files this run checks out
+# from being created that way under a permissive umask.
+umask 022
 
 SCRIPT_PATH="${BASH_SOURCE[0]}"
 SCRIPT_DIR="${SCRIPT_PATH%/*}"

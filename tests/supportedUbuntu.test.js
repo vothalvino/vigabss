@@ -57,3 +57,17 @@ test('the documentation names the supported releases', () => {
     expect(text).toMatch(/Ubuntu 24\.04 LTS and 26\.04 LTS/);
   }
 });
+
+// Found by the first real install in CI: under a permissive umask the checkout
+// left mysql/primary.cnf world-writable, MySQL ignored it, and the first
+// migration failed on binary logging.
+test('the installer and redeploy never check out world-writable files', () => {
+  for (const file of ['install.sh', 'redeploy.sh']) {
+    const src = fs.readFileSync(path.join(root, file), 'utf8');
+    const strict = src.indexOf('set -euo pipefail');
+    const mask = src.indexOf('\numask 022\n');
+    expect(mask).toBeGreaterThan(strict);
+    expect(mask).toBeLessThan(src.search(/git (clone|-C)/));
+  }
+  expect(fs.readFileSync(path.join(root, 'install.sh'), 'utf8')).toMatch(/chmod go-w "\$INSTALL_DIR"\/mysql\/\*\.cnf/);
+});
