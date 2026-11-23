@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 386 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 020)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 021)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -754,6 +754,7 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 017 — VoIP refresh switch:** the weekly refresh of the VoIP address list on MikroTik NAS is switched on and off in the app (Network → NAS, install operator). `VOIP_RANGES_ENABLED` is no longer read. The migration only corrects the scheduled task's description.
 
+> **Migration 021 — Contract replacement:** `contracts.replaces_contract_id` links a new contract to the one it takes over from (a technology transition between WISP and FTTH). The new contract follows the normal activation workflow, which requires the customer's signature; activating it terminates the contract it replaces.
 > **Migration 020 — IP pool technology:** `ip_pools.access_technology` (`wisp`, `ftth` or `both`, default `both`). A new contract's PPPoE account takes a pool of the contract's technology, preferring a pool for exactly that technology over one that serves both.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.

@@ -693,6 +693,7 @@ async function startOrder(orderId, {
  */
 async function completeOrder(orderId, {
   orgId = null,
+  userId = null,
   billing,
   installationFee = null,
   description = null,
@@ -1060,6 +1061,19 @@ async function completeOrder(orderId, {
     }
   }
 
+  // Technology transition: the activated contract took over from another one,
+  // which now ends. After the commit, so a signed and activated contract is
+  // never rolled back by a problem ending the old one.
+  let transition = null;
+  if (permanentlyActivatedContractId) {
+    transition = await require('./contractTransitionService')
+      .completeTransition(permanentlyActivatedContractId, preOrder.organization_id ?? orgId, { userId })
+      .catch((err) => {
+        logger.error({ err: err.message, contractId: permanentlyActivatedContractId }, 'Technology transition could not be completed');
+        return null;
+      });
+  }
+
   // Emit AFTER commit so a notification-hook failure can never roll back the
   // billing/contract-activation transaction above.
   await emitActivation(updatedOrder, orgId).catch(err =>
@@ -1073,6 +1087,8 @@ async function completeOrder(orderId, {
         contract_id: permanentlyActivatedContractId,
         nas_pushed: nasPushed,
         ...(nasPushError ? { nas_push_error: nasPushError } : {}),
+        // Set when this contract replaced another one (technology transition).
+        ...(transition ? { transition } : {}),
       }
       : null,
   };

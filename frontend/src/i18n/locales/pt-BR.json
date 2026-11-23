@@ -1,4 +1,21 @@
 {
+  "contractTransition": {
+    "replaces": "Este contrato substitui o contrato",
+    "replacesPending": "Esse contrato termina quando este for ativado.",
+    "beingReplaced": "Este contrato está sendo substituído pelo contrato",
+    "beingReplacedHint": "Ele continua funcionando e termina quando o novo for ativado",
+    "replacedBy": "Este contrato foi substituído pelo contrato",
+    "start": "Mudar tecnologia para {{technology}}",
+    "title": "Novo contrato: {{technology}}",
+    "explain": "Mudar de tecnologia exige um novo contrato, que o cliente precisa assinar. Isto cria esse contrato. O contrato atual continua funcionando até o novo ser ativado, e termina nesse momento. Cancelar o novo contrato deixa este como está.",
+    "plan": "Plano",
+    "loadingPlans": "Carregando…",
+    "noPlans": "Não há plano ativo oferecido em {{technology}}. Crie um primeiro.",
+    "startDate": "Data de início",
+    "create": "Criar o novo contrato",
+    "creating": "Criando…",
+    "cancel": "Cancelar"
+  },
   "oltLive": {
     "ontId": "ID",
     "tab": "OLT ao vivo",

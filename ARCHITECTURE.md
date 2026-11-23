@@ -1650,6 +1650,13 @@ that. Changing between WISP and FTTH is done with a new contract.
   its SQL twin `effectiveTechnologySql`), not the column: contracts from before
   migration 018 carry NULL and follow their plan.
 
+A change of technology is a replacement contract (`contracts.replaces_contract_id`,
+migration 021): `contractTransitionService.assertCanReplace` checks it when the
+new contract is created (same client, old contract in service, other
+technology, one open replacement), the new contract activates through the
+unchanged workflow (signature required), and `lifecycleService.completeOrder`
+calls `completeTransition` after the activation commit, which terminates the
+old contract through `contractTerminationService.terminateContract`.
 IP pools carry the same field (`ip_pools.access_technology`, default `both`).
 `subscriberProvisioningService.findActivePool` gives a contract a pool of its
 technology: exactly that technology first, then `both`, never the other one.
