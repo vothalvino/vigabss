@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { OltLiveTab } from './olt/OltLiveTab';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
@@ -597,7 +598,7 @@ function SplittersTab() {
 // Main page
 // ---------------------------------------------------------------------------
 
-type Tab = 'ports' | 'splitters';
+type Tab = 'ports' | 'splitters' | 'live';
 
 export function OltManagementPage() {
   const { t } = useTranslation();
@@ -615,10 +616,12 @@ export function OltManagementPage() {
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '1.25rem' }}>
         <button style={tabBtn(tab === 'ports')} onClick={() => setTab('ports')}>{t('oltManagement.tabs.ports')}</button>
         <button style={tabBtn(tab === 'splitters')} onClick={() => setTab('splitters')}>{t('oltManagement.tabs.splitters')}</button>
+        <button style={tabBtn(tab === 'live')} onClick={() => setTab('live')}>{t('oltLive.tab')}</button>
       </div>
 
       {tab === 'ports' && <OltPortsTab />}
       {tab === 'splitters' && <SplittersTab />}
+      {tab === 'live' && <OltLiveTab />}
     </div>
   );
 }
