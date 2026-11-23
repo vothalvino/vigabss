@@ -89622,6 +89622,14 @@
               "mixed"
             ]
           },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ]
+          },
           "default_prefix_len": {
             "type": "number",
             "minimum": 48,
@@ -89737,6 +89745,14 @@
               "corporate",
               "government",
               "mixed"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
             ]
           },
           "default_prefix_len": {

@@ -1,5 +1,7 @@
 {
   "accessTechnology": {
+    "poolLabel": "Access technology",
+    "poolHint": "Which subscribers take addresses from this pool. A new contract uses a pool of its own technology.",
     "choose": "Choose…",
     "planHint": "How this plan is delivered. On WISP the speed is enforced by the MikroTik; on FTTH by the OLT. A contract keeps the technology it was created with.",
     "planLabel": "Access technology",

@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **IP pools have an access technology.** A pool is marked WISP, FTTH or both
+  (IP pool form; default both). A new contract's PPPoE account takes a pool
+  of the contract's own technology, preferring a pool for exactly that
+  technology over one that serves both, so fibre and wireless subscribers can
+  have separate address ranges (migration 020).
+
 - **Access technology on plans and contracts (WISP / FTTH).** A plan is marked
   WISP, FTTH or both. A contract is created for one technology: the plan's,
   or, for a plan offered over both, the one chosen on the new-contract form.

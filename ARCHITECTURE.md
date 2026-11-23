@@ -1650,6 +1650,10 @@ that. Changing between WISP and FTTH is done with a new contract.
   its SQL twin `effectiveTechnologySql`), not the column: contracts from before
   migration 018 carry NULL and follow their plan.
 
+IP pools carry the same field (`ip_pools.access_technology`, default `both`).
+`subscriberProvisioningService.findActivePool` gives a contract a pool of its
+technology: exactly that technology first, then `both`, never the other one.
+
 Speed enforcement does not branch on it yet: RADIUS sends the plan speed to
 the BNG for every contract. FTTH (speed applied on the OLT, Huawei MA5800/
 EA5800 over SSH through the NAS WireGuard tunnel, PPPoE still terminating on

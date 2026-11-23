@@ -1377,6 +1377,7 @@ CREATE TABLE IF NOT EXISTS ip_pools (
     nas_id      BIGINT UNSIGNED NULL     COMMENT 'NAS device serving this pool; NULL = not tied to a specific NAS',
     service_type ENUM('residential','business','corporate','government','mixed') NULL DEFAULT 'mixed'
                                          COMMENT 'Subscriber class this pool is intended to serve',
+    access_technology ENUM('wisp','ftth','both') NOT NULL DEFAULT 'both' COMMENT 'Subscribers of which access technology take addresses from this pool (migration 020)',
     default_prefix_len TINYINT UNSIGNED  NULL
                                          COMMENT 'IPv6 prefix delegation length assigned to subscribers (e.g. 48, 56, 64); NULL for IPv4 pools or when PD is unused',
     excluded_ranges TEXT                 NULL
