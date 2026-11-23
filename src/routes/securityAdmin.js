@@ -93,8 +93,8 @@ router.delete('/webauthn/:id', requirePermission('webauthn.delete'), async (req,
 function validatedCidr(value) {
   const cidr = typeof value === 'string' ? value.trim() : '';
   if (!cidr || !parseEntry(cidr)) {
-    throw new ValidationError('Enter a valid IPv4 address or CIDR range', [
-      { field: 'cidr', message: 'Use an IPv4 address such as 203.0.113.5 or CIDR such as 203.0.113.0/24' },
+    throw new ValidationError('Enter a valid IPv4 or IPv6 address or CIDR range', [
+      { field: 'cidr', message: 'Use an address such as 203.0.113.5 or 2001:db8::5, or a range such as 203.0.113.0/24 or 2001:db8:1:2::/64' },
     ]);
   }
   return cidr;

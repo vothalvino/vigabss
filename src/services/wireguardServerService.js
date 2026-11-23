@@ -546,6 +546,13 @@ async function readPeerHandshakes(iface) {
 const PRIVATE_V4 = '{ 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 127.0.0.0/8 }';
 const PRIVATE_V6 = '{ fc00::/7, fe80::/10, ::1/128 }';
 
+// The port in the hub's network namespace where the app's own forwarder
+// (vpnPortalForwarder) takes a tunnel client's HTTPS connection to this
+// install's public address. See "VPN clients keep their own address" in
+// ARCHITECTURE.md.
+const PORTAL_FORWARD_PORT = 8443;
+const PORTAL_MAX_ADDRESSES = 16;
+
 function snmpTrapPort() {
   const port = Number.parseInt(String(process.env.SNMP_TRAP_PORT || '1620').trim(), 10);
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : 1620;
@@ -578,6 +585,8 @@ function hubFilterRules(clientIface, serverIface) {
       `iifname { "${clientIface}", "${serverIface}" } meta l4proto { 1, 58 } accept`,
       '# NAS peers send RADIUS and SNMP traps to the hub address',
       `iifname "${serverIface}" udp dport { ${udpPorts} } accept`,
+      '# The portal forwarder: a client opening this install\'s own site (see prerouting)',
+      `iifname "${clientIface}" tcp dport ${PORTAL_FORWARD_PORT} accept`,
       '# Nothing else on this host is for tunnel peers, in particular not the app HTTP port',
       `iifname { "${clientIface}", "${serverIface}" } drop`,
     ],
@@ -618,6 +627,23 @@ async function ensureBaseFirewall() {
     '    type filter hook input priority filter; policy accept;',
     ...rules.input.map((r) => `    ${r}`),
     '  }',
+    '  # This install\'s public addresses, filled by setPortalAddresses(). Empty',
+    '  # means nothing is redirected and a client reaches the site as before.',
+    '  set portal4 {',
+    '    type ipv4_addr;',
+    '  }',
+    '  set portal6 {',
+    '    type ipv6_addr;',
+    '  }',
+    '  chain prerouting {',
+    '    type nat hook prerouting priority dstnat;',
+    '    # A tunnel client opening this install\'s own site is handed to the app\'s',
+    '    # forwarder, which passes the client\'s tunnel address on to the web server.',
+    `    iifname "${clientIface}" ip daddr @portal4 tcp dport 443 redirect to :${PORTAL_FORWARD_PORT}`,
+    ...(clientSubnetV6()
+      ? [`    iifname "${clientIface}" ip6 daddr @portal6 tcp dport 443 redirect to :${PORTAL_FORWARD_PORT}`]
+      : []),
+    '  }',
     '  chain wg_user_fwd {',
     '    # Populated by wireguardServerService.setUserForwardScope()',
     '  }',
@@ -648,6 +674,35 @@ async function ensureBaseFirewall() {
     'wireguardServerService: base nftables firewall installed',
   );
   return { applied: true };
+}
+
+/**
+ * Replace the addresses whose HTTPS traffic from tunnel clients is handed to
+ * the portal forwarder. Empty lists switch the redirect off. Only literal IP
+ * addresses reach nft; the caller resolves the public host name.
+ *
+ * @param {{v4?: string[], v6?: string[]}} addresses
+ */
+async function setPortalAddresses({ v4 = [], v6 = [] } = {}) {
+  if (!config.wireguard.serverEnabled) return { ...NOOP_RESULT };
+  const ok = (list, family) => Array.isArray(list) && list.length <= PORTAL_MAX_ADDRESSES
+    && list.every((ip) => typeof ip === 'string' && net.isIP(ip) === family);
+  if (!ok(v4, 4) || !ok(v6, 6)) throw new ValidationError('Portal addresses must be IP address literals');
+  if (proxyToHelper) return callHelper('setPortalAddresses', { v4, v6 });
+
+  const script = [
+    'flush set inet vigabss_wg portal4',
+    'flush set inet vigabss_wg portal6',
+    ...(v4.length ? [`add element inet vigabss_wg portal4 { ${v4.join(', ')} }`] : []),
+    ...(v6.length ? [`add element inet vigabss_wg portal6 { ${v6.join(', ')} }`] : []),
+  ].join('\n');
+  const tmpFile = writeTmpFile(`${script}\n`);
+  try {
+    await execFileAsync('nft', ['-f', tmpFile]);
+  } finally {
+    unlinkSafe(tmpFile);
+  }
+  return { applied: true, v4: v4.length, v6: v6.length };
 }
 
 /**
@@ -1100,6 +1155,8 @@ module.exports = {
   ensureBaseFirewall,
   setUserForwardScope,
   removeUserPeer,
+  setPortalAddresses,
+  PORTAL_FORWARD_PORT,
 
   // Host bootstrap (startup)
   bootstrapHost,

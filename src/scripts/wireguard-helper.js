@@ -91,6 +91,15 @@ const operations = Object.freeze({
     assert(Object.keys(assertObject(params)).length === 0, 'ensureBaseFirewall takes no parameters');
     return wireguard.ensureBaseFirewall();
   },
+  setPortalAddresses: async (params) => {
+    const p = assertObject(params);
+    const list = (value, family) => Array.isArray(value) && value.length <= 16
+      && value.every((ip) => typeof ip === 'string' && net.isIP(ip) === family);
+    assert(Object.keys(p).every((k) => k === 'v4' || k === 'v6'), 'setPortalAddresses takes v4 and v6');
+    assert(list(p.v4 ?? [], 4), 'v4 must be IPv4 addresses');
+    assert(list(p.v6 ?? [], 6), 'v6 must be IPv6 addresses');
+    return wireguard.setPortalAddresses({ v4: p.v4 ?? [], v6: p.v6 ?? [] });
+  },
   setUserForwardScope: async (params) => {
     const p = assertObject(params);
     assert(Number.isSafeInteger(p.peerId) && p.peerId > 0, 'peerId must be a positive integer');
