@@ -53,7 +53,7 @@ describe('newly gated mounts refuse an address outside the active allowlist', ()
   ])('GET %s is 403', async (url) => {
     const res = await request(app).get(url);
     expect(res.status).toBe(403);
-    expect(res.body.error.message).toMatch(/admin endpoint/);
+    expect(res.body.error.message).toMatch(/your IP address \(127\.0\.0\.1\) is not on the admin IP allowlist/);
   });
 });
 

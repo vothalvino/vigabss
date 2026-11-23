@@ -5,6 +5,22 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **A WireGuard client that opens this install's own site is now seen with its
+  own tunnel address.** A full-tunnel client used to arrive as the Docker
+  gateway address, the same for every client, so the admin IP allowlist could
+  only allow all VPN clients or none, and login IP blocks, rate limits and the
+  audit log could not tell them apart. The hub now hands such a connection to
+  a forwarder in the app, which passes the client's tunnel address (IPv4 and,
+  with `WG_IPV6`, IPv6) to the web server. To allow one VPN device on the admin
+  IP allowlist, add its tunnel address. Needs the bundled nginx; with another
+  web server, or until nginx has loaded the new `nginx.conf`, clients reach
+  the site as before. Nothing to configure.
+- **A refused administrator is told which address was refused.** The admin IP
+  allowlist's "access denied" message now names the address the server saw.
+  The page that shows "your current IP" is behind the same check, so there
+  was no way to learn which address to add.
+- The admin IP allowlist's validation message no longer says IPv4 only; IPv6
+  addresses and ranges were already accepted.
 - **Ubuntu 24.04 LTS and 26.04 LTS are the supported servers, and both are
   tested.** CI now runs the installer on each release on every change: its
   package step in a clean image of the release, and a complete install on a

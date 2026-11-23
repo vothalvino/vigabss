@@ -87,9 +87,13 @@ async function enforceAdminIpAllowlist(req, _res, next) {
       clientIp(req),
     );
     if (!status.enabled || status.currentIpAllowed) return next();
+    // The address is named because the page that shows "your current IP" is
+    // itself behind this check: a refused administrator otherwise has no way
+    // to learn which address to add. It is only ever the caller's own.
+    const seen = status.currentIp ? ` (${status.currentIp})` : '';
     return next(new ForbiddenError(
       status.configurationValid
-        ? 'Access denied: your IP address is not permitted to access this admin endpoint'
+        ? `Access denied: your IP address${seen} is not on the admin IP allowlist`
         : 'Access denied: the active admin IP allowlist contains no usable configuration',
     ));
   } catch (err) {

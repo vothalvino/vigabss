@@ -5,6 +5,7 @@ const db = require('../config/database');
 const wireguard = require('./wireguardServerService');
 const nasPeers = require('./wgProvisioningService');
 const userPeers = require('./userTunnelService');
+const portalForwarder = require('./vpnPortalForwarder');
 const logger = require('../utils/logger').child({ service: 'wireguardRuntime' });
 
 const SETTING_KEY = 'wireguard_server_enabled';
@@ -37,7 +38,11 @@ async function activate() {
     if (lastError) throw lastError;
     await nasPeers.rehydrateNasPeers();
     await userPeers.rehydrateUserPeers();
+    // Tunnel clients opening this site keep their own address. Never fatal:
+    // without it they reach the site as they always did.
+    await portalForwarder.start().catch(() => {});
   } catch (err) {
+    portalForwarder.stop();
     await wireguard.shutdownHost().catch(() => {});
     config.wireguard.serverEnabled = false;
     throw err;
@@ -49,6 +54,7 @@ async function setEnabled(enabled) {
   if (enabled) {
     await activate();
   } else {
+    portalForwarder.stop();
     await wireguard.shutdownHost();
     config.wireguard.serverEnabled = false;
   }
