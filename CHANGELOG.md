@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.29 — 2026-11-23
+
 - **Client portal: "Pay another way".** A subscriber who started a payment
   (for example took an OXXO voucher) and then wants to pay by card can now
   cancel it from the invoice. Before, Pay Now sent them back to the finished
