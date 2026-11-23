@@ -10,7 +10,6 @@ export const CONTRACT_DETAIL_QUERY = /* GraphQL */ `
       planId
       connectionType
       accessTechnology
-      accessTechnologyOverride
       startDate
       endDate
       billingDay

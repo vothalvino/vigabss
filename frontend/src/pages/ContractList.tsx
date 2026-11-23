@@ -311,6 +311,9 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
     setForm(prev => ({ ...prev, [name]: value }));
   }
 
+  // A plan offered over WISP and FTTH needs the contract to say which.
+  const planOfferedOverBoth = plans.find(p => String(p.id) === form.plan_id)?.access_technology === 'both';
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.client_id || !form.plan_id || !form.start_date) {
@@ -324,7 +327,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
         client_id: Number(form.client_id),
         plan_id: Number(form.plan_id),
         connection_type: form.connection_type,
-        ...(form.access_technology ? { access_technology: form.access_technology } : {}),
+        ...(planOfferedOverBoth && form.access_technology ? { access_technology: form.access_technology } : {}),
         start_date: form.start_date,
         billing_day: form.billing_day ? Math.min(28, Math.max(1, Number(form.billing_day))) : undefined,
         ip_address: form.ip_address || undefined,
@@ -410,20 +413,23 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
             </select>
           </label>
 
-          {/* Technology: blank follows the plan (migration 018) */}
-          <label style={modalStyles.label}>
-            {t('accessTechnology.contractLabel')}
-            <select
-              style={modalStyles.select}
-              value={form.access_technology}
-              onChange={e => setField('access_technology', e.target.value)}
-              aria-label={t('accessTechnology.contractLabel')}
-            >
-              <option value="">{t('accessTechnology.asPlanShort')}</option>
-              <option value="wisp">{t('accessTechnology.name.wisp')}</option>
-              <option value="ftth">{t('accessTechnology.name.ftth')}</option>
-            </select>
-          </label>
+          {/* Technology: asked only for a plan offered over both (migration 018) */}
+          {planOfferedOverBoth && (
+            <label style={modalStyles.label}>
+              {t('accessTechnology.contractLabel')}<span style={{ color: '#ef4444' }}>*</span>
+              <select
+                style={modalStyles.select}
+                value={form.access_technology}
+                onChange={e => setField('access_technology', e.target.value)}
+                aria-label={t('accessTechnology.contractLabel')}
+                required
+              >
+                <option value="">{t('accessTechnology.choose')}</option>
+                <option value="wisp">{t('accessTechnology.name.wisp')}</option>
+                <option value="ftth">{t('accessTechnology.name.ftth')}</option>
+              </select>
+            </label>
+          )}
 
           {/* Start date */}
           <label style={modalStyles.label}>

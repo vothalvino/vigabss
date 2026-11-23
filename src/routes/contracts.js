@@ -27,7 +27,7 @@ const routerProvisioningService = require('../services/routerProvisioningService
 const contractActivationService = require('../services/contractActivationService');
 const mxRegisteredTemplateService = require('../services/mxRegisteredContractTemplateService');
 const testWindowService = require('../services/testWindowService');
-const { assertPlanSelectable } = require('../services/planAvailability');
+const { assertPlanSelectable, technologyForNewContract, assertPlanKeepsTechnology } = require('../services/planAvailability');
 const { updateContractWithActivationGuard } = require('../services/contractUpdateGuard');
 const contractPlanChangeService = require('../services/contractPlanChangeService');
 const planChangeProrationService = require('../services/planChangeProrationService');
@@ -575,7 +575,10 @@ router.post('/', requirePermission('contracts.create'), validate(createContract,
 
     // A new contract may only run on a live (non-archived) plan that belongs
     // to this organization, or a global plan (organization_id IS NULL).
-    await assertPlanSelectable(conn, filtered.plan_id, req.orgId);
+    const plan = await assertPlanSelectable(conn, filtered.plan_id, req.orgId);
+
+    // The technology is decided now and does not change afterwards.
+    filtered.access_technology = technologyForNewContract(plan.access_technology, filtered.access_technology);
 
     const activeMxSource = await mxRegisteredTemplateService.resolveActiveContractSource(
       conn.query.bind(conn),
@@ -831,6 +834,7 @@ router.post('/:id/renew', requirePermission('contracts.update'), async (req, res
     // archived or not, is fine).
     if (req.body.plan_id && Number(req.body.plan_id) !== Number(contract.plan_id)) {
       await assertPlanSelectable(db, req.body.plan_id, req.orgId);
+      await assertPlanKeepsTechnology(db, contract, req.body.plan_id, req.orgId);
     }
 
     // A terminal/suspended contract with no first-activation marker was never

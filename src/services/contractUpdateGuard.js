@@ -9,7 +9,9 @@
 
 const db = require('../config/database');
 const Contract = require('../models/Contract');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, AppError } = require('../utils/errors');
+const { effectiveTechnology } = require('../utils/accessTechnology');
+const { planTechnology, assertPlanKeepsTechnology } = require('./planAvailability');
 
 const ACTIVATION_FROZEN_FIELDS = new Set([
   'client_id', 'plan_id', 'contract_template_mx_id', 'mx_contract_environment', 'connection_type',
@@ -33,6 +35,25 @@ function comparableContractValue(field, value) {
 
 async function updateContractWithActivationGuard(contract, body, orgId, runner = db) {
   const exec = runner.query.bind(runner);
+  // A contract's technology is fixed (migration 018). Sending the value it
+  // already has is accepted, so a form may post the whole contract back.
+  if (body.access_technology !== undefined) {
+    const current = effectiveTechnology(
+      contract.access_technology,
+      contract.plan_id ? await planTechnology(runner, contract.plan_id, orgId) : null,
+    );
+    if (body.access_technology !== current) {
+      throw new AppError(
+        'A contract\'s technology cannot be changed. Changing between WISP and FTTH needs a new contract.',
+        422, 'TECHNOLOGY_CHANGE_NEEDS_NEW_CONTRACT',
+      );
+    }
+    body = { ...body };
+    delete body.access_technology;
+  }
+  if (body.plan_id !== undefined && Number(body.plan_id) !== Number(contract.plan_id)) {
+    await assertPlanKeepsTechnology(runner, contract, body.plan_id, orgId);
+  }
   const touched = [...ACTIVATION_FROZEN_FIELDS].filter(field => body[field] !== undefined);
   if (!touched.length || Object.prototype.hasOwnProperty.call(body, 'organization_id')) {
     return Contract.update(contract.id, body, orgId, { exec });

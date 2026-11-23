@@ -500,7 +500,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     notes          TEXT            NULL,
     connection_type ENUM('pppoe', 'pppoe_dual', 'static', 'dual') NOT NULL DEFAULT 'pppoe'
                        COMMENT 'pppoe = PPPoE IPv4-only (requires RADIUS); pppoe_dual = PPPoE dual-stack IPv4+IPv6 (requires RADIUS); static = static IPv4 (no RADIUS); dual = dual-stack static IPv4+IPv6 (no RADIUS)',
-    access_technology ENUM('wisp','ftth') NULL DEFAULT NULL COMMENT 'Technology serving this contract; NULL = as its plan says (migration 018)',
+    access_technology ENUM('wisp','ftth') NULL DEFAULT NULL COMMENT 'Technology this contract was written for; NULL (older contracts) = as its plan says (migration 018)',
     contract_template_mx_id BIGINT UNSIGNED NULL
                        COMMENT 'MX contract source used for this contract; NULL for contracts without an MX legal source',
     mx_contract_environment ENUM('sandbox','production') NULL

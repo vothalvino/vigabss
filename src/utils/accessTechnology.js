@@ -1,13 +1,15 @@
 // =============================================================================
 // VigaBSS 5.0 — access technology of a contract (WISP or FTTH)
 // =============================================================================
-// A plan is offered over WISP, FTTH or both; a contract may name its own
-// technology (migration 018). The one rule for "which technology serves this
-// contract" lives here, in JavaScript and as SQL, so every place that needs it
-// (speed enforcement, the FTTH area, reports) agrees.
+// A plan is offered over WISP, FTTH or both. A contract is written for one
+// technology, chosen when it is created, and keeps it (migration 018; the
+// rules for creating and re-planning a contract are in
+// services/planAvailability.js). The one rule for "which technology is this
+// contract" lives here, in JavaScript and as SQL, so every place that needs
+// it (speed enforcement, the FTTH area, reports) agrees.
 //
-//   contract says wisp/ftth  -> that
-//   contract says nothing    -> ftth for an FTTH-only plan, wisp otherwise
+//   the contract has a technology -> that
+//   it has none (older contracts) -> ftth for an FTTH-only plan, wisp otherwise
 // =============================================================================
 
 const TECHNOLOGIES = Object.freeze(['wisp', 'ftth']);
@@ -29,10 +31,4 @@ function effectiveTechnologySql(contractAlias = 'c', planAlias = 'p') {
   return `COALESCE(${contractAlias}.access_technology, IF(${planAlias}.access_technology = 'ftth', 'ftth', 'wisp'))`;
 }
 
-/** True when the contract's own choice differs from what its plan is offered over. */
-function isOutsidePlan(contractTechnology, planTechnology) {
-  if (!TECHNOLOGIES.includes(contractTechnology)) return false;
-  return planTechnology !== 'both' && planTechnology !== contractTechnology;
-}
-
-module.exports = { TECHNOLOGIES, PLAN_TECHNOLOGIES, effectiveTechnology, effectiveTechnologySql, isOutsidePlan };
+module.exports = { TECHNOLOGIES, PLAN_TECHNOLOGIES, effectiveTechnology, effectiveTechnologySql };
