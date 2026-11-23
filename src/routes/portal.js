@@ -812,7 +812,7 @@ router.post('/tickets/:id/comments', validate(createCommentSchema, { strip: fals
 async function dataPackContracts(client) {
   const [contracts] = await db.query(
     `SELECT c.id FROM contracts c
-       LEFT JOIN plans p ON p.id = c.plan_id
+       LEFT JOIN plans p ON p.id = c.plan_id AND p.deleted_at IS NULL
       WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
       ORDER BY (COALESCE(p.data_cap_gb, 0) > 0) DESC, c.id ASC
       LIMIT 1`,
