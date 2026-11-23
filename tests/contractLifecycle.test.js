@@ -652,7 +652,8 @@ describe('POST /contracts/:id/terminate', () => {
     );
     expect(radiusCall).toBeTruthy();
     expect(radiusCall[0]).toContain("'inactive'");
-    expect(radiusCall[1]).toEqual(['5']);
+    // Scoped to the caller's organization.
+    expect(radiusCall[1]).toEqual(['5', 1]);
 
     // Fires the best-effort CoA disconnect directly (no longer reuses
     // suspensionService.suspendContract, which incorrectly left
