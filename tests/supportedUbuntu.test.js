@@ -71,3 +71,18 @@ test('the installer and redeploy never check out world-writable files', () => {
   }
   expect(fs.readFileSync(path.join(root, 'install.sh'), 'utf8')).toMatch(/chmod go-w "\$INSTALL_DIR"\/mysql\/\*\.cnf/);
 });
+
+// The first release tagged after these jobs existed failed them: the installer
+// installs the newest tag, whose image the same workflow had not published yet.
+test('the full install waits for the newest release\'s image before installing', () => {
+  const steps = ci.jobs['installer-smoke'].steps;
+  const wait = steps.findIndex(s => /Wait until the newest release's image is published/.test(s.name || ''));
+  const install = steps.findIndex(s => /bash install\.sh/.test(s.run || ''));
+  expect(wait).toBeGreaterThan(-1);
+  expect(install).toBeGreaterThan(wait);
+  expect(steps[wait].run).toMatch(/docker manifest inspect "\$image"/);
+  // The same "newest tag" rule as install.sh.
+  const rule = "sed -E 's#.*refs/tags/##; s/-/~/' | sort -V | tail -n 1 | sed 's/~/-/'";
+  expect(steps[wait].run).toContain(rule);
+  expect(fs.readFileSync(path.join(root, 'install.sh'), 'utf8')).toContain(rule);
+});

@@ -1355,6 +1355,11 @@ jobs:
           echo "Running on ${PRETTY_NAME}"
           test "${VERSION_ID}" = "${{ matrix.ubuntu }}"
 
+      - name: Retry package downloads
+        # A mirror answering 5xx once failed the whole job; apt's own retry
+        # covers that. CI only: install.sh is run exactly as shipped.
+        run: echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-ci-retries
+
       - name: install.sh installs the host dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -1376,7 +1381,8 @@ jobs:
     # the current release (what a new server gets) with a self-signed
     # certificate, since a runner has no public name for Let's Encrypt.
     name: Install on Ubuntu ${{ matrix.ubuntu }}
-    timeout-minutes: 30
+    # 30 minutes may go to waiting for a release's image (first step).
+    timeout-minutes: 60
     runs-on: ubuntu-${{ matrix.ubuntu }}
     permissions:
       contents: read
@@ -1393,6 +1399,27 @@ jobs:
           . /etc/os-release
           echo "Running on ${PRETTY_NAME}, kernel $(uname -r), $(docker --version)"
           test "${VERSION_ID}" = "${{ matrix.ubuntu }}"
+
+      - name: Wait until the newest release's image is published
+        # The installer installs the newest v* tag. Between a tag being pushed
+        # and this workflow publishing its image (publish-manifest, after every
+        # test job) that image does not exist yet, so an install started in
+        # that window, in particular the tag's own run, failed on the pull.
+        # Same lookup as install.sh's latest_remote_release.
+        run: |
+          tag="$(git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v[0-9]*' \
+            | sed -E 's#.*refs/tags/##; s/-/~/' | sort -V | tail -n 1 | sed 's/~/-/')"
+          if [ -z "$tag" ]; then echo "No release tag yet; the installer will use main."; exit 0; fi
+          image="${RELEASE_IMAGE}:${tag#v}"
+          for attempt in $(seq 1 90); do
+            if docker manifest inspect "$image" >/dev/null 2>&1; then
+              echo "$image is published."; exit 0
+            fi
+            echo "Waiting for $image (attempt $attempt of 90)"
+            sleep 20
+          done
+          echo "::error::$image was not published within 30 minutes"
+          exit 1
 
       - name: install.sh installs and starts VigaBSS
         run: |
