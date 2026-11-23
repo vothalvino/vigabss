@@ -1,6 +1,6 @@
 # FreeRADIUS Integration Guide
 
-VigaBSS 0.1.0-alpha.29 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the VigaBSS database.
+VigaBSS 0.1.0-alpha.30 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the VigaBSS database.
 
 ---
 
