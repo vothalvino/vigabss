@@ -57,5 +57,9 @@ describe('weekly VoIP refresh switch', () => {
     expect(detail).toMatch(/api\.DELETE\('\/nas\/\{id\}\/realtime-priority'/);
     // Removal is asked about first.
     expect(detail).toMatch(/message=\{t\('nasVoip\.removeConfirm'\)\}/);
+    // So is turning it on: Seed with VoIP priority ticked asks before it runs.
+    const list = readFileSync(resolve(pages, 'NasList.tsx'), 'utf8');
+    expect(list).toMatch(/if \(form\.seedRealtimePriority\) \{ setAskVoip\(true\); return; \}/);
+    expect(list).toMatch(/message=\{t\('nasVoip\.enableConfirm'\)\}\s+onConfirm=\{\(\) => \{ setAskVoip\(false\); mutation\.mutate\(\); \}\}/);
   });
 });

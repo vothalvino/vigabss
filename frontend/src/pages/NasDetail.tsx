@@ -133,6 +133,7 @@ export function NasDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showRemoveVoip, setShowRemoveVoip] = useState(false);
+  const [voipMenu, setVoipMenu] = useState(false);
 
   // Mirror the backend route guards: health-check requires nas.health,
   // seed/test/voip/edit require devices.update, delete requires devices.delete.
@@ -352,14 +353,28 @@ export function NasDetail() {
             </button>
           )}
           {canManage && (
-            <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title={t('ui.nasDetail.refreshTheVigabssVoipRtc')}>
-              {actionPending === 'voip-refresh' ? 'VoIP…' : 'VoIP'}
-            </button>
-          )}
-          {canManage && (
-            <button style={styles.actionBtn} onClick={() => setShowRemoveVoip(true)} disabled={actionPending !== null} title={t('nasVoip.removeTitle')}>
-              {actionPending === 'voip-remove' ? t('nasVoip.removing') : t('nasVoip.remove')}
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                style={styles.actionBtn}
+                onClick={() => setVoipMenu(open => !open)}
+                disabled={actionPending !== null}
+                aria-haspopup="menu"
+                aria-expanded={voipMenu}
+                title={t('nasVoip.menuTitle')}
+              >
+                {actionPending === 'voip-refresh' || actionPending === 'voip-remove' ? 'VoIP…' : 'VoIP ▾'}
+              </button>
+              {voipMenu && (
+                <div role="menu" style={styles.voipMenu}>
+                  <button role="menuitem" style={styles.voipMenuItem} title={t('ui.nasDetail.refreshTheVigabssVoipRtc')} onClick={() => { setVoipMenu(false); void runVoipRefresh(); }}>
+                    {t('nasVoip.refresh')}
+                  </button>
+                  <button role="menuitem" style={{ ...styles.voipMenuItem, color: 'var(--danger)' }} title={t('nasVoip.removeTitle')} onClick={() => { setVoipMenu(false); setShowRemoveVoip(true); }}>
+                    {t('nasVoip.remove')}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           {canManage && (
             <button style={styles.actionBtn} onClick={() => setShowEdit(true)} title={t('ui.nasDetail.editThisNas')}>
@@ -677,6 +692,8 @@ const styles = {
     fontSize: '0.82rem',
     fontWeight: 500,
   } as React.CSSProperties,
+  voipMenu: { position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 20, minWidth: 220, display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', padding: 4 } as React.CSSProperties,
+  voipMenuItem: { textAlign: 'left', padding: '0.45rem 0.7rem', background: 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' } as React.CSSProperties,
   feedbackError: { padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#991b1b', fontSize: '0.85rem' } as React.CSSProperties,
   feedbackResult: { background: 'var(--bg-subtle, #f9fafb)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap' as const, overflowWrap: 'anywhere' as const },
 };

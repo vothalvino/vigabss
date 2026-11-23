@@ -10,8 +10,9 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   its state). It used to need `VOIP_RANGES_ENABLED=true` in the server's
   environment plus a scheduled task the web GUI could not enable. The
   variable is no longer read; migration 017 corrects the task's description.
-- **VoIP priority can be removed from a router.** A NAS has a "Remove VoIP
-  priority" button that deletes the rules, the priority queue and the
+- **VoIP priority can be removed from a router.** The VoIP button on a NAS is
+  now a small menu: refresh the address list, or remove VoIP priority, which
+  deletes the rules, the priority queue and the
   addresses VigaBSS added for it, after a confirmation. Seeding was add-only,
   so until now it could only be undone by hand on the router. Entries someone
   added to the list by hand are kept.

@@ -1,11 +1,13 @@
 {
   "nasVoip": {
+    "enableConfirm": "Turn on VoIP priority on this router? VigaBSS adds rules and a top-priority queue so calls go first. It does not change anyone's plan speed. You can remove it later from the VoIP menu on this NAS.",
+    "menuTitle": "VoIP priority on this router",
+    "refresh": "Refresh VoIP address list",
     "autoRefresh": "Refresh VoIP ranges every week",
     "autoRefreshHint": "Every Monday, routers with VoIP priority get the calling apps' current addresses, so calls keep their priority. Applies to the whole install.",
     "operatorOnly": "Only the install operator can change this.",
     "lastRun": "Last run: {{when}}.",
     "remove": "Remove VoIP priority",
-    "removing": "Removing…",
     "removeTitle": "Remove real-time / VoIP priority from this router",
     "removeConfirm": "Remove VoIP priority from this router? VigaBSS deletes the rules, the priority queue and the addresses it added for it. Calls will no longer be prioritised. Anything you added to the router yourself is kept. You can set it up again with Seed.",
     "removed": "VoIP priority removed: {{rules}} rules, {{queues}} queue, {{addresses}} addresses. Kept {{kept}} addresses added by hand.",

@@ -650,6 +650,7 @@ function isIpAddress(v: string): boolean {
 
 export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps) {
   const { t } = useTranslation();
+  const [askVoip, setAskVoip] = useState(false);
   const [form, setForm] = useState({
     // Prefill the VigaBSS hub's WireGuard tunnel IP (an IP literal, which RouterOS's
     // /radius `address` requires — a hostname trips a cryptic device error). Routing
@@ -755,6 +756,8 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
       return;
     }
     setError('');
+    // Turning VoIP priority on changes how the router queues traffic: ask first.
+    if (form.seedRealtimePriority) { setAskVoip(true); return; }
     mutation.mutate();
   }
 
@@ -1050,6 +1053,13 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
               </button>
             </div>
           </form>
+        )}
+        {askVoip && (
+          <ConfirmDialog
+            message={t('nasVoip.enableConfirm')}
+            onConfirm={() => { setAskVoip(false); mutation.mutate(); }}
+            onCancel={() => setAskVoip(false)}
+          />
         )}
       </div>
     </div>
