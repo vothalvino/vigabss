@@ -15,12 +15,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@/api/useMutation';
 import { apiFetch } from '@/api/apiFetch';
+import { AuthoriseOnu, ManagedOnus, ProvisioningSettingsForm, type ProvisioningSettings } from './OltProvisioning';
 
 interface OltDevice { id: number; name: string; model: string | null; ip_address: string | null }
 interface Connection {
   configured: boolean; driver?: string; host?: string; port?: number; username?: string;
   has_password?: boolean; legacy_algorithms?: boolean; host_key_fingerprint?: string | null;
   last_checked_at?: string | null; last_check_ok?: boolean | null; last_check_message?: string | null;
+  provisioning?: ProvisioningSettings;
 }
 interface Board { slot: number; board: string; status: string; kind: string }
 interface TestResult {
@@ -172,6 +174,7 @@ function ConnectionForm({ oltId, connection }: { oltId: number; connection: Conn
 
 function Unregistered({ oltId }: { oltId: number }) {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ['olt-unregistered', oltId],
     queryFn: () => apiFetch<{ data: { onus: FoundOnu[]; raw: string } }>(`/olt-management/${oltId}/live/unregistered-onus`),
@@ -187,10 +190,10 @@ function Unregistered({ oltId }: { oltId: number }) {
         ? <p style={s.hint}>{t('oltLive.noneUnregistered')}</p>
         : (
           <table style={s.table}>
-            <thead><tr><th style={s.th}>{t('oltLive.ponPort')}</th><th style={s.th}>{t('oltLive.serial')}</th><th style={s.th}>{t('oltLive.model')}</th><th style={s.th}>{t('oltLive.foundAt')}</th></tr></thead>
+            <thead><tr><th style={s.th}>{t('oltLive.ponPort')}</th><th style={s.th}>{t('oltLive.serial')}</th><th style={s.th}>{t('oltLive.model')}</th><th style={s.th}>{t('oltLive.foundAt')}</th><th style={s.th} /></tr></thead>
             <tbody>
               {q.data.data.onus.map(o => (
-                <tr key={`${o.port}-${o.serial_number}`}><td style={s.td}>{o.port}</td><td style={{ ...s.td, fontFamily: 'monospace' }}>{o.serial_number}</td><td style={s.td}>{o.model ?? '—'}</td><td style={s.td}>{o.found_at ?? '—'}</td></tr>
+                <tr key={`${o.port}-${o.serial_number}`}><td style={s.td}>{o.port}</td><td style={{ ...s.td, fontFamily: 'monospace' }}>{o.serial_number}</td><td style={s.td}>{o.model ?? '—'}</td><td style={s.td}>{o.found_at ?? '—'}</td><td style={s.td}><AuthoriseOnu oltId={oltId} port={o.port} serial={o.serial_number} onDone={() => { void q.refetch(); void qc.invalidateQueries({ queryKey: ['olt-managed-onus', oltId] }); }} /></td></tr>
               ))}
             </tbody>
           </table>
@@ -354,7 +357,11 @@ export function OltLiveTab() {
         <>
           <ConnectionForm key={`${oltId}-${connection.data.data.host ?? ''}`} oltId={oltId} connection={connection.data.data} />
           <FibreStatus key={`f-${oltId}`} oltId={oltId} />
+          {connection.data.data.configured && connection.data.data.provisioning && (
+            <ProvisioningSettingsForm key={`s-${oltId}`} oltId={oltId} settings={connection.data.data.provisioning} />
+          )}
           {connection.data.data.configured && <Unregistered key={`u-${oltId}`} oltId={oltId} />}
+          {connection.data.data.configured && <ManagedOnus key={`m-${oltId}`} oltId={oltId} />}
           {connection.data.data.configured && <PortOnus key={`p-${oltId}`} oltId={oltId} />}
         </>
       )}

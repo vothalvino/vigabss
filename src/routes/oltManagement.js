@@ -43,6 +43,7 @@ const {
 const ftthService = require('../services/ftthService');
 const oltConnectionService = require('../services/olt/oltConnectionService');
 const fibreFaultService = require('../services/olt/fibreFaultService');
+const oltProvisioningService = require('../services/olt/oltProvisioningService');
 const { isInstallOperator } = require('../services/installOperator');
 
 const saveOltConnection = {
@@ -65,7 +66,7 @@ router.use(orgScope);
 // is write-only. Every live answer carries `raw`, the text the OLT printed.
 
 const OLT_ERROR_STATUS = {
-  AUTH_FAILED: 422, HOST_KEY_CHANGED: 409, INVALID_PORT: 422,
+  AUTH_FAILED: 422, HOST_KEY_CHANGED: 409, INVALID_PORT: 422, INVALID_VALUE: 422,
   UNREACHABLE: 502, CONNECT_FAILED: 502, TIMEOUT: 504,
 };
 
@@ -177,6 +178,60 @@ router.get('/:id/live/onus', requirePermission('olt_management.view'), async (re
       },
     });
   } catch (err) { sendOltError(res, next, err); }
+});
+
+// ---------------------------------------------------------------------------
+// Provisioning ONUs. Each change is previewed first: without `apply: true`
+// the exact commands are returned and nothing is sent to the OLT.
+// ---------------------------------------------------------------------------
+
+/** A refused command answers 502 with what was sent and what the OLT said. */
+function sendProvisioningError(res, next, err) {
+  if (err && err.code === 'OLT_COMMAND_REFUSED') {
+    return res.status(502).json({ error: { code: err.code, message: err.message, transcript: err.transcript } });
+  }
+  return sendOltError(res, next, err);
+}
+const applyOpts = (req) => ({ apply: req.body?.apply === true, userId: req.user?.id || null });
+
+router.put('/:id/provisioning', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await oltConnectionService.saveProvisioning(req.params.id, req.orgId, req.body || {}) }); } catch (err) { next(err); }
+});
+
+router.get('/:id/managed-onus', requirePermission('olt_management.view'), async (req, res, next) => {
+  try { res.json({ data: await oltProvisioningService.list(req.orgId, req.params.id) }); } catch (err) { next(err); }
+});
+
+router.get('/:id/operations', requirePermission('olt_management.view'), async (req, res, next) => {
+  try { res.json({ data: await oltProvisioningService.operations(req.orgId, req.params.id, req.query.limit) }); } catch (err) { next(err); }
+});
+
+router.post('/:id/managed-onus', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const data = await oltProvisioningService.authorise(req.orgId, req.params.id, {
+      port: b.port, serial: b.serial_number, contractId: b.contract_id, upKbps: b.up_kbps, downKbps: b.down_kbps, description: b.description,
+    }, applyOpts(req));
+    res.status(data.applied ? 201 : 200).json({ data });
+  } catch (err) { sendProvisioningError(res, next, err); }
+});
+
+router.post('/:id/managed-onus/:onuId/speed', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    res.json({ data: await oltProvisioningService.setSpeed(req.orgId, req.params.id, req.params.onuId, { upKbps: b.up_kbps, downKbps: b.down_kbps }, applyOpts(req)) });
+  } catch (err) { sendProvisioningError(res, next, err); }
+});
+
+router.post('/:id/managed-onus/:onuId/active', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    if (typeof req.body?.active !== 'boolean') return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'active is required (true or false)' } });
+    res.json({ data: await oltProvisioningService.setActive(req.orgId, req.params.id, req.params.onuId, req.body.active, applyOpts(req)) });
+  } catch (err) { sendProvisioningError(res, next, err); }
+});
+
+router.post('/:id/managed-onus/:onuId/remove', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await oltProvisioningService.remove(req.orgId, req.params.id, req.params.onuId, applyOpts(req)) }); } catch (err) { sendProvisioningError(res, next, err); }
 });
 
 // Every PON port judged from the stored readings (no device access).

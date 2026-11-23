@@ -51,6 +51,16 @@ function view(conn) {
     username: conn.username,
     has_password: Boolean(conn.password_encrypted),
     legacy_algorithms: Boolean(Number(conn.legacy_algorithms)),
+    // What a new ONU on this OLT is provisioned with (migration 025).
+    provisioning: {
+      line_profile_id: conn.line_profile_id ?? null,
+      srv_profile_id: conn.srv_profile_id ?? null,
+      service_vlan: conn.service_vlan ?? null,
+      user_vlan: conn.user_vlan ?? null,
+      gem_port: conn.gem_port ?? null,
+      native_vlan_eth_port: conn.native_vlan_eth_port ?? null,
+      traffic_table_base: conn.traffic_table_base ?? 200,
+    },
     host_key_fingerprint: conn.host_key_fingerprint || null,
     last_checked_at: conn.last_checked_at || null,
     last_check_ok: conn.last_check_ok === null || conn.last_check_ok === undefined ? null : Boolean(Number(conn.last_check_ok)),
@@ -100,6 +110,35 @@ async function save(deviceId, orgId, body) {
       [driver, host, port, username, newPassword ? encrypt(newPassword) : existing.password_encrypted, legacy,
         moved ? null : existing.host_key_fingerprint, deviceId, orgId],
     );
+  }
+  return view(await row(deviceId, orgId));
+}
+
+const PROVISIONING_FIELDS = Object.freeze({
+  line_profile_id: [0, 8191], srv_profile_id: [0, 8191], service_vlan: [1, 4093], user_vlan: [1, 4093],
+  gem_port: [0, 1023], native_vlan_eth_port: [1, 8], traffic_table_base: [7, 1000],
+});
+
+/** Save what a new ONU on this OLT is provisioned with. Blank clears a value. */
+async function saveProvisioning(deviceId, orgId, body) {
+  await oltDevice(deviceId, orgId);
+  const existing = await row(deviceId, orgId);
+  if (!existing) throw new ValidationError('Save the OLT login first');
+  const sets = [];
+  const params = [];
+  for (const [field, [min, max]] of Object.entries(PROVISIONING_FIELDS)) {
+    if (body[field] === undefined) continue;
+    const blank = body[field] === null || body[field] === '';
+    if (blank && field === 'traffic_table_base') throw new ValidationError('traffic_table_base is required');
+    const n = blank ? null : Number(body[field]);
+    if (!blank && (!Number.isInteger(n) || n < min || n > max)) {
+      throw new ValidationError(`${field} must be a whole number from ${min} to ${max}`);
+    }
+    sets.push(`${field} = ?`);
+    params.push(n);
+  }
+  if (sets.length) {
+    await db.query(`UPDATE olt_connections SET ${sets.join(', ')} WHERE device_id = ? AND organization_id = ?`, [...params, deviceId, orgId]);
   }
   return view(await row(deviceId, orgId));
 }
@@ -187,4 +226,4 @@ function withDriver(deviceId, orgId, work, { open = cli.openSsh } = {}) {
   return next;
 }
 
-module.exports = { get, save, remove, forgetHostKey, withDriver, view, assertOlt: oltDevice, DRIVERS };
+module.exports = { get, save, saveProvisioning, remove, forgetHostKey, withDriver, view, assertOlt: oltDevice, connectionRow: row, DRIVERS };

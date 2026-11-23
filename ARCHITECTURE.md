@@ -1701,6 +1701,16 @@ An OLT has no API; it is driven through its interactive command line over SSH.
   over SNMP. Object numbers, scales and the ifIndex layout are unverified on
   hardware and are listed at the top of that file.
 
+- `src/services/olt/huaweiMa5800Write.js` builds changes as plans: ordered
+  lists of exact command lines from validated values (`plan*` are pure), and
+  `apply` sends a plan line by line and stops at the first answer the OLT
+  marks as a failure. `oltProvisioningService` runs each operation as a
+  preview (plan returned, nothing changed) or applied (sent, and recorded in
+  `olt_operations`). ONUs it authorised are in `olt_onus`; the rate-limit
+  tables it created are in `olt_traffic_tables` (migration 025). Speed is the
+  pair of traffic tables on the ONU's service-port. A failed run is not
+  rolled back; the log shows what ran.
+
 A new vendor is a new dialect module registered in `DRIVERS`; the session and
 the connection service do not change.
 
