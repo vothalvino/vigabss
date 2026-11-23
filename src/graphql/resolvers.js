@@ -321,8 +321,8 @@ const resolvers = {
     clientId: (c) => c.client_id,
     planId: (c) => c.plan_id,
     connectionType: (c) => c.connection_type,
-    accessTechnologyOverride: (c) => c.access_technology || null,
-    // The technology that serves the contract (migration 018).
+    // The technology the contract was written for (migration 018). Contracts
+    // from before it carry none and follow their plan.
     accessTechnology: async (c, _args, ctx) => {
       if (c.access_technology) return c.access_technology;
       if (!c.plan_id) return 'wisp';

@@ -1638,12 +1638,17 @@ path for whatever already carries the old name.
 ### Access technology (WISP / FTTH)
 
 `plans.access_technology` is `wisp`, `ftth` or `both`; `contracts.access_technology`
-is `wisp`, `ftth` or NULL (as the plan says). The technology serving a contract
-is decided in one place, `src/utils/accessTechnology.js` (`effectiveTechnology`
-and its SQL twin `effectiveTechnologySql`): the contract's own value, else
-`ftth` for an FTTH-only plan, else `wisp`. Use it instead of reading either
-column directly. A contract may name a technology its plan is not offered
-over; that is how a subscriber is migrated without a new contract.
+is `wisp` or `ftth`, written when the contract is created and fixed after
+that. Changing between WISP and FTTH is done with a new contract.
+
+- `planAvailability.resolveNewContractTechnology` decides it at creation: the
+  plan's technology, or the caller's choice when the plan is offered over both.
+- `contractUpdateGuard` refuses a different `access_technology`, and
+  `planAvailability.assertPlanKeepsTechnology` refuses moving a contract to a
+  plan that is not offered over its technology (PUT, batch plan change, renew).
+- To read it, use `src/utils/accessTechnology.js` (`effectiveTechnology` and
+  its SQL twin `effectiveTechnologySql`), not the column: contracts from before
+  migration 018 carry NULL and follow their plan.
 
 Speed enforcement does not branch on it yet: RADIUS sends the plan speed to
 the BNG for every contract. FTTH (speed applied on the OLT, Huawei MA5800/
