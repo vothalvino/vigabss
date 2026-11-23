@@ -32,9 +32,20 @@ describe('privileged WireGuard helper allowlist', () => {
   test('exposes semantic operations rather than a command execution primitive', () => {
     expect(Object.keys(operations).sort()).toEqual([
       'bootstrapHost', 'ensureBaseFirewall', 'readPeerHandshakes', 'removePeer',
-      'removeUserPeer', 'setUserForwardScope', 'shutdownHost', 'syncPeer', 'syncUserPeer',
+      'removeUserPeer', 'setPortalAddresses', 'setUserForwardScope', 'shutdownHost', 'syncPeer', 'syncUserPeer',
     ]);
     expect(operations).not.toHaveProperty('exec');
+  });
+
+  test('setPortalAddresses takes IP address literals only', async () => {
+    await expect(operations.setPortalAddresses({ v4: ['203.0.113.10; flush ruleset'] })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(operations.setPortalAddresses({ v4: ['2001:db8::1'] })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(operations.setPortalAddresses({ v6: ['203.0.113.10'] })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(operations.setPortalAddresses({ v4: [], host: 'example.com' })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(operations.setPortalAddresses({ v4: Array(17).fill('203.0.113.10') })).rejects.toMatchObject({ statusCode: 422 });
+  });
+
+  test('the remaining guarantees', () => {
     expect(Object.hasOwn(operations, 'constructor')).toBe(false);
   });
 

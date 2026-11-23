@@ -448,10 +448,27 @@ describe('ensureBaseFirewall()', () => {
 
     test('input lets NAS peers reach only RADIUS and SNMP traps, and nothing reach the HTTP port', async () => {
       const nft = await freshInstall();
-      const input = nft.slice(nft.indexOf('chain input {'), nft.indexOf('chain wg_user_fwd'));
+      const input = nft.slice(nft.indexOf('chain input {'), nft.indexOf('set portal4'));
       expect(input).toMatch(/iifname "wg-vigabss" udp dport \{ 1812, 1813, 1620 \} accept/);
       expect(input).toMatch(/iifname \{ "wg-clients", "wg-vigabss" \} drop/);
-      expect(input).not.toMatch(/tcp/);
+      // The one TCP port open to a tunnel is the portal forwarder, for clients
+      // only; a NAS peer reaches no TCP port and nobody reaches the app's.
+      const tcp = input.split('\n').filter((line) => /tcp/.test(line) && !line.trim().startsWith('#'));
+      expect(tcp.map((line) => line.trim())).toEqual(['iifname "wg-clients" tcp dport 8443 accept']);
+      expect(input.indexOf('tcp dport 8443 accept')).toBeLessThan(input.indexOf('iifname { "wg-clients", "wg-vigabss" } drop'));
+    });
+
+    test('a client opening this install\'s own site is redirected to the forwarder, and only that', async () => {
+      const nft = await freshInstall();
+      const pre = nft.slice(nft.indexOf('chain prerouting {'), nft.indexOf('chain wg_user_fwd'));
+      expect(pre).toMatch(/type nat hook prerouting priority dstnat;/);
+      const rules = pre.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('iifname'));
+      // Only from the client tunnel, only to this install's addresses, only 443.
+      expect(rules[0]).toBe('iifname "wg-clients" ip daddr @portal4 tcp dport 443 redirect to :8443');
+      expect(rules.every((r) => /^iifname "wg-clients" ip6? daddr @portal[46] tcp dport 443 redirect to :8443$/.test(r))).toBe(true);
+      // The address sets start empty: nothing is redirected until the app asks.
+      expect(nft).toMatch(/set portal4 \{\s+type ipv4_addr;\s+\}/);
+      expect(nft).toMatch(/set portal6 \{\s+type ipv6_addr;\s+\}/);
     });
   });
 

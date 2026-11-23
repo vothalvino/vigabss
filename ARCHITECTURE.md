@@ -1635,6 +1635,32 @@ and nftables table (`vigabss_wg`), the objects written to managed routers
 names. They are contracts with deployed state: renaming one needs an upgrade
 path for whatever already carries the old name.
 
+### VPN clients keep their own address
+
+A full-tunnel WireGuard client (`wg-clients`) that opens this install's own
+site would otherwise arrive as the Docker bridge gateway: the hub NATs the
+connection out, it loops back through the host's published port, and every
+client looks the same to nginx and to the app.
+
+- The hub's nftables table (`vigabss_wg`) has two address sets, `portal4` and
+  `portal6`, and a `prerouting` chain that redirects a client's TCP 443
+  connection to one of those addresses to port 8443 in the hub's network
+  namespace. The sets start empty; nothing is redirected until they are filled.
+- `src/services/vpnPortalForwarder.js` listens on that port as the ordinary
+  non-root app. It accepts tunnel-client addresses only, connects to nginx's
+  port 8443 and announces the client's tunnel address with the PROXY protocol.
+  TLS is passed through, not terminated. The announced address always comes
+  from the accepted socket.
+- `nginx/nginx.conf` listens on 8443 with `proxy_protocol` and takes the
+  announced address as `$remote_addr`, so `req.ip` in the app is the tunnel
+  address. **Port 8443 must never be published**: an announced address is
+  trusted from private sources, and only the Compose network can reach it.
+- The app resolves `APP_URL`'s host and asks the helper (`setPortalAddresses`,
+  IP literals only) to fill the sets, at start and every ten minutes, and only
+  while the forwarder is listening and nginx's port answers. Otherwise the
+  sets are emptied and a client reaches the site as before (this is what
+  happens with a host nginx or an nginx that has not loaded the new config).
+
 ## Recurring failure modes
 
 - **Column/response drift:** direct SQL rows expose unaliased column names; a
