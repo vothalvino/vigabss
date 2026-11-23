@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
+import { PortalAutopayCard } from './PortalAutopayCard';
 
 const API_BASE = '/api/v1/portal';
 
@@ -141,24 +142,6 @@ export function PortalAccount() {
 
   const waLinks = waStatus?.data.links ?? [];
 
-  const { data: autopay } = useQuery({
-    queryKey: ['portal-autopay-status'],
-    queryFn: () => portalFetch<{ data: { enabled: boolean; profile: { card_brand: string | null; card_last_four: string | null } | null } }>('/autopay/status'),
-  });
-  const autopayEnrollMutation = useMutation({
-    mutationFn: () => portalFetch<{ data: { setup_url: string } }>('/autopay/enroll', {
-      method: 'POST',
-      body: JSON.stringify({ return_url: window.location.href }),
-    }),
-    onSuccess: (res) => { window.location.href = res.data.setup_url; },
-    onError: (e: Error) => { setErrMsg(e.message); },
-  });
-  const autopayDisableMutation = useMutation({
-    mutationFn: () => portalFetch('/autopay', { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-autopay-status'] }),
-    onError: (e: Error) => { setErrMsg(e.message); },
-  });
-
   function handleSubmit() {
     setMsg(''); setErrMsg('');
 
@@ -195,26 +178,7 @@ export function PortalAccount() {
     <div>
       <h1 style={styles.heading}>{t('portalAccount.title')}</h1>
 
-      <section style={{ ...styles.card, marginBottom: '1rem' }}>
-        <h2 style={styles.sectionTitle}>{t('portalAccount.autopay')}</h2>
-        {autopay?.data.enabled ? (
-          <div>
-            <p style={styles.muted}>
-              ✅ {autopay.data.profile?.card_last_four
-                ? t('portalAccount.autopayOnCard', { card: `${autopay.data.profile.card_brand ? `${autopay.data.profile.card_brand} ` : ''}${autopay.data.profile.card_last_four}` })
-                : t('portalAccount.autopayOn')}
-            </p>
-            <button style={styles.cancelBtn} onClick={() => autopayDisableMutation.mutate()}>{t('portalAccount.autopayOff')}</button>
-          </div>
-        ) : (
-          <div>
-            <p style={styles.muted}>{t('portalAccount.autopayPitch')}</p>
-            <button style={styles.submitBtn} onClick={() => autopayEnrollMutation.mutate()} disabled={autopayEnrollMutation.isPending}>
-              {autopayEnrollMutation.isPending ? t('portalAccount.redirecting') : t('portalAccount.autopayEnable')}
-            </button>
-          </div>
-        )}
-      </section>
+      <PortalAutopayCard cardStyle={{ ...styles.card, marginBottom: '1rem' }} titleStyle={styles.sectionTitle} />
 
       <div style={styles.tabs}>
         <button
