@@ -47,63 +47,7 @@ import {
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
-// ---------------------------------------------------------------------------
-// GraphQL query — fetches the contract + all sub-resources in one request
-// ---------------------------------------------------------------------------
-
-const CONTRACT_DETAIL_QUERY = /* GraphQL */ `
-  query ContractDetail($id: ID!) {
-    contract(id: $id) {
-      id
-      clientId
-      planId
-      connectionType
-      startDate
-      endDate
-      billingDay
-      status
-      ipAddress
-      priceOverride
-      mxContractEnvironment
-      notes
-      createdAt
-      client {
-        id
-        name
-        status
-      }
-      invoices {
-        id
-        invoiceNumber
-        total
-        currency
-        dueDate
-        paidAt
-        status
-      }
-      devices {
-        id
-        name
-        type
-        manufacturer
-        model
-        macAddress
-        ipAddress
-        status
-      }
-      addons {
-        id
-        addonName
-        addonType
-        quantity
-        unitPrice
-        startDate
-        endDate
-        status
-      }
-    }
-  }
-`;
+import { CONTRACT_DETAIL_QUERY } from './contracts/contractDetailQuery';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -152,6 +96,8 @@ interface Contract {
   clientId: string;
   planId: string | null;
   connectionType: string | null;
+  accessTechnology?: string | null;
+  accessTechnologyOverride?: string | null;
   startDate: string | null;
   endDate: string | null;
   billingDay: number | null;
@@ -1022,6 +968,12 @@ function ContractInfoCard({ contract }: { contract: Contract }) {
         )}
         <InfoRow label={t('ui.contractDetail.plan')}        value={contract.planId ? `Plan #${contract.planId}` : null} />
         <InfoRow label={t('ui.contractDetail.type2')}        value={contract.connectionType} capitalize />
+        <InfoRow
+          label={t('accessTechnology.contractLabel')}
+          value={contract.accessTechnology
+            ? `${t(`accessTechnology.name.${contract.accessTechnology === 'ftth' ? 'ftth' : 'wisp'}`)}${contract.accessTechnologyOverride ? ` (${t('accessTechnology.setOnContract')})` : ''}`
+            : null}
+        />
         <InfoRow label={t('ui.contractDetail.startDate')}  value={fmt(contract.startDate)} />
         <InfoRow label={t('ui.contractDetail.endDate')}    value={fmt(contract.endDate)} />
         <InfoRow label={t('ui.contractDetail.billingDay')} value={contract.billingDay != null ? String(contract.billingDay) : null} />

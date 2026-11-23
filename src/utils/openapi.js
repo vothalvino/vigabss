@@ -4310,7 +4310,7 @@ function connectionSessionSchema() {
       attribution_anomaly_reason: nullableString(),
       usage_last_bytes_in: nullableInteger(), usage_last_bytes_out: nullableInteger(),
       usage_last_packets_in: nullableInteger(), usage_last_packets_out: nullableInteger(), usage_last_duration: nullableInteger(),
-      retention_at: nullableString('date-time'), stack_type: nullableString(), created_at: nullableString('date-time'),
+      retention_at: nullableString('date-time'), stack_type: nullableString(), access_technology: { type: 'string', enum: ['wisp', 'ftth', 'both'], description: 'Access technology the plan is offered over' }, created_at: nullableString('date-time'),
     },
   };
 }

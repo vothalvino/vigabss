@@ -10,6 +10,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { effectiveTechnology } = require('../utils/accessTechnology');
 const Client = require('../models/Client');
 const Contract = require('../models/Contract');
 const Invoice = require('../models/Invoice');
@@ -320,6 +321,17 @@ const resolvers = {
     clientId: (c) => c.client_id,
     planId: (c) => c.plan_id,
     connectionType: (c) => c.connection_type,
+    accessTechnologyOverride: (c) => c.access_technology || null,
+    // The technology that serves the contract (migration 018).
+    accessTechnology: async (c, _args, ctx) => {
+      if (c.access_technology) return c.access_technology;
+      if (!c.plan_id) return 'wisp';
+      const [rows] = await db.query(
+        'SELECT access_technology FROM plans WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) LIMIT 1',
+        [c.plan_id, ctx.orgId],
+      );
+      return effectiveTechnology(null, rows[0]?.access_technology);
+    },
     startDate: (c) => c.start_date,
     endDate: (c) => c.end_date,
     billingDay: (c) => c.billing_day,

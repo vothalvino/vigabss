@@ -7,6 +7,8 @@ const createContract = {
   plan_id: { type: 'number', required: true, min: 1 },
   contract_template_mx_id: { type: 'number', min: 1 },
   connection_type: { type: 'string', enum: ['pppoe', 'pppoe_dual', 'static', 'dual'] },
+  // null = as the plan says (migration 018).
+  access_technology: { type: 'string', enum: ['wisp', 'ftth'] },
   start_date: { type: 'string', required: true },
   billing_day: { type: 'number', min: 1, max: 28 },
   price_override: { type: 'number', min: 0 },
@@ -30,6 +32,8 @@ const updateContract = {
   prorate: { type: 'boolean' },
   contract_template_mx_id: { type: 'number', min: 1 },
   connection_type: { type: 'string', enum: ['pppoe', 'pppoe_dual', 'static', 'dual'] },
+  // null = as the plan says (migration 018).
+  access_technology: { type: 'string', enum: ['wisp', 'ftth'] },
   start_date: { type: 'string' },
   end_date: { type: 'string' },
   billing_day: { type: 'number', min: 1, max: 28 },

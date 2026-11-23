@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Access technology on plans and contracts (WISP / FTTH).** A plan is marked
+  WISP, FTTH or both. A contract has its own Technology setting (new contract
+  and edit contract forms), which defaults to what the plan says, so a
+  subscriber can be moved from WISP to FTTH on the same contract with no new
+  plan and no new signature. The contract page shows the technology in use.
+  Existing plans and contracts stay WISP (migration 018). This release only
+  records the technology: speeds are still sent to the MikroTik for every
+  contract. Enforcing FTTH speeds on the OLT comes with the Huawei OLT driver.
+
 - **The weekly VoIP range refresh is switched on in the app.** Network → NAS
   has a "Refresh VoIP ranges every week" switch (install operator; others see
   its state). It used to need `VOIP_RANGES_ENABLED=true` in the server's

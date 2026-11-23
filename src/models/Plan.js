@@ -19,7 +19,7 @@ class Plan extends BaseModel {
       'fup_download_speed_mbps', 'fup_upload_speed_mbps',
       'overage_mode', 'overage_price_per_gb',
       'trial_days', 'trial_price',
-      'stack_type',
+      'stack_type', 'access_technology',
       'session_timeout_seconds', 'idle_timeout_seconds', 'simultaneous_use',
     ];
   }
