@@ -41,10 +41,90 @@ const {
   createOnuMigrationJob, patchOnuMigrationJob,
 } = require('../middleware/schemas/onuMigrationJobs');
 const ftthService = require('../services/ftthService');
+const oltConnectionService = require('../services/olt/oltConnectionService');
+
+const saveOltConnection = {
+  driver: { type: 'string', enum: ['huawei_ma5800'] },
+  host: { type: 'string', max: 45 },
+  port: { type: 'number', min: 1, max: 65535 },
+  username: { type: 'string', max: 64 },
+  password: { type: 'string', max: 256 },
+  legacy_algorithms: { type: 'boolean' },
+};
 
 const router = Router();
 router.use(authenticate);
 router.use(orgScope);
+
+// ---------------------------------------------------------------------------
+// The OLT's command line (Huawei MA5800/EA5800 over SSH)
+// ---------------------------------------------------------------------------
+// The saved login, and read-only questions asked of the live OLT. The password
+// is write-only. Every live answer carries `raw`, the text the OLT printed.
+
+const OLT_ERROR_STATUS = {
+  AUTH_FAILED: 422, HOST_KEY_CHANGED: 409, INVALID_PORT: 422,
+  UNREACHABLE: 502, CONNECT_FAILED: 502, TIMEOUT: 504,
+};
+
+/** Map a command-line failure to a response the screen can explain. */
+function sendOltError(res, next, err) {
+  if (err && err.name === 'CliError') {
+    return res.status(OLT_ERROR_STATUS[err.code] || 502).json({
+      error: {
+        code: `OLT_${err.code}`,
+        message: err.message,
+        ...(err.seenFingerprint ? { seen_fingerprint: err.seenFingerprint } : {}),
+        ...(err.raw ? { raw: String(err.raw).slice(0, 4000) } : {}),
+      },
+    });
+  }
+  return next(err);
+}
+
+router.get('/:id/connection', requirePermission('olt_management.view'), async (req, res, next) => {
+  try { res.json({ data: await oltConnectionService.get(req.params.id, req.orgId) }); } catch (err) { next(err); }
+});
+
+router.put('/:id/connection', requirePermission('devices.update'), validate(saveOltConnection, { strip: false }), async (req, res, next) => {
+  try { res.json({ data: await oltConnectionService.save(req.params.id, req.orgId, req.body) }); } catch (err) { next(err); }
+});
+
+router.delete('/:id/connection', requirePermission('devices.update'), async (req, res, next) => {
+  try { await oltConnectionService.remove(req.params.id, req.orgId); res.status(204).end(); } catch (err) { next(err); }
+});
+
+// The OLT was replaced or reset: accept whatever key it presents next time.
+router.delete('/:id/connection/host-key', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await oltConnectionService.forgetHostKey(req.params.id, req.orgId) }); } catch (err) { next(err); }
+});
+
+// Log in, read the software version and the boards. Changes nothing on the OLT.
+router.post('/:id/connection/test', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const data = await oltConnectionService.withDriver(req.params.id, req.orgId, async (driver) => {
+      const system = await driver.systemInfo();
+      const { boards, raw } = await driver.boards(0);
+      return { system, boards, boards_raw: raw };
+    });
+    res.json({ data: { ...data, connection: await oltConnectionService.get(req.params.id, req.orgId) } });
+  } catch (err) { sendOltError(res, next, err); }
+});
+
+// ONUs that are plugged in but not yet authorised on any port.
+router.get('/:id/live/unregistered-onus', requirePermission('olt_management.view'), async (req, res, next) => {
+  try {
+    res.json({ data: await oltConnectionService.withDriver(req.params.id, req.orgId, (driver) => driver.unregisteredOnus()) });
+  } catch (err) { sendOltError(res, next, err); }
+});
+
+// Authorised ONUs on one PON port (?port=0/1/0), with state and optical power.
+router.get('/:id/live/onus', requirePermission('olt_management.view'), async (req, res, next) => {
+  try {
+    const port = String(req.query.port || '');
+    res.json({ data: await oltConnectionService.withDriver(req.params.id, req.orgId, (driver) => driver.onusOnPort(port)) });
+  } catch (err) { sendOltError(res, next, err); }
+});
 
 // ---------------------------------------------------------------------------
 // OLT Device sub-resources (FTTH-specific views layered over existing devices)
