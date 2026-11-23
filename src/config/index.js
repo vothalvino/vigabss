@@ -222,9 +222,9 @@ const config = {
   // VoIP/RTC address-list auto-updater (voipRangesService). Refreshes the
   // vigabss-voip address-list on managed NAS from provider IP-range endpoints so
   // the §VoIP realtime-priority mangle keeps matching current RTC media servers.
-  // Disabled by default — enable per deployment once realtime priority is seeded.
+  // Whether it runs is the scheduled task's own switch (Network → NAS →
+  // "Refresh VoIP ranges every week"), not an environment variable.
   voipRanges: {
-    enabled:        parseBoolEnv('VOIP_RANGES_ENABLED', false),
     // Comma-separated source URLs; each returns CIDRs as plain lines or Google-style
     // JSON ({prefixes:[{ipv4Prefix}]}). Default = Zoom's published RTC ranges (Zoom is
     // a real-time-only service, so prioritising all of it is safe — unlike all-of-Meta/

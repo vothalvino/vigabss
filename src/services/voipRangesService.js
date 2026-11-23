@@ -180,10 +180,6 @@ async function resolveRanges({ fetchImpl } = {}) {
  * @returns {Promise<object>} summary report
  */
 async function refreshAllNas(organizationId = null) {
-  if (!config.voipRanges.enabled) {
-    return { skipped: true, reason: 'VOIP_RANGES_ENABLED is false' };
-  }
-
   const { ranges, sources, capped } = await resolveRanges();
   if (!ranges.length) {
     return { skipped: true, reason: 'no VoIP ranges resolved', sources };
@@ -229,7 +225,42 @@ async function refreshAllNas(organizationId = null) {
   return summary;
 }
 
+const AUTO_REFRESH_TASK = 'refresh_voip_ranges';
+
+/**
+ * The weekly refresh is the install-wide scheduled task `refresh_voip_ranges`.
+ * Its is_enabled flag is the one switch; the scheduler picks a change up
+ * within a minute on every replica.
+ */
+async function autoRefreshStatus() {
+  const [rows] = await db.query(
+    `SELECT is_enabled, cron_expression, last_run_at, last_status
+       FROM scheduled_tasks
+      WHERE task_name = ? AND organization_id IS NULL
+      ORDER BY id ASC LIMIT 1`,
+    [AUTO_REFRESH_TASK],
+  );
+  const task = rows[0];
+  return {
+    available: Boolean(task),
+    enabled: Boolean(task && Number(task.is_enabled) === 1),
+    cron_expression: task?.cron_expression || null,
+    last_run_at: task?.last_run_at || null,
+    last_status: task?.last_status || null,
+  };
+}
+
+async function setAutoRefresh(enabled) {
+  await db.query(
+    'UPDATE scheduled_tasks SET is_enabled = ? WHERE task_name = ? AND organization_id IS NULL',
+    [enabled ? 1 : 0, AUTO_REFRESH_TASK],
+  );
+  return autoRefreshStatus();
+}
+
 module.exports = {
+  autoRefreshStatus,
+  setAutoRefresh,
   isIpv4Cidr,
   parseSourceBody,
   resolveRanges,

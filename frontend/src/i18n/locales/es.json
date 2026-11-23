@@ -1,4 +1,19 @@
 {
+  "nasVoip": {
+    "enableConfirm": "¿Activar la prioridad VoIP en este router? VigaBSS agrega reglas y una cola de máxima prioridad para que las llamadas pasen primero. No cambia la velocidad del plan de nadie. Puedes quitarla después desde el menú VoIP de este NAS.",
+    "menuTitle": "Prioridad VoIP en este router",
+    "refresh": "Actualizar lista de direcciones VoIP",
+    "autoRefresh": "Actualizar rangos VoIP cada semana",
+    "autoRefreshHint": "Cada lunes, los routers con prioridad VoIP reciben las direcciones actuales de las apps de llamadas, para que las llamadas conserven su prioridad. Aplica a toda la instalación.",
+    "operatorOnly": "Solo el operador de la instalación puede cambiarlo.",
+    "lastRun": "Última ejecución: {{when}}.",
+    "remove": "Quitar prioridad VoIP",
+    "removeTitle": "Quitar la prioridad de tiempo real / VoIP de este router",
+    "removeConfirm": "¿Quitar la prioridad VoIP de este router? VigaBSS elimina las reglas, la cola de prioridad y las direcciones que agregó para ello. Las llamadas dejarán de tener prioridad. Lo que hayas agregado tú mismo en el router se conserva. Puedes configurarla de nuevo con Seed.",
+    "removed": "Prioridad VoIP eliminada: {{rules}} reglas, {{queues}} cola, {{addresses}} direcciones. Se conservaron {{kept}} direcciones agregadas a mano.",
+    "nothingToRemove": "Este router no tiene prioridad VoIP configurada por VigaBSS. No se cambió nada.",
+    "removeFailed": "No se pudo quitar la prioridad VoIP. Puede que el router no esté accesible."
+  },
   "cfdiAutoStamp": {
     "label": "Timbrar automáticamente las facturas generadas",
     "hint": "Si está activo, la facturación programada timbra cada factura que genera, en el entorno fiscal de arriba. Una factura que no se puede timbrar (perfil fiscal del cliente incompleto, error del PAC) queda sin timbrar o como borrador de CFDI para reintentar desde Gestión de CFDI.",

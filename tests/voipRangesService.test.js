@@ -31,7 +31,6 @@ function makeFetch(bodyByUrl) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  config.voipRanges.enabled = true;
   config.voipRanges.sourceUrls = ['https://example.com/zoom.txt'];
   config.voipRanges.maxEntries = 4000;
 });
@@ -135,11 +134,11 @@ describe('resolveRanges', () => {
 // refreshAllNas
 // =============================================================================
 describe('refreshAllNas', () => {
-  test('short-circuits when the feature is disabled', async () => {
-    config.voipRanges.enabled = false;
-    const result = await svc.refreshAllNas(1);
-    expect(result).toEqual({ skipped: true, reason: 'VOIP_RANGES_ENABLED is false' });
-    expect(db.query).not.toHaveBeenCalled();
+  test('no environment variable gates it: the scheduled task being enabled is the switch', async () => {
+    expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'config', 'index.js'), 'utf8'))
+      .not.toMatch(/VOIP_RANGES_ENABLED/);
+    expect(require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'services', 'voipRangesService.js'), 'utf8'))
+      .not.toMatch(/VOIP_RANGES_ENABLED/);
   });
 
   test('resolves ranges once and aggregates per-NAS reconcile results', async () => {
@@ -178,5 +177,34 @@ describe('refreshAllNas', () => {
       svc.CURATED_FALLBACK.push(...origFallback);
       delete global.fetch;
     }
+  });
+});
+
+describe('the weekly refresh switch', () => {
+  test('reads the install-wide scheduled task', async () => {
+    db.query.mockReset();
+    db.query.mockResolvedValueOnce([[{ is_enabled: 1, cron_expression: '0 4 * * 1', last_run_at: null, last_status: null }]]);
+    await expect(svc.autoRefreshStatus()).resolves.toEqual({
+      available: true, enabled: true, cron_expression: '0 4 * * 1', last_run_at: null, last_status: null,
+    });
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/FROM scheduled_tasks\s+WHERE task_name = \? AND organization_id IS NULL/);
+    expect(params).toEqual(['refresh_voip_ranges']);
+  });
+
+  test('switching it changes only that task\'s is_enabled flag', async () => {
+    db.query.mockReset();
+    db.query.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([[{ is_enabled: 0, cron_expression: '0 4 * * 1' }]]);
+    await expect(svc.setAutoRefresh(false)).resolves.toMatchObject({ available: true, enabled: false });
+    expect(db.query.mock.calls[0]).toEqual([
+      'UPDATE scheduled_tasks SET is_enabled = ? WHERE task_name = ? AND organization_id IS NULL',
+      [0, 'refresh_voip_ranges'],
+    ]);
+  });
+
+  test('a server without the task reports it as unavailable', async () => {
+    db.query.mockReset();
+    db.query.mockResolvedValueOnce([[]]);
+    await expect(svc.autoRefreshStatus()).resolves.toMatchObject({ available: false, enabled: false });
   });
 });

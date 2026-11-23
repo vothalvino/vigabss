@@ -17703,7 +17703,7 @@ VALUES
 INSERT INTO scheduled_tasks
     (organization_id, task_name, task_type, handler, description, cron_expression, priority, max_retries, timeout_seconds, is_enabled, payload)
 VALUES
-    (NULL, 'refresh_voip_ranges', 'other', 'voipRangesService.refreshAllNas', 'Refreshes the vigabss-voip RTC/VoIP address-list on managed MikroTik NAS from provider IP-range sources. Disabled by default; enable once real-time priority is seeded and VOIP_RANGES_ENABLED=true.', '0 4 * * 1', 'low', 2, 600, 0, NULL);
+    (NULL, 'refresh_voip_ranges', 'other', 'voipRangesService.refreshAllNas', 'Refreshes the vigabss-voip RTC/VoIP address-list on managed MikroTik NAS from provider IP-range sources. Off by default; switch it on under Network > NAS once real-time priority is set up on a NAS.', '0 4 * * 1', 'low', 2, 600, 0, NULL);
 
 -- ---------------------------------------------------------------------------
 -- Table: import_jobs (migration 522)

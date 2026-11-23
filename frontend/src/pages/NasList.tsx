@@ -13,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { VoipAutoRefreshSwitch } from './nas/VoipAutoRefreshSwitch';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
@@ -649,6 +650,7 @@ function isIpAddress(v: string): boolean {
 
 export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps) {
   const { t } = useTranslation();
+  const [askVoip, setAskVoip] = useState(false);
   const [form, setForm] = useState({
     // Prefill the VigaBSS hub's WireGuard tunnel IP (an IP literal, which RouterOS's
     // /radius `address` requires — a hostname trips a cryptic device error). Routing
@@ -754,6 +756,8 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
       return;
     }
     setError('');
+    // Turning VoIP priority on changes how the router queues traffic: ask first.
+    if (form.seedRealtimePriority) { setAskVoip(true); return; }
     mutation.mutate();
   }
 
@@ -1050,6 +1054,13 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
             </div>
           </form>
         )}
+        {askVoip && (
+          <ConfirmDialog
+            message={t('nasVoip.enableConfirm')}
+            onConfirm={() => { setAskVoip(false); mutation.mutate(); }}
+            onCancel={() => setAskVoip(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -1094,6 +1105,8 @@ export function NasList() {
           {t('ui.nasList.newNas')}
         </button>
       </div>
+
+      <VoipAutoRefreshSwitch />
 
       <div style={styles.filterRow}>
         <label style={styles.filterLabel}>{t('ui.nasList.status2')}</label>

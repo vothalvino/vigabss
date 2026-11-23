@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — NasDetail page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { NasDetail } from '../NasDetail';
@@ -253,7 +253,7 @@ describe('NasDetail page', () => {
     renderDetail();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Core-Router' })).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Seed' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'VoIP' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'VoIP ▾' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
@@ -263,10 +263,26 @@ describe('NasDetail page', () => {
     renderDetail();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Core-Router' })).toBeInTheDocument());
 
-    screen.getByRole('button', { name: 'VoIP' }).click();
+    fireEvent.click(screen.getByRole('button', { name: 'VoIP ▾' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Refresh VoIP address list' }));
 
     await waitFor(() => expect(screen.getByText(/VoIP ranges reconciled/i)).toBeInTheDocument());
     expect(mockApiPost).toHaveBeenCalledWith('/nas/{id}/voip/refresh', expect.objectContaining({ params: { path: { id: 1 } } }));
+  });
+
+  it('removing VoIP priority is in the VoIP menu and asks before touching the router', async () => {
+    mockApiDelete.mockResolvedValue({ data: { data: { removed: true, mangle: 6, queues: 1, addresses: 2, kept_addresses: 1 } }, error: undefined });
+    renderDetail();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Core-Router' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'VoIP ▾' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove VoIP priority' }));
+    expect(screen.getByText(/Remove VoIP priority from this router\?/)).toBeInTheDocument();
+    expect(mockApiDelete).not.toHaveBeenCalledWith('/nas/{id}/realtime-priority', expect.anything());
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm|yes|ok/i }));
+    await waitFor(() => expect(screen.getByText(/VoIP priority removed: 6 rules, 1 queue, 2 addresses/)).toBeInTheDocument());
+    expect(mockApiDelete).toHaveBeenCalledWith('/nas/{id}/realtime-priority', expect.objectContaining({ params: { path: { id: 1 } } }));
   });
 
   it('opens the Seed modal with the RADIUS address defaulted to the hub tunnel IP', async () => {

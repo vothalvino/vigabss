@@ -985,3 +985,84 @@ describe('syncVoipAddressList', () => {
     expect(calls.some((c) => c[0] === '/ip/firewall/address-list/remove')).toBe(false);
   });
 });
+
+// =============================================================================
+// removeRealtimePriority — the way back from seeding real-time (VoIP) priority
+// =============================================================================
+// Seeding is add-only, so the feature could be switched on from the GUI but
+// only be removed by hand on the router.
+
+describe('removeRealtimePriority', () => {
+  const { removeRealtimePriority } = require('../src/services/routerProvisioningService');
+  const attrs = (words) => {
+    const obj = {};
+    for (const w of words) {
+      const eq = w.indexOf('=', 1);
+      if (w.startsWith('=') && eq !== -1) obj[w.slice(1, eq)] = w.slice(eq + 1);
+    }
+    return obj;
+  };
+  const row = (fields) => ['!re', ...Object.entries(fields).map(([k, v]) => `=${k}=${v}`)];
+
+  function routerWith(tables) {
+    const calls = [];
+    const client = {
+      close: jest.fn(),
+      run: jest.fn(async (words) => {
+        calls.push(words);
+        const [command, ...rest] = words;
+        if (!command.endsWith('/print')) return [['!done']];
+        const rows = tables[command.replace(/\/print$/, '')] || [];
+        const filters = rest.filter((w) => w.startsWith('?')).map((w) => w.slice(1).split('='));
+        return [...rows.filter((r) => filters.every(([k, v]) => r[k] === v)).map(row), ['!done']];
+      }),
+    };
+    ros.createClient.mockResolvedValue(client);
+    ros.parseAttrs.mockImplementation(attrs);
+    return { client, calls, removed: () => calls.filter((c) => c[0].endsWith('/remove')).map((c) => `${c[0]} ${c[1]}`) };
+  }
+
+  test('removes the rules, the queue and the list entries VigaBSS added, and nothing else', async () => {
+    const router = routerWith({
+      '/ip/firewall/mangle': [
+        { '.id': '*1', comment: 'vigabss-rt-ports' }, { '.id': '*2', comment: 'vigabss-rt-voip-src' },
+        { '.id': '*3', comment: 'vigabss-rt-voip-dst' }, { '.id': '*4', comment: 'vigabss-rt-packet' },
+        { '.id': '*5', comment: 'vigabss-rt-setdscp' }, { '.id': '*6', comment: 'vigabss-rt-dscp' },
+        { '.id': '*9', comment: 'operator rule' }, { '.id': '*A', comment: 'vigabss-wg-mark' },
+      ],
+      '/queue/tree': [{ '.id': '*20', comment: 'vigabss-realtime' }, { '.id': '*21', comment: 'vigabss-queue-root' }],
+      '/ip/firewall/address-list': [
+        { '.id': '*30', list: 'vigabss-voip', address: '203.0.113.0/24', comment: 'vigabss-voip' },
+        { '.id': '*31', list: 'vigabss-voip', address: '198.51.100.0/24', comment: 'vigabss-voip-auto' },
+        { '.id': '*32', list: 'vigabss-voip', address: '192.0.2.0/24', comment: 'added by hand' },
+        { '.id': '*33', list: 'vigabss-suspended', address: '10.0.0.9', comment: 'vigabss-voip' },
+      ],
+    });
+
+    const result = await removeRealtimePriority(BASE_NAS);
+
+    expect(result).toEqual({ removed: true, mangle: 6, queues: 1, addresses: 2, kept_addresses: 1 });
+    expect(router.removed().sort()).toEqual([
+      '/ip/firewall/address-list/remove =.id=*30', '/ip/firewall/address-list/remove =.id=*31',
+      '/ip/firewall/mangle/remove =.id=*1', '/ip/firewall/mangle/remove =.id=*2', '/ip/firewall/mangle/remove =.id=*3',
+      '/ip/firewall/mangle/remove =.id=*4', '/ip/firewall/mangle/remove =.id=*5', '/ip/firewall/mangle/remove =.id=*6',
+      '/queue/tree/remove =.id=*20',
+    ].sort());
+    expect(router.client.close).toHaveBeenCalled();
+  });
+
+  test('the marking rules go before the queue', async () => {
+    const router = routerWith({
+      '/ip/firewall/mangle': [{ '.id': '*4', comment: 'vigabss-rt-packet' }],
+      '/queue/tree': [{ '.id': '*20', comment: 'vigabss-realtime' }],
+    });
+    await removeRealtimePriority(BASE_NAS);
+    expect(router.removed()).toEqual(['/ip/firewall/mangle/remove =.id=*4', '/queue/tree/remove =.id=*20']);
+  });
+
+  test('a router that never had it is left untouched', async () => {
+    const router = routerWith({ '/ip/firewall/mangle': [{ '.id': '*9', comment: 'operator rule' }] });
+    await expect(removeRealtimePriority(BASE_NAS)).resolves.toEqual({ removed: false, mangle: 0, queues: 0, addresses: 0, kept_addresses: 0 });
+    expect(router.removed()).toEqual([]);
+  });
+});

@@ -1,4 +1,19 @@
 {
+  "nasVoip": {
+    "enableConfirm": "Ativar a prioridade VoIP neste roteador? O VigaBSS adiciona regras e uma fila de prioridade máxima para que as chamadas passem primeiro. Não altera a velocidade do plano de ninguém. Você pode removê-la depois pelo menu VoIP deste NAS.",
+    "menuTitle": "Prioridade VoIP neste roteador",
+    "refresh": "Atualizar lista de endereços VoIP",
+    "autoRefresh": "Atualizar faixas VoIP toda semana",
+    "autoRefreshHint": "Toda segunda-feira, os roteadores com prioridade VoIP recebem os endereços atuais dos apps de chamadas, para que as chamadas mantenham a prioridade. Vale para toda a instalação.",
+    "operatorOnly": "Somente o operador da instalação pode alterar isto.",
+    "lastRun": "Última execução: {{when}}.",
+    "remove": "Remover prioridade VoIP",
+    "removeTitle": "Remover a prioridade de tempo real / VoIP deste roteador",
+    "removeConfirm": "Remover a prioridade VoIP deste roteador? O VigaBSS apaga as regras, a fila de prioridade e os endereços que adicionou para isso. As chamadas deixarão de ter prioridade. O que você mesmo adicionou no roteador é mantido. Você pode configurar de novo com Seed.",
+    "removed": "Prioridade VoIP removida: {{rules}} regras, {{queues}} fila, {{addresses}} endereços. Mantidos {{kept}} endereços adicionados à mão.",
+    "nothingToRemove": "Este roteador não tem prioridade VoIP configurada pelo VigaBSS. Nada foi alterado.",
+    "removeFailed": "Não foi possível remover a prioridade VoIP. O roteador pode estar inacessível."
+  },
   "cfdiAutoStamp": {
     "label": "Emitir automaticamente as faturas geradas",
     "hint": "Quando ativado, o faturamento agendado emite cada fatura que gera, no ambiente fiscal acima. Uma fatura que não puder ser emitida (perfil fiscal do cliente incompleto, erro do PAC) fica sem emissão ou como rascunho de CFDI para tentar de novo em Gestão de CFDI.",

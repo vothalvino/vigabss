@@ -812,9 +812,71 @@ async function syncVoipAddressList(nas, ranges, opts = {}) {
   }
 }
 
+// =============================================================================
+// Real-time (VoIP) priority removal
+// =============================================================================
+
+const REALTIME_MANGLE_TAGS = ['rt-ports', 'rt-voip-src', 'rt-voip-dst', 'rt-dscp', 'rt-packet', 'rt-setdscp'];
+
+/** Ids of every row under `path` matching the query words. */
+async function idsWhere(client, path, query) {
+  const printed = await client.run([`${path}/print`, ...query]);
+  return printed
+    .filter((s) => s[0] === '!re')
+    .map((s) => ros.parseAttrs(s.slice(1)))
+    .filter((a) => a['.id']);
+}
+
+/**
+ * Undo seedDevice's real-time (VoIP) priority on one NAS: the mangle rules,
+ * the priority-1 queue and the address-list entries VigaBSS added. Seeding is
+ * add-only, so before this there was no way to switch the feature off again
+ * short of deleting the rules by hand on the router.
+ *
+ * Only rows VigaBSS created are touched, recognised by their comment
+ * (`vigabss-rt-*`, `vigabss-realtime`, `vigabss-voip`, `vigabss-voip-auto`).
+ * An entry someone added to the `vigabss-voip` list by hand (no such comment)
+ * is left and counted. Nothing else on the router is changed. Safe to re-run.
+ *
+ * @param {object} nas  NAS row (ip/api credentials)
+ */
+async function removeRealtimePriority(nas) {
+  const conn = nasToConn(nas);
+  const client = await ros.createClient(conn);
+  try {
+    let mangle = 0;
+    // Rules first: once they are gone nothing is marked, so removing the queue
+    // can not leave marked traffic without a queue.
+    for (const tag of REALTIME_MANGLE_TAGS) {
+      for (const row of await idsWhere(client, '/ip/firewall/mangle', [`?comment=${SEED_TAG}-${tag}`])) {
+        await client.run(['/ip/firewall/mangle/remove', `=.id=${row['.id']}`]);
+        mangle++;
+      }
+    }
+    let queues = 0;
+    for (const row of await idsWhere(client, '/queue/tree', [`?comment=${SEED_TAG}-realtime`])) {
+      await client.run(['/queue/tree/remove', `=.id=${row['.id']}`]);
+      queues++;
+    }
+    let addresses = 0;
+    let keptAddresses = 0;
+    const ours = new Set([`${SEED_TAG}-voip`, `${SEED_TAG}-voip-auto`]);
+    for (const row of await idsWhere(client, '/ip/firewall/address-list', [`?list=${SEED_TAG}-voip`])) {
+      if (!ours.has(row.comment)) { keptAddresses++; continue; }
+      await client.run(['/ip/firewall/address-list/remove', `=.id=${row['.id']}`]);
+      addresses++;
+    }
+    logger.info({ host: conn.host, mangle, queues, addresses, keptAddresses }, 'RouterOS: real-time priority removed');
+    return { removed: mangle + queues + addresses > 0, mangle, queues, addresses, kept_addresses: keptAddresses };
+  } finally {
+    await client.close();
+  }
+}
+
 module.exports = {
   nasToConn,
   syncVoipAddressList,
+  removeRealtimePriority,
   testConnection,
   pushSubscriber,
   removeSubscriber,

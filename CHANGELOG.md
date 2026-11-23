@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The weekly VoIP range refresh is switched on in the app.** Network → NAS
+  has a "Refresh VoIP ranges every week" switch (install operator; others see
+  its state). It used to need `VOIP_RANGES_ENABLED=true` in the server's
+  environment plus a scheduled task the web GUI could not enable. The
+  variable is no longer read; migration 017 corrects the task's description.
+- **VoIP priority can be removed from a router.** The VoIP button on a NAS is
+  now a small menu: refresh the address list, or remove VoIP priority, which
+  deletes the rules, the priority queue and the
+  addresses VigaBSS added for it, after a confirmation. Seeding was add-only,
+  so until now it could only be undone by hand on the router. Entries someone
+  added to the list by hand are kept.
+
 - CI: the full-install check waits for the newest release's image to be
   published before installing. On a release tag it used to start before that
   image existed and fail, although the release itself was fine.
