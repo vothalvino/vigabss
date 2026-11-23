@@ -57,14 +57,15 @@ async function portalGet<T>(path: string): Promise<T> {
   return (await res.json() as { data: T }).data;
 }
 
-async function startPayment(invoiceId: number): Promise<{ payment_url: string }> {
+async function startPayment(invoiceId: number, fresh = false): Promise<{ payment_url: string }> {
   const res = await portalAuthedFetch(`${API_BASE}/invoices/${invoiceId}/pay`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     // Success and cancel both come back here, as ?payment=success|cancelled.
-    body: JSON.stringify({ return_url: `${window.location.origin}/portal/invoices/${invoiceId}` }),
+    // fresh = "Pay another way": the unpaid voucher or page is withdrawn first.
+    body: JSON.stringify({ return_url: `${window.location.origin}/portal/invoices/${invoiceId}`, ...(fresh ? { fresh: true } : {}) }),
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -82,6 +83,7 @@ export function PortalInvoiceDetail() {
   const [searchParams] = useSearchParams();
   const paymentReturn = searchParams.get('payment'); // 'success' | 'cancelled' | null
   const [payError, setPayError] = useState<string | null>(null);
+  const [askAnotherWay, setAskAnotherWay] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [returnedAt] = useState(() => Date.now());
 
@@ -98,7 +100,7 @@ export function PortalInvoiceDetail() {
   });
 
   const payMutation = useMutation({
-    mutationFn: () => startPayment(Number(id)),
+    mutationFn: (fresh: boolean | void) => startPayment(Number(id), fresh === true),
     onSuccess: result => {
       window.location.href = result.payment_url;
     },
@@ -171,12 +173,38 @@ export function PortalInvoiceDetail() {
                 <>
                   {payError && <p style={styles.payError}>{payError}</p>}
                   <button
-                    onClick={() => { setPayError(null); payMutation.mutate(); }}
+                    onClick={() => { setPayError(null); setAskAnotherWay(false); payMutation.mutate(); }}
                     disabled={payMutation.isPending}
                     style={styles.payBtn}
                   >
                     {payMutation.isPending ? t('portalInvoiceDetail.processing') : invoice.pending_checkout ? t('portalInvoiceDetail.continuePayment') : t('portalInvoiceDetail.payNow')}
                   </button>
+                  {invoice.pending_checkout && !askAnotherWay && (
+                    <button
+                      onClick={() => { setPayError(null); setAskAnotherWay(true); }}
+                      disabled={payMutation.isPending}
+                      style={styles.dlBtn}
+                    >
+                      {t('portalInvoiceDetail.payAnotherWay')}
+                    </button>
+                  )}
+                  {invoice.pending_checkout && askAnotherWay && (
+                    <div role="group" aria-label={t('portalInvoiceDetail.payAnotherWay')}>
+                      <p style={styles.meta}>{t('portalInvoiceDetail.payAnotherWayConfirm')}</p>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => { setAskAnotherWay(false); payMutation.mutate(true); }}
+                          disabled={payMutation.isPending}
+                          style={styles.payBtn}
+                        >
+                          {t('portalInvoiceDetail.payAnotherWayYes')}
+                        </button>
+                        <button onClick={() => setAskAnotherWay(false)} disabled={payMutation.isPending} style={styles.dlBtn}>
+                          {t('portalInvoiceDetail.payAnotherWayNo')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               {downloadError && <p style={styles.payError}>{downloadError}</p>}

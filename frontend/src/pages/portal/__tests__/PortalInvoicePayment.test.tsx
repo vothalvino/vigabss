@@ -45,6 +45,34 @@ describe('PortalInvoiceDetail payment flow', () => {
     expect(await screen.findByRole('button', { name: 'Continue payment' })).toBeInTheDocument();
   });
 
+  it('Pay another way asks first, then opens a fresh checkout that withdraws the started one', async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', { value: { ...window.location, origin: 'https://portal.example.com', set href(v: string) { assign(v); } }, writable: true });
+    mocks.fetch.mockImplementation(async (_url: string, init?: RequestInit) => (init?.method === 'POST'
+      ? json({ data: { payment_url: 'https://checkout.example.com/new' } }, 201)
+      : json({ data: { ...INVOICE, pending_checkout: true } })));
+    const user = userEvent.setup();
+    renderAt('/portal/invoices/1');
+
+    await user.click(await screen.findByRole('button', { name: 'Pay another way' }));
+    // Nothing is cancelled until the warning about the voucher is accepted.
+    expect(screen.getByText(/OXXO voucher/)).toBeInTheDocument();
+    expect(mocks.fetch.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === 'POST')).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Cancel it and choose again' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.example.com/new'));
+    const post = mocks.fetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST')!;
+    expect(String(post[0])).toMatch(/\/invoices\/1\/pay$/);
+    expect(JSON.parse(String((post[1] as RequestInit).body))).toMatchObject({ fresh: true });
+  });
+
+  it('Pay another way is only offered while a checkout is open', async () => {
+    mocks.fetch.mockResolvedValue(json({ data: INVOICE }));
+    renderAt('/portal/invoices/1');
+    expect(await screen.findByRole('button', { name: 'Pay Now' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pay another way' })).toBeNull();
+  });
+
   it('a cancelled checkout says so and offers to try again', async () => {
     mocks.fetch.mockResolvedValue(json({ data: INVOICE }));
     renderAt('/portal/invoices/1?payment=cancelled');

@@ -49942,11 +49942,21 @@
           }
         ],
         "requestBody": {
-          "description": "return_url",
+          "description": "return_url, fresh",
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "return_url": {
+                    "type": "string"
+                  },
+                  "fresh": {
+                    "type": "boolean",
+                    "description": "Pay another way: withdraw the unpaid checkout for this invoice first (a pending cash voucher is voided at the gateway), then open a new one. 409 when that payment has arrived or is being processed"
+                  }
+                }
               }
             }
           }
@@ -49994,6 +50004,10 @@
                   },
                   "return_url": {
                     "type": "string"
+                  },
+                  "fresh": {
+                    "type": "boolean",
+                    "description": "Withdraw an unpaid checkout for the same amount first"
                   }
                 }
               }

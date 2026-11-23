@@ -404,6 +404,80 @@ async function createStripeCheckoutSession(gateway, { amount, currency, descript
   return { id: data.id, url: data.url };
 }
 
+/** One call to the Stripe API with the gateway's key. Resolves the parsed body. */
+async function stripeApi(gateway, method, apiPath) {
+  const https = require('https');
+  const secretKey = decrypt(gateway.secret_key_encrypted);
+  const response = await new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.stripe.com',
+      path: apiPath,
+      method,
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Stripe-Version': STRIPE_API_VERSION,
+        ...(method === 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': 0 } : {}),
+      },
+      timeout: 30000,
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve({ statusCode: res.statusCode, body: data }));
+    });
+    req.on('timeout', () => req.destroy(new Error('Stripe request timed out')));
+    req.on('error', reject);
+    req.end();
+  });
+  let data;
+  try { data = JSON.parse(response.body); } catch (_) { data = {}; }
+  if (response.statusCode >= 400 || data.error) {
+    const err = new Error(data.error?.message || `Stripe error: HTTP ${response.statusCode}`);
+    err.stripeCode = data.error?.code || null;
+    throw err;
+  }
+  return data;
+}
+
+/**
+ * Withdraw a hosted Checkout Session so it can no longer take money, for a
+ * customer who wants to pay another way:
+ *   - still open (nothing chosen yet)            -> the session is expired;
+ *   - completed but unpaid (an OXXO voucher or a
+ *     bank transfer was issued and not yet paid) -> its PaymentIntent is
+ *     cancelled, which voids the voucher;
+ *   - already expired                            -> nothing to do.
+ * Returns { cancelled: false, reason: 'paid' | 'processing' } when the money
+ * has arrived or is on its way: that payment must be left to settle.
+ *
+ * @param {object} gateway   payment_gateways row (secret_key_encrypted)
+ * @param {string} sessionId cs_...
+ */
+async function cancelStripeCheckout(gateway, sessionId) {
+  if (!/^cs_[A-Za-z0-9_]+$/.test(String(sessionId || ''))) return { cancelled: true, state: 'no_session' };
+  const session = await stripeApi(gateway, 'GET', `/v1/checkout/sessions/${sessionId}`);
+  if (session.payment_status === 'paid') return { cancelled: false, reason: 'paid' };
+  if (session.status === 'expired') return { cancelled: true, state: 'expired' };
+  if (session.status === 'open') {
+    await stripeApi(gateway, 'POST', `/v1/checkout/sessions/${sessionId}/expire`);
+    return { cancelled: true, state: 'expired' };
+  }
+  // complete + unpaid: a voucher or transfer reference is outstanding.
+  const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+  if (!/^pi_[A-Za-z0-9_]+$/.test(String(intentId || ''))) return { cancelled: true, state: 'no_intent' };
+  const intent = await stripeApi(gateway, 'GET', `/v1/payment_intents/${intentId}`);
+  if (intent.status === 'succeeded') return { cancelled: false, reason: 'paid' };
+  if (intent.status === 'processing') return { cancelled: false, reason: 'processing' };
+  if (intent.status === 'canceled') return { cancelled: true, state: 'voided' };
+  try {
+    await stripeApi(gateway, 'POST', `/v1/payment_intents/${intentId}/cancel`);
+  } catch (err) {
+    // Paid between the read and the cancel: Stripe refuses, and the payment stands.
+    if (err.stripeCode === 'payment_intent_unexpected_state') return { cancelled: false, reason: 'processing' };
+    throw err;
+  }
+  return { cancelled: true, state: 'voided' };
+}
+
 /**
  * Create a Conekta order with an embedded HostedPayment checkout and return the
  * order id + hosted payment page url. The client is redirected to `url`; when the
@@ -1899,6 +1973,7 @@ module.exports = {
   getClientTransactions,
   chargeStripe,
   createStripeCheckoutSession,
+  cancelStripeCheckout,
   createConektaCheckoutSession,
   createStripeCustomer,
   testGatewayConnection,
