@@ -11239,6 +11239,8 @@ CREATE TABLE IF NOT EXISTS olt_ports (
                             COMMENT 'Active ONUs registered on this PON port (polled)',
     max_onus            SMALLINT UNSIGNED NULL DEFAULT 128
                             COMMENT 'Maximum ONUs supported (1:128 splitter)',
+    has_eotdr           TINYINT(1)      NOT NULL DEFAULT 0
+                            COMMENT '1 = the transceiver on this port has an embedded OTDR (eOTDR) (migration 022)',
     tx_power_dbm        DECIMAL(6,2)    NULL
                             COMMENT 'PON port Tx optical power in dBm (polled)',
     rx_power_dbm        DECIMAL(6,2)    NULL
@@ -11636,6 +11638,31 @@ CREATE TABLE IF NOT EXISTS olt_connections (
     CONSTRAINT fk_olt_connections_device FOREIGN KEY (device_id) REFERENCES devices (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='SSH login for an OLT command line (migration 019)';
+
+-- Last reading of each ONU on a PON port (migration 023)
+CREATE TABLE IF NOT EXISTS olt_onu_readings (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id     BIGINT UNSIGNED NOT NULL,
+    olt_device_id       BIGINT UNSIGNED NOT NULL COMMENT 'devices.id of the OLT',
+    port                VARCHAR(12)     NOT NULL COMMENT 'PON port as frame/slot/port, e.g. 0/1/0',
+    ont_id              SMALLINT UNSIGNED NOT NULL COMMENT 'ONT id on that port',
+    serial_number       VARCHAR(20)     NULL,
+    model               VARCHAR(50)     NULL,
+    description         VARCHAR(100)    NULL,
+    state               ENUM('online','offline') NOT NULL,
+    last_down_cause     VARCHAR(40)     NULL COMMENT 'As the OLT reports it, e.g. LOSi/LOBi or dying-gasp',
+    distance_m          INT UNSIGNED    NULL COMMENT 'Distance from the OLT when last online (ranging)',
+    rx_power_dbm        DECIMAL(6,2)    NULL COMMENT 'Receive power when last online',
+    last_online_at      DATETIME        NULL COMMENT 'Last read in which it was online',
+    read_at             DATETIME        NOT NULL COMMENT 'Last read of this port',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_olt_onu_readings_position (olt_device_id, port, ont_id),
+    KEY idx_olt_onu_readings_org (organization_id),
+    CONSTRAINT fk_olt_onu_readings_org FOREIGN KEY (organization_id) REFERENCES organizations (id) ON DELETE CASCADE,
+    CONSTRAINT fk_olt_onu_readings_device FOREIGN KEY (olt_device_id) REFERENCES devices (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Last state, distance and signal of each ONU on a PON port (migration 023)';
 
 CREATE TABLE IF NOT EXISTS olt_vendor_capabilities (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -17701,7 +17728,7 @@ VALUES
     (NULL, 'ftth_olt_chassis_poll', 'snmp_poll', 'services/ftth/oltChassisPollHandler', 'Poll OLT chassis metrics (CPU, memory, temperature, PSU, fan) via SNMP for all active OLT devices', '*/5 * * * *', 'normal', 3, 120, 0),
     (NULL, 'ftth_olt_port_metrics_poll', 'snmp_poll', 'services/ftth/oltPortMetricsPollHandler', 'Poll OLT PON port metrics (optical power, ONU count, bandwidth) via SNMP and update olt_ports records', '*/5 * * * *', 'normal', 3, 180, 0),
     (NULL, 'ftth_onu_discovery', 'snmp_poll', 'services/ftth/onuDiscoveryHandler', 'Scan OLT devices for newly connected ONUs, create onu_details records with state=unconfigured, and check against onu_whitelist', '*/15 * * * *', 'normal', 2, 300, 0),
-    (NULL, 'ftth_onu_optical_poll', 'snmp_poll', 'services/ftth/onuOpticalPollHandler', 'Poll per-ONU optical diagnostics (Tx power, Rx power, temperature, voltage, bias current) and insert rows into onu_optical_metrics', '*/10 * * * *', 'normal', 3, 240, 0),
+    (NULL, 'ftth_onu_optical_poll', 'snmp_poll', 'olt/oltSnmpPollService.pollAll', 'Reads every OLT over SNMP and remembers each ONU''s state, distance and signal per PON port, for the fibre check. Off by default; switch it on under Network > OLT Management > Live OLT.', '*/10 * * * *', 'normal', 3, 240, 0),
     (NULL, 'ftth_onu_firmware_job_processor', 'other', 'services/ftth/onuFirmwareJobProcessor', 'Pick up pending onu_firmware_jobs whose scheduled_at <= NOW() and execute via OLT CLI stub; update job status on completion', '* * * * *', 'high', 1, 600, 0),
     (NULL, 'ftth_onu_optical_metrics_cleanup', 'cleanup', 'services/ftth/onuOpticalMetricsCleanup', 'Delete onu_optical_metrics rows older than 90 days in batches of 10000 to keep the table bounded', '0 3 * * *', 'low', 2, 600, 1),
     (NULL, 'cpe_cwmp_task_processor', 'other', 'services/acs/cwmpTaskProcessor', 'Process queued CWMP tasks for CPE devices — dequeues pending cpe_tasks and dispatches via ACS session', '* * * * *', 'high', 1, 60, 0),

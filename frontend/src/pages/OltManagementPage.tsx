@@ -32,6 +32,7 @@ interface OltPort {
   oper_status: string;
   onu_count: number;
   max_onus: number;
+  has_eotdr?: boolean | number;
   tx_power_dbm: number | null;
   rx_power_dbm: number | null;
 }
@@ -48,6 +49,7 @@ interface OltPortBody {
   port_type?: string;
   admin_status?: string;
   max_onus?: number;
+  has_eotdr?: boolean;
   notes?: string;
 }
 
@@ -225,7 +227,7 @@ function OltPortsTab() {
   function openCreate() { setEditing(null); setForm({}); setErr(''); setOpen(true); }
   function openEdit(p: OltPort) {
     setEditing(p);
-    setForm({ port_name: p.port_name, port_type: p.port_type, admin_status: p.admin_status, max_onus: p.max_onus });
+    setForm({ port_name: p.port_name, port_type: p.port_type, admin_status: p.admin_status, max_onus: p.max_onus, has_eotdr: Boolean(Number(p.has_eotdr)) });
     setErr('');
     setOpen(true);
   }
@@ -299,6 +301,11 @@ function OltPortsTab() {
                       <span style={{ textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: 600 }}>
                         {port.port_type}
                       </span>
+                      {Boolean(Number(port.has_eotdr)) && (
+                        <span title={t('oltManagement.ports.eotdrHint')} style={{ marginLeft: 6, fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'var(--info-soft)', color: 'var(--info-text)', border: '1px solid var(--info-border)' }}>
+                          {t('oltManagement.ports.eotdrBadge')}
+                        </span>
+                      )}
                     </td>
                     <td style={styles.td}><OperStatusBadge status={port.oper_status} /></td>
                     <td style={styles.tdNum}>{port.onu_count} / {port.max_onus}</td>
@@ -402,6 +409,11 @@ function OltPortsTab() {
                   onChange={e => setForm(f => ({ ...f, max_onus: Number(e.target.value) }))}
                 />
               </label>
+              <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="checkbox" checked={Boolean(form.has_eotdr)} onChange={e => setForm(f => ({ ...f, has_eotdr: e.target.checked }))} />
+                {t('oltManagement.ports.eotdr')}
+              </label>
+              <p style={{ margin: '-0.3rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('oltManagement.ports.eotdrHint')}</p>
               <div style={modalStyles.actions}>
                 <button onClick={close_} style={styles.btnSecondary}>{t('common.cancel')}</button>
                 <button onClick={submit} disabled={busy} style={styles.btnPrimary}>

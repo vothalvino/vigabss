@@ -392,8 +392,9 @@ async function dispatchTask(taskName, organizationId) {
     // handler is needed to map SNMP varbinds to the onu_optical_metrics schema.
     // DEFERRED: needs src/services/ftth/onuOpticalPollHandler.js.
     case 'ftth_onu_optical_poll':
-      logger.warn({ taskName }, 'ftth_onu_optical_poll is not yet implemented; dedicated onuOpticalPollHandler needed to write to onu_optical_metrics table');
-      return { message: 'ftth_onu_optical_poll: handler not yet implemented', deferred: true };
+      // Each OLT with SNMP enabled: ONU state, distance and signal, remembered
+      // per PON port (olt_onu_readings) for the fibre check.
+      return require('./olt/oltSnmpPollService').pollAll(organizationId);
     // ftth_onu_firmware_job_processor: picks up pending onu_firmware_jobs and executes
     // via OLT vendor CLI (explicitly stubbed in ftthService.js). A real implementation
     // requires src/services/ftth/drivers/<vendor>Driver.js.

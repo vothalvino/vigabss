@@ -829,6 +829,7 @@ module.exports = {
   pollDevice,
   createSnmpSession,
   snmpGet,
+  snmpSubtree,
   mapAuthProtocol,
   mapPrivProtocol,
   resolveSecurityLevel,

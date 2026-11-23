@@ -124,8 +124,8 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 386 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 021)
+│   ├── schema.sql           # Combined schema (all 387 tables + column additions)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 024)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -759,6 +759,12 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 024 — OLT SNMP read:** corrects the description and handler of the scheduled task `ftth_onu_optical_poll`, which now reads every OLT over SNMP into `olt_onu_readings`. It is switched on in the app, not by this migration.
+
+> **Migration 023 — ONU readings:** `olt_onu_readings` remembers the state, distance and signal of each ONU each time a PON port is read from the OLT. The distance an ONU had while online is what locates a fibre break once it has lost signal.
+
+> **Migration 022 — eOTDR ports:** `olt_ports.has_eotdr` marks a PON port whose transceiver has an embedded OTDR.
 
 > **Migration 019 — OLT logins:** `olt_connections` stores how VigaBSS reaches an OLT's command line over SSH (address, user, encrypted password, driver, pinned SSH host key). One row per OLT device.
 

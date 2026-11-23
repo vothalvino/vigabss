@@ -39971,6 +39971,111 @@
         }
       }
     },
+    "/olt-management/monitoring": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Whether the scheduled SNMP read of every OLT (task ftth_onu_optical_poll) is on for this install",
+        "operationId": "getOltMonitoring",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "available, enabled, cron_expression, last_run_at, last_status, can_change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Switch the scheduled SNMP read of every OLT on or off. Install operator only",
+        "operationId": "setOltMonitoring",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "enabled",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/fibre-status": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Every PON port of this OLT judged from the stored ONU readings: verdict, ONUs without signal, nearest affected distance, time of the last read. Reads nothing from the device",
+        "operationId": "getOltFibreStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of port verdicts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/olt-management/{id}/connection": {
       "get": {
         "tags": [
@@ -40218,7 +40323,7 @@
         "tags": [
           "OLT Management"
         ],
-        "summary": "Authorised ONUs on one PON port with state and optical power (display ont info summary), read live",
+        "summary": "Authorised ONUs on one PON port with state and optical power (display ont info summary), read live. The read is remembered, and `fault` judges the fibre: which ONUs lost signal, and the distance of the nearest of them when it was last online (the break is no farther than that)",
         "operationId": "listOltPortOnus",
         "security": [
           {
@@ -40247,7 +40352,7 @@
         ],
         "responses": {
           "200": {
-            "description": "port, onus[], reported_total, reported_online, raw",
+            "description": "port, onus[] (with last_distance_m), reported_total, reported_online, fault, raw",
             "content": {
               "application/json": {
                 "schema": {
@@ -92441,6 +92546,9 @@
             "minimum": 1,
             "maximum": 256
           },
+          "has_eotdr": {
+            "type": "boolean"
+          },
           "notes": {
             "type": "string",
             "maximum": 1000
@@ -92493,6 +92601,9 @@
             "minimum": 1,
             "maximum": 256
           },
+          "has_eotdr": {
+            "type": "boolean"
+          },
           "notes": {
             "type": "string",
             "maximum": 1000
@@ -92539,6 +92650,9 @@
             "type": "number",
             "minimum": 1,
             "maximum": 256
+          },
+          "has_eotdr": {
+            "type": "boolean"
           },
           "notes": {
             "type": "string",

@@ -5,6 +5,32 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Automatic OLT monitoring over SNMP.** VigaBSS can read every OLT that has
+  SNMP enabled every 10 minutes and remember each ONU's state, distance and
+  signal per PON port. The Live OLT tab has the switch for it ("Read every
+  OLT automatically", install operator) and a new "Fibre status by PON port"
+  list that shows, for each port, whether a break is suspected and within
+  what distance, from the last read and without contacting the OLT. With it
+  on, the fibre check always has recent distances to work from. **Not yet
+  tried on a real OLT**: the SNMP object numbers come from published copies
+  of Huawei's xPON MIB (migration 024 corrects the scheduled task's
+  description).
+
+- **Fibre break check on a PON port.** Reading a PON port in the Live OLT tab
+  now says whether the fibre looks cut and how far away. It uses what the OLT
+  already reports: ONUs that lost their light signal (as opposed to mains
+  power), and the distance each ONU had while it was online, which VigaBSS
+  now remembers on every read (migration 023). It tells apart a break on the
+  main fibre (every ONU dark), on a branch (several dark) and a single drop,
+  and states that the break is no farther than the nearest ONU that lost
+  signal. That is an upper limit, not a measurement: the exact distance needs
+  an OTDR, and reading eOTDR transceivers is not implemented yet.
+
+- **PON ports can be marked as having an eOTDR transceiver.** The PON port
+  form has a "Transceiver with eOTDR" checkbox and the port list shows an
+  eOTDR badge (migration 022). This records which ports carry one; reading
+  eOTDR measurements from the OLT is not implemented yet.
+
 - **Technology transition with a newly signed contract.** A contract in
   service has a "Change technology" action. It creates a new contract for the
   other technology (WISP or FTTH), linked to the current one. The new contract

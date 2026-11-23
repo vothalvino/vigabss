@@ -11,6 +11,7 @@ const createOltPort = {
   port_no: { type: 'number', min: 0, max: 255 },
   admin_status: { type: 'string', enum: ['up', 'down'] },
   max_onus: { type: 'number', min: 1, max: 256 },
+  has_eotdr: { type: 'boolean' },
   notes: { type: 'string', max: 1000 },
 };
 
@@ -21,6 +22,7 @@ const updateOltPort = {
   port_no: { type: 'number', min: 0, max: 255 },
   admin_status: { type: 'string', enum: ['up', 'down'] },
   max_onus: { type: 'number', min: 1, max: 256 },
+  has_eotdr: { type: 'boolean' },
   notes: { type: 'string', max: 1000 },
 };
 
