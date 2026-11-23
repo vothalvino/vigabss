@@ -13,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { VoipAutoRefreshSwitch } from './nas/VoipAutoRefreshSwitch';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
@@ -1094,6 +1095,8 @@ export function NasList() {
           {t('ui.nasList.newNas')}
         </button>
       </div>
+
+      <VoipAutoRefreshSwitch />
 
       <div style={styles.filterRow}>
         <label style={styles.filterLabel}>{t('ui.nasList.status2')}</label>

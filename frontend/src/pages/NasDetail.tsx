@@ -132,6 +132,7 @@ export function NasDetail() {
   const [showSeed, setShowSeed] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showRemoveVoip, setShowRemoveVoip] = useState(false);
 
   // Mirror the backend route guards: health-check requires nas.health,
   // seed/test/voip/edit require devices.update, delete requires devices.delete.
@@ -235,6 +236,35 @@ export function NasDetail() {
     }
   }
 
+  // The way back from seeding real-time priority: removes what VigaBSS put on
+  // the router for it (rules, queue, list entries) and nothing else.
+  async function runVoipRemove() {
+    setActionPending('voip-remove');
+    setActionKind('header');
+    setActionResult(null);
+    setActionError(null);
+    try {
+      const res = (await api.DELETE('/nas/{id}/realtime-priority', {
+        params: { path: { id: Number(id) } },
+      })) as {
+        data?: { data?: { removed?: boolean; mangle?: number; queues?: number; addresses?: number; kept_addresses?: number } };
+        error?: { error?: { message?: string } };
+      };
+      if (res.error) {
+        setActionError(res.error?.error?.message ?? t('nasVoip.removeFailed'));
+        return;
+      }
+      const d = res.data?.data ?? {};
+      setActionResult(d.removed
+        ? t('nasVoip.removed', { rules: d.mangle ?? 0, queues: d.queues ?? 0, addresses: d.addresses ?? 0, kept: d.kept_addresses ?? 0 })
+        : t('nasVoip.nothingToRemove'));
+    } catch {
+      setActionError(t('nasVoip.removeFailed'));
+    } finally {
+      setActionPending(null);
+    }
+  }
+
   async function runVoipRefresh() {
     setActionPending('voip-refresh');
     setActionKind('header');
@@ -324,6 +354,11 @@ export function NasDetail() {
           {canManage && (
             <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title={t('ui.nasDetail.refreshTheVigabssVoipRtc')}>
               {actionPending === 'voip-refresh' ? 'VoIP…' : 'VoIP'}
+            </button>
+          )}
+          {canManage && (
+            <button style={styles.actionBtn} onClick={() => setShowRemoveVoip(true)} disabled={actionPending !== null} title={t('nasVoip.removeTitle')}>
+              {actionPending === 'voip-remove' ? t('nasVoip.removing') : t('nasVoip.remove')}
             </button>
           )}
           {canManage && (
@@ -577,6 +612,14 @@ export function NasDetail() {
             queryClient.invalidateQueries({ queryKey: ['nas-detail', id] });
             queryClient.invalidateQueries({ queryKey: ['nas'] });
           }}
+        />
+      )}
+
+      {showRemoveVoip && (
+        <ConfirmDialog
+          message={t('nasVoip.removeConfirm')}
+          onConfirm={() => { setShowRemoveVoip(false); void runVoipRemove(); }}
+          onCancel={() => setShowRemoveVoip(false)}
         />
       )}
 

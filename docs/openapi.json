@@ -13167,6 +13167,111 @@
         }
       }
     },
+    "/nas/{id}/realtime-priority": {
+      "delete": {
+        "tags": [
+          "NAS"
+        ],
+        "summary": "Remove real-time (VoIP) priority from this NAS: the mangle rules, the priority queue and the address-list entries VigaBSS added, recognised by their vigabss-* comments. Entries added to the list by hand are kept. Safe to re-run",
+        "operationId": "removeNasRealtimePriority",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removal result: removed, mangle, queues, addresses, kept_addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nas/voip/auto-refresh": {
+      "get": {
+        "tags": [
+          "NAS"
+        ],
+        "summary": "Whether the weekly VoIP range refresh (scheduled task refresh_voip_ranges) is on for this install",
+        "operationId": "getNasVoipAutoRefresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "available, enabled, cron_expression, last_run_at, last_status, can_change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "NAS"
+        ],
+        "summary": "Switch the weekly VoIP range refresh on or off for the whole install. Install operator only",
+        "operationId": "setNasVoipAutoRefresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "enabled",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/nas/{id}/wg": {
       "get": {
         "tags": [

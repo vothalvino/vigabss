@@ -1,4 +1,17 @@
 {
+  "nasVoip": {
+    "autoRefresh": "Refresh VoIP ranges every week",
+    "autoRefreshHint": "Every Monday, routers with VoIP priority get the calling apps' current addresses, so calls keep their priority. Applies to the whole install.",
+    "operatorOnly": "Only the install operator can change this.",
+    "lastRun": "Last run: {{when}}.",
+    "remove": "Remove VoIP priority",
+    "removing": "Removing…",
+    "removeTitle": "Remove real-time / VoIP priority from this router",
+    "removeConfirm": "Remove VoIP priority from this router? VigaBSS deletes the rules, the priority queue and the addresses it added for it. Calls will no longer be prioritised. Anything you added to the router yourself is kept. You can set it up again with Seed.",
+    "removed": "VoIP priority removed: {{rules}} rules, {{queues}} queue, {{addresses}} addresses. Kept {{kept}} addresses added by hand.",
+    "nothingToRemove": "This router has no VoIP priority set up by VigaBSS. Nothing was changed.",
+    "removeFailed": "VoIP priority could not be removed. The router may be unreachable."
+  },
   "cfdiAutoStamp": {
     "label": "Stamp generated invoices automatically",
     "hint": "When on, the scheduled billing run stamps each invoice it generates, in the fiscal environment above. An invoice that cannot be stamped (an incomplete client fiscal profile, a PAC error) stays unstamped or as a draft CFDI to retry from CFDI Management.",

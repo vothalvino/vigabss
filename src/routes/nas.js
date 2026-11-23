@@ -21,6 +21,7 @@ const wireguardServerService = require('../services/wireguardServerService');
 const config = require('../config');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ route: 'nas' });
+const { isInstallOperator } = require('../services/installOperator');
 
 const router = Router();
 
@@ -181,6 +182,31 @@ const ctrl = crudController(Nas, {
 router.use(authenticate);
 router.use(orgScope);
 
+// The weekly VoIP range refresh for the whole install (the scheduled task
+// refresh_voip_ranges). Anyone who can see NAS devices sees whether it is on;
+// only the install operator changes it, because it runs for every organization.
+// Declared before /:id so "voip" is not read as an id.
+router.get('/voip/auto-refresh', requirePermission('devices.view'), async (req, res, next) => {
+  try {
+    const status = await require('../services/voipRangesService').autoRefreshStatus();
+    res.json({ data: { ...status, can_change: await isInstallOperator(req) } });
+  } catch (err) { next(err); }
+});
+router.put('/voip/auto-refresh', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    if (!(await isInstallOperator(req))) {
+      return res.status(403).json({ error: { code: 'INSTALL_OPERATOR_ONLY', message: 'Only the install operator can change this setting' } });
+    }
+    if (typeof req.body?.enabled !== 'boolean') throw new ValidationError('enabled is required (true or false)');
+    const voipRangesService = require('../services/voipRangesService');
+    const before = await voipRangesService.autoRefreshStatus();
+    if (!before.available) throw new ValidationError('The VoIP refresh task is not installed on this server');
+    const status = await voipRangesService.setAutoRefresh(req.body.enabled);
+    await require('../services/scheduler').reload?.().catch(() => {});
+    res.json({ data: { ...status, can_change: true } });
+  } catch (err) { next(err); }
+});
+
 router.get('/', requirePermission('devices.view'), httpCache('nas', 300), ctrl.list);
 router.get('/:id', requirePermission('devices.view'), ctrl.get);
 router.get('/:id/secret', requirePermission('radius.credentials.view'), async (req, res, next) => {
@@ -285,6 +311,23 @@ router.post('/:id/voip/refresh', requirePermission('devices.update'), async (req
       }
       const result = await routerProvisioningService.syncVoipAddressList(nas, ranges);
       res.json({ data: { ...result, ranges: ranges.length, capped, sources } });
+    } catch (e) {
+      return sendRouterError(res, next, e);
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Real-time (VoIP) priority removal — the way back from seeding it. Removes only
+// what VigaBSS put on the router (see removeRealtimePriority).
+router.delete('/:id/realtime-priority', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const nas = await Nas.findByIdOrFail(req.params.id, req.orgId);
+    await requireNatedTunnelProvisioned(nas);
+    try {
+      const result = await routerProvisioningService.removeRealtimePriority(nas);
+      res.json({ data: result });
     } catch (e) {
       return sendRouterError(res, next, e);
     }
