@@ -37,6 +37,9 @@ let conn;
 beforeEach(() => {
   jest.clearAllMocks();
   conn = mockTxConnection(db);
+  // Queries a test does not script (for example "does the OLT enforce this
+  // contract's speed?") find nothing.
+  db.query.mockResolvedValue([[]]);
 });
 
 describe('pushPlanChange', () => {

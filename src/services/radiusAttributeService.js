@@ -163,6 +163,38 @@ function fupThrottleActiveSql(alias = 'c') {
   return `(${alias}.fup_throttled_month IS NOT NULL AND ${alias}.fup_throttled_month >= DATE_FORMAT(${sqlBusinessToday()}, '%Y-%m-01'))`;
 }
 
+/**
+ * SQL: is this contract's speed enforced on the OLT? True when VigaBSS has
+ * provisioned an ONU for it (olt_onus, migration 025) that is switched on and
+ * has a service-port, which is what carries its rate limits. Such a contract
+ * gets NO plan rate limit from RADIUS: the OLT limits it, and a rate limit on
+ * the BNG would only add a queue. A contract marked FTTH with no ONU
+ * provisioned from here is still limited at the BNG, so a subscriber is never
+ * left with no limit anywhere.
+ *
+ * Throttles (FUP, soft suspension) are still sent to the BNG for these
+ * contracts: they are below the OLT's limit, so they take effect there.
+ *
+ * @param {string} alias contracts alias
+ */
+function oltEnforcedSql(alias = 'c') {
+  if (!/^[a-z_][a-z0-9_]*$/i.test(alias)) throw new Error('invalid alias');
+  return `(EXISTS (SELECT 1 FROM olt_onus oe WHERE oe.contract_id = ${alias}.id AND oe.active = 1 AND oe.service_port_index IS NOT NULL))`;
+}
+
+/** The same question for one contract (organizationId null = not scoped by the caller). */
+async function isOltEnforced(runner, contractId, organizationId = null) {
+  if (!contractId) return false;
+  const run = typeof runner.query === 'function' ? runner.query.bind(runner) : runner.execute.bind(runner);
+  const [rows] = await run(
+    `SELECT 1 FROM olt_onus
+      WHERE contract_id = ? AND (? IS NULL OR organization_id = ?) AND active = 1 AND service_port_index IS NOT NULL
+      LIMIT 1`,
+    [contractId, organizationId ?? null, organizationId ?? null],
+  );
+  return rows.length > 0;
+}
+
 /** Attribute map as the [{ name, value }] list the CoA/Accept encoders take. */
 function toNamedAttributes(attrMap) {
   const named = [];
@@ -175,4 +207,5 @@ function toNamedAttributes(attrMap) {
 
 module.exports = {
   generateAttributes, generateThrottleAttributes, hasThrottle, effectiveThrottle, fupThrottleActiveSql, toNamedAttributes,
+  oltEnforcedSql, isOltEnforced,
 };

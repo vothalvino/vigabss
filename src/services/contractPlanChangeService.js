@@ -51,17 +51,49 @@ async function pushPlanChange(contractId, organizationId) {
   }
 
   const throttle = effectiveThrottle(contract);
+  // A contract whose speed the OLT enforces gets its new plan speed there,
+  // and no plan rate at the BNG. A throttle still goes to the BNG.
+  const olt = await pushSpeedToOlt(contractId, organizationId);
   const attributes = throttle
     ? toNamedAttributes(generateThrottleAttributes(contract.radius_vendor, throttle.downloadKbps, throttle.uploadKbps))
-    : await planRateAttributes({ execute: (sql, p) => db.query(sql, p) }, contract.plan_id);
+    : (olt ? [] : await planRateAttributes({ execute: (sql, p) => db.query(sql, p) }, contract.plan_id));
   let coaSent = false;
-  try {
-    const result = await radiusService.changeOfAuth(contractId, 'update', attributes);
-    coaSent = Boolean(result && result.sent);
-  } catch (err) {
-    logger.warn({ err: err.message, contractId }, 'Plan changed; the live session keeps its rate until it reconnects');
+  if (attributes.length) {
+    try {
+      const result = await radiusService.changeOfAuth(contractId, 'update', attributes);
+      coaSent = Boolean(result && result.sent);
+    } catch (err) {
+      logger.warn({ err: err.message, contractId }, 'Plan changed; the live session keeps its rate until it reconnects');
+    }
   }
-  return { pushed: true, synced, coa_sent: coaSent };
+  return { pushed: true, synced, coa_sent: coaSent, ...(olt ? { olt } : {}) };
+}
+
+/**
+ * Apply the contract's (new) plan speed to its ONUs on the OLT. Returns null
+ * when the OLT does not enforce this contract's speed. A failure is reported,
+ * not thrown: the plan change itself stands, and the ONU keeps its old speed
+ * until it is changed from the Live OLT tab (the operation log shows why).
+ */
+async function pushSpeedToOlt(contractId, organizationId) {
+  const [onus] = await db.query(
+    `SELECT id, olt_device_id FROM olt_onus
+      WHERE contract_id = ? AND organization_id = ? AND active = 1 AND service_port_index IS NOT NULL`,
+    [contractId, organizationId],
+  );
+  if (!onus.length) return null;
+  const provisioning = require('./olt/oltProvisioningService');
+  const results = [];
+  for (const onu of onus) {
+    try {
+      const r = await provisioning.setSpeed(organizationId, onu.olt_device_id, onu.id, {}, { apply: true });
+      results.push({ onu_id: onu.id, changed: true, up_kbps: r.up_kbps, down_kbps: r.down_kbps });
+    } catch (err) {
+      logger.warn({ err: err.message, contractId, onuId: onu.id }, 'Plan changed; the ONU keeps its old speed on the OLT');
+      results.push({ onu_id: onu.id, changed: false, error: err.message });
+    }
+  }
+  return { enforced: true, onus: results };
 }
 
 module.exports = { pushPlanChange };

@@ -15,6 +15,7 @@ const { ValidationError } = require('../utils/errors');
 const mxRegisteredTemplateService = require('./mxRegisteredContractTemplateService');
 const {
   generateAttributes, generateThrottleAttributes, hasThrottle, toNamedAttributes,
+  isOltEnforced,
 } = require('./radiusAttributeService');
 const config = require('../config');
 const SESSION_LIVENESS_MINUTES = Number.isSafeInteger(config.radiusSessionLivenessMinutes)
@@ -478,8 +479,13 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
     let coaResponse = activationRequired ? 'activation_required' : null;
     if (!activationRequired) {
       try {
-        const restoreRate = wasThrottled ? await planRateAttributes(conn, lockedState.plan_id) : [];
-        const coaResult = await sendRadiusCoA(contractId, 'reconnect', restoreRate);
+        // A throttled contract whose speed the OLT enforces has no plan rate to
+        // send back: dropping the session makes it sign in again with no BNG limit.
+        const oltEnforced = wasThrottled && await isOltEnforced(conn, contractId, orgParams[0] ?? null);
+        const restoreRate = wasThrottled && !oltEnforced ? await planRateAttributes(conn, lockedState.plan_id) : [];
+        const coaResult = oltEnforced
+          ? await sendRadiusDisconnect(contractId)
+          : await sendRadiusCoA(contractId, 'reconnect', restoreRate);
         coaSent = coaResult.sent;
         coaResponse = coaResult.response;
       } catch (_coaErr) {

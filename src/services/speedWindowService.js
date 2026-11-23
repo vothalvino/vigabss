@@ -234,7 +234,9 @@ async function applySpeedWindows(organizationId) {
         `SELECT c.id FROM contracts c
          WHERE c.plan_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
            AND c.soft_suspend_download_kbps IS NULL
-           AND NOT ${require('./radiusAttributeService').fupThrottleActiveSql('c')}`,
+           AND NOT ${require('./radiusAttributeService').fupThrottleActiveSql('c')}
+           -- Contracts the OLT rate-limits get no BNG rate: a window does not apply to them.
+           AND NOT ${require('./radiusAttributeService').oltEnforcedSql('c')}`,
         [plan.id],
       );
 

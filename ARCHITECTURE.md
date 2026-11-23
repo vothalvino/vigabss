@@ -1661,11 +1661,24 @@ IP pools carry the same field (`ip_pools.access_technology`, default `both`).
 `subscriberProvisioningService.findActivePool` gives a contract a pool of its
 technology: exactly that technology first, then `both`, never the other one.
 
-Speed enforcement does not branch on it yet: RADIUS sends the plan speed to
-the BNG for every contract. FTTH (speed applied on the OLT, Huawei MA5800/
-EA5800 over SSH through the NAS WireGuard tunnel, PPPoE still terminating on
-the MikroTik) is the next step and must switch every caller of
-`radiusAttributeService.generateAttributes` together.
+**Where speed is enforced.** `radiusAttributeService.oltEnforcedSql` (and
+`isOltEnforced` for one contract) is the single rule: a contract with an ONU
+in `olt_onus` that is switched on and has a service-port is rate-limited by
+the OLT. For it:
+
+- RADIUS sends no plan rate. The built-in server omits it; the FreeRADIUS
+  sync puts the account in the twin group `plan_<id>_olt` (timeouts and login
+  hours, no rate) and writes no per-user rate.
+- `contractPlanChangeService.pushPlanChange` sets the new speed on the OLT
+  (`oltProvisioningService.setSpeed`) instead of sending a rate CoA.
+- FUP and soft-suspension throttles still go to the BNG (they are below the
+  OLT's limit). Lifting one disconnects the session, since there is no plan
+  rate to send back.
+- Speed windows skip its live sessions.
+
+Any other contract, FTTH or not, keeps its BNG limit. Do not branch on
+`access_technology` for enforcement: the ONU record is what proves a limit
+exists on the OLT.
 
 ### OLT command line (Huawei MA5800 / EA5800)
 
