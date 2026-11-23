@@ -123,6 +123,7 @@ const PATH_PARAMS = {
   '/olt-management/ports/:portId': 'olt_ports',
   '/olt-management/splitters/:splitterId': 'olt_splitters',
   '/olt-management/onu-migrations/:jobId': 'onu_migration_jobs',
+  '/olt-management/:id/managed-onus/:onuId': 'olt_onus',
   '/onu-management/details/:id': 'onu_details',
   '/onu-management/profiles/:id': 'onu_profiles',
   '/onu-management/whitelist/:id': 'onu_whitelist',
