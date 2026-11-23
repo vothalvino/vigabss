@@ -1,4 +1,23 @@
 {
+  "accessTechnology": {
+    "asPlanShort": "Conforme o plano",
+    "planLabel": "Tecnologia de acesso",
+    "planHint": "Como este plano é entregue. No WISP a velocidade é controlada pelo MikroTik; no FTTH, pela OLT.",
+    "plan": {
+      "wisp": "WISP (sem fio)",
+      "ftth": "FTTH (fibra)",
+      "both": "WISP e FTTH"
+    },
+    "name": {
+      "wisp": "WISP (sem fio)",
+      "ftth": "FTTH (fibra)"
+    },
+    "contractLabel": "Tecnologia",
+    "asPlan": "Conforme o plano ({{technology}})",
+    "contractHint": "Altere para mover o assinante para outra tecnologia no mesmo contrato. Não é preciso novo contrato nem nova assinatura.",
+    "outsidePlan": "Este plano não é oferecido nessa tecnologia. O contrato será atendido assim mesmo; use ao migrar um assinante que mantém o contrato.",
+    "setOnContract": "definida neste contrato"
+  },
   "nasVoip": {
     "enableConfirm": "Ativar a prioridade VoIP neste roteador? O VigaBSS adiciona regras e uma fila de prioridade máxima para que as chamadas passem primeiro. Não altera a velocidade do plano de ninguém. Você pode removê-la depois pelo menu VoIP deste NAS.",
     "menuTitle": "Prioridade VoIP neste roteador",

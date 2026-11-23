@@ -1635,6 +1635,22 @@ and nftables table (`vigabss_wg`), the objects written to managed routers
 names. They are contracts with deployed state: renaming one needs an upgrade
 path for whatever already carries the old name.
 
+### Access technology (WISP / FTTH)
+
+`plans.access_technology` is `wisp`, `ftth` or `both`; `contracts.access_technology`
+is `wisp`, `ftth` or NULL (as the plan says). The technology serving a contract
+is decided in one place, `src/utils/accessTechnology.js` (`effectiveTechnology`
+and its SQL twin `effectiveTechnologySql`): the contract's own value, else
+`ftth` for an FTTH-only plan, else `wisp`. Use it instead of reading either
+column directly. A contract may name a technology its plan is not offered
+over; that is how a subscriber is migrated without a new contract.
+
+Speed enforcement does not branch on it yet: RADIUS sends the plan speed to
+the BNG for every contract. FTTH (speed applied on the OLT, Huawei MA5800/
+EA5800 over SSH through the NAS WireGuard tunnel, PPPoE still terminating on
+the MikroTik) is the next step and must switch every caller of
+`radiusAttributeService.generateAttributes` together.
+
 ### VPN clients keep their own address
 
 A full-tunnel WireGuard client (`wg-clients`) that opens this install's own

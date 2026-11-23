@@ -84770,6 +84770,13 @@
               "dual"
             ]
           },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth"
+            ]
+          },
           "start_date": {
             "type": "string"
           },
@@ -84848,6 +84855,13 @@
               "pppoe_dual",
               "static",
               "dual"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth"
             ]
           },
           "start_date": {
@@ -84930,6 +84944,13 @@
               "pppoe_dual",
               "static",
               "dual"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth"
             ]
           },
           "start_date": {
@@ -94677,6 +94698,14 @@
               "ipv6_only",
               "dual_stack"
             ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ]
           }
         },
         "required": [
@@ -94768,6 +94797,14 @@
               "ipv6_only",
               "dual_stack"
             ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ]
           }
         }
       },
@@ -94852,6 +94889,14 @@
               "ipv4_only",
               "ipv6_only",
               "dual_stack"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
             ]
           }
         }
@@ -103942,6 +103987,17 @@
               "dual"
             ]
           },
+          "access_technology": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "wisp",
+              "ftth",
+              null
+            ]
+          },
           "contract_template_mx_id": {
             "type": [
               "integer",
@@ -104066,6 +104122,7 @@
           "price_override",
           "notes",
           "connection_type",
+          "access_technology",
           "contract_template_mx_id",
           "mx_contract_environment",
           "facturar",
@@ -104492,6 +104549,15 @@
               "string",
               "null"
             ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ],
+            "description": "Access technology the plan is offered over"
           },
           "created_at": {
             "type": [

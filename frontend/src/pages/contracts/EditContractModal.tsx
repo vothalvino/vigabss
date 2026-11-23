@@ -25,6 +25,7 @@ export interface Plan {
   id: number;
   name: string;
   price: string;
+  access_technology?: string | null;
 }
 
 // A type alias, not an interface: the request body type has an index signature.
@@ -32,6 +33,7 @@ type UpdateContractBody = {
   plan_id?: number;
   contract_template_mx_id?: number;
   connection_type?: string;
+  access_technology?: string | null;
   start_date?: string;
   end_date?: string | null;
   billing_day?: number;
@@ -81,6 +83,8 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
   const [form, setForm] = useState({
     plan_id: String(contract.plan_id),
     connection_type: contract.connection_type || 'pppoe',
+    // '' = as the plan says (migration 018).
+    access_technology: contract.access_technology || '',
     start_date: contract.start_date ? contract.start_date.split('T')[0] : '',
     end_date: contract.end_date ? contract.end_date.split('T')[0] : '',
     billing_day: contract.billing_day != null ? String(contract.billing_day) : '',
@@ -100,6 +104,10 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
     prorate: true,
   });
   const changesPlan = form.plan_id !== String(contract.plan_id);
+  // What the selected plan is offered over, and whether this contract's own
+  // choice goes outside it (allowed: that is how a subscriber is migrated).
+  const planTechnology = plans.find(p => String(p.id) === form.plan_id)?.access_technology ?? 'wisp';
+  const outsidePlan = form.access_technology !== '' && planTechnology !== 'both' && planTechnology !== form.access_technology;
   const [error, setError] = useState('');
   const [mxSourceAvailable, setMxSourceAvailable] = useState(false);
 
@@ -112,6 +120,7 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
       const body: UpdateContractBody = {
         plan_id: Number(form.plan_id),
         connection_type: form.connection_type,
+        access_technology: form.access_technology === '' ? null : form.access_technology,
         escalation_enabled: form.escalation_enabled,
         escalate_on_disconnect: form.escalate_on_disconnect,
         end_date: form.end_date || null,
@@ -213,6 +222,23 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
             </select>
           </label>
           <p style={modalStyles.hint}>{t('contractList.editModal.connectionFamilyHelp')}</p>
+
+          <label style={modalStyles.label}>
+            {t('accessTechnology.contractLabel')}
+            <select
+              style={modalStyles.select}
+              value={form.access_technology}
+              onChange={e => setField('access_technology', e.target.value)}
+              aria-label={t('accessTechnology.contractLabel')}
+            >
+              <option value="">{t('accessTechnology.asPlan', { technology: t(`accessTechnology.name.${planTechnology === 'ftth' ? 'ftth' : 'wisp'}`) })}</option>
+              <option value="wisp">{t('accessTechnology.name.wisp')}</option>
+              <option value="ftth">{t('accessTechnology.name.ftth')}</option>
+            </select>
+          </label>
+          <p style={modalStyles.hint}>
+            {outsidePlan ? t('accessTechnology.outsidePlan') : t('accessTechnology.contractHint')}
+          </p>
 
           <label style={modalStyles.label}>
             {t('ui.editContractModal.startDate')}

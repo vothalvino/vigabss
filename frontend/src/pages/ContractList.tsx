@@ -69,6 +69,7 @@ interface CreateContractBody {
   client_id: number;
   plan_id: number;
   connection_type?: string;
+  access_technology?: string;
   start_date: string;
   billing_day?: number;
   price_override?: number;
@@ -295,6 +296,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
     client_id: '',
     plan_id: '',
     connection_type: 'pppoe',
+    access_technology: '',
     start_date: TODAY,
     billing_day: '1',
     ip_address: '',
@@ -322,6 +324,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
         client_id: Number(form.client_id),
         plan_id: Number(form.plan_id),
         connection_type: form.connection_type,
+        ...(form.access_technology ? { access_technology: form.access_technology } : {}),
         start_date: form.start_date,
         billing_day: form.billing_day ? Math.min(28, Math.max(1, Number(form.billing_day))) : undefined,
         ip_address: form.ip_address || undefined,
@@ -404,6 +407,21 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
               <option value="pppoe_dual">{t('ui.contractList.pppoeDual')}</option>
               <option value="static">{t('ui.contractList.static')}</option>
               <option value="dual">{t('ui.contractList.dual')}</option>
+            </select>
+          </label>
+
+          {/* Technology: blank follows the plan (migration 018) */}
+          <label style={modalStyles.label}>
+            {t('accessTechnology.contractLabel')}
+            <select
+              style={modalStyles.select}
+              value={form.access_technology}
+              onChange={e => setField('access_technology', e.target.value)}
+              aria-label={t('accessTechnology.contractLabel')}
+            >
+              <option value="">{t('accessTechnology.asPlanShort')}</option>
+              <option value="wisp">{t('accessTechnology.name.wisp')}</option>
+              <option value="ftth">{t('accessTechnology.name.ftth')}</option>
             </select>
           </label>
 

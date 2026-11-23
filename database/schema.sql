@@ -458,6 +458,7 @@ CREATE TABLE IF NOT EXISTS plans (
     priority_class_id   BIGINT UNSIGNED NULL COMMENT 'Quality class assigned to subscribers on this plan; drives queue priority (migration 286)',
     status          ENUM('active', 'inactive', 'archived') NOT NULL DEFAULT 'active',
     stack_type      ENUM('ipv4_only','ipv6_only','dual_stack') NOT NULL DEFAULT 'dual_stack' COMMENT 'IP stack type: IPv4-only, IPv6-only, or dual-stack (migration 243)',
+    access_technology ENUM('wisp','ftth','both') NOT NULL DEFAULT 'wisp' COMMENT 'Access technology this plan is offered over: wireless, fibre or both (migration 018)',
     session_timeout_seconds INT UNSIGNED NULL COMMENT 'RADIUS Session-Timeout for subscribers on this plan (migration 225)',
     idle_timeout_seconds    INT UNSIGNED NULL COMMENT 'RADIUS Idle-Timeout for subscribers on this plan (migration 225)',
     simultaneous_use        INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Max concurrent sessions per subscriber on this plan (migration 225)',
@@ -499,6 +500,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     notes          TEXT            NULL,
     connection_type ENUM('pppoe', 'pppoe_dual', 'static', 'dual') NOT NULL DEFAULT 'pppoe'
                        COMMENT 'pppoe = PPPoE IPv4-only (requires RADIUS); pppoe_dual = PPPoE dual-stack IPv4+IPv6 (requires RADIUS); static = static IPv4 (no RADIUS); dual = dual-stack static IPv4+IPv6 (no RADIUS)',
+    access_technology ENUM('wisp','ftth') NULL DEFAULT NULL COMMENT 'Technology serving this contract; NULL = as its plan says (migration 018)',
     contract_template_mx_id BIGINT UNSIGNED NULL
                        COMMENT 'MX contract source used for this contract; NULL for contracts without an MX legal source',
     mx_contract_environment ENUM('sandbox','production') NULL

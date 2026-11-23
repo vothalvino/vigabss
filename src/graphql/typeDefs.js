@@ -98,6 +98,10 @@ module.exports = /* GraphQL */ `
     clientId: ID!
     planId: ID
     connectionType: String
+    """wisp or ftth: the contract's own choice, else what its plan says"""
+    accessTechnology: String
+    """wisp, ftth or null when the contract follows its plan"""
+    accessTechnologyOverride: String
     startDate: String
     endDate: String
     billingDay: Int

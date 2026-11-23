@@ -51,6 +51,7 @@ interface Plan {
   trial_days?: number | null;
   trial_price?: string | number | null;
   stack_type?: string | null;
+  access_technology?: string | null;
 }
 
 interface PlansResponse {
@@ -79,6 +80,7 @@ interface PlanBody {
   trial_days?: number;
   trial_price?: number;
   stack_type?: string;
+  access_technology?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 const RADIUS_VENDORS = ['', 'mikrotik', 'cisco', 'juniper'];
 const OVERAGE_MODES = ['none', 'per_gb', 'upgrade_prompt'];
 const STACK_TYPES = ['ipv4_only', 'ipv6_only', 'dual_stack'];
+const ACCESS_TECHNOLOGIES = ['wisp', 'ftth', 'both'] as const;
 
 // ---------------------------------------------------------------------------
 // Fetch / mutate helpers
@@ -165,6 +168,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
     trial_days: plan?.trial_days != null ? String(plan.trial_days) : '',
     trial_price: plan?.trial_price != null ? String(plan.trial_price) : '',
     stack_type: plan?.stack_type ?? 'dual_stack',
+    access_technology: plan?.access_technology ?? 'wisp',
   });
   const [error, setError] = useState('');
 
@@ -183,6 +187,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
         status: form.status,
         overage_mode: form.overage_mode || 'none',
         stack_type: form.stack_type || 'dual_stack',
+        access_technology: form.access_technology || 'wisp',
       };
       if (form.description) body.description = form.description;
       if (form.data_cap_gb) body.data_cap_gb = Number(form.data_cap_gb);
@@ -338,6 +343,21 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               ))}
             </select>
           </label>
+
+          <label style={modalStyles.label}>
+            {t('accessTechnology.planLabel')}
+            <select
+              style={modalStyles.select}
+              value={form.access_technology}
+              onChange={e => setField('access_technology', e.target.value)}
+              aria-label={t('accessTechnology.planLabel')}
+            >
+              {ACCESS_TECHNOLOGIES.map(tech => (
+                <option key={tech} value={tech}>{t(`accessTechnology.plan.${tech}`)}</option>
+              ))}
+            </select>
+          </label>
+          <p style={{ margin: '-0.4rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('accessTechnology.planHint')}</p>
 
           <label style={modalStyles.label}>
             {t('ui.planList.radiusVendor')}

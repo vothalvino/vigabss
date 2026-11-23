@@ -69,8 +69,9 @@ describe('query limits (SEC-25)', () => {
   test('the SPA\'s own detail queries are within the limits', () => {
     const typeDefs = require('../src/graphql/typeDefs');
     const schema = buildSchema(typeof typeDefs === 'string' ? typeDefs : typeDefs.loc?.source?.body ?? String(typeDefs));
-    for (const page of ['ClientDetail', 'PaymentDetail', 'ContractDetail']) {
-      const src = fs.readFileSync(`frontend/src/pages/${page}.tsx`, 'utf8');
+    // ContractDetail's query lives in its own module (the page was split).
+    for (const page of ['ClientDetail.tsx', 'PaymentDetail.tsx', 'contracts/contractDetailQuery.ts']) {
+      const src = fs.readFileSync(`frontend/src/pages/${page}`, 'utf8');
       const text = /_QUERY\s*=\s*(?:\/\*\s*GraphQL\s*\*\/\s*)?`([\s\S]*?)`/.exec(src)[1];
       const errors = validate(schema, parse(text), [...specifiedRules, queryLimitsRule]);
       expect(errors.map(e => e.message)).toEqual([]);

@@ -19,6 +19,7 @@ const createPlan = {
   priority_class_id: { type: 'number', min: 1 },
   status: { type: 'string', enum: ['active', 'inactive', 'archived'] },
   stack_type: { type: 'string', enum: ['ipv4_only', 'ipv6_only', 'dual_stack'] },
+  access_technology: { type: 'string', enum: ['wisp', 'ftth', 'both'] },
 };
 
 const updatePlan = {
@@ -38,6 +39,7 @@ const updatePlan = {
   priority_class_id: { type: 'number', min: 1 },
   status: { type: 'string', enum: ['active', 'inactive', 'archived'] },
   stack_type: { type: 'string', enum: ['ipv4_only', 'ipv6_only', 'dual_stack'] },
+  access_technology: { type: 'string', enum: ['wisp', 'ftth', 'both'] },
 };
 
 const createPlanAddon = {
