@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 386 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 019)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 022)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -755,6 +755,8 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 017 — VoIP refresh switch:** the weekly refresh of the VoIP address list on MikroTik NAS is switched on and off in the app (Network → NAS, install operator). `VOIP_RANGES_ENABLED` is no longer read. The migration only corrects the scheduled task's description.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 022 — eOTDR ports:** `olt_ports.has_eotdr` marks a PON port whose transceiver has an embedded OTDR.
 
 > **Migration 019 — OLT logins:** `olt_connections` stores how VigaBSS reaches an OLT's command line over SSH (address, user, encrypted password, driver, pinned SSH host key). One row per OLT device.
 

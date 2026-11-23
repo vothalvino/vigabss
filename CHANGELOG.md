@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **PON ports can be marked as having an eOTDR transceiver.** The PON port
+  form has a "Transceiver with eOTDR" checkbox and the port list shows an
+  eOTDR badge (migration 022). This records which ports carry one; reading
+  eOTDR measurements from the OLT is not implemented yet.
+
 - **Huawei OLT driver, read operations (MA5800 / EA5800).** Network → OLT
   Management has a "Live OLT" tab. For an OLT device you save how VigaBSS logs
   in to its command line over SSH (management address, user, password), test

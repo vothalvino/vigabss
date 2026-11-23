@@ -11234,6 +11234,8 @@ CREATE TABLE IF NOT EXISTS olt_ports (
                             COMMENT 'Active ONUs registered on this PON port (polled)',
     max_onus            SMALLINT UNSIGNED NULL DEFAULT 128
                             COMMENT 'Maximum ONUs supported (1:128 splitter)',
+    has_eotdr           TINYINT(1)      NOT NULL DEFAULT 0
+                            COMMENT '1 = the transceiver on this port has an embedded OTDR (eOTDR) (migration 022)',
     tx_power_dbm        DECIMAL(6,2)    NULL
                             COMMENT 'PON port Tx optical power in dBm (polled)',
     rx_power_dbm        DECIMAL(6,2)    NULL
