@@ -48,48 +48,12 @@ import {
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
 import { CONTRACT_DETAIL_QUERY } from './contracts/contractDetailQuery';
+import type { ContractClient, Invoice, Device, ContractAddon } from './contracts/contractDetailTypes';
+import { ContractTransition } from './contracts/ContractTransition';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface ContractClient {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  total: string;
-  currency: string;
-  dueDate: string | null;
-  paidAt: string | null;
-  status: string;
-}
-
-interface Device {
-  id: string;
-  name: string;
-  type: string | null;
-  manufacturer: string | null;
-  model: string | null;
-  macAddress: string | null;
-  ipAddress: string | null;
-  status: string;
-}
-
-interface ContractAddon {
-  id: string;
-  addonName: string | null;
-  addonType: string | null;
-  quantity: string | null;
-  unitPrice: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  status: string;
-}
 
 interface Contract {
   id: string;
@@ -2220,6 +2184,7 @@ export function ContractDetail() {
           </div>
         )}
       </div>
+      <ContractTransition contractId={contract.id} clientId={contract.clientId} status={contract.status} technology={contract.accessTechnology} connectionType={contract.connectionType} canEdit={canEdit} />
 
       <MxSandboxDocumentBanner environment={contract.mxContractEnvironment} />
 

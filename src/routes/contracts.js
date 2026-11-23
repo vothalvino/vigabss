@@ -28,6 +28,8 @@ const contractActivationService = require('../services/contractActivationService
 const mxRegisteredTemplateService = require('../services/mxRegisteredContractTemplateService');
 const testWindowService = require('../services/testWindowService');
 const { assertPlanSelectable, technologyForNewContract, assertPlanKeepsTechnology } = require('../services/planAvailability');
+const { terminateContract, purgeFreeradiusRows } = require('../services/contractTerminationService');
+const contractTransitionService = require('../services/contractTransitionService');
 const { updateContractWithActivationGuard } = require('../services/contractUpdateGuard');
 const contractPlanChangeService = require('../services/contractPlanChangeService');
 const planChangeProrationService = require('../services/planChangeProrationService');
@@ -39,17 +41,6 @@ const logger = require('../utils/logger').child({ service: 'routes/contracts' })
 
 const router = Router();
 
-// Turning service off must also remove the subscriber's FreeRADIUS SQL rows:
-// the periodic sync only rewrites active accounts, so external FreeRADIUS kept
-// authenticating suspended and terminated subscribers (NET-03). The full sync
-// also clears them, so a failure here is logged rather than undoing the change.
-async function purgeFreeradiusRows(contractId, orgId) {
-  try {
-    await radiusService.syncFreeradiusContract(contractId, { organizationId: orgId, enabled: false });
-  } catch (err) {
-    logger.error({ err: err.message, contractId }, 'Could not remove FreeRADIUS rows; the next sync will');
-  }
-}
 const ctrl = crudController(Contract);
 
 
@@ -408,6 +399,11 @@ async function updateContractHandler(req, res, next) {
 
 router.get('/', requirePermission('contracts.view'), ctrl.list);
 router.get('/:id', requirePermission('contracts.view'), ctrl.get);
+// What this contract replaces, and what is replacing it (technology transition).
+router.get('/:id/transition', requirePermission('contracts.view'), async (req, res, next) => {
+  try { res.json({ data: await contractTransitionService.relations(req.params.id, req.orgId) }); } catch (err) { next(err); }
+});
+
 router.get('/:id/activation', requirePermission('contracts.view'), async (req, res, next) => {
   try {
     const projection = await activationProjectionPermissions(req);
@@ -579,6 +575,17 @@ router.post('/', requirePermission('contracts.create'), validate(createContract,
 
     // The technology is decided now and does not change afterwards.
     filtered.access_technology = technologyForNewContract(plan.access_technology, filtered.access_technology);
+
+    // Technology transition: this contract takes over from another one, which
+    // is terminated when this one is activated (migration 021).
+    if (filtered.replaces_contract_id !== undefined && filtered.replaces_contract_id !== null) {
+      await contractTransitionService.assertCanReplace(conn, {
+        orgId: req.orgId,
+        clientId: filtered.client_id,
+        replacesId: filtered.replaces_contract_id,
+        technology: filtered.access_technology,
+      });
+    }
 
     const activeMxSource = await mxRegisteredTemplateService.resolveActiveContractSource(
       conn.query.bind(conn),
@@ -1073,49 +1080,7 @@ router.post('/:id/regenerate-pppoe', requirePermission('contracts.update'), asyn
 // Sends RADIUS Disconnect-Request when terminating an active/suspended contract.
 router.post('/:id/terminate', requirePermission('contracts.update'), async (req, res, next) => {
   try {
-    const [rows] = await db.query(
-      'SELECT * FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    const contract = rows[0];
-    if (!contract) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contract not found' } });
-    }
-    const terminableStatuses = ['active', 'suspended'];
-    if (!terminableStatuses.includes(contract.status)) {
-      return res.status(422).json({
-        error: { code: 'NOT_TERMINABLE', message: `Cannot terminate a contract with status '${contract.status}'` },
-      });
-    }
-    const record = await Contract.update(req.params.id, { status: 'terminated' }, req.orgId);
-    // Termination is a permanent end of service — deactivate any RADIUS
-    // account tied to this contract so it stops authenticating NEW PPPoE
-    // sessions (mirrors lifecycleService.cancelOrder's pending->cancelled
-    // flip). Unconditional (not guarded by current radius status), same as
-    // cancelOrder. Previously this route reused suspensionService.suspendContract
-    // purely for its CoA-disconnect side effect, which incorrectly also set
-    // contracts.status back to 'suspended' (immediately overwritten below) and
-    // logged a misleading 'suspend' suspension_logs entry for what is actually
-    // a terminate — replaced with a direct radius flip + CoA disconnect.
-    await db.query(
-      "UPDATE radius SET status = 'inactive' WHERE contract_id = ? AND deleted_at IS NULL",
-      [req.params.id],
-    );
-    await purgeFreeradiusRows(record.id, req.orgId);
-    // Fire RADIUS disconnect best-effort (don't fail the terminate if CoA fails)
-    suspensionService.sendRadiusDisconnect(parseInt(req.params.id, 10)).catch(() => {});
-    // Inventory Phase 3 (migration 391) — see updateContractHandler's identical hook.
-    inventorySerialService.ensurePickupWorkOrder(record.id, { orgId: req.orgId, performedBy: req.user?.id || null })
-      .catch(err => logger.error({ err: err.message, contractId: record.id }, 'Failed to auto-create equipment pickup work order'));
-    await auditLog.log({
-      userId: req.user?.id,
-      organizationId: req.orgId,
-      action: 'terminate',
-      tableName: Contract.tableName,
-      recordId: record.id,
-      oldValues: { status: contract.status },
-      newValues: { status: 'terminated' },
-    }).catch(() => {});
+    const record = await terminateContract(req.params.id, req.orgId, { userId: req.user?.id || null });
     res.json({ data: record });
   } catch (err) { next(err); }
 });

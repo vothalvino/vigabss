@@ -104,6 +104,7 @@
   "contracts": {
     "client_id": "clients",
     "plan_id": "plans",
+    "replaces_contract_id": "contracts",
     "site_id": "sites"
   },
   "coverage_zones": {

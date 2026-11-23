@@ -31,6 +31,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   eOTDR badge (migration 022). This records which ports carry one; reading
   eOTDR measurements from the OLT is not implemented yet.
 
+- **Technology transition with a newly signed contract.** A contract in
+  service has a "Change technology" action. It creates a new contract for the
+  other technology (WISP or FTTH), linked to the current one. The new contract
+  goes through the normal activation steps, including the client's signature.
+  The current contract keeps working until the new one is activated and is
+  terminated at that moment; cancelling the new contract leaves it untouched.
+  Both contract pages show the link (migration 021).
+- **IP pools have an access technology.** A pool is marked WISP, FTTH or both
+  (IP pool form; default both). A new contract's PPPoE account takes a pool
+  of the contract's own technology, preferring a pool for exactly that
+  technology over one that serves both, so fibre and wireless subscribers can
+  have separate address ranges (migration 020).
 - **Huawei OLT driver, read operations (MA5800 / EA5800).** Network → OLT
   Management has a "Live OLT" tab. For an OLT device you save how VigaBSS logs
   in to its command line over SSH (management address, user, password), test

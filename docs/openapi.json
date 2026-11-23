@@ -6557,6 +6557,42 @@
         }
       }
     },
+    "/contracts/{id}/transition": {
+      "get": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Technology transition links of a contract: the contract it replaces and the contract replacing it (each id and status, or null)",
+        "operationId": "getContractTransition",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "replaces, replaced_by",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contracts/{id}/activation": {
       "get": {
         "tags": [
@@ -85154,6 +85190,10 @@
             "type": "number",
             "minimum": 1
           },
+          "replaces_contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
           "connection_type": {
             "type": "string",
             "enum": [
@@ -90015,6 +90055,14 @@
               "mixed"
             ]
           },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ]
+          },
           "default_prefix_len": {
             "type": "number",
             "minimum": 48,
@@ -90130,6 +90178,14 @@
               "corporate",
               "government",
               "mixed"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
             ]
           },
           "default_prefix_len": {
@@ -104400,6 +104456,12 @@
               null
             ]
           },
+          "replaces_contract_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "contract_template_mx_id": {
             "type": [
               "integer",
@@ -104525,6 +104587,7 @@
           "notes",
           "connection_type",
           "access_technology",
+          "replaces_contract_id",
           "contract_template_mx_id",
           "mx_contract_environment",
           "facturar",
