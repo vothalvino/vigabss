@@ -124,8 +124,8 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 385 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 018)
+│   ├── schema.sql           # Combined schema (all 386 tables + column additions)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 019)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -755,6 +755,8 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 017 — VoIP refresh switch:** the weekly refresh of the VoIP address list on MikroTik NAS is switched on and off in the app (Network → NAS, install operator). `VOIP_RANGES_ENABLED` is no longer read. The migration only corrects the scheduled task's description.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract carries its own technology (`contracts.access_technology`, NULL = as the plan says), so a subscriber can be moved from WISP to FTTH on the same contract. Existing plans and contracts stay WISP.
+
+> **Migration 019 — OLT logins:** `olt_connections` stores how VigaBSS reaches an OLT's command line over SSH (address, user, encrypted password, driver, pinned SSH host key). One row per OLT device.
 
 > **Migration 010 — Manager group, point logins, bags assigned to their point:** a new system user group `manager` (persona `billing`) holds every permission of `admin` except organization settings, staff users and groups, organizations, security administration, integrations, API tokens, webhooks, PAC providers, CSD certificates, payment gateways, data residency, the AI provider settings, WireGuard administration and compliance exports (it keeps `users.view`). New permission `point_logins.create` (`admin`, `manager`) creates reseller and carrier logins without `users.create`. Cash bags: `POST /api/v1/cash-bags/handover` now takes the point the bags are for (`reseller_id`, a top-level reseller assigned to the carrier); the bags appear on the point's page at once and it may seal them, and the carrier's drop-off only confirms the delivery at the bag's own point (`BAGS_FOR_ANOTHER_POINT`). No schema change; the rollback removes the group only when nobody is in it.
 
