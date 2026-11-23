@@ -1,9 +1,9 @@
-# VigaBSS 0.1.0-alpha.28 — Grafana Dashboards
+# VigaBSS 0.1.0-alpha.29 — Grafana Dashboards
 
 The dashboard UIDs are stable Grafana import/provisioning identifiers:
 renaming a UID on a running Grafana creates a duplicate dashboard.
 
-This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 0.1.0-alpha.28. All dashboards use Prometheus as the data source.
+This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 0.1.0-alpha.29. All dashboards use Prometheus as the data source.
 
 ## Dashboards
 
