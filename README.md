@@ -29,6 +29,10 @@ resolves to it. On Ubuntu/Debian the installer adds missing curl, Git, OpenSSL,
 Docker CE, and Docker Compose v2 automatically. Install those dependencies
 yourself first on another distribution.
 
+**Supported servers:** Ubuntu 24.04 LTS and 26.04 LTS. The installer is run on
+both in CI on every change, from a clean system through to a stack answering
+over HTTPS. Other Debian-based systems usually work but are not tested.
+
 ### Options
 
 Pass variables to the `bash` process after the pipe to skip interactive prompts:

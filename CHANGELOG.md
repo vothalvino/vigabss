@@ -5,6 +5,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Ubuntu 24.04 LTS and 26.04 LTS are the supported servers, and both are
+  tested.** CI now runs the installer on each release on every change: its
+  package step in a clean image of the release, and a complete install on a
+  machine of it, through to a stack that answers over HTTPS. A change that
+  breaks either release fails a check. The installer has a new
+  `INSTALL_DEPS_ONLY=1` mode that installs only what the server needs (curl,
+  Git, OpenSSL, Docker, Docker Compose v2) and stops.
+- **A first install no longer fails on a server whose root account creates
+  files writable by everyone.** MySQL ignores a world-writable config file, so
+  on such a server the database started without its settings and the first
+  migration stopped with a binary-logging error. The installer and `redeploy`
+  now check files out with normal permissions, and the installer corrects an
+  existing checkout. Found by the new install check.
+- The installer no longer prints two harmless "command not found" lines while
+  writing `.env.prod`.
 - **CFDI page: sortable columns, newest first.** The column headers of the
   CFDI list are now clickable and sort the whole list (ID, type, receptor,
   total, date, status, PAC); a second click reverses the order. The list

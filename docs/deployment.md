@@ -33,6 +33,13 @@ The fastest way to deploy VigaBSS 0.1.0-alpha.28 on a fresh Ubuntu/Debian server
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 ```
 
+**Supported servers:** Ubuntu 24.04 LTS and 26.04 LTS. CI installs VigaBSS on
+both on every change: the installer's package step in a clean image of each
+release, and a complete install on a machine of each, through to a stack
+answering over HTTPS. Other Debian-based systems usually work but are not
+tested. `INSTALL_DEPS_ONLY=1` makes the installer add only the host
+dependencies (curl, Git, OpenSSL, Docker, Docker Compose v2) and stop.
+
 The script will interactively prompt for your domain name and email address, then:
 
 1. Install missing Docker, Docker Compose v2, Git, and OpenSSL dependencies on Ubuntu/Debian (or verify they are present on another distribution)

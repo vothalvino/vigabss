@@ -27,6 +27,13 @@
 #   ADMIN_IP_ALLOWLIST  Optional install-wide admin IPv4/CIDR override
 #   VIGABSS_CHANNEL     release (default): the newest v* release; main: the
 #                       head of main. Recorded in .env.prod for redeploy.
+#   INSTALL_DEPS_ONLY   Set to 1 to install only what the host needs (curl, Git,
+#                       OpenSSL, Docker, Docker Compose v2) and stop: nothing is
+#                       downloaded, configured or started. Used to prepare a
+#                       host, and by CI to check each supported Ubuntu release.
+#
+# Supported hosts: Ubuntu 24.04 LTS and 26.04 LTS (both are installed and
+# started in CI on every change). Other Debian-based systems usually work.
 #
 # =============================================================================
 
@@ -34,6 +41,12 @@ set -euo pipefail
 # A failing command under errexit used to end the run with no output at all
 # (SUP-01). Name the line and command that stopped it.
 trap 'echo "install.sh: stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
+
+# Files the installer checks out must not be writable by everyone: MySQL
+# ignores a world-writable config file, so under a permissive umask (some
+# hosts give root 000) mysql/primary.cnf was silently skipped and the first
+# migration failed on binary logging. Secret files set their own tighter mask.
+umask 022
 
 REPO_URL="https://github.com/vothalvino/vigabss.git"
 VIGABSS_VERSION="0.1.0-alpha.28"
@@ -246,7 +259,9 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # ── Ensure Docker daemon is running ──────────────────────────────────────────
-if ! docker info >/dev/null 2>&1; then
+# Not in deps-only mode: that mode installs packages and stops, and it also
+# runs where no service manager exists (a container in CI).
+if [[ "${INSTALL_DEPS_ONLY:-0}" != "1" ]] && ! docker info >/dev/null 2>&1; then
   info "Docker daemon is not running — starting it now..."
   systemctl enable docker --now
   # Wait up to 30 s for the socket to become available
@@ -287,6 +302,12 @@ if ! docker compose version >/dev/null 2>&1; then
     die "Docker Compose v2 is not installed.
   Install: https://docs.docker.com/compose/install/"
   fi
+fi
+
+if [[ "${INSTALL_DEPS_ONLY:-0}" == "1" ]]; then
+  log "Host dependencies are installed: $(docker --version), $(docker compose version)."
+  log "INSTALL_DEPS_ONLY=1: stopping here. Nothing was downloaded, configured or started."
+  exit 0
 fi
 
 # Prompt helper: skips the prompt when the variable is already set (env or
@@ -862,9 +883,9 @@ ADMIN_IP_ALLOWLIST=${ADMIN_IP_ALLOWLIST:-}
 # password in the web UI after your first login.
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
-# Installer bootstrap state. `pending` makes an interrupted post-migration run
-# resume the idempotent initial seed; install.sh advances this to `seeded`, then
-# `complete` only after it has displayed the one-time login instructions.
+# Installer bootstrap state. pending makes an interrupted post-migration run
+# resume the idempotent initial seed; install.sh advances this to seeded, then
+# complete only after it has displayed the one-time login instructions.
 VIGABSS_BOOTSTRAP_STATE=pending
 
 # ---- SMTP (configure after install) ------------------------------------------
@@ -1216,6 +1237,9 @@ fi
 # requires the latest migrations. `docker compose run` below does not publish
 # the app's fixed UDP ports, so migrations and seed can run without exposing a
 # partially initialized service.
+# A checkout made before the umask above existed may still carry the loose mode.
+chmod go-w "$INSTALL_DIR"/mysql/*.cnf 2>/dev/null || true
+
 info "Starting database and Redis dependencies..."
 $COMPOSE up -d db-primary redis
 
