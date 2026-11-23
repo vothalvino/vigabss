@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **IP pools have an access technology.** A pool is marked WISP, FTTH or both
+  (IP pool form; default both). A new contract's PPPoE account takes a pool
+  of the contract's own technology, preferring a pool for exactly that
+  technology over one that serves both, so fibre and wireless subscribers can
+  have separate address ranges (migration 020).
 - **Huawei OLT driver, read operations (MA5800 / EA5800).** Network → OLT
   Management has a "Live OLT" tab. For an OLT device you save how VigaBSS logs
   in to its command line over SSH (management address, user, password), test

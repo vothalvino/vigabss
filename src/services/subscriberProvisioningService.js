@@ -18,6 +18,7 @@
 const net = require('net');
 const crypto = require('crypto');
 const { ConflictError } = require('../utils/errors');
+const { TECHNOLOGIES, effectiveTechnology } = require('../utils/accessTechnology');
 const logger = require('../utils/logger').child({ service: 'provisioning' });
 
 // Connection types that authenticate through RADIUS (PPPoE).
@@ -110,28 +111,45 @@ async function generatePppoeCredentials(runner, { seed } = {}) {
 }
 
 /**
- * Find the first active IP pool of a given version for an organization.
+ * The active IP pool a contract of this technology takes its address from.
+ * A pool for exactly that technology comes before one that serves both; a
+ * pool for the other technology is never used. Within each, the oldest pool.
  *
  * @param {object} runner DB pool or transaction connection.
  * @param {object} opts
  * @param {'4'|'6'} opts.ipVersion
  * @param {number|null} opts.organizationId
+ * @param {'wisp'|'ftth'} [opts.technology='wisp']
  * @returns {Promise<number|null>} Pool id or null when none is configured.
  */
-async function findActivePool(runner, { ipVersion, organizationId }) {
-  const params = [String(ipVersion)];
+async function findActivePool(runner, { ipVersion, organizationId, technology = 'wisp' }) {
+  const tech = technology === 'ftth' ? 'ftth' : 'wisp';
+  const params = [String(ipVersion), tech];
   let orgClause = '';
   if (organizationId) {
     orgClause = ' AND (organization_id = ? OR organization_id IS NULL)';
     params.push(organizationId);
   }
+  params.push(tech);
   const [rows] = await runner.query(
     `SELECT id FROM ip_pools
-       WHERE ip_version = ? AND status = 'active' AND deleted_at IS NULL${orgClause}
-       ORDER BY id LIMIT 1`,
+       WHERE ip_version = ? AND status = 'active' AND deleted_at IS NULL
+         AND access_technology IN (?, 'both')${orgClause}
+       ORDER BY (access_technology = ?) DESC, id LIMIT 1`,
     params,
   );
   return rows[0] ? rows[0].id : null;
+}
+
+/** The technology of a contract row, reading its plan when the contract carries none. */
+async function contractTechnology(runner, contract) {
+  if (TECHNOLOGIES.includes(contract.access_technology)) return contract.access_technology;
+  if (!contract.plan_id) return 'wisp';
+  const [rows] = await runner.query(
+    'SELECT access_technology FROM plans WHERE id = ? AND deleted_at IS NULL AND (? IS NULL OR organization_id = ? OR organization_id IS NULL)',
+    [contract.plan_id, contract.organization_id ?? null, contract.organization_id ?? null],
+  );
+  return effectiveTechnology(null, rows[0]?.access_technology);
 }
 
 /**
@@ -228,9 +246,11 @@ async function provisionNewContract(runner, contract, { seed, pppoeUsername, ppp
     } else {
       ({ username, password } = await generatePppoeCredentials(runner, { seed }));
     }
-    const ipv4PoolId = await findActivePool(runner, { ipVersion: '4', organizationId });
+    // Addresses come from a pool of the contract's own technology (migration 020).
+    const technology = await contractTechnology(runner, contract);
+    const ipv4PoolId = await findActivePool(runner, { ipVersion: '4', organizationId, technology });
     const ipv6PoolId = isDual(contract.connection_type)
-      ? await findActivePool(runner, { ipVersion: '6', organizationId })
+      ? await findActivePool(runner, { ipVersion: '6', organizationId, technology })
       : null;
 
     const [ins] = await runner.query(
@@ -298,7 +318,7 @@ async function enableIpv6Line(runner, contract) {
   const radius = radiusRows[0];
   let ipv6PoolId = radius.ipv6_pool_id;
   if (!ipv6PoolId) {
-    ipv6PoolId = await findActivePool(runner, { ipVersion: '6', organizationId });
+    ipv6PoolId = await findActivePool(runner, { ipVersion: '6', organizationId, technology: await contractTechnology(runner, contract) });
   }
 
   await runner.query(

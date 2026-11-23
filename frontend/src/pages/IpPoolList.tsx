@@ -34,6 +34,7 @@ interface IpPool {
   status: string;
   nas_id: number | null;
   service_type: string | null;
+  access_technology?: string | null;
   default_prefix_len: number | null;
   excluded_ranges: string | null;
   dhcpv6_mode: string | null;
@@ -77,6 +78,7 @@ interface IpPoolBody {
   status?: string;
   nas_id?: number;
   service_type?: string;
+  access_technology?: string;
   default_prefix_len?: number;
   excluded_ranges?: string;
   dhcpv6_mode?: string;
@@ -208,6 +210,7 @@ function IpPoolModal({ pool, sites, nas, onClose, onSaved }: IpPoolModalProps) {
     status: pool?.status ?? 'active',
     nas_id: pool?.nas_id != null ? String(pool.nas_id) : '',
     service_type: pool?.service_type ?? '',
+    access_technology: pool?.access_technology ?? 'both',
     default_prefix_len: pool?.default_prefix_len != null ? String(pool.default_prefix_len) : '',
     excluded_ranges: pool?.excluded_ranges ?? '',
     dhcpv6_mode: pool?.dhcpv6_mode ?? '',
@@ -241,6 +244,7 @@ function IpPoolModal({ pool, sites, nas, onClose, onSaved }: IpPoolModalProps) {
       if (form.notes) body.notes = form.notes;
       if (form.nas_id) body.nas_id = Number(form.nas_id);
       if (form.service_type) body.service_type = form.service_type;
+      body.access_technology = form.access_technology || 'both';
       if (form.default_prefix_len && form.ip_version === '6') {
         body.default_prefix_len = Number(form.default_prefix_len);
       }
@@ -420,6 +424,21 @@ function IpPoolModal({ pool, sites, nas, onClose, onSaved }: IpPoolModalProps) {
               ))}
             </select>
           </label>
+
+          <label style={modalStyles.label}>
+            {t('accessTechnology.poolLabel')}
+            <select
+              style={modalStyles.select}
+              value={form.access_technology}
+              onChange={e => setField('access_technology', e.target.value)}
+              aria-label={t('accessTechnology.poolLabel')}
+            >
+              <option value="both">{t('accessTechnology.plan.both')}</option>
+              <option value="wisp">{t('accessTechnology.name.wisp')}</option>
+              <option value="ftth">{t('accessTechnology.name.ftth')}</option>
+            </select>
+          </label>
+          <p style={{ margin: '-0.4rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('accessTechnology.poolHint')}</p>
 
           {form.ip_version === '6' && (
             <>

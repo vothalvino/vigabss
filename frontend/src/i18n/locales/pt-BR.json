@@ -46,6 +46,8 @@
     "showRaw": "Mostrar o que a OLT imprimiu"
   },
   "accessTechnology": {
+    "poolLabel": "Tecnologia de acesso",
+    "poolHint": "Quais assinantes recebem endereços deste pool. Um contrato novo usa um pool da sua própria tecnologia.",
     "choose": "Escolha…",
     "planHint": "Como este plano é entregue. No WISP a velocidade é controlada pelo MikroTik; no FTTH, pela OLT. Um contrato mantém a tecnologia com que foi criado.",
     "planLabel": "Tecnologia de acesso",
