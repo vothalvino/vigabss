@@ -2,15 +2,14 @@
 -- Migration 018 — access technology on plans and contracts (WISP / FTTH)
 -- =============================================================================
 -- A plan is offered over wireless (WISP), fibre (FTTH) or both. A contract
--- carries its own technology, so a subscriber can be moved from WISP to FTTH
--- on the SAME contract, without a new plan or a new signature:
+-- is written for one technology, chosen when it is created:
 --
 --   plans.access_technology      'wisp' | 'ftth' | 'both'   (default 'wisp')
 --   contracts.access_technology  'wisp' | 'ftth' | NULL
 --
--- NULL on a contract means "as the plan says": FTTH for an FTTH-only plan,
--- WISP otherwise. Every existing plan and contract therefore stays WISP,
--- which is how they are served today.
+-- NULL is only found on contracts from before this migration; they follow
+-- their plan (FTTH for an FTTH-only plan, WISP otherwise), so every existing
+-- plan and contract stays WISP, which is how they are served today.
 --
 -- Safe to re-run: each column is added only when missing.
 -- =============================================================================
@@ -34,7 +33,7 @@ BEGIN
   ) THEN
     ALTER TABLE contracts
       ADD COLUMN access_technology ENUM('wisp','ftth') NULL DEFAULT NULL
-        COMMENT 'Technology serving this contract; NULL = as its plan says (migration 018)'
+        COMMENT 'Technology this contract was written for; NULL (older contracts) = as its plan says (migration 018)'
         AFTER connection_type;
   END IF;
 END $$

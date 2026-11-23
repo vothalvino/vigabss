@@ -754,7 +754,7 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 017 — VoIP refresh switch:** the weekly refresh of the VoIP address list on MikroTik NAS is switched on and off in the app (Network → NAS, install operator). `VOIP_RANGES_ENABLED` is no longer read. The migration only corrects the scheduled task's description.
 
-> **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract carries its own technology (`contracts.access_technology`, NULL = as the plan says), so a subscriber can be moved from WISP to FTTH on the same contract. Existing plans and contracts stay WISP.
+> **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 
 > **Migration 019 — OLT logins:** `olt_connections` stores how VigaBSS reaches an OLT's command line over SSH (address, user, encrypted password, driver, pinned SSH host key). One row per OLT device.
 

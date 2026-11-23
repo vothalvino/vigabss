@@ -97,7 +97,6 @@ interface Contract {
   planId: string | null;
   connectionType: string | null;
   accessTechnology?: string | null;
-  accessTechnologyOverride?: string | null;
   startDate: string | null;
   endDate: string | null;
   billingDay: number | null;
@@ -968,12 +967,7 @@ function ContractInfoCard({ contract }: { contract: Contract }) {
         )}
         <InfoRow label={t('ui.contractDetail.plan')}        value={contract.planId ? `Plan #${contract.planId}` : null} />
         <InfoRow label={t('ui.contractDetail.type2')}        value={contract.connectionType} capitalize />
-        <InfoRow
-          label={t('accessTechnology.contractLabel')}
-          value={contract.accessTechnology
-            ? `${t(`accessTechnology.name.${contract.accessTechnology === 'ftth' ? 'ftth' : 'wisp'}`)}${contract.accessTechnologyOverride ? ` (${t('accessTechnology.setOnContract')})` : ''}`
-            : null}
-        />
+        <InfoRow label={t('accessTechnology.contractLabel')} value={contract.accessTechnology ? t(`accessTechnology.name.${contract.accessTechnology === 'ftth' ? 'ftth' : 'wisp'}`) : null} />
         <InfoRow label={t('ui.contractDetail.startDate')}  value={fmt(contract.startDate)} />
         <InfoRow label={t('ui.contractDetail.endDate')}    value={fmt(contract.endDate)} />
         <InfoRow label={t('ui.contractDetail.billingDay')} value={contract.billingDay != null ? String(contract.billingDay) : null} />

@@ -1,6 +1,6 @@
 -- Rollback 018 — drops plans.access_technology and contracts.access_technology.
--- Which contracts were moved to FTTH is lost; every contract is treated as
--- WISP again by the earlier code.
+-- Which plans and contracts are FTTH is lost; the earlier code treats every
+-- contract as WISP.
 
 DROP PROCEDURE IF EXISTS r018_access_technology;
 DELIMITER $$
