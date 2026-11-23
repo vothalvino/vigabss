@@ -6,6 +6,8 @@ const createContract = {
   client_id: { type: 'number', required: true, min: 1 },
   plan_id: { type: 'number', required: true, min: 1 },
   contract_template_mx_id: { type: 'number', min: 1 },
+  // Technology transition: the contract this one takes over from (migration 021).
+  replaces_contract_id: { type: 'number', min: 1 },
   connection_type: { type: 'string', enum: ['pppoe', 'pppoe_dual', 'static', 'dual'] },
   // null = as the plan says (migration 018).
   access_technology: { type: 'string', enum: ['wisp', 'ftth'] },

@@ -54,6 +54,11 @@ async function updateContractWithActivationGuard(contract, body, orgId, runner =
   if (body.plan_id !== undefined && Number(body.plan_id) !== Number(contract.plan_id)) {
     await assertPlanKeepsTechnology(runner, contract, body.plan_id, orgId);
   }
+  // Which contract this one replaces is decided when it is created.
+  if (body.replaces_contract_id !== undefined
+      && Number(body.replaces_contract_id || 0) !== Number(contract.replaces_contract_id || 0)) {
+    throw new AppError('Which contract this one replaces cannot be changed', 422, 'REPLACEMENT_LINK_FIXED');
+  }
   const touched = [...ACTIVATION_FROZEN_FIELDS].filter(field => body[field] !== undefined);
   if (!touched.length || Object.prototype.hasOwnProperty.call(body, 'organization_id')) {
     return Contract.update(contract.id, body, orgId, { exec });

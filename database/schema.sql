@@ -501,6 +501,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     connection_type ENUM('pppoe', 'pppoe_dual', 'static', 'dual') NOT NULL DEFAULT 'pppoe'
                        COMMENT 'pppoe = PPPoE IPv4-only (requires RADIUS); pppoe_dual = PPPoE dual-stack IPv4+IPv6 (requires RADIUS); static = static IPv4 (no RADIUS); dual = dual-stack static IPv4+IPv6 (no RADIUS)',
     access_technology ENUM('wisp','ftth') NULL DEFAULT NULL COMMENT 'Technology this contract was written for; NULL (older contracts) = as its plan says (migration 018)',
+    replaces_contract_id BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'The contract this one takes over from; it is terminated when this one is activated (migration 021)',
     contract_template_mx_id BIGINT UNSIGNED NULL
                        COMMENT 'MX contract source used for this contract; NULL for contracts without an MX legal source',
     mx_contract_environment ENUM('sandbox','production') NULL
@@ -539,6 +540,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     KEY idx_contracts_plan_id (plan_id),
     KEY idx_contracts_site_id (site_id),
     KEY idx_contracts_connection_type (connection_type),
+    KEY idx_contracts_replaces (replaces_contract_id),
     KEY idx_contracts_test_window (test_window_expires_at),
     KEY idx_contracts_test_cleanup (test_window_cleanup_pending, test_window_cleanup_attempted_at, test_window_expires_at),
     KEY idx_contracts_contract_template_mx_id (contract_template_mx_id),
@@ -547,6 +549,8 @@ CREATE TABLE IF NOT EXISTS contracts (
     KEY idx_contracts_status (status),
     KEY idx_contracts_client_status (client_id, status),
     KEY idx_contracts_deleted_at (deleted_at),
+    CONSTRAINT fk_contracts_replaces FOREIGN KEY (replaces_contract_id)
+        REFERENCES contracts (id) ON DELETE SET NULL,
     CONSTRAINT fk_contracts_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_contracts_client FOREIGN KEY (client_id)

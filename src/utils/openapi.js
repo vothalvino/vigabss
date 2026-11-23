@@ -423,6 +423,7 @@ function generateSpec() {
 
       // ---- Contracts ----
       ...withRowResponses(crudPaths('contracts', 'Contracts', 'Contract'), 'Contract'),
+      '/contracts/{id}/transition': { get: { tags: ['Contracts'], summary: 'Technology transition links of a contract: the contract it replaces and the contract replacing it (each id and status, or null)', operationId: 'getContractTransition', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('replaces, replaced_by') } },
       '/contracts/{id}/activation': {
         get: {
           tags: ['Contracts'],

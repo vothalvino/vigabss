@@ -1,4 +1,21 @@
 {
+  "contractTransition": {
+    "replaces": "Este contrato reemplaza al contrato",
+    "replacesPending": "Ese contrato termina cuando este se active.",
+    "beingReplaced": "Este contrato está siendo reemplazado por el contrato",
+    "beingReplacedHint": "Sigue funcionando y termina cuando el nuevo se active",
+    "replacedBy": "Este contrato fue reemplazado por el contrato",
+    "start": "Cambiar tecnología a {{technology}}",
+    "title": "Contrato nuevo: {{technology}}",
+    "explain": "Cambiar de tecnología requiere un contrato nuevo, que el cliente debe firmar. Esto lo crea. El contrato actual sigue funcionando hasta que el nuevo se active, y termina en ese momento. Cancelar el contrato nuevo deja este como está.",
+    "plan": "Plan",
+    "loadingPlans": "Cargando…",
+    "noPlans": "No hay ningún plan activo ofrecido en {{technology}}. Crea uno primero.",
+    "startDate": "Fecha de inicio",
+    "create": "Crear el contrato nuevo",
+    "creating": "Creando…",
+    "cancel": "Cancelar"
+  },
   "accessTechnology": {
     "choose": "Elige…",
     "planHint": "Cómo se entrega este plan. En WISP la velocidad la controla el MikroTik; en FTTH, la OLT. Un contrato conserva la tecnología con la que se creó.",
