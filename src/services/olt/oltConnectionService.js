@@ -187,4 +187,4 @@ function withDriver(deviceId, orgId, work, { open = cli.openSsh } = {}) {
   return next;
 }
 
-module.exports = { get, save, remove, forgetHostKey, withDriver, view, DRIVERS };
+module.exports = { get, save, remove, forgetHostKey, withDriver, view, assertOlt: oltDevice, DRIVERS };

@@ -254,6 +254,75 @@ function PortOnus({ oltId }: { oltId: number }) {
   );
 }
 
+interface Monitoring { available: boolean; enabled: boolean; last_run_at: string | null; last_status: string | null; can_change: boolean }
+interface PortStatus extends Fault { port: string; read_at: string }
+
+/** The scheduled SNMP read of every OLT: the install-wide switch. */
+function MonitoringSwitch() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ['olt-monitoring'], queryFn: () => apiFetch<{ data: Monitoring }>('/olt-management/monitoring') });
+  const change = useMutation({
+    mutationFn: (enabled: boolean) => apiFetch<{ data: Monitoring }>('/olt-management/monitoring', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    onSuccess: (res) => qc.setQueryData(['olt-monitoring'], res),
+  });
+  const data = status.data?.data;
+  if (!data || !data.available) return null;
+  return (
+    <section style={s.card}>
+      <label style={{ ...s.label, flexDirection: 'row', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+        <input type="checkbox" checked={data.enabled} disabled={!data.can_change || change.isPending} onChange={e => change.mutate(e.target.checked)} />
+        {t('oltLive.monitoring')}
+      </label>
+      <p style={s.hint}>
+        {t('oltLive.monitoringHint')}
+        {!data.can_change && ` ${t('oltLive.operatorOnly')}`}
+        {data.last_run_at && ` ${t('oltLive.monitoringLast', { when: new Date(data.last_run_at).toLocaleString() })}`}
+      </p>
+      {change.isError && <p style={s.error} role="alert">{(change.error as Error).message}</p>}
+    </section>
+  );
+}
+
+/** Every PON port judged from what was last read. Reads nothing from the OLT. */
+function FibreStatus({ oltId }: { oltId: number }) {
+  const { t } = useTranslation();
+  const q = useQuery({
+    queryKey: ['olt-fibre-status', oltId],
+    queryFn: () => apiFetch<{ data: PortStatus[] }>(`/olt-management/${oltId}/fibre-status`),
+  });
+  const ports = q.data?.data ?? [];
+  const broken = (v: string) => v === 'whole_port' || v === 'branch' || v === 'single_onu';
+  const metres = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${m} m`);
+  return (
+    <section style={s.card}>
+      <h3 style={s.h3}>{t('oltLive.statusTitle')}</h3>
+      <p style={s.hint}>{t('oltLive.statusHint')}</p>
+      {q.isError && <p style={s.error} role="alert">{(q.error as Error).message}</p>}
+      {q.data && ports.length === 0 && <p style={s.hint}>{t('oltLive.statusEmpty')}</p>}
+      {ports.length > 0 && (
+        <table style={s.table}>
+          <thead><tr>
+            <th style={s.th}>{t('oltLive.ponPort')}</th><th style={s.th}>{t('oltLive.statusFibre')}</th>
+            <th style={s.th}>{t('oltLive.statusOnline')}</th><th style={s.th}>{t('oltLive.statusBreak')}</th><th style={s.th}>{t('oltLive.statusRead')}</th>
+          </tr></thead>
+          <tbody>
+            {ports.map(p => (
+              <tr key={p.port}>
+                <td style={s.td}>{p.port}</td>
+                <td style={{ ...s.td, color: broken(p.verdict) ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{t(`oltLive.short.${p.verdict}`)}</td>
+                <td style={s.td}>{p.online} / {p.total}</td>
+                <td style={s.td}>{broken(p.verdict) && p.nearest_affected_m !== null ? t('oltLive.statusWithin', { distance: metres(p.nearest_affected_m) }) : '—'}</td>
+                <td style={s.td}>{new Date(p.read_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 export function OltLiveTab() {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<number | null>(null);
@@ -275,6 +344,7 @@ export function OltLiveTab() {
   return (
     <div>
       <p style={s.notice}>{t('oltLive.notice')}</p>
+      <MonitoringSwitch />
       <label style={{ ...s.label, maxWidth: 360, marginBottom: '1rem' }}>{t('oltLive.chooseOlt')}
         <select style={s.input} value={oltId ?? ''} onChange={e => setSelected(Number(e.target.value))}>
           {list.map(o => <option key={o.id} value={o.id}>{o.name}{o.model ? ` (${o.model})` : ''}</option>)}
@@ -283,6 +353,7 @@ export function OltLiveTab() {
       {oltId !== null && connection.data && (
         <>
           <ConnectionForm key={`${oltId}-${connection.data.data.host ?? ''}`} oltId={oltId} connection={connection.data.data} />
+          <FibreStatus key={`f-${oltId}`} oltId={oltId} />
           {connection.data.data.configured && <Unregistered key={`u-${oltId}`} oltId={oltId} />}
           {connection.data.data.configured && <PortOnus key={`p-${oltId}`} oltId={oltId} />}
         </>

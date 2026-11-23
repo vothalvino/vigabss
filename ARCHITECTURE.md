@@ -1682,6 +1682,14 @@ An OLT has no API; it is driven through its interactive command line over SSH.
   distance it gives is an upper bound (the nearest ONU that lost signal), not
   an OTDR measurement.
 
+- `src/services/olt/oltSnmpPollService.js` is the scheduled read (task
+  `ftth_onu_optical_poll`, switched in the Live OLT tab): it walks six
+  HUAWEI-XPON-MIB columns per OLT and stores them through
+  `fibreFaultService.record`, the same path as a command-line read. The
+  command line is for provisioning and on-demand checks; periodic reads go
+  over SNMP. Object numbers, scales and the ifIndex layout are unverified on
+  hardware and are listed at the top of that file.
+
 A new vendor is a new dialect module registered in `DRIVERS`; the session and
 the connection service do not change.
 

@@ -43,6 +43,7 @@ const {
 const ftthService = require('../services/ftthService');
 const oltConnectionService = require('../services/olt/oltConnectionService');
 const fibreFaultService = require('../services/olt/fibreFaultService');
+const { isInstallOperator } = require('../services/installOperator');
 
 const saveOltConnection = {
   driver: { type: 'string', enum: ['huawei_ma5800'] },
@@ -82,6 +83,45 @@ function sendOltError(res, next, err) {
   }
   return next(err);
 }
+
+// The scheduled SNMP read of every OLT (task ftth_onu_optical_poll) runs for
+// the whole install, so only the install operator switches it.
+const MONITORING_TASK = 'ftth_onu_optical_poll';
+async function monitoringStatus(req) {
+  const [rows] = await db.query(
+    `SELECT is_enabled, cron_expression, last_run_at, last_status
+       FROM scheduled_tasks WHERE task_name = ? AND organization_id IS NULL ORDER BY id ASC LIMIT 1`,
+    [MONITORING_TASK],
+  );
+  const task = rows[0];
+  return {
+    available: Boolean(task),
+    enabled: Boolean(task && Number(task.is_enabled) === 1),
+    cron_expression: task?.cron_expression || null,
+    last_run_at: task?.last_run_at || null,
+    last_status: task?.last_status || null,
+    can_change: await isInstallOperator(req),
+  };
+}
+router.get('/monitoring', requirePermission('olt_management.view'), async (req, res, next) => {
+  try { res.json({ data: await monitoringStatus(req) }); } catch (err) { next(err); }
+});
+router.put('/monitoring', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    if (!(await isInstallOperator(req))) {
+      return res.status(403).json({ error: { code: 'INSTALL_OPERATOR_ONLY', message: 'Only the install operator can change this setting' } });
+    }
+    if (typeof req.body?.enabled !== 'boolean') {
+      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'enabled is required (true or false)' } });
+    }
+    await db.query(
+      'UPDATE scheduled_tasks SET is_enabled = ? WHERE task_name = ? AND organization_id IS NULL',
+      [req.body.enabled ? 1 : 0, MONITORING_TASK],
+    );
+    await require('../services/scheduler').reload?.().catch(() => {});
+    res.json({ data: await monitoringStatus(req) });
+  } catch (err) { next(err); }
+});
 
 router.get('/:id/connection', requirePermission('olt_management.view'), async (req, res, next) => {
   try { res.json({ data: await oltConnectionService.get(req.params.id, req.orgId) }); } catch (err) { next(err); }
@@ -137,6 +177,14 @@ router.get('/:id/live/onus', requirePermission('olt_management.view'), async (re
       },
     });
   } catch (err) { sendOltError(res, next, err); }
+});
+
+// Every PON port judged from the stored readings (no device access).
+router.get('/:id/fibre-status', requirePermission('olt_management.view'), async (req, res, next) => {
+  try {
+    await oltConnectionService.assertOlt(req.params.id, req.orgId);
+    res.json({ data: await fibreFaultService.overview(req.orgId, req.params.id) });
+  } catch (err) { next(err); }
 });
 
 // ---------------------------------------------------------------------------

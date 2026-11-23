@@ -135,4 +135,30 @@ async function assess(orgId, oltDeviceId, live) {
   return { fault: analyse(remembered), remembered };
 }
 
-module.exports = { analyse, assess, record, stored, causeKind };
+/**
+ * Every PON port of an OLT judged from the stored readings. Touches no
+ * device: it is as fresh as the last read (scheduled SNMP, or someone
+ * opening the port).
+ */
+async function overview(orgId, oltDeviceId) {
+  const [rows] = await db.query(
+    `SELECT port, ont_id, state, last_down_cause, distance_m, read_at
+       FROM olt_onu_readings
+      WHERE organization_id = ? AND olt_device_id = ?
+      ORDER BY port, ont_id`,
+    [orgId, oltDeviceId],
+  );
+  const byPort = new Map();
+  for (const r of rows) {
+    if (!byPort.has(r.port)) byPort.set(r.port, { onus: [], read_at: r.read_at });
+    const entry = byPort.get(r.port);
+    entry.onus.push({ ...r, distance_m: r.distance_m === null ? null : Number(r.distance_m) });
+    if (r.read_at > entry.read_at) entry.read_at = r.read_at;
+  }
+  const natural = (a, b) => a.localeCompare(b, undefined, { numeric: true });
+  return [...byPort.keys()].sort(natural).map((port) => ({
+    port, read_at: byPort.get(port).read_at, ...analyse(byPort.get(port).onus),
+  }));
+}
+
+module.exports = { analyse, assess, record, stored, overview, causeKind };

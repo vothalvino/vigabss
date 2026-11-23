@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Automatic OLT monitoring over SNMP.** VigaBSS can read every OLT that has
+  SNMP enabled every 10 minutes and remember each ONU's state, distance and
+  signal per PON port. The Live OLT tab has the switch for it ("Read every
+  OLT automatically", install operator) and a new "Fibre status by PON port"
+  list that shows, for each port, whether a break is suspected and within
+  what distance, from the last read and without contacting the OLT. With it
+  on, the fibre check always has recent distances to work from. **Not yet
+  tried on a real OLT**: the SNMP object numbers come from published copies
+  of Huawei's xPON MIB (migration 024 corrects the scheduled task's
+  description).
+
 - **Fibre break check on a PON port.** Reading a PON port in the Live OLT tab
   now says whether the fibre looks cut and how far away. It uses what the OLT
   already reports: ONUs that lost their light signal (as opposed to mains

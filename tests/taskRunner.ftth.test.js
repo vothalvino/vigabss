@@ -136,16 +136,15 @@ describe('taskRunner — ftth_onu_discovery (migration 269, deferred)', () => {
   });
 });
 
-describe('taskRunner — ftth_onu_optical_poll (migration 269, deferred)', () => {
-  it('returns deferred result and logs a warning', async () => {
+describe('taskRunner — ftth_onu_optical_poll', () => {
+  it('reads every OLT over SNMP', async () => {
+    const pollAll = jest.fn(async () => ({ olts: 2, polled: 2, failed: 0, onus: 40 }));
+    jest.doMock('../src/services/olt/oltSnmpPollService', () => ({ pollAll }));
     const result = await runTask('ftth_onu_optical_poll');
-
-    expect(result).toMatchObject({ deferred: true });
-    expect(result.message).toContain('ftth_onu_optical_poll');
-    expect(mockLoggerWarn).toHaveBeenCalledWith(
-      expect.objectContaining({ taskName: 'ftth_onu_optical_poll' }),
-      expect.stringContaining('onu_optical_metrics'),
-    );
+    expect(pollAll).toHaveBeenCalled();
+    expect(result).toMatchObject({ olts: 2, polled: 2 });
+    expect(result.deferred).toBeUndefined();
+    jest.dontMock('../src/services/olt/oltSnmpPollService');
   });
 });
 

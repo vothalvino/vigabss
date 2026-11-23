@@ -1,5 +1,25 @@
 {
   "oltLive": {
+    "monitoring": "Leer todas las OLT automáticamente (SNMP)",
+    "monitoringHint": "Cada 10 minutos VigaBSS lee cada OLT que tenga SNMP habilitado y recuerda el estado, la distancia y la señal de cada ONU. Esto permite que la revisión de fibra indique a qué distancia está un corte. Aplica a toda la instalación.",
+    "operatorOnly": "Solo el operador de la instalación puede cambiarlo.",
+    "monitoringLast": "Última ejecución: {{when}}.",
+    "statusTitle": "Estado de la fibra por puerto PON",
+    "statusHint": "Según la última lectura de cada puerto. No se lee nada de la OLT para mostrar esto.",
+    "statusEmpty": "Aún no se ha leído nada de esta OLT. Activa la lectura automática o lee un puerto PON abajo.",
+    "statusFibre": "Fibra",
+    "statusOnline": "En línea",
+    "statusBreak": "Corte",
+    "statusRead": "Última lectura",
+    "statusWithin": "a no más de {{distance}}",
+    "short": {
+      "no_onus": "Sin ONU",
+      "healthy": "OK",
+      "no_fibre_fault": "OK (ONU caídas, no por fibra)",
+      "whole_port": "Posible corte: fibra principal",
+      "branch": "Posible corte: rama",
+      "single_onu": "Una ONU sin señal"
+    },
     "lastDistance": "estaba a {{distance}} m",
     "fault": {
       "no_onus": "No hay ONU en este puerto.",

@@ -111,3 +111,21 @@ describe('remembering a read', () => {
     expect(select[1]).toEqual([3, 7, '0/1/0']);
   });
 });
+
+describe('every port of an OLT, from what was last read', () => {
+  beforeEach(() => { db.query.mockReset(); });
+
+  test('one verdict per port, in port order, without touching the device', async () => {
+    const at = new Date('2026-01-05T10:00:00Z');
+    db.query.mockResolvedValueOnce([[
+      { port: '0/10/0', ont_id: 0, state: 'online', last_down_cause: null, distance_m: 300, read_at: at },
+      { port: '0/2/0', ont_id: 0, state: 'offline', last_down_cause: 'LOSi/LOBi', distance_m: 1200, read_at: at },
+      { port: '0/2/0', ont_id: 1, state: 'offline', last_down_cause: 'LOSi/LOBi', distance_m: 900, read_at: at },
+    ]]);
+    const ports = await fault.overview(3, 7);
+    expect(ports.map((p) => [p.port, p.verdict, p.nearest_affected_m])).toEqual([['0/2/0', 'whole_port', 900], ['0/10/0', 'healthy', null]]);
+    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(db.query.mock.calls[0][0].replace(/\s+/g, ' ')).toMatch(/WHERE organization_id = \? AND olt_device_id = \?/);
+    expect(db.query.mock.calls[0][1]).toEqual([3, 7]);
+  });
+});

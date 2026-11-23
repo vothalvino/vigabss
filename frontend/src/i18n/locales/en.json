@@ -1,5 +1,25 @@
 {
   "oltLive": {
+    "monitoring": "Read every OLT automatically (SNMP)",
+    "monitoringHint": "Every 10 minutes VigaBSS reads each OLT that has SNMP enabled and remembers every ONU's state, distance and signal. This is what lets the fibre check tell how far a break is. Applies to the whole install.",
+    "operatorOnly": "Only the install operator can change this.",
+    "monitoringLast": "Last run: {{when}}.",
+    "statusTitle": "Fibre status by PON port",
+    "statusHint": "From the last read of each port. Nothing is read from the OLT to show this.",
+    "statusEmpty": "Nothing has been read from this OLT yet. Turn on automatic reading, or read a PON port below.",
+    "statusFibre": "Fibre",
+    "statusOnline": "Online",
+    "statusBreak": "Break",
+    "statusRead": "Last read",
+    "statusWithin": "within {{distance}}",
+    "short": {
+      "no_onus": "No ONUs",
+      "healthy": "OK",
+      "no_fibre_fault": "OK (ONUs down, not fibre)",
+      "whole_port": "Possible break: main fibre",
+      "branch": "Possible break: branch",
+      "single_onu": "One ONU without signal"
+    },
     "lastDistance": "was {{distance}} m",
     "fault": {
       "no_onus": "No ONUs on this port.",
