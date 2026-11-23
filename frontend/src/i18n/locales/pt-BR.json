@@ -1,5 +1,20 @@
 {
   "oltLive": {
+    "lastDistance": "estava a {{distance}} m",
+    "fault": {
+      "no_onus": "Não há ONUs nesta porta.",
+      "healthy": "A fibra parece bem: todas as {{total}} ONUs estão online.",
+      "no_fibre_fault": "Sem sinal de rompimento de fibra. As ONUs fora do ar não perderam o sinal de luz.",
+      "whole_port": "Possível rompimento na fibra principal: todas as {{total}} ONUs desta porta perderam o sinal.",
+      "branch": "Possível rompimento em um ramo: {{count}} de {{total}} ONUs perderam o sinal.",
+      "single_onu": "Uma ONU perdeu o sinal. Provavelmente o próprio drop ou conector.",
+      "distance": "O rompimento não está a mais de {{distance}} da OLT.",
+      "range": "As ONUs que perderam sinal estavam entre {{nearest}} e {{farthest}} da OLT.",
+      "noDistance": "Ainda não se conhece a distância dessas ONUs. As distâncias são lembradas cada vez que a porta é lida enquanto estão online.",
+      "affected": "IDs de ONT sem sinal: {{ids}}.",
+      "power": "Mais {{count}} caíram por falta de energia elétrica, não de sinal.",
+      "note": "É um limite superior calculado pela ONU mais próxima que perdeu o sinal, não uma medição do rompimento. Se todas as ONUs da porta estiverem fora, verifique também a porta e o transceptor. Um OTDR dá a distância exata."
+    },
     "ontId": "ID",
     "tab": "OLT ao vivo",
     "notice": "Huawei MA5800 / EA5800 por SSH. Tudo nesta aba apenas lê da OLT. O driver ainda não foi testado em todas as versões de software: se uma tabela parecer errada, abra \"Mostrar o que a OLT imprimiu\".",

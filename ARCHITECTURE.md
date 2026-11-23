@@ -1675,6 +1675,13 @@ An OLT has no API; it is driven through its interactive command line over SSH.
   `assertManagementTarget`, and sessions to one OLT are queued.
 - Routes are under `/olt-management/{id}/connection` and `/live/*`.
 
+- `src/services/olt/fibreFaultService.js` judges a PON port from a live read:
+  LOS-type down causes mean lost signal, dying-gasp means lost power, and the
+  distance each ONU had while online is kept in `olt_onu_readings`
+  (migration 023) because a dark ONU reports none. `analyse` is pure. The
+  distance it gives is an upper bound (the nearest ONU that lost signal), not
+  an OTDR measurement.
+
 A new vendor is a new dialect module registered in `DRIVERS`; the session and
 the connection service do not change.
 

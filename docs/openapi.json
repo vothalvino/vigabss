@@ -40182,7 +40182,7 @@
         "tags": [
           "OLT Management"
         ],
-        "summary": "Authorised ONUs on one PON port with state and optical power (display ont info summary), read live",
+        "summary": "Authorised ONUs on one PON port with state and optical power (display ont info summary), read live. The read is remembered, and `fault` judges the fibre: which ONUs lost signal, and the distance of the nearest of them when it was last online (the break is no farther than that)",
         "operationId": "listOltPortOnus",
         "security": [
           {
@@ -40211,7 +40211,7 @@
         ],
         "responses": {
           "200": {
-            "description": "port, onus[], reported_total, reported_online, raw",
+            "description": "port, onus[] (with last_distance_m), reported_total, reported_online, fault, raw",
             "content": {
               "application/json": {
                 "schema": {

@@ -308,6 +308,9 @@
   "olt_connections": {
     "device_id": "devices"
   },
+  "olt_onu_readings": {
+    "olt_device_id": "devices"
+  },
   "olt_ports": {
     "olt_device_id": "devices"
   },

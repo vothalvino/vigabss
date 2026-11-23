@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fibre break check on a PON port.** Reading a PON port in the Live OLT tab
+  now says whether the fibre looks cut and how far away. It uses what the OLT
+  already reports: ONUs that lost their light signal (as opposed to mains
+  power), and the distance each ONU had while it was online, which VigaBSS
+  now remembers on every read (migration 023). It tells apart a break on the
+  main fibre (every ONU dark), on a branch (several dark) and a single drop,
+  and states that the break is no farther than the nearest ONU that lost
+  signal. That is an upper limit, not a measurement: the exact distance needs
+  an OTDR, and reading eOTDR transceivers is not implemented yet.
+
 - **PON ports can be marked as having an eOTDR transceiver.** The PON port
   form has a "Transceiver with eOTDR" checkbox and the port list shows an
   eOTDR badge (migration 022). This records which ports carry one; reading

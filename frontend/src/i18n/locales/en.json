@@ -1,5 +1,20 @@
 {
   "oltLive": {
+    "lastDistance": "was {{distance}} m",
+    "fault": {
+      "no_onus": "No ONUs on this port.",
+      "healthy": "Fibre looks fine: all {{total}} ONUs are online.",
+      "no_fibre_fault": "No sign of a fibre break. The ONUs that are down did not lose their light signal.",
+      "whole_port": "Possible fibre break on the main fibre: all {{total}} ONUs on this port lost their signal.",
+      "branch": "Possible fibre break on a branch: {{count}} of {{total}} ONUs lost their signal.",
+      "single_onu": "One ONU lost its signal. Likely its own drop cable or connector.",
+      "distance": "The break is no farther than {{distance}} from the OLT.",
+      "range": "The ONUs that lost signal were between {{nearest}} and {{farthest}} from the OLT.",
+      "noDistance": "No distance is known yet for these ONUs. Distances are remembered each time the port is read while they are online.",
+      "affected": "ONT ids without signal: {{ids}}.",
+      "power": "{{count}} more went down because they lost mains power, not signal.",
+      "note": "This is an upper limit worked out from the nearest ONU that lost signal, not a measurement of the break. If every ONU on the port is down, also check the port and its transceiver. An OTDR gives the exact distance."
+    },
     "ontId": "ID",
     "tab": "Live OLT",
     "notice": "Huawei MA5800 / EA5800 over SSH. Everything on this tab only reads from the OLT. The driver has not yet been tried on every software release: if a table looks wrong, open \"Show what the OLT printed\".",

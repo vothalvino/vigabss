@@ -42,6 +42,7 @@ const {
 } = require('../middleware/schemas/onuMigrationJobs');
 const ftthService = require('../services/ftthService');
 const oltConnectionService = require('../services/olt/oltConnectionService');
+const fibreFaultService = require('../services/olt/fibreFaultService');
 
 const saveOltConnection = {
   driver: { type: 'string', enum: ['huawei_ma5800'] },
@@ -118,11 +119,23 @@ router.get('/:id/live/unregistered-onus', requirePermission('olt_management.view
   } catch (err) { sendOltError(res, next, err); }
 });
 
-// Authorised ONUs on one PON port (?port=0/1/0), with state and optical power.
+// Authorised ONUs on one PON port (?port=0/1/0), with state and optical power,
+// and a fibre check: whether ONUs lost signal and how far the nearest one is.
 router.get('/:id/live/onus', requirePermission('olt_management.view'), async (req, res, next) => {
   try {
     const port = String(req.query.port || '');
-    res.json({ data: await oltConnectionService.withDriver(req.params.id, req.orgId, (driver) => driver.onusOnPort(port)) });
+    const live = await oltConnectionService.withDriver(req.params.id, req.orgId, (driver) => driver.onusOnPort(port));
+    // Remember the read and judge the fibre: ONUs that lost signal no longer
+    // report a distance, so the one they had while online is used.
+    const { fault, remembered } = await fibreFaultService.assess(req.orgId, req.params.id, live);
+    const known = new Map(remembered.map((r) => [r.ont_id, r]));
+    res.json({
+      data: {
+        ...live,
+        onus: live.onus.map((o) => ({ ...o, last_distance_m: known.get(o.ont_id)?.distance_m ?? null })),
+        fault,
+      },
+    });
   } catch (err) { sendOltError(res, next, err); }
 });
 
