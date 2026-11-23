@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **FTTH speed is enforced on the OLT.** A contract whose ONU was authorised
+  from VigaBSS is rate-limited by the OLT, and RADIUS no longer sends it a
+  speed limit, so the MikroTik creates no queue for it. A plan change on such
+  a contract sets the new speed on the OLT automatically. A contract marked
+  FTTH whose ONU was not authorised from VigaBSS keeps its limit at the
+  MikroTik, so nobody is left without a limit. Fair-use and soft-suspension
+  throttles still apply at the MikroTik; when one ends the session is dropped
+  so it signs in again without the throttle. Time-based speed windows do not
+  apply to these contracts. Suspension for non-payment is unchanged.
+
 - **Provisioning ONUs on a Huawei OLT.** From the Live OLT tab you can now
   authorise an ONU that is waiting on a PON port (for a contract, whose plan
   gives the speeds, or with speeds typed in), change its speed, switch it off
@@ -15,8 +25,7 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   is shown and kept in an operation log. Each OLT has a small set of
   provisioning settings (line and service profile, VLAN, GEM port), which
   must already exist on the OLT (migration 025). **Not yet tried on a real
-  OLT.** Contracts marked FTTH are still also rate-limited at the MikroTik;
-  moving that enforcement to the OLT is the next step.
+  OLT.**
 - Docs: `docs/huawei-eotdr-capture.md`, a form for capturing eOTDR output
   from a real OLT so eOTDR readings can be implemented.
 
@@ -77,9 +86,7 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   It is fixed after that. A contract cannot be moved to a plan of the other
   technology; changing between WISP and FTTH is done with a new contract. The
   contract page shows its technology. Existing plans and contracts stay WISP
-  (migration 018). This release only records the technology: speeds are still
-  sent to the MikroTik for every contract. Enforcing FTTH speeds on the OLT
-  comes with the Huawei OLT driver.
+  (migration 018).
 
 - **The weekly VoIP range refresh is switched on in the app.** Network → NAS
   has a "Refresh VoIP ranges every week" switch (install operator; others see

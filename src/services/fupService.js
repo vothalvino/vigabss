@@ -19,7 +19,7 @@ const radiusService = require('./radiusService');
 const logger = require('../utils/logger').child({ service: 'fup' });
 const { businessToday, startOfMonth, endOfMonth } = require('../utils/businessDate');
 const {
-  generateAttributes, generateThrottleAttributes, toNamedAttributes, fupThrottleActiveSql,
+  generateAttributes, generateThrottleAttributes, toNamedAttributes, fupThrottleActiveSql, isOltEnforced,
 } = require('./radiusAttributeService');
 
 /** The plan's FUP threshold in GB, or 0 when the plan has no FUP. */
@@ -134,7 +134,14 @@ async function restoreFupSpeeds(contractId, organizationId) {
   const softSuspended = Number(row.soft_suspend_download_kbps) > 0 && Number(row.soft_suspend_upload_kbps) > 0;
   const coa = softSuspended || row.status !== 'active'
     ? { sent: false, response: 'Not restored live: the contract is suspended or soft-suspended' }
-    : await sendCoa(contractId, toNamedAttributes(generateAttributes(row)));
+    // The OLT enforces this contract's speed: there is no plan rate to send
+    // back, so the session is dropped and signs in again with no BNG limit.
+    : (await isOltEnforced(db, contractId, organizationId)
+      ? await radiusService.disconnectSession(contractId).then(
+        r => ({ sent: !!(r && r.sent), response: JSON.stringify(r).slice(0, 200) }),
+        err => ({ sent: false, response: err.message ? err.message.slice(0, 200) : 'Disconnect failed' }),
+      )
+      : await sendCoa(contractId, toNamedAttributes(generateAttributes(row))));
 
   const [result] = await db.query(
     `INSERT INTO plan_throttle_logs

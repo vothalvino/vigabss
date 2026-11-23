@@ -11,7 +11,7 @@ const config = require('../config');
 const { sendRadiusDisconnect, sendRadiusCoA } = require('./suspensionService');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const {
-  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql,
+  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql, oltEnforcedSql,
 } = require('./radiusAttributeService');
 const { serializeLoginTime } = require('./radiusLoginTimeService');
 // speedWindowService requires radiusService only lazily (inside
@@ -380,8 +380,10 @@ function getMabCheckRow(normalizedMac, mabPasswordMode) {
  * Derive the RADIUS group name for a plan.
  * E.g. plan ID 7, name "Basic 10M" → "plan_7"
  */
-function planGroupName(planId) {
-  return `plan_${planId}`;
+function planGroupName(planId, oltEnforced = false) {
+  // Contracts whose speed the OLT enforces use a twin group that carries the
+  // plan's timeouts and login hours but no rate limit.
+  return oltEnforced ? `plan_${planId}_olt` : `plan_${planId}`;
 }
 
 /**
@@ -430,6 +432,7 @@ async function syncFreeradiusContract(contractId, {
             r.simultaneous_use, r.ip_address AS radius_ip, r.nas_id,
             r.status AS radius_status, r.deleted_at AS radius_deleted_at,
             c.status AS contract_status, c.connection_type,
+            ${oltEnforcedSql('c')} AS olt_enforced,
             c.test_window_expires_at, c.test_window_cleanup_pending,
             CONCAT(
               DAY(c.test_window_expires_at), ' ',
@@ -518,12 +521,13 @@ async function syncFreeradiusContract(contractId, {
     if (account.contract_status !== 'pending') {
       await runner.query(
         'INSERT INTO radusergroup (username, groupname, priority) VALUES (?, ?, 1)',
-        [account.username, planGroupName(account.plan_id)],
+        [account.username, planGroupName(account.plan_id, Number(account.olt_enforced) === 1)],
       );
     }
     // Also emit the plan policy per-user so a brand-new plan works immediately
     // even before its periodic radgroupreply refresh.
-    for (const attr of expandAttributeRows(generateAttributes(account))) {
+    // (not when the OLT enforces the speed: then RADIUS sends no rate limit.)
+    for (const attr of Number(account.olt_enforced) === 1 ? [] : expandAttributeRows(generateAttributes(account))) {
       await runner.query(
         'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
         [account.username, attr.attribute, attr.op, attr.value],
@@ -611,6 +615,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
             -- that MAC on an install that chose cleartext.
             COALESCE(r.organization_id, c.organization_id) AS organization_id,
             c.status AS contract_status,
+            ${oltEnforcedSql('c')} AS olt_enforced,
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
             ${fupThrottleActiveSql('c')} AS fup_throttle_active,
             p.fup_download_speed_mbps, p.fup_upload_speed_mbps,
@@ -1058,7 +1063,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         // Session-Timeout could overwrite the shorter commissioning bound on
         // installations that do not run the FreeRADIUS expiration module.
         if (sub.plan_id) {
-          for (const attr of expandAttributeRows(generateAttributes(sub))) {
+          for (const attr of Number(sub.olt_enforced) === 1 ? [] : expandAttributeRows(generateAttributes(sub))) {
             await db.query(
               'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
               [username, attr.attribute, attr.op, attr.value],
@@ -1071,7 +1076,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
       // speed attributes directly above so no group can weaken its time bound.
       if (sub.plan_id) {
         if (sub.contract_status !== 'pending') {
-          const group = planGroupName(sub.plan_id);
+          const group = planGroupName(sub.plan_id, Number(sub.olt_enforced) === 1);
           await db.query(
             'INSERT INTO radusergroup (username, groupname, priority) VALUES (?, ?, 1)',
             [username, group],
@@ -1129,9 +1134,14 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
   for (const [planId, plan] of planSet) {
     try {
       const group = planGroupName(planId);
+      // The twin for contracts whose speed the OLT enforces: everything below
+      // except the rate limit.
+      const oltGroup = planGroupName(planId, true);
 
       await db.query('DELETE FROM radgroupcheck WHERE groupname = ?', [group]);
       await db.query('DELETE FROM radgroupreply WHERE groupname = ?', [group]);
+      await db.query('DELETE FROM radgroupcheck WHERE groupname = ?', [oltGroup]);
+      await db.query('DELETE FROM radgroupreply WHERE groupname = ?', [oltGroup]);
 
       // Generate vendor-specific RADIUS reply attributes for this plan (speed
       // policy). §10.2: if a time-based speed window is in force RIGHT NOW,
@@ -1157,11 +1167,19 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
           'INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
           [group, 'Session-Timeout', ':=', String(plan.session_timeout_seconds)],
         );
+        await db.query(
+          'INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [oltGroup, 'Session-Timeout', ':=', String(plan.session_timeout_seconds)],
+        );
       }
       if (plan.idle_timeout_seconds !== null && plan.idle_timeout_seconds !== undefined) {
         await db.query(
           'INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
           [group, 'Idle-Timeout', ':=', String(plan.idle_timeout_seconds)],
+        );
+        await db.query(
+          'INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [oltGroup, 'Idle-Timeout', ':=', String(plan.idle_timeout_seconds)],
         );
       }
 
@@ -1172,6 +1190,10 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         await db.query(
           'INSERT INTO radgroupcheck (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
           [group, 'Login-Time', ':=', loginTime],
+        );
+        await db.query(
+          'INSERT INTO radgroupcheck (groupname, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [oltGroup, 'Login-Time', ':=', loginTime],
         );
       }
     } catch (err) {

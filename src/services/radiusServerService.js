@@ -23,7 +23,7 @@ const codec = require('./radiusServerCodec');
 const coa = require('./radiusCoaEncoder');
 const { openWalledGardenPredicate } = require('./suspensionLogConstants');
 const {
-  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql,
+  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql, oltEnforcedSql,
 } = require('./radiusAttributeService');
 const speedWindowService = require('./speedWindowService');
 const { resolveNasByIp } = require('./tenantNasResolverService');
@@ -151,6 +151,7 @@ async function findSubscriber(username, organizationId) {
             c.plan_id, c.status AS contract_status,
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
             ${fupThrottleActiveSql('c')} AS fup_throttle_active,
+            ${oltEnforcedSql('c')} AS olt_enforced,
             CASE WHEN c.status = 'pending'
                  THEN GREATEST(TIMESTAMPDIFF(SECOND, NOW(), c.test_window_expires_at), 1)
                  ELSE NULL END AS test_window_seconds_remaining,
@@ -302,7 +303,8 @@ function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
     });
     const attrMap = throttle
       ? generateThrottleAttributes(plan.radius_vendor, throttle.downloadKbps, throttle.uploadKbps)
-      : generateAttributes(plan);
+      // The OLT enforces this contract's speed: no rate limit from RADIUS.
+      : (Number(subscriber.olt_enforced) === 1 ? {} : generateAttributes(plan));
     const named = [];
     for (const [name, val] of Object.entries(attrMap)) {
       if (Array.isArray(val)) val.forEach((v) => named.push({ name, value: String(v) }));
