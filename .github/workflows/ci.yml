@@ -1407,8 +1407,14 @@ jobs:
           cd /opt/vigabss
           compose="sudo docker compose -f docker-compose.prod.yml --env-file .env.prod"
           $compose ps
-          # Each service that declares a health check reports healthy.
-          unhealthy="$($compose ps --format '{{.Service}} {{.Health}}' | awk '$2 != "" && $2 != "healthy" { print }')"
+          # Each service that declares a health check reports healthy. The replica
+          # is still starting when the installer returns, so allow it three minutes.
+          for _ in $(seq 1 36); do
+            unhealthy="$($compose ps --format '{{.Service}} {{.Health}}' | awk '$2 != "" && $2 != "healthy" { print }')"
+            [ -z "$unhealthy" ] && break
+            sleep 5
+          done
+          $compose ps
           if [ -n "$unhealthy" ]; then echo "Not healthy:"; echo "$unhealthy"; exit 1; fi
           curl -fksS --max-time 10 --resolve install.example.com:443:127.0.0.1 \
             https://install.example.com/health/ready
