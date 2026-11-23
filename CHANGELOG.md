@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- CI: the full-install check waits for the newest release's image to be
+  published before installing. On a release tag it used to start before that
+  image existed and fail, although the release itself was fine.
+
 ## 0.1.0-alpha.29 — 2026-11-23
 
 - **Client portal: "Pay another way".** A subscriber who started a payment
