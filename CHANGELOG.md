@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Client portal home: autopay status with its action.** The home page shows
+  whether autopay is on (and the card it uses) with one button: set it up when
+  it is off, turn it off when it is on. Turning it off now asks for
+  confirmation. The Account page shows the same card.
+- **Client portal: the Data packs tab only appears when it applies**, that is
+  when the subscriber's plan has a data allowance or they still hold a pack.
+  For a subscriber with several services, data packs and the allowance now use
+  the service whose plan has an allowance instead of an arbitrary one.
+- Client portal: the Help and Account menu entries are now translated into
+  Spanish and Portuguese (they were English in every language).
 - **Ubuntu 24.04 LTS and 26.04 LTS are the supported servers, and both are
   tested.** CI now runs the installer on each release on every change: its
   package step in a clean image of the release, and a complete install on a
