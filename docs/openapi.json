@@ -40040,6 +40040,461 @@
         }
       }
     },
+    "/olt-management/{id}/provisioning": {
+      "put": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Save what a new ONU on this OLT is provisioned with: line and service profile ids, service and user VLAN, GEM port, optional ONU Ethernet port for the native VLAN, first traffic-table index VigaBSS may create",
+        "operationId": "saveOltProvisioning",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Provisioning settings",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "line_profile_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "srv_profile_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "service_vlan": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "user_vlan": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "gem_port": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "native_vlan_eth_port": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "traffic_table_base": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OLT connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/managed-onus": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "ONUs VigaBSS authorised on this OLT, with contract, service-port and speeds",
+        "operationId": "listOltManagedOnus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed ONUs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Authorise a waiting ONU and give it service. Without apply: true the exact commands are returned and nothing is sent. Speeds come from up_kbps/down_kbps or from the plan of contract_id",
+        "operationId": "authoriseOltOnu",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "ONU to authorise",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "port",
+                  "serial_number"
+                ],
+                "properties": {
+                  "port": {
+                    "type": "string"
+                  },
+                  "serial_number": {
+                    "type": "string"
+                  },
+                  "contract_id": {
+                    "type": "integer"
+                  },
+                  "up_kbps": {
+                    "type": "integer"
+                  },
+                  "down_kbps": {
+                    "type": "integer"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "apply": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview: applied false, commands[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Applied"
+          },
+          "502": {
+            "description": "The OLT refused a command; the transcript is returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/managed-onus/{onuId}/speed": {
+      "post": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Change an ONU's speeds (replaces its service-port). Preview unless apply: true",
+        "operationId": "setOltOnuSpeed",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "onuId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Speeds",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "up_kbps": {
+                    "type": "integer"
+                  },
+                  "down_kbps": {
+                    "type": "integer"
+                  },
+                  "apply": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview or result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/managed-onus/{onuId}/active": {
+      "post": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Switch an ONU off or back on at the OLT. Preview unless apply: true",
+        "operationId": "setOltOnuActive",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "onuId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "State",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "active"
+                ],
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "apply": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview or result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/managed-onus/{onuId}/remove": {
+      "post": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Remove an ONU from the OLT (its service-ports, then the ONU). Preview unless apply: true",
+        "operationId": "removeOltOnu",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "onuId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "apply",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "apply": {
+                    "type": "boolean",
+                    "description": "true sends the commands; otherwise they are only returned"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview or result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/operations": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Changes VigaBSS sent to this OLT, newest first, each with the commands and the OLT's answers",
+        "operationId": "listOltOperations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/olt-management/{id}/fibre-status": {
       "get": {
         "tags": [

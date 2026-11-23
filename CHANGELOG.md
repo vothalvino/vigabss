@@ -5,6 +5,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Provisioning ONUs on a Huawei OLT.** From the Live OLT tab you can now
+  authorise an ONU that is waiting on a PON port (for a contract, whose plan
+  gives the speeds, or with speeds typed in), change its speed, switch it off
+  or on, and remove it. Speeds are applied on the OLT as rate-limit tables
+  that VigaBSS creates once per speed and reuses. Every change first shows the
+  exact commands; nothing is sent until "Send to the OLT" is pressed. If the
+  OLT refuses a command the run stops there, and what was sent and answered
+  is shown and kept in an operation log. Each OLT has a small set of
+  provisioning settings (line and service profile, VLAN, GEM port), which
+  must already exist on the OLT (migration 025). **Not yet tried on a real
+  OLT.** Contracts marked FTTH are still also rate-limited at the MikroTik;
+  moving that enforcement to the OLT is the next step.
+- Docs: `docs/huawei-eotdr-capture.md`, a form for capturing eOTDR output
+  from a real OLT so eOTDR readings can be implemented.
+
 - **Automatic OLT monitoring over SNMP.** VigaBSS can read every OLT that has
   SNMP enabled every 10 minutes and remember each ONU's state, distance and
   signal per PON port. The Live OLT tab has the switch for it ("Read every

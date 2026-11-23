@@ -312,12 +312,22 @@
   "olt_onu_readings": {
     "olt_device_id": "devices"
   },
+  "olt_onus": {
+    "contract_id": "contracts",
+    "olt_device_id": "devices"
+  },
+  "olt_operations": {
+    "olt_device_id": "devices"
+  },
   "olt_ports": {
     "olt_device_id": "devices"
   },
   "olt_splitters": {
     "olt_port_id": "olt_ports",
     "site_id": "sites"
+  },
+  "olt_traffic_tables": {
+    "olt_device_id": "devices"
   },
   "onu_details": {
     "device_id": "devices",
