@@ -1657,12 +1657,37 @@ technology, one open replacement), the new contract activates through the
 unchanged workflow (signature required), and `lifecycleService.completeOrder`
 calls `completeTransition` after the activation commit, which terminates the
 old contract through `contractTerminationService.terminateContract`.
+IP pools carry the same field (`ip_pools.access_technology`, default `both`).
+`subscriberProvisioningService.findActivePool` gives a contract a pool of its
+technology: exactly that technology first, then `both`, never the other one.
 
 Speed enforcement does not branch on it yet: RADIUS sends the plan speed to
 the BNG for every contract. FTTH (speed applied on the OLT, Huawei MA5800/
 EA5800 over SSH through the NAS WireGuard tunnel, PPPoE still terminating on
 the MikroTik) is the next step and must switch every caller of
 `radiusAttributeService.generateAttributes` together.
+
+### OLT command line (Huawei MA5800 / EA5800)
+
+An OLT has no API; it is driven through its interactive command line over SSH.
+
+- `src/services/olt/cliSession.js` is the session: send one line, read to the
+  prompt, answer pagers and parameter hints. It never answers a yes/no
+  question, and one call sends exactly one line (control characters refused).
+  `openSsh` pins the host key: the fingerprint seen first is stored and must
+  match afterwards.
+- `src/services/olt/huaweiMa5800.js` is the dialect: which `display` command
+  answers a question, and pure `parse*` functions for the output. Read
+  operations only so far; `_display` refuses anything that is not a `display`
+  command. Every result carries `raw`, because layouts vary by release and
+  the driver has not run on hardware.
+- `src/services/olt/oltConnectionService.js` owns `olt_connections`
+  (migration 019): the password never leaves it, the address goes through
+  `assertManagementTarget`, and sessions to one OLT are queued.
+- Routes are under `/olt-management/{id}/connection` and `/live/*`.
+
+A new vendor is a new dialect module registered in `DRIVERS`; the session and
+the connection service do not change.
 
 ### VPN clients keep their own address
 

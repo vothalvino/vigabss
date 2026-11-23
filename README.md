@@ -124,7 +124,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 385 tables + column additions)
+│   ├── schema.sql           # Combined schema (all 386 tables + column additions)
 │   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 021)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
@@ -755,8 +755,12 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 017 — VoIP refresh switch:** the weekly refresh of the VoIP address list on MikroTik NAS is switched on and off in the app (Network → NAS, install operator). `VOIP_RANGES_ENABLED` is no longer read. The migration only corrects the scheduled task's description.
 
 > **Migration 021 — Contract replacement:** `contracts.replaces_contract_id` links a new contract to the one it takes over from (a technology transition between WISP and FTTH). The new contract follows the normal activation workflow, which requires the customer's signature; activating it terminates the contract it replaces.
+> **Migration 020 — IP pool technology:** `ip_pools.access_technology` (`wisp`, `ftth` or `both`, default `both`). A new contract's PPPoE account takes a pool of the contract's technology, preferring a pool for exactly that technology over one that serves both.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+> **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 019 — OLT logins:** `olt_connections` stores how VigaBSS reaches an OLT's command line over SSH (address, user, encrypted password, driver, pinned SSH host key). One row per OLT device.
 
 > **Migration 010 — Manager group, point logins, bags assigned to their point:** a new system user group `manager` (persona `billing`) holds every permission of `admin` except organization settings, staff users and groups, organizations, security administration, integrations, API tokens, webhooks, PAC providers, CSD certificates, payment gateways, data residency, the AI provider settings, WireGuard administration and compliance exports (it keeps `users.view`). New permission `point_logins.create` (`admin`, `manager`) creates reseller and carrier logins without `users.create`. Cash bags: `POST /api/v1/cash-bags/handover` now takes the point the bags are for (`reseller_id`, a top-level reseller assigned to the carrier); the bags appear on the point's page at once and it may seal them, and the carrier's drop-off only confirms the delivery at the bag's own point (`BAGS_FOR_ANOTHER_POINT`). No schema change; the rollback removes the group only when nobody is in it.
 

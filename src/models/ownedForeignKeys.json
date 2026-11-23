@@ -306,6 +306,9 @@
     "odf_frame_id": "odf_frames",
     "splitter_id": "olt_splitters"
   },
+  "olt_connections": {
+    "device_id": "devices"
+  },
   "olt_ports": {
     "olt_device_id": "devices"
   },

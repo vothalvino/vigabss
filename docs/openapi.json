@@ -39971,6 +39971,294 @@
         }
       }
     },
+    "/olt-management/{id}/connection": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "The saved SSH login of this OLT (never the password): driver, host, port, username, has_password, pinned host key, last check",
+        "operationId": "getOltConnection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OLT connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Create or change the SSH login of this OLT. A blank password keeps the saved one; changing the address forgets the pinned host key",
+        "operationId": "saveOltConnection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "OLT login",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "driver": {
+                    "type": "string",
+                    "enum": [
+                      "huawei_ma5800"
+                    ]
+                  },
+                  "host": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "legacy_algorithms": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OLT connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Remove the saved SSH login of this OLT",
+        "operationId": "deleteOltConnection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/connection/host-key": {
+      "delete": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Forget the pinned SSH host key (the OLT was replaced or reset); the next connection pins the key it sees",
+        "operationId": "forgetOltHostKey",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OLT connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/connection/test": {
+      "post": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Log in to the OLT and read its software version and boards. Sends display commands only",
+        "operationId": "testOltConnection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "system, boards, boards_raw, connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/live/unregistered-onus": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "ONUs connected to the OLT but not yet authorised (display ont autofind all), read live",
+        "operationId": "listOltUnregisteredOnus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "onus[], raw",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/olt-management/{id}/live/onus": {
+      "get": {
+        "tags": [
+          "OLT Management"
+        ],
+        "summary": "Authorised ONUs on one PON port with state and optical power (display ont info summary), read live",
+        "operationId": "listOltPortOnus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "port",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,2}/\\d{1,2}/\\d{1,3}$"
+            },
+            "description": "frame/slot/port, for example 0/1/0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "port, onus[], reported_total, reported_online, raw",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/olt-management/{id}/ports": {
       "get": {
         "tags": [
@@ -89662,6 +89950,14 @@
               "mixed"
             ]
           },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
+            ]
+          },
           "default_prefix_len": {
             "type": "number",
             "minimum": 48,
@@ -89777,6 +90073,14 @@
               "corporate",
               "government",
               "mixed"
+            ]
+          },
+          "access_technology": {
+            "type": "string",
+            "enum": [
+              "wisp",
+              "ftth",
+              "both"
             ]
           },
           "default_prefix_len": {

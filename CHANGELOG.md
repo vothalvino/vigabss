@@ -12,6 +12,23 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   The current contract keeps working until the new one is activated and is
   terminated at that moment; cancelling the new contract leaves it untouched.
   Both contract pages show the link (migration 021).
+- **IP pools have an access technology.** A pool is marked WISP, FTTH or both
+  (IP pool form; default both). A new contract's PPPoE account takes a pool
+  of the contract's own technology, preferring a pool for exactly that
+  technology over one that serves both, so fibre and wireless subscribers can
+  have separate address ranges (migration 020).
+- **Huawei OLT driver, read operations (MA5800 / EA5800).** Network → OLT
+  Management has a "Live OLT" tab. For an OLT device you save how VigaBSS logs
+  in to its command line over SSH (management address, user, password), test
+  the connection, and read straight from the OLT: software version and
+  boards, ONUs that are plugged in but not yet authorised, and the ONUs of a
+  PON port with state, signal level and distance. Nothing on the tab changes
+  the OLT. The password is stored encrypted and never shown again; the OLT's
+  SSH key is saved on the first connection and checked on every later one
+  (migration 019). **Not yet tried on a real OLT**: it is written from
+  Huawei's command reference and tested against a simulated OLT, so each
+  result can also show the text the OLT printed. Authorising ONUs and setting
+  speeds on the OLT come next.
 
 - **Access technology on plans and contracts (WISP / FTTH).** A plan is marked
   WISP, FTTH or both. A contract is created for one technology: the plan's,
