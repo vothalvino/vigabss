@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.32 — 2026-11-23
+
 - **A reopened incident does not write twice to the same customer.** A
   customer who was already told a fault was resolved is not written to again
   when the reopened incident is closed a second time, unless they contacted
