@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **NAS routers appear on the topology map.** They were missing because they
+  are stored separately from other devices. A NAS is drawn at its site, with
+  a blue outline, and its popup names its make and site. A NAS with no site,
+  or whose site has no coordinates, is listed under the map with what to set.
+- **The NAS type is chosen from a list** (MikroTik, Cisco, Juniper, Huawei,
+  Ubiquiti, Other) instead of typed. A value typed before stays selectable.
+
 - **An OLT can be added from the OLT page.** OLT Management → Live OLT has an
   "Add an OLT" button (name, model, management address, SNMP community), as
   NAS Devices has for a NAS. Before, an OLT had to be created on the Devices

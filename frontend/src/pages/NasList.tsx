@@ -24,6 +24,9 @@ import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 // Types
 // ---------------------------------------------------------------------------
 
+/** Router makes a NAS can be. "mikrotik" is the one VigaBSS can configure over its API. */
+const NAS_TYPES: string[] = ['mikrotik', 'cisco', 'juniper', 'huawei', 'ubiquiti', 'other'];
+
 export interface Nas {
   id: number;
   name: string;
@@ -412,14 +415,17 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
 
           <label style={modalStyles.label}>
             {t('ui.nasList.type')}
-            <input
-              style={modalStyles.input}
-              type="text"
-              maxLength={50}
+            <select
+              style={modalStyles.select}
               value={form.type}
               onChange={e => setField('type', e.target.value)}
-              placeholder={t('ui.nasList.eGMikrotikCiscoUbiquiti')}
-            />
+              aria-label={t('ui.nasList.type')}
+            >
+              <option value="">{t('nasTypes.choose')}</option>
+              {NAS_TYPES.map(v => <option key={v} value={v}>{t(`nasTypes.${v}`)}</option>)}
+              {/* A value saved before the list existed stays selectable. */}
+              {form.type && !NAS_TYPES.includes(form.type) && <option value={form.type}>{form.type}</option>}
+            </select>
           </label>
 
           <label style={modalStyles.label}>

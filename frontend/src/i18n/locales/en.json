@@ -1,4 +1,13 @@
 {
+  "nasTypes": {
+    "choose": "Choose…",
+    "mikrotik": "MikroTik",
+    "cisco": "Cisco",
+    "juniper": "Juniper",
+    "huawei": "Huawei",
+    "ubiquiti": "Ubiquiti",
+    "other": "Other"
+  },
   "oltProvisioning": {
     "position": "{{port}} \u00b7 ONT {{ont}}",
     "settingsTitle": "Provisioning settings",
@@ -4434,6 +4443,9 @@
     "escalationsLevel": "Level"
   },
   "topologyMap": {
+    "nasAt": "NAS router ({{vendor}}) at {{site}}",
+    "legendNas": "NAS router (drawn at its site)",
+    "nasNotShown": "Not shown, because their site has no location or they have no site: {{names}}. Set the site of the NAS, and the site's coordinates, to place them.",
     "title": "Topology & Map",
     "tabFabric": "Network Fabric",
     "fabric": {

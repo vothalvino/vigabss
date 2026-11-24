@@ -29,7 +29,10 @@ import { parseApiError } from '@/api/errors';
 // ---------------------------------------------------------------------------
 
 interface DeviceNode {
-  id: number;
+  /** A device's id, or "nas-<id>" for a NAS router (drawn at its site). */
+  id: number | string;
+  kind?: 'nas';
+  nas_id?: number;
   name: string;
   type: string;
   role: string;
@@ -52,6 +55,7 @@ interface LinkEdge {
 
 interface NetworkGraph {
   nodes: DeviceNode[];
+  nas_without_location?: { id: number; name: string; site_name: string | null }[];
   edges: LinkEdge[];
 }
 
@@ -187,7 +191,7 @@ function NetworkTopologyTab() {
     : nodes;
 
   // Build node position map for drawing edges
-  const nodePos = new Map<number, [number, number]>();
+  const nodePos = new Map<number | string, [number, number]>();
   for (const n of nodes) {
     if (n.latitude != null && n.longitude != null) {
       nodePos.set(n.id, [n.latitude, n.longitude]);
@@ -236,14 +240,14 @@ function NetworkTopologyTab() {
             <span>{t('topologyMap.pickHint')}</span>
           )}
           {placeErr && <span style={{ color: '#991b1b', marginLeft: 10 }}>{placeErr}</span>}
-          {nodes.some(n => n.latitude == null || n.longitude == null) && (
+          {nodes.some(n => n.kind !== 'nas' && (n.latitude == null || n.longitude == null)) && (
             <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <strong style={{ fontSize: '0.78rem' }}>{t('topologyMap.unpinned')}:</strong>
-              {nodes.filter(n => n.latitude == null || n.longitude == null).map(n => (
+              {nodes.filter(n => n.kind !== 'nas' && (n.latitude == null || n.longitude == null)).map(n => (
                 <button
                   key={n.id}
                   type="button"
-                  onClick={() => setPlacing({ id: n.id, name: n.name })}
+                  onClick={() => setPlacing({ id: n.id as number, name: n.name })}
                   style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border-color, #d1d5db)', cursor: 'pointer', background: placing?.id === n.id ? 'var(--accent, #ea580c)' : 'transparent', color: placing?.id === n.id ? '#fff' : 'inherit' }}
                 >
                   {n.name}
@@ -289,16 +293,18 @@ function NetworkTopologyTab() {
             <CircleMarker
               key={node.id}
               center={[node.latitude!, node.longitude!]}
-              radius={placing?.id === node.id ? 9 : 6}
-              color={placing?.id === node.id ? '#ea580c' : deviceColor(node.status)}
+              radius={placing?.id === node.id ? 9 : node.kind === 'nas' ? 8 : 6}
+              color={placing?.id === node.id ? '#ea580c' : node.kind === 'nas' ? '#2563eb' : deviceColor(node.status)}
               fillColor={placing?.id === node.id ? '#ea580c' : deviceColor(node.status)}
               fillOpacity={0.8}
-              eventHandlers={editMode ? { click: () => setPlacing({ id: node.id, name: node.name }) } : undefined}
+              weight={node.kind === 'nas' ? 3 : 2}
+              // A NAS sits at its site: it is moved by moving the site, not from here.
+              eventHandlers={editMode && node.kind !== 'nas' ? { click: () => setPlacing({ id: node.id as number, name: node.name }) } : undefined}
             >
               {!editMode && (
                 <Popup>
                   <strong>{node.name}</strong><br />
-                  {node.type} / {node.role}<br />
+                  {node.kind === 'nas' ? t('topologyMap.nasAt', { vendor: node.role, site: node.site_name ?? '' }) : `${node.type} / ${node.role}`}<br />
                   {node.ip_address && <>{node.ip_address}<br /></>}
                   {t('topologyMap.status')}: {node.status}
                 </Popup>
@@ -308,8 +314,15 @@ function NetworkTopologyTab() {
           ))}
       </MapContainer>
 
+      {(graphData?.nas_without_location?.length ?? 0) > 0 && (
+        <p role="note" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+          {t('topologyMap.nasNotShown', { names: (graphData?.nas_without_location ?? []).map(n => n.name).join(', ') })}
+        </p>
+      )}
+
       <div style={{ marginTop: 8, fontSize: 12, color: '#64748b', display: 'flex', gap: 16 }}>
         <span style={{ color: '#22c55e' }}>&#9632; {t('topologyMap.legendGreen')}</span>
+        <span style={{ color: '#2563eb' }}>&#9711; {t('topologyMap.legendNas')}</span>
         <span style={{ color: '#f59e0b' }}>&#9632; {t('topologyMap.legendAmber')}</span>
         <span style={{ color: '#ef4444' }}>&#9632; {t('topologyMap.legendRed')}</span>
         <span style={{ color: '#94a3b8' }}>&#9632; {t('topologyMap.legendGray')}</span>

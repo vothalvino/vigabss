@@ -80,7 +80,43 @@ async function getNetworkGraph(orgId, layer = null) {
     };
   });
 
-  return { nodes, edges: enrichedEdges };
+  // NAS routers are kept in their own table, so they were missing from the
+  // map. A NAS has no coordinates of its own: it is drawn at its site. One
+  // without a located site cannot be placed and is returned separately so the
+  // page can say why it is not shown.
+  const [nasRows] = await db.query(
+    `SELECT n.id, n.name, n.type, n.status, n.ip_address, n.site_id,
+            s.name AS site_name, s.latitude, s.longitude
+       FROM nas n
+       LEFT JOIN sites s ON s.id = n.site_id AND s.deleted_at IS NULL
+      WHERE n.deleted_at IS NULL AND n.organization_id = ?
+      ORDER BY n.name`,
+    [orgId],
+  );
+  const nasNodes = [];
+  const nasWithoutLocation = [];
+  for (const n of nasRows) {
+    if (n.latitude === null || n.latitude === undefined || n.longitude === null || n.longitude === undefined) {
+      nasWithoutLocation.push({ id: n.id, name: n.name, site_name: n.site_name || null });
+      continue;
+    }
+    nasNodes.push({
+      id: `nas-${n.id}`,
+      kind: 'nas',
+      nas_id: n.id,
+      name: n.name,
+      type: 'nas',
+      role: n.type || 'other',
+      status: n.status,
+      latitude: Number(n.latitude),
+      longitude: Number(n.longitude),
+      ip_address: n.ip_address,
+      site_id: n.site_id,
+      site_name: n.site_name,
+    });
+  }
+
+  return { nodes: [...nodes, ...nasNodes], edges: enrichedEdges, nas_without_location: nasWithoutLocation };
 }
 
 /**

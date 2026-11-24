@@ -77,3 +77,48 @@ describe('the network reports use per-day counter movement', () => {
     expect(sql).not.toMatch(/avg_if_(in|out)_octets/);
   });
 });
+
+// NAS routers live in their own table and were missing from the map. They are
+// drawn at their site; one whose site has no location is reported instead.
+describe('NAS routers on the map', () => {
+  function withNas(nasRows) {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM devices d/.test(sql)) return [[{ id: 7, name: 'Tower AP', latitude: 19.4, longitude: -99.1 }]];
+      if (/FROM nas n/.test(sql)) return [nasRows];
+      return [[]];
+    });
+  }
+
+  test('a NAS appears as a node at its site\'s coordinates, told apart from devices', async () => {
+    withNas([{ id: 3, name: 'Core Router', type: 'mikrotik', status: 'active', ip_address: '10.0.0.1', site_id: 2, site_name: 'POP Centro', latitude: '19.43260000', longitude: '-99.13320000' }]);
+    const graph = await topology.getNetworkGraph(1);
+    expect(graph.nodes).toHaveLength(2);
+    expect(graph.nodes[1]).toEqual({
+      id: 'nas-3', kind: 'nas', nas_id: 3, name: 'Core Router', type: 'nas', role: 'mikrotik', status: 'active',
+      latitude: 19.4326, longitude: -99.1332, ip_address: '10.0.0.1', site_id: 2, site_name: 'POP Centro',
+    });
+    // Its id can never collide with a device's numeric id.
+    expect(graph.nodes.map((n) => n.id)).toEqual([7, 'nas-3']);
+    expect(graph.nas_without_location).toEqual([]);
+  });
+
+  test('a NAS with no site, or a site with no coordinates, is listed instead of guessed at', async () => {
+    withNas([
+      { id: 4, name: 'Edge A', type: 'mikrotik', status: 'active', site_id: null, site_name: null, latitude: null, longitude: null },
+      { id: 5, name: 'Edge B', type: 'cisco', status: 'active', site_id: 9, site_name: 'Torre Norte', latitude: null, longitude: null },
+    ]);
+    const graph = await topology.getNetworkGraph(1);
+    expect(graph.nodes).toHaveLength(1);
+    expect(graph.nas_without_location).toEqual([
+      { id: 4, name: 'Edge A', site_name: null }, { id: 5, name: 'Edge B', site_name: 'Torre Norte' },
+    ]);
+  });
+
+  test('only this organization\'s live NAS routers are read', async () => {
+    withNas([]);
+    await topology.getNetworkGraph(6);
+    const [sql, params] = db.query.mock.calls.find(([q]) => /FROM nas n/.test(q));
+    expect(sql.replace(/\s+/g, ' ')).toMatch(/WHERE n\.deleted_at IS NULL AND n\.organization_id = \?/);
+    expect(params).toEqual([6]);
+  });
+});
