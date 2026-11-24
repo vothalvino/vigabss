@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The Network section is reorganised.** Its 54 pages are grouped by what
+  you are doing instead of by protocol name. The Network page now has ten
+  groups: Monitoring, Subscriber sessions, Routers and devices, Fibre (FTTH),
+  Wireless (WISP), Customer equipment (CPE), IP addresses, Speed and
+  suspension, Device configuration, and Polling and alerts. The sidebar shows
+  the everyday pages under headings (Monitoring, Subscribers online,
+  Equipment, Addresses, My access), and OLT Management is now in the sidebar
+  beside Devices and NAS. No page was removed or renamed, and addresses are
+  unchanged.
+
 - Tests: placeholder Stripe keys and webhook secrets are assembled when the
   test runs, so they are no longer reported as leaked secrets by GitHub
   secret scanning, and a check keeps secret-shaped literals out of the

@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HUB_CARDS, ROUTES, SECTIONS, WORKSPACES, routeForPath, type Guard } from '@/nav/routes';
+import { HUB_CARDS, RAIL_SUBS, ROUTES, SECTIONS, WORKSPACES, routeForPath, visibleHubCards, visibleRailItems, type Guard } from '@/nav/routes';
 import en from '@/i18n/locales/en.json';
 import es from '@/i18n/locales/es.json';
 import ptBR from '@/i18n/locales/pt-BR.json';
@@ -184,5 +184,44 @@ describe('FE-25 — every page names the permissions that open it', () => {
   it('every view permission is a slug the migrations seed', () => {
     const unknown = ROUTES.flatMap(r => (r.viewPermissions ?? []).filter(p => !seeded.has(p)).map(p => `${r.path}: ${p}`));
     expect(unknown).toEqual([]);
+  });
+});
+
+// The Network section is grouped by what an operator is doing, not by
+// protocol names: the sidebar has headings, and every heading's rows sit
+// together even though the registry lists them in another order.
+describe('Network section layout', () => {
+  const admin = { role: 'admin' } as Parameters<typeof visibleRailItems>[0];
+
+  it('sidebar rows are grouped under their headings in the declared order', () => {
+    const rows = visibleRailItems(admin, 'network');
+    const subs = rows.map(r => r.sub);
+    expect(subs.every(Boolean)).toBe(true);
+    // Each heading appears as one unbroken run, in RAIL_SUBS order.
+    const runs = subs.filter((s, i) => s !== subs[i - 1]);
+    expect(runs).toEqual(RAIL_SUBS.network);
+    expect(rows.map(r => r.path)).toEqual([
+      '/noc-dashboard', '/network-health', '/outages',
+      '/radius-sessions', '/connection-logs', '/pppoe-diagnostics',
+      '/devices', '/nas', '/olt-management',
+      '/ip-pools',
+      '/wg-tunnels',
+    ]);
+  });
+
+  it('every Network page is on exactly one hub card, and no card is empty', () => {
+    const cards = visibleHubCards(admin, 'network');
+    expect(cards.map(c => c.card)).toEqual(HUB_CARDS.network);
+    const onCards = cards.flatMap(c => c.items.map(i => i.path));
+    const all = ROUTES.filter(r => r.section === 'network').map(r => r.path);
+    expect([...onCards].sort()).toEqual([...all].sort());
+    expect(new Set(onCards).size).toBe(onCards.length);
+  });
+
+  it('fibre, wireless and customer equipment each have their own card', () => {
+    const byCard = Object.fromEntries(visibleHubCards(admin, 'network').map(c => [c.card, c.items.map(i => i.path)]));
+    expect(byCard.fibre).toEqual(['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management']);
+    expect(byCard.wirelessNet).toEqual(['/wireless', '/wireless-metrics']);
+    expect(byCard.cpe).toEqual(['/cpe-management', '/cpe-profiles', '/cpe-diagnostics']);
   });
 });
