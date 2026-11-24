@@ -4443,6 +4443,24 @@
     "escalationsLevel": "Nivel"
   },
   "topologyMap": {
+    "linkStart": "Adicionar um enlace",
+    "linkCancel": "Parar de enlaçar",
+    "linkPickFirst": "Clique no primeiro ponto do enlace no mapa.",
+    "linkPickSecond": "De {{name}}. Agora clique no ponto ao qual ele se conecta.",
+    "linkBetween": "{{a}} a {{b}}",
+    "linkType": "Tipo de enlace",
+    "linkTypes": {
+      "fiber": "Fibra",
+      "wireless": "Sem fio",
+      "copper": "Cobre",
+      "virtual": "Virtual (VPN, túnel)",
+      "other": "Outro"
+    },
+    "linkCapacity": "Capacidade em Mbps",
+    "linkSave": "Salvar enlace",
+    "linkSaving": "Salvando…",
+    "linkAgain": "Escolher de novo",
+    "linkRemove": "Remover este enlace",
     "nasAt": "Roteador NAS ({{vendor}}) em {{site}}",
     "legendNas": "Roteador NAS (desenhado no seu site)",
     "nasNotShown": "Não exibidos, porque o site não tem localização ou não têm site: {{names}}. Defina o site do NAS e as coordenadas do site para posicioná-los.",

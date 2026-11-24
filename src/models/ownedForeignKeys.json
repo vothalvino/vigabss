@@ -278,6 +278,7 @@
     "client_id": "clients"
   },
   "nas": {
+    "device_id": "devices",
     "secondary_nas_id": "nas",
     "site_id": "sites"
   },

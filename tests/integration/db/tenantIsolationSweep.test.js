@@ -165,6 +165,7 @@ const PATH_PARAMS = {
   '/topology/geofences/:id': 'map_geofences',
   '/topology/infrastructure/:id': 'map_infrastructure_points',
   '/topology/dependencies/:id': 'device_dependency_edges',
+  '/topology/map/links/:id': 'network_links',
   '/portal-kb/:id': 'portal_kb_articles',
   '/clients/:clientId/dnd/:channel': { value: 'email' },
   '/clients/:id/documents/:fileId': 'files',

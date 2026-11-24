@@ -23,6 +23,7 @@ import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { NetworkFabricTab } from './topology/NetworkFabricTab';
 import { parseApiError } from '@/api/errors';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -150,6 +151,34 @@ function NetworkTopologyTab() {
   const [editMode, setEditMode] = useState(false);
   const [placing, setPlacing] = useState<{ id: number; name: string } | null>(null);
   const [placeErr, setPlaceErr] = useState('');
+  // Drawing a link: pick two markers, then say what kind of link it is.
+  const canLink = can(user, 'network_links.create');
+  const canUnlink = can(user, 'network_links.delete');
+  const [linking, setLinking] = useState<{ a: DeviceNode | null; b: DeviceNode | null } | null>(null);
+  const [linkType, setLinkType] = useState('fiber');
+  const [linkCapacity, setLinkCapacity] = useState('');
+  const linkMutation = useMutation({
+    mutationFn: () => apiFetch('/topology/map/links', {
+      method: 'POST',
+      body: JSON.stringify({
+        a: linking?.a?.id, b: linking?.b?.id, link_type: linkType,
+        ...(linkCapacity !== '' ? { capacity_mbps: Number(linkCapacity) } : {}),
+      }),
+    }),
+    onSuccess: () => { setLinking(null); setLinkCapacity(''); void qc.invalidateQueries({ queryKey: ['topology-network'] }); },
+  });
+  const unlinkMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/topology/map/links/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['topology-network'] }); },
+  });
+  function pickForLink(node: DeviceNode) {
+    setLinking(cur => {
+      if (!cur) return cur;
+      if (!cur.a) return { a: node, b: null };
+      if (cur.a.id === node.id) return cur;
+      return { a: cur.a, b: node };
+    });
+  }
 
   const placeMutation = useMutation({
     mutationFn: async ({ id, lat, lng }: { id: number; lat: number; lng: number }) => {
@@ -227,7 +256,44 @@ function NetworkTopologyTab() {
             {editMode ? t('topologyMap.donePlacing') : t('topologyMap.editPositions')}
           </button>
         )}
+        {canLink && (
+          <button
+            type="button"
+            onClick={() => { setEditMode(false); setPlacing(null); linkMutation.reset(); setLinking(cur => (cur ? null : { a: null, b: null })); }}
+            style={{ ...styles.input, cursor: 'pointer', fontWeight: 600, background: linking ? 'var(--accent, #ea580c)' : undefined, color: linking ? '#fff' : undefined }}
+          >
+            {linking ? t('topologyMap.linkCancel') : t('topologyMap.linkStart')}
+          </button>
+        )}
       </div>
+
+      {linking && (
+        <div role="group" aria-label={t('topologyMap.linkStart')} style={{ marginBottom: 10, padding: '8px 12px', border: '1px dashed var(--border-color, #9ca3af)', borderRadius: 8, fontSize: '0.85rem' }}>
+          {!linking.a && <span>{t('topologyMap.linkPickFirst')}</span>}
+          {linking.a && !linking.b && <span>{t('topologyMap.linkPickSecond', { name: linking.a.name })}</span>}
+          {linking.a && linking.b && (
+            <form
+              onSubmit={e => { e.preventDefault(); linkMutation.mutate(); }}
+              style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}
+            >
+              <strong>{t('topologyMap.linkBetween', { a: linking.a.name, b: linking.b.name })}</strong>
+              <select value={linkType} onChange={e => setLinkType(e.target.value)} style={selectStyle} aria-label={t('topologyMap.linkType')}>
+                {['fiber', 'wireless', 'copper', 'virtual', 'other'].map(v => <option key={v} value={v}>{t(`topologyMap.linkTypes.${v}`)}</option>)}
+              </select>
+              <input
+                type="number" min={1} value={linkCapacity} onChange={e => setLinkCapacity(e.target.value)}
+                placeholder={t('topologyMap.linkCapacity')} aria-label={t('topologyMap.linkCapacity')}
+                style={{ ...styles.input, width: 150 }}
+              />
+              <button type="submit" disabled={linkMutation.isPending} style={{ ...styles.input, cursor: 'pointer', fontWeight: 600 }}>
+                {linkMutation.isPending ? t('topologyMap.linkSaving') : t('topologyMap.linkSave')}
+              </button>
+              <button type="button" onClick={() => setLinking({ a: null, b: null })} style={{ ...styles.input, cursor: 'pointer' }}>{t('topologyMap.linkAgain')}</button>
+            </form>
+          )}
+          {linkMutation.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 10 }}>{(linkMutation.error as Error).message}</span>}
+        </div>
+      )}
 
       {editMode && (
         <div style={{ marginBottom: 10, padding: '8px 12px', border: '1px dashed var(--border-color, #9ca3af)', borderRadius: 8, fontSize: '0.85rem' }}>
@@ -283,6 +349,13 @@ function NetworkTopologyTab() {
                 {edge.bandwidth_mbps ? ` | ${edge.bandwidth_mbps} Mbps` : ` | ${t('topologyMap.unknownBw')}`}
                 {edge.utilization !== null ? ` | ${edge.utilization}%` : ''}
               </Tooltip>
+              {canUnlink && !linking && !editMode && (
+                <Popup>
+                  <button type="button" onClick={() => unlinkMutation.mutate(edge.id)} disabled={unlinkMutation.isPending} style={{ cursor: 'pointer' }}>
+                    {t('topologyMap.linkRemove')}
+                  </button>
+                </Popup>
+              )}
             </Polyline>
           );
         })}
@@ -293,15 +366,17 @@ function NetworkTopologyTab() {
             <CircleMarker
               key={node.id}
               center={[node.latitude!, node.longitude!]}
-              radius={placing?.id === node.id ? 9 : node.kind === 'nas' ? 8 : 6}
+              radius={placing?.id === node.id || linking?.a?.id === node.id || linking?.b?.id === node.id ? 9 : node.kind === 'nas' ? 8 : 6}
               color={placing?.id === node.id ? '#ea580c' : node.kind === 'nas' ? '#2563eb' : deviceColor(node.status)}
               fillColor={placing?.id === node.id ? '#ea580c' : deviceColor(node.status)}
               fillOpacity={0.8}
               weight={node.kind === 'nas' ? 3 : 2}
               // A NAS sits at its site: it is moved by moving the site, not from here.
-              eventHandlers={editMode && node.kind !== 'nas' ? { click: () => setPlacing({ id: node.id as number, name: node.name }) } : undefined}
+              eventHandlers={linking
+                ? { click: () => pickForLink(node) }
+                : editMode && node.kind !== 'nas' ? { click: () => setPlacing({ id: node.id as number, name: node.name }) } : undefined}
             >
-              {!editMode && (
+              {!editMode && !linking && (
                 <Popup>
                   <strong>{node.name}</strong><br />
                   {node.kind === 'nas' ? t('topologyMap.nasAt', { vendor: node.role, site: node.site_name ?? '' }) : `${node.type} / ${node.role}`}<br />
@@ -309,7 +384,7 @@ function NetworkTopologyTab() {
                   {t('topologyMap.status')}: {node.status}
                 </Popup>
               )}
-              {editMode && <Tooltip>{node.name}</Tooltip>}
+              {(editMode || linking) && <Tooltip>{node.name}</Tooltip>}
             </CircleMarker>
           ))}
       </MapContainer>

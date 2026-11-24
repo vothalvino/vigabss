@@ -47,6 +47,20 @@ router.get('/map/network', requirePermission('topology.view'), async (req, res, 
 });
 
 // GET /topology/map/fabric — schematic tier-laid-out graph + metrics + incidents
+// Draw a link between two points of the network map. A point is a device id,
+// or "nas-<id>" for a NAS router (it becomes a device the first time).
+router.post('/map/links', requirePermission('network_links.create'), async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const data = await svc.createLink(req.orgId, { a: b.a, b: b.b, link_type: b.link_type, capacity_mbps: b.capacity_mbps });
+    res.status(201).json({ data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/map/links/:id', requirePermission('network_links.delete'), async (req, res, next) => {
+  try { res.json({ data: await svc.removeLink(req.orgId, req.params.id) }); } catch (err) { next(err); }
+});
+
 router.get('/map/fabric', requirePermission('topology.view'), async (req, res, next) => {
   try {
     const data = await svc.getFabric(req.orgId);

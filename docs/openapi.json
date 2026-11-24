@@ -54376,6 +54376,106 @@
         }
       }
     },
+    "/topology/map/links": {
+      "post": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Draw a link between two points of the network map. a and b are node ids from GET /topology/map/network: a device id, or \"nas-<id>\" for a NAS router, which becomes a device the first time it is linked",
+        "operationId": "createMapLink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Link",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "a",
+                  "b"
+                ],
+                "properties": {
+                  "a": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "b": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "link_type": {
+                    "type": "string",
+                    "enum": [
+                      "fiber",
+                      "wireless",
+                      "copper",
+                      "virtual",
+                      "other"
+                    ]
+                  },
+                  "capacity_mbps": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The link"
+          }
+        }
+      }
+    },
+    "/topology/map/links/{id}": {
+      "delete": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Remove a link from the network map",
+        "operationId": "removeMapLink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "id, removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/topology/map/fabric": {
       "get": {
         "tags": [
