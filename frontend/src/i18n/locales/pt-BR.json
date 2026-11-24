@@ -1,5 +1,70 @@
 {
+  "incidentsBoard": {
+    "intro": "Linhas e equipamentos da árvore de rede com falha. Um incidente continua aberto quando a falha some sozinha; um técnico o fecha e diz o que foi feito. Nada daqui é enviado aos clientes até então.",
+    "show": "Mostrar",
+    "status": {
+      "open": "Abertos",
+      "resolved": "Fechados"
+    },
+    "noneOpen": "Não há incidentes abertos.",
+    "noneClosed": "Não há incidentes fechados.",
+    "loadFailed": "Não foi possível carregar os incidentes.",
+    "part": {
+      "equipment": "equipamento",
+      "line": "linha até o que o alimenta"
+    },
+    "details": "Detalhes",
+    "hide": "Ocultar",
+    "since": "Desde {{when}}",
+    "lastSeen": "última vez ruim {{when}}",
+    "affected_one": "{{count}} contrato atrás dele",
+    "affected_other": "{{count}} contratos atrás dele",
+    "reported_one": "{{count}} cliente relatou",
+    "reported_other": "{{count}} clientes relataram",
+    "reopened_one": "reaberto {{count}} vez",
+    "reopened_other": "reaberto {{count}} vezes",
+    "fineNow": "bom neste momento",
+    "draftsWaiting_one": "{{count}} mensagem aguardando aprovação",
+    "draftsWaiting_other": "{{count}} mensagens aguardando aprovação",
+    "shape": {
+      "recurring": "Volta a acontecer.",
+      "continuous": "Contínuo.",
+      "occasional": "Ocasional."
+    },
+    "patternDays": "Ruim em {{days}} dos últimos {{window}} dias, {{hours}} horas no total.",
+    "kind": {
+      "capacity": "Um problema de capacidade: precisa de mais capacidade ou menos usuários, não de um reparo.",
+      "repair": "Uma falha a reparar.",
+      "equipment": "Um problema do próprio equipamento."
+    },
+    "windows": "Quando esteve ruim",
+    "reporters_one": "{{count}} cliente relatou",
+    "reporters_other": "{{count}} clientes relataram",
+    "noReporters": "Nenhum cliente relatou. Ninguém receberá mensagem quando for fechado.",
+    "customer": "Cliente",
+    "reportedOn": "relatou {{when}}",
+    "notice": {
+      "none": "ainda sem mensagem",
+      "draft": "mensagem aguardando aprovação",
+      "sent": "mensagem enviada",
+      "failed": "a mensagem não pôde ser enviada",
+      "discarded": "sem mensagem"
+    },
+    "messageFor": "Mensagem para {{name}}",
+    "sendMessage": "Enviar",
+    "dontSend": "Não enviar",
+    "closeTitle": "Fechar este incidente",
+    "closeLabel": "O que foi feito?",
+    "closeHint": "Obrigatório. Escreva do seu jeito: o texto é reescrito para os clientes que relataram a falha, e as suas palavras nunca são mostradas a eles.",
+    "close": "Fechar incidente",
+    "closing": "Fechando…",
+    "closedBy": "Fechado por {{who}}, {{when}}",
+    "technicianSaid": "Nota do técnico:",
+    "customersTold": "Aos clientes foi dito:"
+  },
   "customerPath": {
+    "keep": "Guardar como evidência",
+    "kept": "Guardado como evidência",
     "title": "Verificação da conexão",
     "intro": "Verifica cada salto do equipamento do cliente até o NAS principal e diz onde está a falha.",
     "check": "Verificar agora",
@@ -4596,6 +4661,7 @@
     "escalationsLevel": "Nivel"
   },
   "topologyMap": {
+    "tabIncidents": "Incidentes",
     "tabTree": "Árvore",
     "tabTreeMap": "Mapa de rede",
     "linkStart": "Adicionar um enlace",

@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { apiFetch } from '@/api/apiFetch';
 import { HEALTH_COLOR, verdictText, type HealthState, type Reason, type Verdict } from '../topology/linkHealth';
 
@@ -42,6 +43,12 @@ export function ContractNetworkPath({ contractId }: { contractId: number | strin
     queryKey: ['contract-network-path', String(contractId)],
     queryFn: async () => (await apiFetch<{ data: NetworkPath }>(`/contracts/${contractId}/network-path`)).data,
     enabled: asked,
+  });
+
+  // Keeping a check stores what was measured at this moment, for a ticket or
+  // a later look; a fault of ours is linked to its incident.
+  const keep = useMutation({
+    mutationFn: () => apiFetch<{ data: { check_id: number } }>(`/contracts/${contractId}/connection-checks`, { method: 'POST', body: JSON.stringify({}) }),
   });
 
   const gapText = (gap: string) => {
@@ -106,6 +113,12 @@ export function ContractNetworkPath({ contractId }: { contractId: number | strin
               {t('customerPath.usage', { mbps: data.saturation.mbps, plan: data.saturation.plan_mbps, pct: data.saturation.pct })}
             </p>
           )}
+          <p style={{ margin: '10px 0 0' }}>
+            <button type="button" disabled={keep.isPending || keep.isSuccess} onClick={() => keep.mutate()} style={{ cursor: 'pointer' }}>
+              {keep.isSuccess ? t('customerPath.kept') : t('customerPath.keep')}
+            </button>
+            {keep.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 8 }}>{(keep.error as Error).message}</span>}
+          </p>
           {data.gaps.length > 0 && (
             <div style={{ marginTop: 10, fontSize: '0.85rem' }}>
               <strong>{t('customerPath.notChecked')}</strong>

@@ -277,8 +277,21 @@ async function pathForContract(orgId, contractId) {
   };
 }
 
+/** Throws 404 unless the contract belongs to the organization. */
+async function assertContract(orgId, contractId) {
+  const [[row]] = await db.query('SELECT id FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [contractId, orgId]);
+  if (!row) throw new NotFoundError('Contract');
+}
+
+/** A ticket id only when it is this organization's and this client's; else 404. */
+async function ownTicket(orgId, clientId, ticketId) {
+  const [[row]] = await db.query('SELECT id FROM tickets WHERE id = ? AND organization_id = ? AND client_id = ? AND deleted_at IS NULL', [ticketId, orgId, clientId]);
+  if (!row) throw new NotFoundError('Ticket');
+  return Number(row.id);
+}
+
 module.exports = {
-  pathForContract,
+  pathForContract, assertContract, ownTicket,
   // exported for tests
   conclude, judgeWirelessLink, judgeFibreDrop, SIDE_ORDER, PLAN_FULL_PCT,
 };

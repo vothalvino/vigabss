@@ -1,5 +1,70 @@
 {
+  "incidentsBoard": {
+    "intro": "Líneas y equipos del árbol de red con falla. Un incidente sigue abierto cuando la falla se quita sola; un técnico lo cierra y dice qué se hizo. Nada de aquí se envía a los clientes hasta entonces.",
+    "show": "Mostrar",
+    "status": {
+      "open": "Abiertos",
+      "resolved": "Cerrados"
+    },
+    "noneOpen": "No hay incidentes abiertos.",
+    "noneClosed": "No hay incidentes cerrados.",
+    "loadFailed": "No se pudieron cargar los incidentes.",
+    "part": {
+      "equipment": "equipo",
+      "line": "línea hacia lo que lo alimenta"
+    },
+    "details": "Detalles",
+    "hide": "Ocultar",
+    "since": "Desde {{when}}",
+    "lastSeen": "última vez mal {{when}}",
+    "affected_one": "{{count}} contrato detrás",
+    "affected_other": "{{count}} contratos detrás",
+    "reported_one": "{{count}} cliente lo reportó",
+    "reported_other": "{{count}} clientes lo reportaron",
+    "reopened_one": "reabierto {{count}} vez",
+    "reopened_other": "reabierto {{count}} veces",
+    "fineNow": "bien en este momento",
+    "draftsWaiting_one": "{{count}} mensaje por aprobar",
+    "draftsWaiting_other": "{{count}} mensajes por aprobar",
+    "shape": {
+      "recurring": "Regresa.",
+      "continuous": "Continuo.",
+      "occasional": "Ocasional."
+    },
+    "patternDays": "Mal en {{days}} de los últimos {{window}} días, {{hours}} horas en total.",
+    "kind": {
+      "capacity": "Un problema de capacidad: necesita más capacidad o menos usuarios, no una reparación.",
+      "repair": "Una falla por reparar.",
+      "equipment": "Un problema del propio equipo."
+    },
+    "windows": "Cuándo estuvo mal",
+    "reporters_one": "{{count}} cliente lo reportó",
+    "reporters_other": "{{count}} clientes lo reportaron",
+    "noReporters": "Ningún cliente lo ha reportado. No se le escribirá a nadie al cerrarlo.",
+    "customer": "Cliente",
+    "reportedOn": "reportó {{when}}",
+    "notice": {
+      "none": "aún sin mensaje",
+      "draft": "mensaje por aprobar",
+      "sent": "mensaje enviado",
+      "failed": "el mensaje no se pudo enviar",
+      "discarded": "sin mensaje"
+    },
+    "messageFor": "Mensaje para {{name}}",
+    "sendMessage": "Enviar",
+    "dontSend": "No enviar",
+    "closeTitle": "Cerrar este incidente",
+    "closeLabel": "¿Qué se hizo?",
+    "closeHint": "Obligatorio. Escríbelo a tu manera: se redacta de nuevo para los clientes que reportaron la falla, y tus palabras nunca se les muestran.",
+    "close": "Cerrar incidente",
+    "closing": "Cerrando…",
+    "closedBy": "Cerrado por {{who}}, {{when}}",
+    "technicianSaid": "Nota del técnico:",
+    "customersTold": "A los clientes se les dijo:"
+  },
   "customerPath": {
+    "keep": "Guardar como evidencia",
+    "kept": "Guardado como evidencia",
     "title": "Revisión de la conexión",
     "intro": "Revisa cada salto desde el equipo del cliente hasta el NAS principal y dice dónde está la falla.",
     "check": "Revisar ahora",
@@ -4596,6 +4661,7 @@
     "escalationsLevel": "Nivel"
   },
   "topologyMap": {
+    "tabIncidents": "Incidentes",
     "tabTree": "Árbol",
     "tabTreeMap": "Mapa de red",
     "linkStart": "Agregar un enlace",
