@@ -593,6 +593,7 @@ CREATE TABLE IF NOT EXISTS nas (
     location    VARCHAR(200)    NULL COMMENT 'Free-form physical location description (migration 232)',
     site_id     BIGINT UNSIGNED NULL COMMENT 'Physical site where this NAS is installed (FK -> sites.id; SET NULL on site deletion) (migration 232)',
     device_id   BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'devices.id that represents this NAS on the network map (migration 026)',
+    is_main     TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = top of a network tree (migration 027)',
     secondary_nas_id BIGINT UNSIGNED NULL COMMENT 'Standby / secondary NAS for active-standby redundancy (self-ref FK -> nas.id) (migration 232)',
     health_status ENUM('unknown','up','down') NOT NULL DEFAULT 'unknown' COMMENT 'Last known health state (migration 232)',
     last_health_check_at DATETIME NULL COMMENT 'When health_status was last refreshed (migration 232)',
@@ -852,9 +853,10 @@ CREATE TABLE IF NOT EXISTS devices (
                       'router',
                       'switch',
                       'onu',
+                      'battery_monitor',
                       'other'
                   ) NOT NULL DEFAULT 'other'
-                      COMMENT 'Device type — client: outdoor_cpe, indoor_cpe; pop: ptp, ptmp_ap, olt, router, switch, onu',
+                      COMMENT 'Device type — client: outdoor_cpe, indoor_cpe; pop: ptp, ptmp_ap, olt, router, switch, onu, battery_monitor',
     manufacturer  VARCHAR(100)    NULL,
     model         VARCHAR(100)    NULL,
     serial_number VARCHAR(100)    NULL,

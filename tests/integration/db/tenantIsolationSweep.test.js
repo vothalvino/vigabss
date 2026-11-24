@@ -166,6 +166,7 @@ const PATH_PARAMS = {
   '/topology/infrastructure/:id': 'map_infrastructure_points',
   '/topology/dependencies/:id': 'device_dependency_edges',
   '/topology/map/links/:id': 'network_links',
+  '/topology/tree/main-nas/:id': 'nas',
   '/portal-kb/:id': 'portal_kb_articles',
   '/clients/:clientId/dnd/:channel': { value: 'email' },
   '/clients/:id/documents/:fileId': 'files',

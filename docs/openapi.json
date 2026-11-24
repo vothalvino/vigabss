@@ -54376,6 +54376,198 @@
         }
       }
     },
+    "/topology/tree": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "The network as a tree: one tree per main NAS with everything placed under it, and the equipment not placed yet. Subscriber CPEs and ONUs are not included",
+        "operationId": "getNetworkTree",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "trees[], unplaced[], sites[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/tree/parent": {
+      "put": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Place equipment under a parent, or take it out of the tree with parent null. node and parent are a device id or \"nas-<id>\". Refuses a loop and a parent for a main NAS",
+        "operationId": "setNetworkTreeParent",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Placement",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "node"
+                ],
+                "properties": {
+                  "node": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "parent": {
+                    "type": [
+                      "integer",
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "id, parent_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/tree/position": {
+      "put": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Put equipment at a point of the map. node is a device id or \"nas-<id>\"",
+        "operationId": "setNetworkTreePosition",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Position",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "node",
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "node": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "id, latitude, longitude",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/tree/main-nas/{id}": {
+      "put": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Mark a NAS as the top of a network tree, or unmark it. An ISP with several networks marks several",
+        "operationId": "setMainNas",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "main",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "main"
+                ],
+                "properties": {
+                  "main": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "nas_id, device_id, is_main",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/topology/map/links": {
       "post": {
         "tags": [
@@ -87402,6 +87594,7 @@
               "router",
               "switch",
               "onu",
+              "battery_monitor",
               "other"
             ]
           },
@@ -87560,6 +87753,7 @@
               "router",
               "switch",
               "onu",
+              "battery_monitor",
               "other"
             ]
           },
@@ -87714,6 +87908,7 @@
               "router",
               "switch",
               "onu",
+              "battery_monitor",
               "other"
             ]
           },
