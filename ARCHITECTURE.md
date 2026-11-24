@@ -1457,8 +1457,8 @@ and permission check, and the pages of a setup set also get a link back to the
 setup page. Rows, cards and tabs show only what the person's permissions open;
 someone with a single page of a set, or a single setup page, gets that page
 directly under its own name. An everyday row leads to the page of its set
-opened last in that browser. Network is the first section built this way; a
-section without tab sets works as before.
+opened last in that browser. Billing and Network are built this way; a section
+without tab sets works as before.
 
 A person may have a menu of their own (`frontend/src/nav/customMenu.ts`,
 `src/services/menuService.js`, migration 031): groups they name, each holding

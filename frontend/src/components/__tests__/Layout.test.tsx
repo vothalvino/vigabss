@@ -552,6 +552,20 @@ describe('Layout — grouped sidebar navigation', () => {
     expect([row.getAttribute('href'), row.getAttribute('aria-current')]).toEqual(['/menu-templates', 'page']);
   });
 
+  it('Billing: an everyday page shows its set\'s tabs, a setup page the way back', () => {
+    mockUseAuth(makeUser('admin'));
+    const first = renderLayout({ initialEntries: ['/credit-notes'] });
+    let strip = document.querySelector('.page-tabs-strip') as HTMLElement;
+    expect(within(strip).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/invoices', '/credit-notes', '/billing-adjustments']); // no CFDI: this user's organization is not in Mexico
+    expect(document.querySelector('.app-topbar-context')?.textContent).toBe('BillingInvoices');
+    expect(document.querySelector('.nav-leaf.active')?.textContent).toBe('Invoices');
+    first.unmount();
+    renderLayout({ initialEntries: ['/late-fee-rules'] });
+    strip = document.querySelector('.page-tabs-strip') as HTMLElement;
+    expect(within(strip).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/billing/setup', '/late-fee-rules', '/payment-reminder-settings']);
+    expect(document.querySelector('.nav-leaf.active')?.textContent).toBe('Billing setup');
+  });
+
   it('a page that is alone in its set has no tabs and keeps its own title', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/topology-map'] });

@@ -129,7 +129,6 @@ export const WORKSPACES: WorkspaceDef[] = [
 
 /** Hub card ordering per hub section (card id → nav.cards.<id>). */
 export const HUB_CARDS: Record<string, string[]> = {
-  billing: ['receivables', 'collections', 'processing', 'catalogPricing', 'reportsAnalytics', 'configuration'],
   admin: ['peopleAccess', 'organization', 'automationIntegrations', 'ai', 'governance'],
 };
 
@@ -161,6 +160,19 @@ export interface TabsetDef {
 export const MAX_TABS = 7;
 
 export const TABSETS: TabsetDef[] = [
+  // Billing, everyday: what is owed, what came in, chasing what did not, the
+  // plans being sold, and how the business is doing.
+  { id: 'invoicing', section: 'billing', labelKey: 'nav.tabsets.invoicing', paths: ['/invoices', '/credit-notes', '/cfdi', '/billing-adjustments'] },
+  { id: 'paymentsIn', section: 'billing', labelKey: 'nav.tabsets.paymentsIn', paths: ['/payments', '/cash-reconciliation', '/payment-transactions', '/recurring-payment-profiles', '/payment-problems'] },
+  { id: 'collections', section: 'billing', labelKey: 'nav.tabsets.collections', paths: ['/payment-plans', '/billing-disputes', '/refund-requests', '/chargebacks'] },
+  { id: 'plans', section: 'billing', labelKey: 'nav.plans', paths: ['/plans'] },
+  { id: 'billingReports', section: 'billing', labelKey: 'nav.tabsets.billingReports', paths: ['/reports', '/tax-reports', '/analytics-dashboard', '/expenses'] },
+  // Billing, setup.
+  { id: 'taxes', section: 'billing', setup: true, labelKey: 'nav.tabsets.taxes', hintKey: 'nav.setupHints.taxes', paths: ['/tax-rules', '/tax-rates'] },
+  { id: 'invoiceLook', section: 'billing', setup: true, labelKey: 'nav.tabsets.invoiceLook', hintKey: 'nav.setupHints.invoiceLook', paths: ['/invoice-settings'] },
+  { id: 'gateways', section: 'billing', setup: true, labelKey: 'nav.tabsets.gateways', hintKey: 'nav.setupHints.gateways', paths: ['/payment-gateways'] },
+  { id: 'lateAndReminders', section: 'billing', setup: true, labelKey: 'nav.tabsets.lateAndReminders', hintKey: 'nav.setupHints.lateAndReminders', paths: ['/late-fee-rules', '/payment-reminder-settings'] },
+  { id: 'importData', section: 'billing', setup: true, labelKey: 'nav.tabsets.importData', hintKey: 'nav.setupHints.importData', paths: ['/data-import'] },
   // Network, everyday: watching the network, looking at a subscriber's
   // connection, working on equipment, handing out addresses.
   { id: 'monitor', section: 'network', labelKey: 'nav.tabsets.monitor', paths: ['/noc-dashboard', '/network-health', '/outages', '/speed-tests', '/noc-insights'] },
@@ -182,6 +194,7 @@ export const TABSETS: TabsetDef[] = [
 
 /** The setup page of each section that has setup sets: its address and its sidebar label. */
 export const SETUP_PAGES: Partial<Record<SectionId, { path: string; labelKey: string }>> = {
+  billing: { path: '/billing/setup', labelKey: 'nav.setup.billing.title' },
   network: { path: '/network/setup', labelKey: 'nav.setup.network.title' },
 };
 
@@ -199,35 +212,35 @@ export const ROUTES: RouteDef[] = [
   { path: '/churn-analytics', labelKey: 'nav.churnAnalytics', section: 'clients', guard: 'billing', sub: 'retention', rail: true, roles: ['billing'], viewPermissions: ['lifecycle.view'] },
 
   // --- Billing (hub: /billing) ------------------------------------------------
-  { path: '/invoices', keywords: ['facturas', 'cobro'], labelKey: 'nav.invoices', section: 'billing', guard: 'any', sub: 'receivables', card: 'receivables', rail: true, roles: ['billing'], viewPermissions: ['invoices.view'] },
-  { path: '/payments', keywords: ['pagos', 'abonos'], labelKey: 'nav.payments', section: 'billing', guard: 'any', sub: 'receivables', card: 'receivables', rail: true, roles: ['billing'], viewPermissions: ['payments.view'] },
-  { path: '/cfdi', keywords: ['sat', 'timbrado', 'stamp', 'factura'], labelKey: 'nav.cfdi', section: 'billing', guard: 'billing', sub: 'receivables', card: 'receivables', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
-  { path: '/credit-notes', labelKey: 'nav.creditNotes', section: 'billing', guard: 'billing', sub: 'receivables', card: 'receivables', rail: true, roles: ['billing'], viewPermissions: ['credit_notes.view'] },
-  { path: '/cash-reconciliation', keywords: ['corte', 'caja'], labelKey: 'nav.cashReconciliation', section: 'billing', guard: 'billing', sub: 'receivables', card: 'receivables', rail: true, roles: ['billing'], viewPermissions: ['cash_reconciliation.view'] },
-  { path: '/plans', labelKey: 'nav.plans', section: 'billing', guard: 'billing', sub: 'catalog', card: 'catalogPricing', rail: true, roles: ['billing'], viewPermissions: ['plans.view'] },
-  { path: '/billing-disputes', labelKey: 'nav.billingDisputes', section: 'billing', guard: 'billing', sub: 'catalog', card: 'collections', rail: true, roles: ['billing'], viewPermissions: ['billing_disputes.view'] },
-  { path: '/reports', labelKey: 'nav.reports', section: 'billing', guard: 'billing', sub: 'catalog', card: 'reportsAnalytics', rail: true, roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'ift_statistical_reports.view'] },
-  { path: '/billing-adjustments', labelKey: 'nav.billingAdjustments', section: 'billing', guard: 'billing', card: 'receivables', roles: ['billing'], viewPermissions: ['billing_adjustments.view'] },
-  { path: '/expenses', labelKey: 'nav.expenses', section: 'billing', guard: 'billing', card: 'receivables', roles: ['billing'], viewPermissions: ['expenses.view'] },
-  { path: '/payment-plans', keywords: ['morosos', 'convenio'], labelKey: 'nav.paymentPlans', section: 'billing', guard: 'billing', card: 'collections', roles: ['billing'], viewPermissions: ['payment_plans.view'] },
-  { path: '/refund-requests', labelKey: 'nav.refundRequests', section: 'billing', guard: 'billing', card: 'collections', roles: ['billing'], viewPermissions: ['refund_requests.view'] },
-  { path: '/chargebacks', labelKey: 'nav.chargebacks', section: 'billing', guard: 'billing', card: 'collections', roles: ['billing'], viewPermissions: ['chargebacks.view'] },
-  { path: '/payment-gateways', labelKey: 'nav.paymentGateways', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
-  { path: '/payment-problems', keywords: ['webhooks', 'conciliacion', 'pagos', 'reembolsos', 'rep'], labelKey: 'nav.paymentProblems', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
-  { path: '/payment-transactions', labelKey: 'nav.paymentTransactions', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_transactions.view'] },
-  { path: '/recurring-payment-profiles', labelKey: 'nav.recurringPaymentProfiles', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['recurring_payment_profiles.view'] },
-  { path: '/tax-reports', keywords: ['iva', 'impuestos', 'fiscal'], labelKey: 'nav.taxReports', section: 'billing', guard: 'billing', card: 'reportsAnalytics', roles: ['billing'], viewPermissions: ['billing.tax_reports'] },
-  { path: '/analytics-dashboard', labelKey: 'nav.analyticsDashboard', section: 'billing', guard: 'billing', card: 'reportsAnalytics', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'reports.view'] },
-  { path: '/tax-rules', keywords: ['iva', 'impuestos'], labelKey: 'nav.taxRules', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['tax_rules.view'] },
-  { path: '/tax-rates', keywords: ['iva', 'impuestos'], labelKey: 'nav.taxRates', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['tax_rates.view'] },
-  { path: '/invoice-settings', labelKey: 'nav.invoiceSettings', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['invoice_settings.view'] },
+  { path: '/invoices', keywords: ['facturas', 'cobro'], labelKey: 'nav.invoices', section: 'billing', guard: 'any', roles: ['billing'], viewPermissions: ['invoices.view'] },
+  { path: '/payments', keywords: ['pagos', 'abonos'], labelKey: 'nav.payments', section: 'billing', guard: 'any', roles: ['billing'], viewPermissions: ['payments.view'] },
+  { path: '/cfdi', keywords: ['sat', 'timbrado', 'stamp', 'factura'], labelKey: 'nav.cfdi', section: 'billing', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
+  { path: '/credit-notes', labelKey: 'nav.creditNotes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['credit_notes.view'] },
+  { path: '/cash-reconciliation', keywords: ['corte', 'caja'], labelKey: 'nav.cashReconciliation', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['cash_reconciliation.view'] },
+  { path: '/plans', labelKey: 'nav.plans', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['plans.view'] },
+  { path: '/billing-disputes', labelKey: 'nav.billingDisputes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing_disputes.view'] },
+  { path: '/reports', labelKey: 'nav.reports', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'ift_statistical_reports.view'] },
+  { path: '/billing-adjustments', labelKey: 'nav.billingAdjustments', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing_adjustments.view'] },
+  { path: '/expenses', labelKey: 'nav.expenses', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['expenses.view'] },
+  { path: '/payment-plans', keywords: ['morosos', 'convenio'], labelKey: 'nav.paymentPlans', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_plans.view'] },
+  { path: '/refund-requests', labelKey: 'nav.refundRequests', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['refund_requests.view'] },
+  { path: '/chargebacks', labelKey: 'nav.chargebacks', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['chargebacks.view'] },
+  { path: '/payment-gateways', labelKey: 'nav.paymentGateways', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
+  { path: '/payment-problems', keywords: ['webhooks', 'conciliacion', 'pagos', 'reembolsos', 'rep'], labelKey: 'nav.paymentProblems', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
+  { path: '/payment-transactions', labelKey: 'nav.paymentTransactions', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_transactions.view'] },
+  { path: '/recurring-payment-profiles', labelKey: 'nav.recurringPaymentProfiles', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['recurring_payment_profiles.view'] },
+  { path: '/tax-reports', keywords: ['iva', 'impuestos', 'fiscal'], labelKey: 'nav.taxReports', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing.tax_reports'] },
+  { path: '/analytics-dashboard', labelKey: 'nav.analyticsDashboard', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'reports.view'] },
+  { path: '/tax-rules', keywords: ['iva', 'impuestos'], labelKey: 'nav.taxRules', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['tax_rules.view'] },
+  { path: '/tax-rates', keywords: ['iva', 'impuestos'], labelKey: 'nav.taxRates', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['tax_rates.view'] },
+  { path: '/invoice-settings', labelKey: 'nav.invoiceSettings', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoice_settings.view'] },
   // Day-one migration off the previous billing system. Billing rather than
   // Administration because the backend guards each importer on the ENTITY's own
   // create permission (invoices.create, payments.create, ...), not on an admin
   // slug — a nav home implying admin-only would misdescribe who can use it.
-  { path: '/data-import', keywords: ['csv', 'importar', 'migracion', 'migration'], labelKey: 'nav.dataImport', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['clients.create', 'devices.create', 'contracts.create', 'invoices.create'] },
-  { path: '/late-fee-rules', keywords: ['mora', 'morosos', 'recargos'], labelKey: 'nav.lateFeeRules', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['late_fees.view'] },
-  { path: '/payment-reminder-settings', labelKey: 'nav.paymentReminderSettings', section: 'billing', guard: 'billing', card: 'configuration', roles: ['billing'], viewPermissions: ['payment_reminders.view'] },
+  { path: '/data-import', keywords: ['csv', 'importar', 'migracion', 'migration'], labelKey: 'nav.dataImport', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['clients.create', 'devices.create', 'contracts.create', 'invoices.create'] },
+  { path: '/late-fee-rules', keywords: ['mora', 'morosos', 'recargos'], labelKey: 'nav.lateFeeRules', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['late_fees.view'] },
+  { path: '/payment-reminder-settings', labelKey: 'nav.paymentReminderSettings', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_reminders.view'] },
 
   // --- Support -----------------------------------------------------------------
   // tickets.view: support (119) + technician (394; sees all categories except
@@ -535,7 +548,7 @@ export function visibleHubCards(user: NavUser, sectionId: SectionId): { card: st
     .filter(c => c.items.length > 0);
 }
 
-const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin', '/network/setup': 'network' };
+const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin', '/network/setup': 'network', '/billing/setup': 'billing' };
 
 /** Owning section for a pathname (active trail) — longest-prefix match. */
 export function sectionForPath(pathname: string): SectionId | null {

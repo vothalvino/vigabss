@@ -747,6 +747,15 @@
   "nav": {
     "menuTemplates": "Plantillas de menú",
     "tabsets": {
+      "invoicing": "Facturas",
+      "paymentsIn": "Pagos",
+      "collections": "Cobranza",
+      "billingReports": "Reportes",
+      "taxes": "Impuestos",
+      "invoiceLook": "Aspecto de la factura",
+      "gateways": "Pasarelas de pago",
+      "lateAndReminders": "Recargos y recordatorios",
+      "importData": "Importar",
       "monitor": "Monitoreo",
       "subscribers": "Suscriptores en línea",
       "equipment": "Equipos",
@@ -762,6 +771,11 @@
       "access": "Acceso"
     },
     "setupHints": {
+      "taxes": "Qué impuestos aplican y con qué tasa.",
+      "invoiceLook": "Logotipo, colores y el texto impreso en las facturas.",
+      "gateways": "Los procesadores de tarjeta y transferencia que cobran por ti.",
+      "lateAndReminders": "Cuánto cuesta una factura vencida y cuándo se recuerda al cliente que pague.",
+      "importData": "Trae clientes, contratos, facturas y pagos desde un archivo CSV.",
       "polling": "Cómo se leen los equipos por SNMP: perfiles, horarios, nodos de sondeo y las lecturas y traps que recogen.",
       "alerts": "A quién se avisa cuando algo falla, en qué orden y qué se silencia.",
       "deviceConfig": "Copias guardadas de la configuración de los equipos, plantillas y las reglas con que se revisan.",
@@ -773,6 +787,10 @@
       "access": "Tus propios túneles VPN hacia la red."
     },
     "setup": {
+      "billing": {
+        "title": "Configuración de facturación",
+        "hint": "Lo que se configura una vez y rara vez se vuelve a tocar. El trabajo diario está en la barra lateral; todo lo de aquí también se encuentra con la búsqueda."
+      },
       "network": {
         "title": "Configuración de red",
         "hint": "Lo que se configura una vez y rara vez se vuelve a tocar. El trabajo diario está en la barra lateral; todo lo de aquí también se encuentra con la búsqueda."
@@ -927,8 +945,6 @@
       "directory": "Directorio",
       "sales": "Ventas y Órdenes",
       "retention": "Retención",
-      "receivables": "Cobranza",
-      "catalog": "Catálogo y Disputas",
       "stock": "Existencias",
       "purchasing": "Compras",
       "cfdiSat": "CFDI / SAT",
@@ -940,7 +956,7 @@
     "hubs": {
       "billing": {
         "title": "Panel de Facturación",
-        "hint": "Todo el módulo de Facturación. La barra lateral muestra lo de uso diario; el resto vive aquí, a un clic."
+        "hint": "Todo el módulo de Facturación, agrupado igual que en la barra lateral."
       },
       "network": {
         "title": "Panel de Red",
@@ -953,12 +969,6 @@
       "empty": "No hay páginas disponibles para tu rol."
     },
     "cards": {
-      "receivables": "Cobranza",
-      "collections": "Cobros y Disputas",
-      "processing": "Procesamiento de Pagos",
-      "catalogPricing": "Catálogo y Precios",
-      "reportsAnalytics": "Reportes y Análisis",
-      "configuration": "Configuración",
       "peopleAccess": "Personas y Acceso",
       "organization": "Organización",
       "automationIntegrations": "Automatización e Integraciones",

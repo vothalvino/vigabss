@@ -747,6 +747,15 @@
   "nav": {
     "menuTemplates": "Menu templates",
     "tabsets": {
+      "invoicing": "Invoices",
+      "paymentsIn": "Payments",
+      "collections": "Collections",
+      "billingReports": "Reports",
+      "taxes": "Taxes",
+      "invoiceLook": "Invoice look",
+      "gateways": "Payment gateways",
+      "lateAndReminders": "Late fees and reminders",
+      "importData": "Import",
       "monitor": "Monitoring",
       "subscribers": "Subscribers online",
       "equipment": "Equipment",
@@ -762,6 +771,11 @@
       "access": "Access"
     },
     "setupHints": {
+      "taxes": "Which taxes apply and at what rate.",
+      "invoiceLook": "Logo, colours and the text printed on invoices.",
+      "gateways": "The card and transfer processors that take payments for you.",
+      "lateAndReminders": "What an overdue invoice costs, and when customers are reminded to pay.",
+      "importData": "Bring clients, contracts, invoices and payments in from a CSV file.",
       "polling": "How equipment is read over SNMP: profiles, schedules, poller nodes, and the readings and traps they collect.",
       "alerts": "Who is told when something goes wrong, in what order, and what is kept quiet.",
       "deviceConfig": "Saved copies of equipment configuration, templates, and the rules they are checked against.",
@@ -773,6 +787,10 @@
       "access": "Your own VPN tunnels into the network."
     },
     "setup": {
+      "billing": {
+        "title": "Billing setup",
+        "hint": "What is configured once and rarely revisited. Everyday work is in the sidebar; everything here is also found by search."
+      },
       "network": {
         "title": "Network setup",
         "hint": "What is configured once and rarely revisited. Everyday work is in the sidebar; everything here is also found by search."
@@ -927,8 +945,6 @@
       "directory": "Directory",
       "sales": "Sales & Orders",
       "retention": "Retention",
-      "receivables": "Receivables",
-      "catalog": "Catalog & Disputes",
       "stock": "Stock",
       "purchasing": "Purchasing",
       "cfdiSat": "CFDI / SAT",
@@ -940,7 +956,7 @@
     "hubs": {
       "billing": {
         "title": "Billing Overview",
-        "hint": "Everything in the Billing section. The sidebar keeps the day-to-day shortlist; the rest lives here, one click away."
+        "hint": "Everything in the Billing section, grouped the same way as the sidebar."
       },
       "network": {
         "title": "Network Overview",
@@ -953,12 +969,6 @@
       "empty": "No pages available for your role."
     },
     "cards": {
-      "receivables": "Receivables",
-      "collections": "Collections & Disputes",
-      "processing": "Payments Processing",
-      "catalogPricing": "Catalog & Pricing",
-      "reportsAnalytics": "Reports & Analytics",
-      "configuration": "Configuration",
       "peopleAccess": "People & Access",
       "organization": "Organization",
       "automationIntegrations": "Automation & Integrations",
