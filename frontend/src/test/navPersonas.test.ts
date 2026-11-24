@@ -17,7 +17,7 @@ import {
   defaultExpandedSection,
   sectionForPath,
   visibleHubCards,
-  visibleRailItems,
+  visibleRailRows,
   visibleSectionCount,
   type NavUser,
   type SectionId,
@@ -28,7 +28,8 @@ function resolve(role: string, locale: 'MX' | 'global' = 'MX', permissions?: str
   const out: Record<string, { items: string[]; hub: boolean; count: number }> = {};
   for (const s of SECTIONS) {
     if (s.kind === 'link') continue;
-    const items = visibleRailItems(user, s.id).map(r => r.path);
+    // Every page a sidebar row stands for (a tab set stands for several).
+    const items = visibleRailRows(user, s.id).flatMap(r => r.paths);
     const hub = canSeeHub(user, s);
     if (items.length === 0 && !hub) continue;
     out[s.id] = { items, hub, count: visibleSectionCount(user, s.id) };

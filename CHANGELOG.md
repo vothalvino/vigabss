@@ -5,6 +5,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Network menu: related pages are grouped under tabs.** The Network
+  section's 55 pages are grouped into 12 sidebar rows (Monitoring, Topology
+  Map, Subscribers online, Equipment, Fibre, Wireless, Customer equipment,
+  IP addresses, Speed and suspension, Polling and alerts, Device
+  configuration, My VPN Tunnels). Opening a row shows its pages as tabs
+  above the page, so moving between, say, OLT, ONU, PON ports and fibre
+  plant is one click. A long group keeps its first tabs visible and puts the
+  rest under "More"; a phone gets a drop-down. Each row reopens on the page
+  used last in that browser. No page was removed or changed: every page
+  keeps its address, bookmarks and search still work, and a person sees only
+  the tabs their permissions allow. The Network overview page now shows the
+  same groups as the sidebar.
+
 ## 0.1.0-alpha.35 — 2026-11-24
 
 - **The network tree can be shown as a chart.** The Tree tab has a List /

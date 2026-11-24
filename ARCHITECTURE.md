@@ -1433,6 +1433,15 @@ not a privilege ranking. `requiredAnyPermissions` is available for sensitive
 pages. Keep `navRegistry.test.ts` and `navPersonas.test.ts` aligned with routing,
 grants, and intended personas.
 
+A section may group its pages into tab sets (`TABSETS` in the registry). Such a
+section takes its sidebar rows and hub cards from the sets alone, one row and
+one card per set, and its pages carry no `rail`, `sub` or `card`. The layout
+shows `PageTabs` above every page of a set with two or more pages the person
+can open; the tabs are links, so each page keeps its own address, route and
+permission check. A row leads to the page of its set opened last in that
+browser. Network is the first section built this way; a section without tab
+sets works as before.
+
 The UI permission helper in `frontend/src/auth/permissions.ts` prefers the
 server-resolved `permissions` array, including an authoritative empty array, and
 uses its hard-coded role map only as compatibility for older responses. UI

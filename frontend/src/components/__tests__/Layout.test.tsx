@@ -199,7 +199,7 @@ describe('Layout — grouped sidebar navigation', () => {
     fireEvent.click(screen.getByText('Network'));
     // Only one section remains open, so the rail cannot accumulate density.
     expect(screen.queryByText('Tickets')).not.toBeInTheDocument();
-    expect(screen.getByText('NAS Devices')).toBeInTheDocument();
+    expect(screen.getByText('Equipment')).toBeInTheDocument();
     expect(screen.getByText(/View all \d+/)).toBeInTheDocument();
     // The long tail is hub-only, not rail rows.
     expect(screen.queryByText('VLANs')).not.toBeInTheDocument();
@@ -244,14 +244,14 @@ describe('Layout — grouped sidebar navigation', () => {
 
     // Label click on a hub header expands the section (and navigates to the hub).
     fireEvent.click(screen.getByText('Network'));
-    expect(screen.getByText('NAS Devices')).toBeInTheDocument();
+    expect(screen.getByText('Equipment')).toBeInTheDocument();
 
     // The chevron is a separate toggle — an opened hub must collapse again.
     const chevron = screen.getByRole('button', { name: 'Expand or collapse Network' });
     fireEvent.click(chevron);
-    expect(screen.queryByText('NAS Devices')).not.toBeInTheDocument();
+    expect(screen.queryByText('Equipment')).not.toBeInTheDocument();
     fireEvent.click(chevron);
-    expect(screen.getByText('NAS Devices')).toBeInTheDocument();
+    expect(screen.getByText('Equipment')).toBeInTheDocument();
   });
 
   it('opens the command palette from the sidebar button and filters by role', async () => {
@@ -326,7 +326,7 @@ describe('Layout — grouped sidebar navigation', () => {
     const allAreas = within(nav).getByText('All areas');
     expect(network).toBeInTheDocument();
     expect(network.compareDocumentPosition(allAreas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(nav).getByText('NAS Devices')).toBeInTheDocument();
+    expect(within(nav).getByText('Equipment')).toBeInTheDocument();
   });
 
   it('closes the mobile drawer with Escape and restores focus to its opener', async () => {
@@ -466,5 +466,44 @@ describe('Layout — grouped sidebar navigation', () => {
     expect(screen.queryByText('DASHBOARD_SENTINEL')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Active organization')).toBeInTheDocument();
     alertSpy.mockRestore();
+  });
+
+  // --- Tab sets: several pages behind one sidebar row -------------------------
+
+  it('shows the pages of a tab set as tabs over the page, titled by the set', () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/onu-management'] });
+    const tabs = screen.getByRole('navigation', { name: 'Fibre (FTTH)' });
+    const links = within(tabs).getAllByRole('link');
+    expect(links.map(link => link.textContent)).toEqual(['OLT Management', 'ONU Management', 'PON Ports', 'Fiber Plant']);
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management']);
+    expect(within(tabs).getByRole('link', { current: 'page' }).textContent).toBe('ONU Management');
+    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Fibre (FTTH)');
+    // The sidebar row for the set is current on any of its pages.
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getByRole('link', { current: 'page' }).textContent).toBe('Fibre (FTTH)');
+  });
+
+  it('a sidebar row leads to the page of its set that was open last', () => {
+    mockUseAuth(makeUser('admin'));
+    const first = renderLayout({ initialEntries: ['/vlans'] });
+    first.unmount();
+    renderLayout({ initialEntries: ['/network'] });
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getByText('IP addresses').getAttribute('href')).toBe('/vlans');
+    expect(within(nav).getByText('Equipment').getAttribute('href')).toBe('/sites');
+  });
+
+  it('a page that is alone in its set has no tabs and keeps its own title', () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/topology-map'] });
+    expect(document.querySelector('.page-tabs')).toBeNull();
+    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Topology Map');
+  });
+
+  it('a page outside any tab set has no tabs', () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/clients'] });
+    expect(document.querySelector('.page-tabs')).toBeNull();
   });
 });

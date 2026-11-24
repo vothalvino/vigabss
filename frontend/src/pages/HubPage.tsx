@@ -33,9 +33,9 @@ export function HubPage({ section }: HubPageProps) {
         <p style={styles.empty}>{t('nav.hubs.empty')}</p>
       ) : (
         <div style={styles.grid}>
-          {cards.map(({ card, items }) => (
+          {cards.map(({ card, labelKey, items }) => (
             <div key={card} style={styles.card}>
-              <h2 style={styles.cardTitle}>{t(`nav.cards.${card}`)}</h2>
+              <h2 style={styles.cardTitle}>{t(labelKey)}</h2>
               <ul style={styles.cardList}>
                 {items.map(item => (
                   <li key={item.path}>

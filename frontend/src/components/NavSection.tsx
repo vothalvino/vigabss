@@ -7,18 +7,22 @@
 //   • hub   — header navigates to the overview page AND expands; the last row
 //             is "View all N →" linking to the same hub page
 // Subheadings are non-interactive labels rendered when the `sub` id changes
-// between consecutive visible items.
+// between consecutive visible items. A row may stand for a tab set (several
+// pages): it is current on any of them and leads to the one opened last.
 // =============================================================================
 
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { RouteDef, SectionDef } from '@/nav/routes';
+import type { RailRow, SectionDef } from '@/nav/routes';
+import { lastTab } from '@/nav/lastTab';
 import { SectionIcon } from '@/components/NavIcons';
 
 interface NavSectionProps {
   section: SectionDef;
-  /** Visible rail items, registry order (pre-filtered by canSee). */
-  items: RouteDef[];
+  /** Visible rail rows, in order (pre-filtered by canSee). */
+  items: RailRow[];
+  /** The registered page the current address belongs to. */
+  activePath: string | null;
   /** Total reachable pages in the section — the "View all N" count. */
   sectionCount: number;
   /** Whether the hub link ("View all" + header navigation) is available. */
@@ -34,6 +38,7 @@ interface NavSectionProps {
 export function NavSection({
   section,
   items,
+  activePath,
   sectionCount,
   hubVisible,
   expanded,
@@ -120,13 +125,16 @@ export function NavSection({
                 <div className="nav-subhead">{t(`nav.subsections.${item.sub}`)}</div>
               ) : null;
             lastSub = item.sub ?? lastSub;
+            const current = activePath !== null && item.paths.includes(activePath);
+            const remembered = item.tabset ? lastTab(item.tabset) : null;
             return (
-              <div key={item.path}>
+              <div key={item.key}>
                 {subhead}
                 <NavLink
-                  to={item.path}
+                  to={remembered && item.paths.includes(remembered) ? remembered : item.to}
                   onClick={onNavigate}
-                  className={({ isActive }) => `nav-leaf${isActive ? ' active' : ''}`}
+                  className={`nav-leaf${current ? ' active' : ''}`}
+                  aria-current={current ? 'page' : undefined}
                 >
                   {t(item.labelKey)}
                 </NavLink>
