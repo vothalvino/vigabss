@@ -92,4 +92,34 @@ describe('Live OLT tab', () => {
     expect(await screen.findByText('-18.52 dBm')).toBeInTheDocument();
     expect(calls()).toContain('GET /olt-management/7/live/onus?port=0%2F1%2F0');
   });
+
+  it('an OLT can be added here, and the first one is offered straight away', async () => {
+    let created = false;
+    mocks.apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/devices' && init?.method === 'POST') { created = true; return { data: { id: 7 } }; }
+      if (path.startsWith('/devices')) return { data: created ? [{ id: 7, name: 'OLT Norte', model: 'MA5800-X7', ip_address: '10.20.0.5' }] : [] };
+      if (path.endsWith('/monitoring')) return { data: { available: false, enabled: false, last_run_at: null, last_status: null, can_change: false } };
+      if (path.endsWith('/fibre-status') || path.endsWith('/managed-onus')) return { data: [] };
+      return { data: { configured: false } };
+    });
+    const user = userEvent.setup();
+    renderTab();
+    // No OLT yet: the form is already open, nobody is sent to another page.
+    await user.type(await screen.findByLabelText('Name'), 'OLT Norte');
+    await user.type(screen.getByLabelText('Model'), 'MA5800-X7');
+    await user.type(screen.getByLabelText('Management address'), '10.20.0.5');
+    await user.type(screen.getByLabelText('SNMP community'), 'monitor');
+    await user.click(screen.getByRole('button', { name: 'Add OLT' }));
+
+    await waitFor(() => expect(calls()).toContain('POST /devices'));
+    const post = mocks.apiFetch.mock.calls.find(([path, init]) => path === '/devices' && (init as RequestInit)?.method === 'POST')!;
+    expect(JSON.parse(String((post[1] as RequestInit).body))).toEqual({
+      name: 'OLT Norte', type: 'olt', manufacturer: 'Huawei', model: 'MA5800-X7', ip_address: '10.20.0.5',
+      snmp_enabled: true, snmp_community: 'monitor', snmp_version: 'v2c',
+    });
+    // The new OLT is selected and its login form is shown.
+    expect(await screen.findByRole('option', { name: 'OLT Norte (MA5800-X7)' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('User')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add an OLT' })).toBeInTheDocument();
+  });
 });
