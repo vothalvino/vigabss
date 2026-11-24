@@ -22,6 +22,11 @@ env:
   # and must match the cosign policy globs in k8s/ and charts/.
   RELEASE_IMAGE: ghcr.io/vothalvino/vigabss
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # GitHub-hosted machines run in UTC, and so does the application in its
+  # container. A self-hosted runner has its owner's time zone, where the
+  # billing code's date arithmetic lands on other days: the real-database
+  # test of two concurrent billing runs failed on a runner in UTC-6.
+  TZ: UTC
   # Silence DEP0040 (punycode) and DEP0169 (url.parse): both come from
   # transitive dependencies (uri-js, tr46, openid-client) that we don't control.
   # The project itself uses only the WHATWG URL API.
