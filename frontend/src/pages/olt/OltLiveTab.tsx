@@ -326,6 +326,62 @@ function FibreStatus({ oltId }: { oltId: number }) {
   );
 }
 
+/**
+ * Add an OLT without leaving this page. An OLT is a device of type "olt";
+ * this creates it, with SNMP settings so automatic monitoring can read it.
+ */
+function NewOlt({ onCreated, open: startOpen = false }: { onCreated: (id: number) => void; open?: boolean }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(startOpen);
+  const [form, setForm] = useState({ name: '', model: '', ip_address: '', snmp_enabled: true, snmp_community: '' });
+  const create = useMutation({
+    mutationFn: () => apiFetch<{ data: { id: number } }>('/devices', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: form.name.trim(), type: 'olt', manufacturer: 'Huawei',
+        ...(form.model.trim() ? { model: form.model.trim() } : {}),
+        ...(form.ip_address.trim() ? { ip_address: form.ip_address.trim() } : {}),
+        snmp_enabled: form.snmp_enabled,
+        ...(form.snmp_enabled && form.snmp_community ? { snmp_community: form.snmp_community, snmp_version: 'v2c' } : {}),
+      }),
+    }),
+    onSuccess: (res) => { setOpen(false); setForm({ name: '', model: '', ip_address: '', snmp_enabled: true, snmp_community: '' }); onCreated(res.data.id); },
+  });
+  const set = (k: keyof typeof form, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
+  function submit(e: FormEvent) { e.preventDefault(); if (form.name.trim()) create.mutate(); }
+
+  if (!open) return <button type="button" style={s.primary} onClick={() => setOpen(true)}>{t('oltLive.newOlt')}</button>;
+  return (
+    <section style={s.card}>
+      <h3 style={s.h3}>{t('oltLive.newOltTitle')}</h3>
+      <p style={s.hint}>{t('oltLive.newOltHint')}</p>
+      <form onSubmit={submit} style={s.grid}>
+        <label style={s.label}>{t('oltLive.oltName')}
+          <input style={s.input} value={form.name} onChange={e => set('name', e.target.value)} required />
+        </label>
+        <label style={s.label}>{t('oltLive.model')}
+          <input style={s.input} value={form.model} onChange={e => set('model', e.target.value)} />
+        </label>
+        <label style={s.label}>{t('oltLive.host')}
+          <input style={s.input} value={form.ip_address} onChange={e => set('ip_address', e.target.value)} placeholder="10.20.0.5" />
+        </label>
+        <label style={s.label}>{t('oltLive.snmpCommunity')}
+          <input style={s.input} type="password" value={form.snmp_community} onChange={e => set('snmp_community', e.target.value)} disabled={!form.snmp_enabled} autoComplete="new-password" />
+        </label>
+        <label style={{ ...s.label, flexDirection: 'row', alignItems: 'center', gap: '0.5rem', gridColumn: '1 / -1' }}>
+          <input type="checkbox" checked={form.snmp_enabled} onChange={e => set('snmp_enabled', e.target.checked)} />
+          {t('oltLive.snmpEnabled')}
+        </label>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="submit" style={s.primary} disabled={create.isPending}>{create.isPending ? t('oltLive.saving') : t('oltLive.addOlt')}</button>
+          <button type="button" style={s.secondary} onClick={() => setOpen(false)} disabled={create.isPending}>{t('oltLive.cancelNew')}</button>
+        </div>
+      </form>
+      {create.isError && <p style={s.error} role="alert">{(create.error as Error).message}</p>}
+    </section>
+  );
+}
+
 export function OltLiveTab() {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<number | null>(null);
@@ -341,18 +397,31 @@ export function OltLiveTab() {
     enabled: oltId !== null,
   });
 
+  const qc = useQueryClient();
+  const created = (id: number) => { setSelected(id); void qc.invalidateQueries({ queryKey: ['olt-devices'] }); };
+
   if (olts.isLoading) return <p style={s.hint}>{t('oltLive.loading')}</p>;
-  if (list.length === 0) return <p style={s.hint}>{t('oltLive.noOlts')}</p>;
+  if (list.length === 0) {
+    return (
+      <div>
+        <p style={s.hint}>{t('oltLive.noOlts')}</p>
+        <NewOlt open onCreated={created} />
+      </div>
+    );
+  }
 
   return (
     <div>
       <p style={s.notice}>{t('oltLive.notice')}</p>
       <MonitoringSwitch />
-      <label style={{ ...s.label, maxWidth: 360, marginBottom: '1rem' }}>{t('oltLive.chooseOlt')}
-        <select style={s.input} value={oltId ?? ''} onChange={e => setSelected(Number(e.target.value))}>
-          {list.map(o => <option key={o.id} value={o.id}>{o.name}{o.model ? ` (${o.model})` : ''}</option>)}
-        </select>
-      </label>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <label style={{ ...s.label, minWidth: 260 }}>{t('oltLive.chooseOlt')}
+          <select style={s.input} value={oltId ?? ''} onChange={e => setSelected(Number(e.target.value))}>
+            {list.map(o => <option key={o.id} value={o.id}>{o.name}{o.model ? ` (${o.model})` : ''}</option>)}
+          </select>
+        </label>
+        <NewOlt onCreated={created} />
+      </div>
       {oltId !== null && connection.data && (
         <>
           <ConnectionForm key={`${oltId}-${connection.data.data.host ?? ''}`} oltId={oltId} connection={connection.data.data} />
