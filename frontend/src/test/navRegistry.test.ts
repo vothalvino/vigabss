@@ -203,7 +203,7 @@ describe('Network section layout', () => {
     expect(rows.map(r => r.path)).toEqual([
       '/noc-dashboard', '/network-health', '/outages',
       '/radius-sessions', '/connection-logs', '/pppoe-diagnostics',
-      '/devices', '/nas', '/olt-management',
+      '/sites', '/devices', '/nas', '/olt-management',
       '/ip-pools',
       '/wg-tunnels',
     ]);

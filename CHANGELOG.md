@@ -12,8 +12,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   suspension, Device configuration, and Polling and alerts. The sidebar shows
   the everyday pages under headings (Monitoring, Subscribers online,
   Equipment, Addresses, My access), and OLT Management is now in the sidebar
-  beside Devices and NAS. No page was removed or renamed, and addresses are
-  unchanged.
+  beside Devices and NAS. Sites moved here from Field work and is now called
+  "Network sites": it is the first entry under Equipment, since towers, POPs
+  and nodes are where the equipment lives. No page was removed and addresses
+  are unchanged.
 
 - Tests: placeholder Stripe keys and webhook secrets are assembled when the
   test runs, so they are no longer reported as leaked secrets by GitHub

@@ -196,7 +196,9 @@ export const ROUTES: RouteDef[] = [
   // --- Field Ops -----------------------------------------------------------------
   { path: '/work-orders', keywords: ['visita', 'instalacion'], labelKey: 'nav.workOrders', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['work_orders.view'] },
   { path: '/maintenance-windows', labelKey: 'nav.maintenanceWindows', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['maintenance_windows.view'] },
-  { path: '/sites', labelKey: 'nav.sites', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['sites.view'] },
+  // A site (tower, POP, node) is where network equipment lives, so it is listed
+  // with the equipment, first: devices, pools and VLANs are attached to one.
+  { path: '/sites', keywords: ['tower', 'torre', 'pop', 'nodo', 'node', 'sitio'], labelKey: 'nav.sites', section: 'network', guard: 'technician', card: 'equipment', sub: 'equipment', rail: true, roles: ['technician'], viewPermissions: ['sites.view'] },
   { path: '/coverage-zones', labelKey: 'nav.coverageZones', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['coverage_zones.view'] },
   { path: '/service-areas', labelKey: 'nav.serviceAreas', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['service_areas.view'] },
 

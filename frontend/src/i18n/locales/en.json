@@ -465,7 +465,7 @@
     "snmpMetrics": "SNMP Metrics",
     "snmpTraps": "SNMP Traps",
     "coverageZones": "Coverage Zones",
-    "sites": "Sites",
+    "sites": "Network sites",
     "nas": "NAS Devices",
     "ipPools": "IP Pools",
     "ipAssignments": "IP Assignments",
@@ -620,7 +620,7 @@
     "cards": {
       "monitoring": "Monitoring",
       "sessions": "Subscriber sessions",
-      "equipment": "Routers and devices",
+      "equipment": "Sites, routers and devices",
       "fibre": "Fibre (FTTH)",
       "wirelessNet": "Wireless (WISP)",
       "addresses": "IP addresses",

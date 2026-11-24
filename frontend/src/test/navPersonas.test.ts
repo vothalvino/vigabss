@@ -96,7 +96,6 @@ describe('technician', () => {
     expect(nav.fieldops.items).toEqual([
       '/work-orders',
       '/maintenance-windows',
-      '/sites',
       '/coverage-zones',
       '/service-areas',
     ]);
