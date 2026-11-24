@@ -114,10 +114,13 @@ jobs:
         # Three is for GitHub-hosted machines (4 cores). A self-hosted runner
         # has many more, and with three workers it used a fraction of them:
         # there the suites run twelve at a time, which leaves memory and
-        # cores for whatever else the owner's machine is doing.
+        # cores for whatever else the owner's machine is doing. The repository
+        # variable CI_SELF_HOSTED_TEST_WORKERS changes that number without an
+        # edit here; each worker can hold about 1 GB, on top of the coverage
+        # process's own heap.
         env:
           NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169 --max-old-space-size=10240
-        run: pnpm exec jest --forceExit --ci --maxWorkers=${{ runner.environment == 'github-hosted' && '3' || '12' }} --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+        run: pnpm exec jest --forceExit --ci --maxWorkers=${{ runner.environment == 'github-hosted' && '3' || vars.CI_SELF_HOSTED_TEST_WORKERS || '12' }} --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
       - name: Check coverage threshold
         # Reads the summary the main run already produced — this used to
