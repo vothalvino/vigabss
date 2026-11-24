@@ -27,6 +27,19 @@ env:
   # The project itself uses only the WHATWG URL API.
   NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
 
+# Self-hosted runner (opt-in). Jobs that need nothing from the machine but
+# Node (no service containers, fixed ports, sudo or system packages) can run
+# on the owner's runner: set the repository variable CI_SELF_HOSTED to 'true'
+# (Settings → Secrets and variables → Actions → Variables); remove it, or set
+# anything else, to send every job back to GitHub-hosted machines, for
+# example while the runner's machine is switched off.
+#
+# This repository is public, so the runner only ever takes trusted runs:
+# pushes to main and tags, and pull requests whose branch lives in this
+# repository. A pull request from a fork always runs on a GitHub-hosted
+# machine, whatever the variable says. Keep that condition on every job that
+# is moved, and keep the repository's "require approval for all external
+# contributors" setting on.
 jobs:
   # The local-first policy (2026-07-22) ran lint-and-test and frontend-test on
   # main only, trusting a local run before every PR. In November 2026 two
@@ -35,7 +48,10 @@ jobs:
   # Both jobs now run on pull requests too, so the full suite gates the merge.
   lint-and-test:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # The owner's own runner when the repository variable CI_SELF_HOSTED is
+    # 'true' and the run is trusted (see the note above `jobs:`); otherwise a
+    # GitHub-hosted machine.
+    runs-on: ${{ fromJSON((vars.CI_SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '["self-hosted","Linux","X64"]' || '["ubuntu-latest"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -739,7 +755,10 @@ jobs:
 
   frontend-test:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # The owner's own runner when the repository variable CI_SELF_HOSTED is
+    # 'true' and the run is trusted (see the note above `jobs:`); otherwise a
+    # GitHub-hosted machine.
+    runs-on: ${{ fromJSON((vars.CI_SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '["self-hosted","Linux","X64"]' || '["ubuntu-latest"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
