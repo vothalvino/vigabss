@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.40 — 2026-11-24
+
 - **Fixed: a menu template could not be given to anyone.** Choosing user
   groups or people for a template was refused with "a user group in the
   list does not exist", and the groups that never see the sidebar were
