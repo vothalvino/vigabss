@@ -22,6 +22,10 @@ const db = require('../config/database');
 const { ConflictError, NotFoundError, ValidationError } = require('../utils/errors');
 
 const LIMITS = { groups: 20, pages: 30, name: 40, templateName: 80 };
+// User groups whose people never see the staff sidebar: carriers work in the
+// route app, collectors and resellers in the point-of-sale app. A menu
+// template can do nothing for them, so they are not offered.
+const NO_SIDEBAR_GROUPS = ['carrier', 'collector', 'reseller_admin'];
 const PAGE = /^\/[a-z0-9]+(?:[-/][a-z0-9]+)*$/;
 
 /** A layout as stored: trimmed names, known shape, no repeated page in a group. */
@@ -210,7 +214,7 @@ async function assignTemplate(orgId, id, input) {
 
 /** The user groups and people a template can be given to. */
 async function audience(orgId) {
-  const [groups] = await db.query('SELECT id, name FROM roles WHERE deleted_at IS NULL ORDER BY name');
+  const [groups] = await db.query('SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (?) ORDER BY name', [NO_SIDEBAR_GROUPS]);
   const [people] = await db.query(
     `SELECT id, email, NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), '') AS name
        FROM users WHERE organization_id = ? AND deleted_at IS NULL AND status = 'active' ORDER BY first_name, last_name, email`,
@@ -223,5 +227,5 @@ module.exports = {
   mine, saveMine, resetMine,
   listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, assignTemplate, audience,
   // exported for tests
-  cleanLayout, LIMITS,
+  cleanLayout, LIMITS, NO_SIDEBAR_GROUPS,
 };

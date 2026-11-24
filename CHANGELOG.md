@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Menu templates has its own row under Administration.** It was only
+  reachable through the Administration overview, search or a pin.
+- **A template's group list shows only groups that use the sidebar.**
+  Carriers, collectors and resellers work in their own apps and never see
+  the staff sidebar, so a menu template could do nothing for them; they are
+  no longer offered when choosing who gets a template.
+
 - **CI can use the owner's own runners.** The repository variable
   `CI_SELF_HOSTED_RUNNERS` says how many self-hosted runners are online: at
   1 the backend test job runs on one, at 2 the frontend test job too, for
