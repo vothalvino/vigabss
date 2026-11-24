@@ -171,6 +171,22 @@
     }
   },
   "networkTree": {
+    "view": "Vista",
+    "views": {
+      "list": "Lista",
+      "chart": "Diagrama"
+    },
+    "chart": {
+      "label": "Diagrama de {{name}}",
+      "hint": "Haz clic en un cuadro para ver sus detalles. Para mover o configurar un equipo, usa la lista.",
+      "zoom": "Zoom",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "open": "Mostrar los {{count}} debajo de {{name}}",
+      "close": "Ocultar lo que está debajo de {{name}}",
+      "fedBy": "Alimentado por {{name}}",
+      "editInList": "Para moverlo o configurar su línea, cambia a la lista."
+    },
     "intro": "Qué alimenta a qué. Cada NAS principal es la cabeza de una red; todo lo que alimenta aparece debajo.",
     "loading": "Cargando…",
     "loadFailed": "No se pudo cargar el árbol de red.",

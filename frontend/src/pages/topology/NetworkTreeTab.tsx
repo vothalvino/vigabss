@@ -17,8 +17,20 @@ import { styles } from '../crudStyles';
 import { TREE_QUERY_KEY, branchIds, fetchTree, flatten, typeKey, type NodeId, type TreeNode } from './networkTree';
 import { HEALTH_COLOR, HEALTH_QUERY_KEY, HEALTH_REFRESH_MS, fetchHealth, verdictText, type Verdict } from './linkHealth';
 import { HealthLegend, HealthLimits, UplinkForm } from './LinkHealthPanels';
+import { NetworkTreeChart } from './NetworkTreeChart';
 
 const UNKNOWN: Verdict = { state: 'unknown', reasons: [] };
+type View = 'list' | 'chart';
+const VIEW_KEY = 'vigabss.networkTree.view';
+
+/** The view chosen last time; otherwise the chart, or the list on a phone. */
+function firstView(): View {
+  try {
+    const kept = window.localStorage.getItem(VIEW_KEY);
+    if (kept === 'list' || kept === 'chart') return kept;
+  } catch { /* storage is not available: fall through */ }
+  return typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 768px)').matches ? 'chart' : 'list';
+}
 
 export function NetworkTreeTab() {
   const { t } = useTranslation();
@@ -29,6 +41,11 @@ export function NetworkTreeTab() {
   const [moving, setMoving] = useState<NodeId | null>(null);
   const [target, setTarget] = useState<string>('');
   const [lining, setLining] = useState<NodeId | null>(null);
+  const [view, setView] = useState<View>(firstView);
+  const choose = (next: View) => {
+    setView(next);
+    try { window.localStorage.setItem(VIEW_KEY, next); } catch { /* the choice just is not kept */ }
+  };
 
   const { data, isLoading, isError } = useQuery({ queryKey: TREE_QUERY_KEY, queryFn: fetchTree });
   // Colours are a second, slower-changing read: the tree shows without them.
@@ -166,6 +183,16 @@ export function NetworkTreeTab() {
   return (
     <div>
       <p style={{ marginTop: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('networkTree.intro')}</p>
+      <div role="group" aria-label={t('networkTree.view')} style={{ display: 'inline-flex', gap: 6, marginBottom: 10 }}>
+        {(['list', 'chart'] as const).map(option => (
+          <button
+            key={option} type="button" aria-pressed={view === option} onClick={() => choose(option)}
+            style={{ ...styles.input, cursor: 'pointer', fontWeight: view === option ? 700 : 400 }}
+          >
+            {t(`networkTree.views.${option}`)}
+          </button>
+        ))}
+      </div>
       <HealthLegend />
       <HealthLimits canEdit={can(user, 'settings.update')} />
       {failure && <p role="alert" style={{ color: '#991b1b' }}>{failure.message}</p>}
@@ -182,7 +209,8 @@ export function NetworkTreeTab() {
 
       {data.trees.length === 0 && <p>{t('networkTree.noMain')}</p>}
 
-      {shown.map(tree => (
+      {view === 'chart' && <NetworkTreeChart trees={shown} />}
+      {view === 'list' && shown.map(tree => (
         <section key={String(tree.id)} aria-label={tree.name} style={{ marginBottom: 18, padding: 12, border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 8 }}>
           <div style={{ paddingBottom: 4 }}>{row(tree, true)}</div>
           {branch(tree.children)}

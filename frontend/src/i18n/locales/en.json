@@ -171,6 +171,22 @@
     }
   },
   "networkTree": {
+    "view": "View",
+    "views": {
+      "list": "List",
+      "chart": "Chart"
+    },
+    "chart": {
+      "label": "Chart of {{name}}",
+      "hint": "Click a box for its details. To move or set up a piece, use the list.",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "open": "Show the {{count}} under {{name}}",
+      "close": "Hide what is under {{name}}",
+      "fedBy": "Fed by {{name}}",
+      "editInList": "To move it or set its line, switch to the list."
+    },
     "intro": "What feeds what. Each main NAS is the top of a network; everything it feeds is listed under it.",
     "loading": "Loading…",
     "loadFailed": "The network tree could not be loaded.",
