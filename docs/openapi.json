@@ -54568,6 +54568,225 @@
         }
       }
     },
+    "/topology/health": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Health of each piece of network equipment and of the line to its parent in the network tree: good, degraded, off or unknown, each with reasons (a code and the numbers behind it). Equipment that is not polled is unknown",
+        "operationId": "getLinkHealth",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "checked_at, limits, nodes keyed by device id: { equipment: { state, reasons[] }, uplink: { state, reasons[] } | null }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/health/limits": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "The limits past which a line or equipment counts as degraded, with the allowed range of each",
+        "operationId": "getLinkHealthLimits",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "limits, ranges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Change link health limits. Only the limits sent are changed",
+        "operationId": "setLinkHealthLimits",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Limits",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "airtime_pct": {
+                    "type": "number"
+                  },
+                  "capacity_pct": {
+                    "type": "number"
+                  },
+                  "snr_db": {
+                    "type": "number"
+                  },
+                  "ccq_pct": {
+                    "type": "number"
+                  },
+                  "optical_drop_db": {
+                    "type": "number"
+                  },
+                  "optical_floor_dbm": {
+                    "type": "number"
+                  },
+                  "errors_per_min": {
+                    "type": "number"
+                  },
+                  "cpu_pct": {
+                    "type": "number"
+                  },
+                  "memory_pct": {
+                    "type": "number"
+                  },
+                  "temperature_c": {
+                    "type": "number"
+                  },
+                  "battery_pct": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "limits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/health/devices/{id}/ports": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "The ports the poller has seen on a device in the last day, with whether each is up and what it carries now, to choose the one facing its parent",
+        "operationId": "listDeviceUplinkPorts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "uplink_interface, uplink_capacity_mbps, ports[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/topology/health/devices/{id}/uplink": {
+      "put": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Say which polled port of a device faces its parent in the tree, and what the line can carry",
+        "operationId": "setDeviceUplink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Uplink",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "uplink_interface": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "uplink_capacity_mbps": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "id, uplink_interface, uplink_capacity_mbps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/topology/map/links": {
       "post": {
         "tags": [

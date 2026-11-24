@@ -15,8 +15,10 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { styles } from '../crudStyles';
 import { TREE_QUERY_KEY, branchIds, fetchTree, flatten, typeKey, type NodeId, type TreeNode } from './networkTree';
+import { HEALTH_COLOR, HEALTH_QUERY_KEY, HEALTH_REFRESH_MS, fetchHealth, verdictText, type Verdict } from './linkHealth';
+import { HealthLegend, HealthLimits, UplinkForm } from './LinkHealthPanels';
 
-const STATUS_COLOR: Record<string, string> = { online: '#16a34a', offline: '#dc2626', maintenance: '#d97706' };
+const UNKNOWN: Verdict = { state: 'unknown', reasons: [] };
 
 export function NetworkTreeTab() {
   const { t } = useTranslation();
@@ -26,8 +28,13 @@ export function NetworkTreeTab() {
   const [network, setNetwork] = useState<string>('');
   const [moving, setMoving] = useState<NodeId | null>(null);
   const [target, setTarget] = useState<string>('');
+  const [lining, setLining] = useState<NodeId | null>(null);
 
   const { data, isLoading, isError } = useQuery({ queryKey: TREE_QUERY_KEY, queryFn: fetchTree });
+  // Colours are a second, slower-changing read: the tree shows without them.
+  const { data: health } = useQuery({ queryKey: HEALTH_QUERY_KEY, queryFn: fetchHealth, refetchInterval: HEALTH_REFRESH_MS });
+  const equipmentOf = (node: TreeNode): Verdict => health?.nodes?.[String(node.id)]?.equipment ?? UNKNOWN;
+  const lineOf = (node: TreeNode): Verdict => health?.nodes?.[String(node.id)]?.uplink ?? UNKNOWN;
   const done = () => { setMoving(null); setTarget(''); void qc.invalidateQueries({ queryKey: TREE_QUERY_KEY }); };
 
   const parentMutation = useMutation({
@@ -84,6 +91,9 @@ export function NetworkTreeTab() {
         {inTree && !node.is_main && (
           <button type="button" style={small} disabled={busy} onClick={() => parentMutation.mutate({ node: node.id, parent: null })}>{t('networkTree.takeOut')}</button>
         )}
+        {inTree && !node.is_main && typeof node.id === 'number' && (
+          <button type="button" style={small} onClick={() => setLining(cur => (cur === node.id ? null : node.id))}>{t('linkHealth.lineButton')}</button>
+        )}
         {node.kind === 'nas' && node.nas_id !== undefined && (
           <button type="button" style={small} disabled={busy} onClick={() => mainMutation.mutate({ nasId: node.nas_id as number, main: !node.is_main })}>
             {node.is_main ? t('networkTree.unmarkMain') : t('networkTree.markMain')}
@@ -93,16 +103,43 @@ export function NetworkTreeTab() {
     );
   }
 
+  // What is wrong, in words, under the row: colour alone is not enough.
+  function notes(node: TreeNode, inTree: boolean) {
+    const lines: Array<{ key: string; label: string; verdict: Verdict }> = [];
+    const equipment = equipmentOf(node);
+    if (equipment.state === 'degraded' || equipment.state === 'off') lines.push({ key: 'e', label: t('linkHealth.equipment'), verdict: equipment });
+    const line = lineOf(node);
+    if (inTree && !node.is_main && (line.state === 'degraded' || line.state === 'off')) lines.push({ key: 'l', label: t('linkHealth.line'), verdict: line });
+    if (lines.length === 0) return null;
+    return (
+      <div style={{ margin: '2px 0 0 18px', fontSize: '0.8rem' }}>
+        {lines.map(item => (
+          <div key={item.key} style={{ borderLeft: `3px solid ${HEALTH_COLOR[item.verdict.state]}`, paddingLeft: 6, marginTop: 2 }}>
+            {item.label}: {verdictText(t, item.verdict)}
+            {item.verdict.top_clients && item.verdict.top_clients.length > 0 && (
+              <div>{t('linkHealth.topClients', { list: item.verdict.top_clients.map(c => `${c.name} ${c.mbps} Mbps`).join(', ') })}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   function row(node: TreeNode, inTree: boolean) {
     return (
       <>
-        <span aria-hidden="true" style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', marginRight: 8, background: STATUS_COLOR[node.status ?? ''] ?? '#9ca3af' }} />
+        <span
+          role="img" aria-label={t('linkHealth.equipmentIs', { state: verdictText(t, equipmentOf(node)) })} title={verdictText(t, equipmentOf(node))}
+          style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', marginRight: 8, background: HEALTH_COLOR[equipmentOf(node).state] }}
+        />
         <strong>{node.name}</strong>
         <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
           {t(typeKey(node))}{node.make ? ` · ${node.make}` : ''}{node.site_name ? ` · ${node.site_name}` : ''}{node.ip_address ? ` · ${node.ip_address}` : ''}
         </span>
         {actions(node, inTree)}
+        {notes(node, inTree)}
         {moving === node.id && moveForm(node)}
+        {lining === node.id && typeof node.id === 'number' && <UplinkForm deviceId={node.id} name={node.name} onDone={() => setLining(null)} />}
       </>
     );
   }
@@ -110,9 +147,14 @@ export function NetworkTreeTab() {
   function branch(nodes: TreeNode[]) {
     if (nodes.length === 0) return null;
     return (
-      <ul style={{ listStyle: 'none', margin: 0, paddingLeft: 22, borderLeft: '1px solid var(--border-color, #cbd5e1)' }}>
+      <ul style={{ listStyle: 'none', margin: 0, paddingLeft: 22 }}>
         {nodes.map(node => (
-          <li key={String(node.id)} style={{ padding: '5px 0 5px 10px' }}>
+          <li
+            key={String(node.id)}
+            data-line={lineOf(node).state}
+            title={`${t('linkHealth.line')}: ${verdictText(t, lineOf(node))}`}
+            style={{ padding: '5px 0 5px 10px', borderLeft: `4px solid ${HEALTH_COLOR[lineOf(node).state]}`, marginBottom: 2 }}
+          >
             {row(node, true)}
             {branch(node.children)}
           </li>
@@ -124,6 +166,8 @@ export function NetworkTreeTab() {
   return (
     <div>
       <p style={{ marginTop: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('networkTree.intro')}</p>
+      <HealthLegend />
+      <HealthLimits canEdit={can(user, 'settings.update')} />
       {failure && <p role="alert" style={{ color: '#991b1b' }}>{failure.message}</p>}
 
       {data.trees.length > 1 && (

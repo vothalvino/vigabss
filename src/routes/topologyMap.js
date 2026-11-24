@@ -28,6 +28,7 @@ const {
 } = require('../middleware/schemas/topologyMap');
 const svc = require('../services/topologyMapService');
 const networkTreeService = require('../services/networkTreeService');
+const linkHealthService = require('../services/linkHealthService');
 
 const router = Router();
 
@@ -90,6 +91,29 @@ router.put('/tree/main-nas/:id', requirePermission('devices.update'), async (req
     if (typeof req.body?.main !== 'boolean') return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'main is required (true or false)' } });
     res.json({ data: await networkTreeService.setMain(req.orgId, req.params.id, req.body.main) });
   } catch (err) { next(err); }
+});
+
+// Health of each line and each piece of equipment in the tree: good,
+// degraded, off or unknown, with the measurements behind each verdict.
+router.get('/health', requirePermission('topology.view'), async (req, res, next) => {
+  try { res.json({ data: await linkHealthService.assess(req.orgId) }); } catch (err) { next(err); }
+});
+
+router.get('/health/limits', requirePermission('topology.view'), async (req, res, next) => {
+  try { res.json({ data: { limits: await linkHealthService.getLimits(req.orgId), ranges: linkHealthService.LIMITS } }); } catch (err) { next(err); }
+});
+
+router.put('/health/limits', requirePermission('settings.update'), async (req, res, next) => {
+  try { res.json({ data: { limits: await linkHealthService.saveLimits(req.orgId, req.body) } }); } catch (err) { next(err); }
+});
+
+// The polled ports of a device, to choose the one that faces its parent.
+router.get('/health/devices/:id/ports', requirePermission('topology.view'), async (req, res, next) => {
+  try { res.json({ data: await linkHealthService.listPorts(req.orgId, req.params.id) }); } catch (err) { next(err); }
+});
+
+router.put('/health/devices/:id/uplink', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await linkHealthService.setUplink(req.orgId, req.params.id, req.body) }); } catch (err) { next(err); }
 });
 
 router.get('/map/fabric', requirePermission('topology.view'), async (req, res, next) => {
