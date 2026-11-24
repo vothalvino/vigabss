@@ -688,6 +688,21 @@
     "goToLogin": "Ir a iniciar sesión"
   },
   "nav": {
+    "tabsets": {
+      "monitor": "Monitoreo",
+      "subscribers": "Suscriptores en línea",
+      "equipment": "Equipos",
+      "fibre": "Fibra (FTTH)",
+      "wireless": "Inalámbrico (WISP)",
+      "cpe": "Equipo del cliente",
+      "addresses": "Direcciones IP",
+      "speedAccess": "Velocidad y suspensión",
+      "pollingAlerts": "Sondeo y alertas",
+      "deviceConfig": "Configuración de dispositivos"
+    },
+    "tabs": {
+      "more": "Más ({{count}})"
+    },
     "dashboard": "Panel",
     "clients": "Clientes",
     "clientGroups": "Grupos de Cuenta",
@@ -834,11 +849,6 @@
     "qosBandwidth": "QoS y Ancho de Banda",
     "topologyMap": "Mapa de Topología",
     "subsections": {
-      "monitor": "Monitoreo",
-      "subscribers": "Suscriptores en línea",
-      "equipment": "Equipos",
-      "addresses": "Direcciones",
-      "access": "Mi acceso",
       "directory": "Directorio",
       "sales": "Ventas y Órdenes",
       "retention": "Retención",
@@ -859,7 +869,7 @@
       },
       "network": {
         "title": "Panel de Red",
-        "hint": "Todo el módulo de Red. La barra lateral muestra lo de uso diario; el resto vive aquí, a un clic."
+        "hint": "Todo el módulo de Red, agrupado igual que en la barra lateral."
       },
       "admin": {
         "title": "Administración",
@@ -868,22 +878,12 @@
       "empty": "No hay páginas disponibles para tu rol."
     },
     "cards": {
-      "monitoring": "Monitoreo",
-      "sessions": "Sesiones de suscriptores",
-      "equipment": "Sitios, routers y dispositivos",
-      "fibre": "Fibra (FTTH)",
-      "wirelessNet": "Inalámbrico (WISP)",
-      "addresses": "Direcciones IP",
-      "speedAccess": "Velocidad y suspensión",
-      "deviceConfig": "Configuración de dispositivos",
-      "pollingAlerts": "Sondeo y alertas",
       "receivables": "Cobranza",
       "collections": "Cobros y Disputas",
       "processing": "Procesamiento de Pagos",
       "catalogPricing": "Catálogo y Precios",
       "reportsAnalytics": "Reportes y Análisis",
       "configuration": "Configuración",
-      "cpe": "Equipo del cliente (CPE)",
       "peopleAccess": "Personas y Acceso",
       "organization": "Organización",
       "automationIntegrations": "Automatización e Integraciones",

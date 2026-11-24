@@ -17,6 +17,7 @@ import { useAccent } from '@/auth/AccentContext';
 import { ChangelogPanel } from '@/components/ChangelogPanel';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { NavSection } from '@/components/NavSection';
+import { PageTabs } from '@/components/PageTabs';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BrandLockup } from '@/components/BrandLockup';
@@ -29,7 +30,9 @@ import {
   defaultExpandedSection,
   routeForPath,
   sectionForPath,
-  visibleRailItems,
+  visibleRailRows,
+  visibleTabs,
+  tabsetForPath,
   visibleSectionCount,
   type SectionId,
 } from '@/nav/routes';
@@ -128,7 +131,7 @@ export function Layout() {
     setExpanded(prev => {
       if (prev.length === 0) return prev;
       const visibleIds = SECTIONS.filter(
-        s => s.kind !== 'link' && visibleRailItems(user, s.id).length > 0,
+        s => s.kind !== 'link' && visibleRailRows(user, s.id).length > 0,
       ).map(s => s.id);
       if (prev.some(id => visibleIds.includes(id))) return prev;
       const primary = defaultExpandedSection(user.role);
@@ -257,7 +260,13 @@ export function Layout() {
   const activeRoute = routeForPath(location.pathname);
   const activeSection = SECTIONS.find(section => section.id === trailSection);
   const activeSectionLabel = activeSection ? t(activeSection.labelKey) : null;
-  const pageLabel = activeRoute
+  // A page shown under tabs is titled by its tab set; the tab names the page.
+  const activeTabset = activeRoute ? tabsetForPath(activeRoute.path) : null;
+  const activeTabs = user && activeTabset ? visibleTabs(user, activeTabset) : [];
+  const tabbed = activeTabset !== null && activeTabs.length > 1;
+  const pageLabel = tabbed
+    ? t(activeTabset.labelKey)
+    : activeRoute
     ? t(activeRoute.labelKey)
     : activeSectionLabel
       ? activeSectionLabel
@@ -268,7 +277,7 @@ export function Layout() {
 
   const navigationSections = user
     ? SECTIONS.flatMap(section => {
-      const items = section.kind === 'link' ? [] : visibleRailItems(user, section.id);
+      const items = section.kind === 'link' ? [] : visibleRailRows(user, section.id);
       const hubVisible = canSeeHub(user, section);
       if (section.kind !== 'link' && items.length === 0 && !hubVisible) return [];
       return [{
@@ -304,6 +313,7 @@ export function Layout() {
         key={entry.section.id}
         section={entry.section}
         items={entry.items}
+        activePath={activeRoute?.path ?? null}
         sectionCount={entry.sectionCount}
         hubVisible={entry.hubVisible}
         expanded={expanded.includes(entry.section.id)}
@@ -475,6 +485,7 @@ export function Layout() {
         <EmailVerificationBanner />
         <UpdateAvailableBanner />
         <AdminIpAllowlistBanner />
+        {tabbed && activeRoute && <PageTabs tabset={activeTabset} tabs={activeTabs} activePath={activeRoute.path} />}
         <ErrorBoundary key={location.pathname}>
           <Suspense fallback={<LoadingState />}>
             <Outlet />

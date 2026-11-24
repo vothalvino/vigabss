@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HUB_CARDS, RAIL_SUBS, ROUTES, SECTIONS, WORKSPACES, routeForPath, visibleHubCards, visibleRailItems, type Guard } from '@/nav/routes';
+import { HUB_CARDS, ROUTES, SECTIONS, TABSETS, WORKSPACES, routeForPath, tabsetForPath, visibleHubCards, visibleRailItems, visibleRailRows, visibleTabs, type Guard } from '@/nav/routes';
 import en from '@/i18n/locales/en.json';
 import es from '@/i18n/locales/es.json';
 import ptBR from '@/i18n/locales/pt-BR.json';
@@ -110,11 +110,12 @@ describe('nav registry ↔ App.tsx invariants', () => {
     }
   });
 
-  it('every registry entry is reachable (rail row and/or hub card)', () => {
+  it('every registry entry is reachable (rail row, hub card or tab set)', () => {
+    const tabbed = new Set(TABSETS.flatMap(set => set.paths));
     for (const r of ROUTES) {
       expect(
-        Boolean(r.rail || r.card),
-        `${r.path} is neither a rail row nor on a hub card — unreachable`,
+        Boolean(r.rail || r.card || tabbed.has(r.path)),
+        `${r.path} is neither a rail row, on a hub card nor in a tab set — unreachable`,
       ).toBe(true);
     }
   });
@@ -145,6 +146,8 @@ describe('nav registry i18n coverage', () => {
   it('every nav i18n key exists in all three locales', () => {
     const keys = new Set<string>();
     for (const s of SECTIONS) keys.add(s.labelKey);
+    for (const set of TABSETS) keys.add(set.labelKey);
+    keys.add('nav.tabs.more');
     for (const r of ROUTES) {
       keys.add(r.labelKey);
       if (r.sub) keys.add(`nav.subsections.${r.sub}`);
@@ -187,41 +190,69 @@ describe('FE-25 — every page names the permissions that open it', () => {
   });
 });
 
-// The Network section is grouped by what an operator is doing, not by
-// protocol names: the sidebar has headings, and every heading's rows sit
-// together even though the registry lists them in another order.
-describe('Network section layout', () => {
+// A section with tab sets is described by them alone: its sidebar rows, the
+// tabs over each page and its hub cards all come from TABSETS.
+describe('tab sets', () => {
   const admin = { role: 'admin' } as Parameters<typeof visibleRailItems>[0];
+  const tabbedSections = [...new Set(TABSETS.map(set => set.section))];
 
-  it('sidebar rows are grouped under their headings in the declared order', () => {
-    const rows = visibleRailItems(admin, 'network');
-    const subs = rows.map(r => r.sub);
-    expect(subs.every(Boolean)).toBe(true);
-    // Each heading appears as one unbroken run, in RAIL_SUBS order.
-    const runs = subs.filter((s, i) => s !== subs[i - 1]);
-    expect(runs).toEqual(RAIL_SUBS.network);
-    expect(rows.map(r => r.path)).toEqual([
-      '/noc-dashboard', '/network-health', '/outages',
-      '/radius-sessions', '/connection-logs', '/pppoe-diagnostics',
-      '/sites', '/devices', '/nas', '/olt-management',
-      '/ip-pools',
-      '/wg-tunnels',
+  it('every page of a tabbed section is in exactly one tab set, and every tab is a page of that section', () => {
+    for (const section of tabbedSections) {
+      const inSets = TABSETS.filter(set => set.section === section).flatMap(set => set.paths);
+      const pages = ROUTES.filter(r => r.section === section).map(r => r.path);
+      expect([...inSets].sort()).toEqual([...pages].sort());
+      expect(new Set(inSets).size).toBe(inSets.length);
+    }
+    expect(new Set(TABSETS.map(set => set.id)).size).toBe(TABSETS.length);
+  });
+
+  it('a tabbed section leaves rail, sub and card to its tab sets', () => {
+    const stray = ROUTES.filter(r => tabbedSections.includes(r.section) && (r.rail || r.sub || r.card)).map(r => r.path);
+    expect(stray).toEqual([]);
+    expect(tabbedSections.filter(section => HUB_CARDS[section])).toEqual([]);
+  });
+
+  it('Network has one sidebar row per tab set, each leading to its first page', () => {
+    const rows = visibleRailRows(admin, 'network');
+    expect(rows.map(r => r.key)).toEqual([
+      'monitor', 'topology', 'subscribers', 'equipment', 'fibre', 'wireless',
+      'cpe', 'addresses', 'speedAccess', 'pollingAlerts', 'deviceConfig', 'vpn',
     ]);
+    expect(rows.map(r => r.to)).toEqual(TABSETS.filter(set => set.section === 'network').map(set => set.paths[0]));
+    expect(rows.flatMap(r => r.paths)).toHaveLength(ROUTES.filter(r => r.section === 'network').length);
   });
 
-  it('every Network page is on exactly one hub card, and no card is empty', () => {
+  it('a section without tab sets keeps one row per rail page', () => {
+    const rows = visibleRailRows(admin, 'fieldops');
+    expect(rows.map(r => r.to)).toEqual(visibleRailItems(admin, 'fieldops').map(r => r.path));
+    expect(rows.every(r => r.paths.length === 1 && !r.tabset)).toBe(true);
+  });
+
+  it('the hub shows the same sets as the sidebar', () => {
     const cards = visibleHubCards(admin, 'network');
-    expect(cards.map(c => c.card)).toEqual(HUB_CARDS.network);
-    const onCards = cards.flatMap(c => c.items.map(i => i.path));
-    const all = ROUTES.filter(r => r.section === 'network').map(r => r.path);
-    expect([...onCards].sort()).toEqual([...all].sort());
-    expect(new Set(onCards).size).toBe(onCards.length);
+    expect(cards.map(c => c.card)).toEqual(visibleRailRows(admin, 'network').map(r => r.key));
+    expect(cards.find(c => c.card === 'fibre')?.items.map(i => i.path)).toEqual(['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management']);
+    expect(cards.find(c => c.card === 'fibre')?.labelKey).toBe('nav.tabsets.fibre');
+    expect(visibleHubCards(admin, 'billing')[0].labelKey).toBe('nav.cards.receivables');
   });
 
-  it('fibre, wireless and customer equipment each have their own card', () => {
-    const byCard = Object.fromEntries(visibleHubCards(admin, 'network').map(c => [c.card, c.items.map(i => i.path)]));
-    expect(byCard.fibre).toEqual(['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management']);
-    expect(byCard.wirelessNet).toEqual(['/wireless', '/wireless-metrics']);
-    expect(byCard.cpe).toEqual(['/cpe-management', '/cpe-profiles', '/cpe-diagnostics']);
+  it('a detail page belongs to the tab set of its list', () => {
+    expect(tabsetForPath('/devices/42')?.id).toBe('equipment');
+    expect(tabsetForPath('/topology-map')?.id).toBe('topology');
+    expect(tabsetForPath('/clients')).toBeNull();
+  });
+
+  it('shows only the tabs a person can open, and names a one-page row after that page', () => {
+    const support = { role: 'support', organization_locale: 'MX' } as Parameters<typeof visibleRailItems>[0];
+    const rows = visibleRailRows(support, 'network');
+    expect(rows.map(r => [r.key, r.labelKey, r.paths])).toEqual([
+      ['monitor', 'nav.tabsets.monitor', ['/network-health', '/outages']],
+      ['subscribers', 'nav.tabsets.subscribers', ['/connection-logs', '/pppoe-diagnostics']],
+      ['vpn', 'nav.myWgTunnels', ['/wg-tunnels']],
+    ]);
+    const onlyOutages = { role: 'custom', permissions: ['outages.view'] } as Parameters<typeof visibleRailItems>[0];
+    expect(visibleRailRows(onlyOutages, 'network').map(r => [r.labelKey, r.to])).toEqual([['nav.outages', '/outages']]);
+    const monitor = TABSETS.find(set => set.id === 'monitor')!;
+    expect(visibleTabs(onlyOutages, monitor).map(tab => tab.path)).toEqual(['/outages']);
   });
 });
