@@ -5,6 +5,24 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **A menu of your own.** Anyone can arrange the sidebar into groups they
+  name, holding the pages they use, from any section. A star in the top bar
+  pins the open page into a group (or a new one), and "Edit my menu" at the
+  bottom of the sidebar opens the full editor to rename, reorder and remove.
+  With a menu of your own the sidebar shows your groups, and the standard
+  menu folds under "All pages"; search still reaches everything.
+- **Menu templates for job roles and people.** Under Administration, Menu
+  templates lets an administrator prepare a menu once and give it to user
+  groups or to individual people. A person's own template comes before
+  their group's. A template can be locked so the people who get it cannot
+  change their menu; otherwise each person can adjust their own copy and go
+  back to the template at any time. New permission `menu_templates.manage`,
+  held by administrators.
+- **Menus never change what anyone can open.** A menu only stores page
+  addresses. A page appears in someone's menu only if their own permissions
+  already open it, the pickers offer only such pages, and every existing
+  access check is unchanged. Migration 031.
+
 - **Network menu: everyday pages up front, the rest under Network setup.**
   The Network section now has six sidebar rows. Five hold what is opened
   daily, each with its pages as tabs: Monitoring, Topology Map, Subscribers

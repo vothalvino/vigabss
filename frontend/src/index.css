@@ -1281,6 +1281,248 @@ button:disabled {
   top: 0;
   z-index: 90;
 }
+/* A person's own menu in the sidebar (components/Layout.tsx). */
+.nav-menu-group {
+  margin-bottom: 6px;
+}
+.nav-menu-group-name {
+  padding: 10px 14px 4px 14px;
+  color: var(--sidebar-fg-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-leaf.nav-menu-leaf {
+  padding-left: 14px;
+}
+.nav-all-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100% - 12px);
+  margin: 8px 6px 2px;
+  min-height: 34px;
+  padding: 6px 10px 6px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--sidebar-fg-muted);
+  font: inherit;
+  font-size: 0.845rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.nav-all-pages:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-fg);
+}
+.nav-all-pages[aria-expanded='true'] .nav-chev {
+  transform: rotate(90deg);
+}
+
+/* Pin the open page (components/PinButton.tsx). */
+.pin-box {
+  position: relative;
+}
+.pin-btn {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.pin-btn.pinned {
+  color: var(--accent);
+}
+.pin-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 95;
+  width: 260px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.pin-panel-title {
+  margin-bottom: 8px;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.pin-panel-hint {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.pin-panel-new {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Arranging a menu (components/MenuEditor.tsx, My menu, Menu templates). */
+.menu-page {
+  padding: 1.5rem;
+  max-width: 760px;
+}
+.menu-page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--text-primary);
+}
+.menu-page-hint {
+  margin: 4px 0 14px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.menu-page-note {
+  margin: 8px 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.menu-page-problem {
+  margin: 8px 0;
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+.menu-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.menu-page-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+.menu-page-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.9rem;
+}
+.menu-page-readonly {
+  padding-left: 18px;
+}
+.menu-editor-group {
+  margin: 0 0 12px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+.menu-editor-legend {
+  padding: 0 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.menu-editor-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.menu-editor-name {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-body);
+  color: var(--text-primary);
+  font: inherit;
+}
+.menu-editor-btn {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+.menu-editor-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.menu-page-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 650;
+}
+.menu-page-danger {
+  color: var(--danger);
+}
+.menu-editor-pages {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.menu-editor-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.9rem;
+}
+.menu-editor-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+.menu-editor-add {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--bg-body);
+  color: var(--text-primary);
+  font: inherit;
+}
+.menu-editor-empty {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.menu-template-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.menu-template-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.menu-template-locked {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
 /* Tabs over the pages of a tab set (components/PageTabs.tsx). */
 .page-tabs {
   padding: 0 var(--sp-5);

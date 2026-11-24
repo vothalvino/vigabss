@@ -1,4 +1,61 @@
 {
+  "customMenu": {
+    "myMenu": "My menu",
+    "editMyMenu": "Edit my menu",
+    "allPages": "All pages",
+    "loading": "Loading…",
+    "loadFailed": "The menu could not be loaded.",
+    "intro": "Arrange the sidebar your way: make groups, name them, and put in the pages you use. Only pages you are allowed to open can be added. Everything else stays under “All pages” and in search.",
+    "usingTemplate": "You are using the menu “{{name}}” prepared by your organization. Saving a change makes it your own.",
+    "lockedTemplate": "Your menu is “{{name}}”, set by your organization. It cannot be changed here.",
+    "backToTemplate": "Go back to “{{name}}”",
+    "backToStandard": "Go back to the standard menu",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved.",
+    "noGroups": "No groups yet. Add one to start.",
+    "groupNumber": "Group {{number}}",
+    "groupName": "Group name",
+    "addGroup": "Add a group",
+    "addPage": "Add a page…",
+    "addPageTo": "Add a page to {{name}}",
+    "moveGroupUp": "Move group {{name}} up",
+    "moveGroupDown": "Move group {{name}} down",
+    "removeGroup": "Remove group {{name}}",
+    "movePageUp": "Move {{name}} up",
+    "movePageDown": "Move {{name}} down",
+    "removePage": "Remove {{name}}",
+    "problems": {
+      "unnamed": "Give every group a name.",
+      "duplicate": "Two groups have the same name.",
+      "templateName": "Give the template a name."
+    },
+    "pin": {
+      "pin": "Pin {{page}} to my menu",
+      "pinned": "{{page}} is in my menu",
+      "title": "Show {{page}} in",
+      "noGroups": "Name a group to start your menu.",
+      "newGroup": "New group",
+      "add": "Add"
+    },
+    "templates": {
+      "title": "Menu templates",
+      "intro": "Prepare a sidebar menu once and give it to user groups or people. A template only arranges pages: each person sees the pages of it that their own permissions open, and nothing more.",
+      "new": "New template",
+      "none": "No templates yet.",
+      "edit": "Edit",
+      "editNamed": "Edit {{name}}",
+      "delete": "Delete template",
+      "name": "Template name",
+      "locked": "Locked: the people who get this template cannot change their own menu",
+      "lockedBadge": "Locked",
+      "givenTo": "Given to: {{list}}",
+      "givenToNobody": "Not given to anyone yet",
+      "audienceGroups": "Give to user groups",
+      "audiencePeople": "Give to people",
+      "audienceHint": "A person’s own template comes before their group’s. A group or person can have one template; giving this one replaces the other."
+    }
+  },
   "incidentsBoard": {
     "willTranslate": "You changed the text. See it in the customer's language before sending.",
     "customerGetsEdited": "With your changes, the customer receives:",
@@ -688,6 +745,7 @@
     "goToLogin": "Go to login"
   },
   "nav": {
+    "menuTemplates": "Menu templates",
     "tabsets": {
       "monitor": "Monitoring",
       "subscribers": "Subscribers online",

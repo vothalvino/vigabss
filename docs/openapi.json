@@ -6991,6 +6991,436 @@
         }
       }
     },
+    "/menus/mine": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "The sidebar menu of the signed-in user: their own, the template given to them or to their user group, or none (the standard sidebar). A menu lists page addresses only and grants no access",
+        "operationId": "getMyMenu",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "layout, source, template, can_edit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Save the signed-in user's own menu: groups they name, each holding page addresses. Refused when their template is locked",
+        "operationId": "saveMyMenu",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Menu",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "layout"
+                ],
+                "properties": {
+                  "layout": {
+                    "type": "object",
+                    "required": [
+                      "groups"
+                    ],
+                    "properties": {
+                      "groups": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "pages"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "layout, source, template, can_edit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Drop the signed-in user's own menu: back to their template, or the standard sidebar",
+        "operationId": "resetMyMenu",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "layout, source, template, can_edit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/menus/templates": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Menu templates of the organization, with the user groups and people each is given to",
+        "operationId": "listMenuTemplates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Prepare a menu as a template. Locked: the people who get it cannot change their own menu",
+        "operationId": "createMenuTemplate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Template",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "layout"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  },
+                  "layout": {
+                    "type": "object",
+                    "required": [
+                      "groups"
+                    ],
+                    "properties": {
+                      "groups": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "pages"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/menus/templates/audience": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "The user groups and people a menu template can be given to",
+        "operationId": "listMenuTemplateAudience",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "groups, people",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/menus/templates/{id}": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Change a menu template",
+        "operationId": "updateMenuTemplate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Template",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "layout"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  },
+                  "layout": {
+                    "type": "object",
+                    "required": [
+                      "groups"
+                    ],
+                    "properties": {
+                      "groups": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "pages"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete a menu template; the people who had it fall back to their own menu or the standard sidebar",
+        "operationId": "deleteMenuTemplate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/menus/templates/{id}/assignments": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Say which user groups and people get a menu template, replacing who had it. A group or person holding another template moves to this one",
+        "operationId": "assignMenuTemplate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Who gets it",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "group_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "user_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contracts/{id}/network-path": {
       "get": {
         "tags": [

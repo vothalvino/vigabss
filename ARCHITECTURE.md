@@ -1449,6 +1449,23 @@ directly under its own name. An everyday row leads to the page of its set
 opened last in that browser. Network is the first section built this way; a
 section without tab sets works as before.
 
+A person may have a menu of their own (`frontend/src/nav/customMenu.ts`,
+`src/services/menuService.js`, migration 031): groups they name, each holding
+page addresses, arranged on `/my-menu` or with the pin button in the top bar.
+An administrator holding `menu_templates.manage` can prepare a menu as a
+template on `/menu-templates` and give it to user groups or people, optionally
+locked. `GET /menus/mine` resolves, first match wins: a locked template given
+to the person or their group, the person's own menu, the template given to the
+person, the template given to their group, none. With a menu the sidebar shows
+its groups and folds the standard sections under "All pages"; without one the
+standard sidebar is shown. **A menu is never an access decision.** It stores
+addresses only, the service never reads or writes permissions, and the
+frontend passes every address through the same `canSee()` as the standard
+sidebar, so a page appears in a menu only for someone whose permissions already
+open it and a group left empty is hidden. Route guards and API checks are
+unchanged, and the `/menus/mine` routes need no permission because they only
+reorder what the caller may already open.
+
 The UI permission helper in `frontend/src/auth/permissions.ts` prefers the
 server-resolved `permissions` array, including an authoritative empty array, and
 uses its hard-coded role map only as compatibility for older responses. UI

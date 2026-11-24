@@ -1,4 +1,61 @@
 {
+  "customMenu": {
+    "myMenu": "Mi menú",
+    "editMyMenu": "Editar mi menú",
+    "allPages": "Todas las páginas",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo cargar el menú.",
+    "intro": "Organiza la barra lateral a tu manera: crea grupos, ponles nombre y agrega las páginas que usas. Solo se pueden agregar páginas que tienes permiso de abrir. Todo lo demás sigue en «Todas las páginas» y en la búsqueda.",
+    "usingTemplate": "Estás usando el menú «{{name}}» que preparó tu organización. Al guardar un cambio pasa a ser tuyo.",
+    "lockedTemplate": "Tu menú es «{{name}}», definido por tu organización. No se puede cambiar aquí.",
+    "backToTemplate": "Volver a «{{name}}»",
+    "backToStandard": "Volver al menú estándar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saved": "Guardado.",
+    "noGroups": "Aún no hay grupos. Agrega uno para empezar.",
+    "groupNumber": "Grupo {{number}}",
+    "groupName": "Nombre del grupo",
+    "addGroup": "Agregar un grupo",
+    "addPage": "Agregar una página…",
+    "addPageTo": "Agregar una página a {{name}}",
+    "moveGroupUp": "Subir el grupo {{name}}",
+    "moveGroupDown": "Bajar el grupo {{name}}",
+    "removeGroup": "Quitar el grupo {{name}}",
+    "movePageUp": "Subir {{name}}",
+    "movePageDown": "Bajar {{name}}",
+    "removePage": "Quitar {{name}}",
+    "problems": {
+      "unnamed": "Ponle nombre a cada grupo.",
+      "duplicate": "Dos grupos tienen el mismo nombre.",
+      "templateName": "Ponle nombre a la plantilla."
+    },
+    "pin": {
+      "pin": "Fijar {{page}} en mi menú",
+      "pinned": "{{page}} está en mi menú",
+      "title": "Mostrar {{page}} en",
+      "noGroups": "Nombra un grupo para empezar tu menú.",
+      "newGroup": "Grupo nuevo",
+      "add": "Agregar"
+    },
+    "templates": {
+      "title": "Plantillas de menú",
+      "intro": "Prepara un menú lateral una vez y asígnalo a grupos de usuarios o a personas. Una plantilla solo ordena páginas: cada persona ve las páginas de la plantilla que sus propios permisos abren, y nada más.",
+      "new": "Plantilla nueva",
+      "none": "Aún no hay plantillas.",
+      "edit": "Editar",
+      "editNamed": "Editar {{name}}",
+      "delete": "Eliminar plantilla",
+      "name": "Nombre de la plantilla",
+      "locked": "Bloqueada: quienes reciben esta plantilla no pueden cambiar su propio menú",
+      "lockedBadge": "Bloqueada",
+      "givenTo": "Asignada a: {{list}}",
+      "givenToNobody": "Aún no se asigna a nadie",
+      "audienceGroups": "Asignar a grupos de usuarios",
+      "audiencePeople": "Asignar a personas",
+      "audienceHint": "La plantilla propia de una persona va antes que la de su grupo. Un grupo o una persona tiene una sola plantilla; asignar esta reemplaza la otra."
+    }
+  },
   "incidentsBoard": {
     "willTranslate": "Cambiaste el texto. Míralo en el idioma del cliente antes de enviarlo.",
     "customerGetsEdited": "Con tus cambios, el cliente recibe:",
@@ -688,6 +745,7 @@
     "goToLogin": "Ir a iniciar sesión"
   },
   "nav": {
+    "menuTemplates": "Plantillas de menú",
     "tabsets": {
       "monitor": "Monitoreo",
       "subscribers": "Suscriptores en línea",

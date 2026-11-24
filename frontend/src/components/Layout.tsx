@@ -18,6 +18,8 @@ import { ChangelogPanel } from '@/components/ChangelogPanel';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { NavSection } from '@/components/NavSection';
 import { PageTabs } from '@/components/PageTabs';
+import { PinButton } from '@/components/PinButton';
+import { MY_MENU_KEY, MY_MENU_PAGE, fetchMyMenu, visibleGroups } from '@/nav/customMenu';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BrandLockup } from '@/components/BrandLockup';
@@ -31,6 +33,7 @@ import {
   routeForPath,
   sectionForPath,
   visibleRailRows,
+  canSee,
   visibleTabs,
   setupPageFor,
   SETUP_PAGES,
@@ -106,6 +109,14 @@ export function Layout() {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<SectionId[]>(() => loadExpanded());
   const trailSection = sectionForPath(location.pathname);
+  // With a menu of one's own, the standard sidebar is folded under "All pages".
+  const [allPagesOpen, setAllPagesOpen] = useState<boolean>(() => {
+    try { return window.localStorage.getItem('vigabss.nav.allPages') === '1'; } catch { return false; }
+  });
+  const toggleAllPages = () => setAllPagesOpen(cur => {
+    try { window.localStorage.setItem('vigabss.nav.allPages', cur ? '0' : '1'); } catch { /* not kept */ }
+    return !cur;
+  });
 
   // Active trail: the section owning the current route auto-expands. Keyed on
   // the section (not the pathname) so collapsing it while on the route sticks.
@@ -267,7 +278,13 @@ export function Layout() {
   const activeTabs = user && activeTabset ? visibleTabs(user, activeTabset) : [];
   const setupBack = user && activeTabset ? setupPageFor(user, activeTabset) : null;
   const tabbed = activeTabset !== null && (activeTabs.length > 1 || setupBack !== null);
-  const setupPage = Object.values(SETUP_PAGES).find(page => page.path === location.pathname);
+  const setupPage = [...Object.values(SETUP_PAGES), MY_MENU_PAGE].find(page => page.path === location.pathname);
+  // The person's own menu, when they or their organization arranged one. It
+  // only orders pages they may already open; without one the standard
+  // sidebar is shown.
+  const { data: myMenu } = useQuery({ queryKey: MY_MENU_KEY, queryFn: fetchMyMenu, enabled: Boolean(user), staleTime: 5 * 60_000, retry: false });
+  const menuGroups = user ? visibleGroups(user, myMenu?.layout) : [];
+  const customMenu = menuGroups.length > 0;
   const pageLabel = setupPage
     ? t(setupPage.labelKey)
     : tabbed && activeTabs.length > 1
@@ -389,7 +406,7 @@ export function Layout() {
           <kbd className="nav-search-kbd">⌘K</kbd>
         </button>
 
-        {canUseWorkspaces && (
+        {canUseWorkspaces && (!customMenu || allPagesOpen) && (
           <div className="nav-focus-control">
             <label htmlFor="nav-focus-select">{t('nav.workspaces.label')}</label>
             <select
@@ -410,14 +427,39 @@ export function Layout() {
 
         <nav className="app-nav" aria-label={t('layout.primaryNavigation')}>
           {dashboardSection && renderNavigationSection(dashboardSection)}
-          {workspaceSections && focusedSections.length > 0 && (
-            <div className="nav-area-label">{t('nav.workspaces.focusedAreas')}</div>
+          {menuGroups.map(group => (
+            <div key={group.name} className="nav-menu-group" role="group" aria-label={group.name}>
+              <div className="nav-menu-group-name">{group.name}</div>
+              {group.pages.map(page => {
+                const current = activeRoute?.path === page.path;
+                return (
+                  <Link key={page.path} to={page.path} onClick={closeSidebar} className={`nav-leaf nav-menu-leaf${current ? ' active' : ''}`} aria-current={current ? 'page' : undefined}>
+                    {t(page.labelKey)}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+          {customMenu && (
+            <button type="button" className="nav-all-pages" aria-expanded={allPagesOpen} aria-controls="nav-all-pages" onClick={toggleAllPages}>
+              {t('customMenu.allPages')}
+              <svg className="nav-chev" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           )}
-          {focusedSections.map(renderNavigationSection)}
-          {workspaceSections && remainingSections.length > 0 && (
-            <div className="nav-area-label nav-area-label-secondary">{t('nav.workspaces.allAreas')}</div>
+          {(!customMenu || allPagesOpen) && (
+            <div id="nav-all-pages">
+              {workspaceSections && focusedSections.length > 0 && (
+                <div className="nav-area-label">{t('nav.workspaces.focusedAreas')}</div>
+              )}
+              {focusedSections.map(renderNavigationSection)}
+              {workspaceSections && remainingSections.length > 0 && (
+                <div className="nav-area-label nav-area-label-secondary">{t('nav.workspaces.allAreas')}</div>
+              )}
+              {remainingSections.map(renderNavigationSection)}
+            </div>
           )}
-          {remainingSections.map(renderNavigationSection)}
         </nav>
 
         {/* User info + logout */}
@@ -464,6 +506,11 @@ export function Layout() {
             </button>
             <span className="sidebar-changelog"><ChangelogPanel /></span>
           </div>
+          {myMenu?.can_edit !== false && (
+            <Link to={MY_MENU_PAGE.path} className="sidebar-change-password" onClick={closeSidebar}>
+              {t('customMenu.editMyMenu')}
+            </Link>
+          )}
           <Link to="/change-password" className="sidebar-change-password">
             {t('changePassword.link')}
           </Link>
@@ -482,6 +529,7 @@ export function Layout() {
             <strong className="app-topbar-title">{pageLabel}</strong>
           </div>
           <span className="app-topbar-spacer" />
+          {user && activeRoute && myMenu?.can_edit && canSee(user, activeRoute) && <PinButton user={user} route={activeRoute} menu={myMenu} />}
           <NotificationBell />
           {user?.organization_id != null && orgs.length > 0 && (
             <span className="app-topbar-org">
