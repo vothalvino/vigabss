@@ -55,6 +55,15 @@
     "cancel": "Cancelar"
   },
   "oltLive": {
+    "newOlt": "Agregar una OLT",
+    "newOltTitle": "OLT nueva",
+    "newOltHint": "Agrega la OLT a VigaBSS. Después guarda su acceso abajo para leerla y aprovisionar ONU.",
+    "oltName": "Nombre",
+    "snmpCommunity": "Comunidad SNMP",
+    "snmpEnabled": "Monitorear esta OLT por SNMP",
+    "addOlt": "Agregar OLT",
+    "cancelNew": "Cancelar",
+    "noOlts": "Aún no hay OLT. Agrega la primera aquí.",
     "monitoring": "Leer todas las OLT automáticamente (SNMP)",
     "monitoringHint": "Cada 10 minutos VigaBSS lee cada OLT que tenga SNMP habilitado y recuerda el estado, la distancia y la señal de cada ONU. Esto permite que la revisión de fibra indique a qué distancia está un corte. Aplica a toda la instalación.",
     "operatorOnly": "Solo el operador de la instalación puede cambiarlo.",
@@ -94,7 +103,6 @@
     "tab": "OLT en vivo",
     "notice": "Huawei MA5800 / EA5800 por SSH. Todo en esta pestaña solo lee de la OLT. El driver aún no se ha probado en todas las versiones de software: si una tabla se ve mal, abre \"Mostrar lo que imprimió la OLT\".",
     "loading": "Cargando…",
-    "noOlts": "Aún no hay OLT. Primero agrega un dispositivo de tipo OLT en Dispositivos.",
     "chooseOlt": "OLT",
     "loginTitle": "Acceso",
     "loginHint": "Cómo llega VigaBSS a la línea de comandos de esta OLT. Usa su dirección de gestión; una OLT detrás de un NAS se alcanza por el túnel WireGuard de ese NAS.",

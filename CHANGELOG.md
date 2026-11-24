@@ -16,6 +16,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   "Network sites": it is the first entry under Equipment, since towers, POPs
   and nodes are where the equipment lives. No page was removed and addresses
   are unchanged.
+- **An OLT can be added from the OLT page.** OLT Management → Live OLT has an
+  "Add an OLT" button (name, model, management address, SNMP community), as
+  NAS Devices has for a NAS. Before, an OLT had to be created on the Devices
+  page as a device of type OLT. With no OLT yet, the form is shown straight
+  away.
 
 - Tests: placeholder Stripe keys and webhook secrets are assembled when the
   test runs, so they are no longer reported as leaked secrets by GitHub
