@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **CI: backend tests use the self-hosted runner's cores.** The test step
+  ran three suites at a time everywhere, a number chosen for GitHub's
+  4-core machines; on a self-hosted runner it now runs twelve. The
+  dependency cache is no longer downloaded there either.
+
 - **CI can use the owner's own runners.** The repository variable
   `CI_SELF_HOSTED_RUNNERS` says how many self-hosted runners are online: at
   1 the backend test job runs on one, at 2 the frontend test job too, for

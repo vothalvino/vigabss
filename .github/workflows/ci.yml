@@ -39,10 +39,8 @@ env:
 #               while the runners' machine is switched off)
 #   1           lint-and-test
 #   2           lint-and-test and frontend-test
-# Measured with one runner in November 2026: lint-and-test took 7.1 minutes on
-# a GitHub-hosted machine and 3.5 minutes of tests on the runner; with both
-# jobs on the one runner the second waited for the first and the run took
-# longer than before.
+# With both jobs on a single runner the second waited for the first and the
+# run took longer than on GitHub-hosted machines (measured November 2026).
 #
 # This repository is public, so a runner only ever takes trusted runs: pushes
 # to main and tags, and pull requests whose branch lives in this repository.
@@ -73,7 +71,9 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # A self-hosted runner keeps the pnpm store on its own disk;
+          # fetching the cache from GitHub there only costs time.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -108,9 +108,14 @@ jobs:
         # fail it. The leak report runs weekly instead (test-diagnostics.yml).
         # Workers recycle past 1 GB idle (jest.config.js), so the coverage
         # process plus three workers stays well inside the runner's memory.
+        #
+        # Three is for GitHub-hosted machines (4 cores). A self-hosted runner
+        # has many more, and with three workers it used a fraction of them:
+        # there the suites run twelve at a time, which leaves memory and
+        # cores for whatever else the owner's machine is doing.
         env:
           NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169 --max-old-space-size=10240
-        run: pnpm exec jest --forceExit --ci --maxWorkers=3 --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+        run: pnpm exec jest --forceExit --ci --maxWorkers=${{ runner.environment == 'github-hosted' && '3' || '12' }} --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
       - name: Check coverage threshold
         # Reads the summary the main run already produced — this used to
@@ -780,7 +785,8 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # See lint-and-test: no cache download on a self-hosted runner.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
