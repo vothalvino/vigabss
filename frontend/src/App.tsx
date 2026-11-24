@@ -211,6 +211,7 @@ const WorkOrders = lazy(() => import('@/pages/WorkOrders').then((m) => ({ defaul
 const TopologyMapPage = lazy(() => import('@/pages/TopologyMapPage').then((m) => ({ default: m.TopologyMapPage })));
 const InventoryManagement = lazy(() => import('@/pages/InventoryManagement').then((m) => ({ default: m.InventoryManagement })));
 const HubPage = lazy(() => import('@/pages/HubPage').then((m) => ({ default: m.HubPage })));
+const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })));
 const SecurityAccessControlPage = lazy(() => import('@/pages/SecurityAccessControlPage').then((m) => ({ default: m.SecurityAccessControlPage })));
 const AutomationPage = lazy(() => import('@/pages/AutomationPage'));
 const ResellerPage = lazy(() => import('@/pages/ResellerPage'));
@@ -341,6 +342,9 @@ export function App() {
                 <Route path="connection-logs" element={<ConnectionLogList />} />
                 {/* Tab visibility and every API operation are permission-gated;
                     this route also supports custom legal-response principals. */}
+                {/* Open to any signed-in user: the page lists only the setup
+                    pages that person's permissions open. */}
+                <Route path="network/setup" element={<SetupPage section="network" />} />
                 <Route path="regulatory-compliance" element={<RegulatoryCompliancePage />} />
                 {/* Exact infrastructure geolocation and every action are
                     permission-gated inside the MX-only SNII workflow. */}

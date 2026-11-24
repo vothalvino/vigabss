@@ -1,19 +1,17 @@
 // =============================================================================
 // VigaBSS 5.0 — tabs over the pages of a tab set
 // =============================================================================
-// Pages that belong together (nav/routes.ts → TABSETS) share one sidebar row;
-// this strip, shown above each of them, moves between them. The tabs are
-// links: every page keeps its own address. A long set shows its first tabs
-// and puts the rest under "More"; a phone gets a drop-down instead.
+// Pages that belong together (nav/routes.ts → TABSETS) are shown as tabs
+// above each of them. The tabs are links: every page keeps its own address.
+// A set never has more tabs than fit a strip, so nothing is hidden; a narrow
+// window wraps the strip and a phone gets a drop-down. The pages of a setup
+// set also get a link back to the section's setup page.
 // =============================================================================
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { RouteDef, TabsetDef } from '@/nav/routes';
 import { rememberTab } from '@/nav/lastTab';
-
-/** Tabs shown before the rest go under "More". */
-export const MAX_TABS = 7;
 
 interface PageTabsProps {
   tabset: TabsetDef;
@@ -21,63 +19,39 @@ interface PageTabsProps {
   tabs: RouteDef[];
   /** The registered page the current address belongs to. */
   activePath: string;
+  /** The setup page this set is a card of, when the person has more than this on it. */
+  back?: { path: string; labelKey: string } | null;
 }
 
-export function PageTabs({ tabset, tabs, activePath }: PageTabsProps) {
+export function PageTabs({ tabset, tabs, activePath, back }: PageTabsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const more = useRef<HTMLDivElement>(null);
 
   useEffect(() => { rememberTab(tabset.id, activePath); }, [tabset.id, activePath]);
-  useEffect(() => { setOpen(false); }, [location.pathname]);
-  useEffect(() => {
-    if (!open) return undefined;
-    const outside = (e: MouseEvent) => { if (!more.current?.contains(e.target as Node)) setOpen(false); };
-    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', outside);
-    document.addEventListener('keydown', escape);
-    return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
-  }, [open]);
 
-  if (tabs.length < 2) return null;
-
-  // The open page is always in the strip, even when it would fall under "More".
-  let shown = tabs;
-  let rest: RouteDef[] = [];
-  if (tabs.length > MAX_TABS) {
-    shown = tabs.slice(0, MAX_TABS - 1);
-    const active = tabs.find(tab => tab.path === activePath);
-    shown = active && !shown.includes(active) ? [...shown, active] : tabs.slice(0, MAX_TABS);
-    rest = tabs.filter(tab => !shown.includes(tab));
-  }
-  const menuId = `page-tabs-more-${tabset.id}`;
-  const link = (tab: RouteDef, className: string) => (
-    <NavLink
-      key={tab.path} to={tab.path} className={`${className}${tab.path === activePath ? ' active' : ''}`}
-      aria-current={tab.path === activePath ? 'page' : undefined}
-    >
-      {t(tab.labelKey)}
-    </NavLink>
-  );
+  if (tabs.length < 2 && !back) return null;
 
   return (
     <nav className="page-tabs" aria-label={t(tabset.labelKey)}>
       <div className="page-tabs-strip">
-        {shown.map(tab => link(tab, 'page-tab'))}
-        {rest.length > 0 && (
-          <div className="page-tabs-more" ref={more}>
-            <button type="button" className="page-tab" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen(cur => !cur)}>
-              {t('nav.tabs.more', { count: rest.length })}
-            </button>
-            {open && <div id={menuId} className="page-tabs-menu">{rest.map(tab => link(tab, 'page-tabs-item'))}</div>}
-          </div>
+        {back && <Link to={back.path} className="page-tab page-tabs-back">‹ {t(back.labelKey)}</Link>}
+        {tabs.map(tab => (
+          <Link
+            key={tab.path} to={tab.path} className={`page-tab${tab.path === activePath ? ' active' : ''}`}
+            aria-current={tab.path === activePath ? 'page' : undefined}
+          >
+            {t(tab.labelKey)}
+          </Link>
+        ))}
+      </div>
+      <div className="page-tabs-phone">
+        {back && <Link to={back.path} className="page-tabs-back">‹ {t(back.labelKey)}</Link>}
+        {tabs.length > 1 && (
+          <select className="page-tabs-select" aria-label={t(tabset.labelKey)} value={activePath} onChange={e => navigate(e.target.value)}>
+            {tabs.map(tab => <option key={tab.path} value={tab.path}>{t(tab.labelKey)}</option>)}
+          </select>
         )}
       </div>
-      <select className="page-tabs-select" aria-label={t(tabset.labelKey)} value={activePath} onChange={e => navigate(e.target.value)}>
-        {tabs.map(tab => <option key={tab.path} value={tab.path}>{t(tab.labelKey)}</option>)}
-      </select>
     </nav>
   );
 }

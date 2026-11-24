@@ -99,6 +99,7 @@ describe('technician', () => {
       '/maintenance-windows',
       '/coverage-zones',
       '/service-areas',
+      '/technician-map', // dispatch: where the technicians are
     ]);
     expect(nav.inventory.items).toHaveLength(6);
     expect(nav.network.items).toContain('/devices');

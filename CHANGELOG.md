@@ -5,6 +5,20 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Network menu: everyday pages up front, the rest under Network setup.**
+  The Network section now has six sidebar rows. Five hold what is opened
+  daily, each with its pages as tabs: Monitoring, Topology Map, Subscribers
+  online, Equipment (sites, devices, NAS, OLT, ONU, wireless, CPE) and IP
+  addresses. The sixth, Network setup, opens a page of cards for what is
+  configured once and rarely revisited (polling, alerts, device
+  configuration, fibre plant, customer equipment profiles, sessions and
+  speed, addressing, equipment tools, VPN access), each card saying in a
+  line what it is for. A setup page shows the other pages of its card as
+  tabs and a link back to Network setup. No tab strip has more than seven
+  tabs, so the "More" menu is gone. Nothing was removed: every page keeps
+  its address and is still found by search. Technician map moved to Field
+  Work.
+
 ## 0.1.0-alpha.37 — 2026-11-24
 
 - **The Network badge counts its groups.** The number beside Network in the

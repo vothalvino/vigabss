@@ -692,16 +692,33 @@
       "monitor": "Monitoring",
       "subscribers": "Subscribers online",
       "equipment": "Equipment",
-      "fibre": "Fibre (FTTH)",
-      "wireless": "Wireless (WISP)",
-      "cpe": "Customer equipment",
       "addresses": "IP addresses",
-      "speedAccess": "Speed and suspension",
-      "pollingAlerts": "Polling and alerts",
-      "deviceConfig": "Device configuration"
+      "polling": "Polling",
+      "alerts": "Alerts",
+      "deviceConfig": "Device configuration",
+      "fibrePlant": "Fibre plant",
+      "cpeSetup": "Customer equipment",
+      "sessionsSpeed": "Sessions and speed",
+      "addressing": "Addressing",
+      "equipmentTools": "Equipment tools",
+      "access": "Access"
     },
-    "tabs": {
-      "more": "More ({{count}})"
+    "setupHints": {
+      "polling": "How equipment is read over SNMP: profiles, schedules, poller nodes, and the readings and traps they collect.",
+      "alerts": "Who is told when something goes wrong, in what order, and what is kept quiet.",
+      "deviceConfig": "Saved copies of equipment configuration, templates, and the rules they are checked against.",
+      "fibrePlant": "PON ports, fibre routes, frames and test records.",
+      "cpeSetup": "Profiles applied to customer equipment and tools to test it remotely.",
+      "sessionsSpeed": "PPPoE profiles, certificates, speed classes and the rules that suspend service.",
+      "addressing": "DHCP servers, reverse DNS records and IPv6 transition mechanisms.",
+      "equipmentTools": "Group equipment, find it by scanning, import it from a file, and review radio readings.",
+      "access": "Your own VPN tunnels into the network."
+    },
+    "setup": {
+      "network": {
+        "title": "Network setup",
+        "hint": "What is configured once and rarely revisited. Everyday work is in the sidebar; everything here is also found by search."
+      }
     },
     "dashboard": "Dashboard",
     "clients": "Clients",

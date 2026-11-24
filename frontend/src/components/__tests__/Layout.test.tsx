@@ -473,15 +473,33 @@ describe('Layout — grouped sidebar navigation', () => {
   it('shows the pages of a tab set as tabs over the page, titled by the set', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/onu-management'] });
-    const tabs = screen.getByRole('navigation', { name: 'Fibre (FTTH)' });
-    const links = within(tabs).getAllByRole('link');
-    expect(links.map(link => link.textContent)).toEqual(['OLT Management', 'ONU Management', 'PON Ports', 'Fiber Plant']);
-    expect(links.map(link => link.getAttribute('href'))).toEqual(['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management']);
-    expect(within(tabs).getByRole('link', { current: 'page' }).textContent).toBe('ONU Management');
-    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Fibre (FTTH)');
+    const tabs = screen.getByRole('navigation', { name: 'Equipment' });
+    const links = within(tabs.querySelector('.page-tabs-strip') as HTMLElement).getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/sites', '/devices', '/nas', '/olt-management', '/onu-management', '/wireless', '/cpe-management']);
+    expect(links.find(link => link.getAttribute('aria-current'))?.textContent).toBe('ONU Management');
+    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Equipment');
     // The sidebar row for the set is current on any of its pages.
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getByRole('link', { current: 'page' }).textContent).toBe('Fibre (FTTH)');
+    expect(within(nav).getByRole('link', { current: 'page' }).textContent).toBe('Equipment');
+  });
+
+  it('a setup page shows the way back and its card\'s pages, under the Network setup row', () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/alert-escalation-chains'] });
+    const strip = document.querySelector('.page-tabs-strip') as HTMLElement;
+    expect(within(strip).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/network/setup', '/alert-channels', '/alert-escalation-chains', '/alert-suppression-rules']);
+    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Alerts');
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const row = within(nav).getByRole('link', { current: 'page' });
+    expect([row.textContent, row.getAttribute('href')]).toEqual(['Network setup', '/network/setup']);
+  });
+
+  it('the setup page itself is titled and highlights its row', () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/network/setup'] });
+    expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Network setup');
+    expect(document.querySelector('.page-tabs')).toBeNull();
+    expect(document.querySelector('.nav-leaf.active')?.textContent).toBe('Network setup');
   });
 
   it('a sidebar row leads to the page of its set that was open last', () => {
@@ -496,17 +514,17 @@ describe('Layout — grouped sidebar navigation', () => {
 
   it('the row of the page being viewed points at that page, not at the one opened before', () => {
     mockUseAuth(makeUser('admin'));
-    localStorage.setItem('vigabss.nav.lastTab.fibre', '/olt-management');
+    localStorage.setItem('vigabss.nav.lastTab.equipment', '/olt-management');
     renderLayout({ initialEntries: ['/onu-management'] });
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getByText('Fibre (FTTH)').getAttribute('href')).toBe('/onu-management');
+    expect(within(nav).getByText('Equipment').getAttribute('href')).toBe('/onu-management');
   });
 
   it('a section grouped into tab sets counts its groups, not the pages inside them', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/network'] });
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getByText('View all 12 →')).toBeInTheDocument();
+    expect(within(nav).getByText('View all 6 →')).toBeInTheDocument();
     expect(within(nav).queryByText('55')).not.toBeInTheDocument();
   });
 
