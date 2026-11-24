@@ -5,6 +5,22 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The network as a simple tree, with a map for each main NAS.** Topology
+  Map has two new tabs.
+  - **Tree** shows what feeds what: a main NAS at the top and, in branches
+    under it, the sub-NAS routers, point-to-point and point-to-multipoint
+    links, OLTs, switches, battery monitors and anything else. An ISP with
+    more than one network or origin marks more than one NAS as main and gets
+    a tree for each, with a picker to look at one. Equipment is placed, moved
+    or taken out with a button on its row; what has no place yet is listed
+    under the trees. A piece of equipment has one parent, a main NAS has
+    none, and a move that would make a loop is refused.
+  - **Network map** is one map per main NAS: everything in its tree, placed
+    by clicking the equipment and then its spot, with a line from each piece
+    to what feeds it.
+  - "Battery monitor" is a new device type.
+  (migration 027)
+
 - **Links can be drawn on the network map.** "Add a link" on the Topology Map
   lets you click two markers and say what joins them (fibre, wireless,
   copper, virtual or other, with an optional capacity). Clicking a link

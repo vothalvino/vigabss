@@ -1,4 +1,50 @@
 {
+  "networkTree": {
+    "intro": "Qué alimenta a qué. Cada NAS principal es la cabeza de una red; todo lo que alimenta aparece debajo.",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo cargar el árbol de red.",
+    "network": "Red",
+    "allNetworks": "Todas las redes",
+    "noMain": "Aún no hay un NAS marcado como principal. Marca uno abajo para iniciar un árbol.",
+    "emptyTree": "Aún no hay nada colocado debajo de este NAS.",
+    "unplacedTitle": "Sin colocar ({{count}})",
+    "unplacedNone": "Todo tiene su lugar en un árbol.",
+    "place": "Colocar debajo de…",
+    "move": "Mover…",
+    "takeOut": "Quitar",
+    "markMain": "Hacer NAS principal",
+    "unmarkMain": "No es NAS principal",
+    "placeUnder": "Colocar {{name}} debajo de",
+    "choose": "Elegir…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "noParents": "Primero marca un NAS como principal.",
+    "types": {
+      "mainNas": "NAS principal",
+      "nas": "NAS",
+      "router": "Router",
+      "ptp": "Enlace punto a punto",
+      "ptmp_ap": "AP punto a multipunto",
+      "olt": "OLT",
+      "switch": "Switch",
+      "battery_monitor": "Monitor de baterías",
+      "outdoor_cpe": "CPE exterior",
+      "indoor_cpe": "CPE interior",
+      "onu": "ONU",
+      "other": "Otro"
+    }
+  },
+  "networkMap": {
+    "intro": "Un mapa por cada NAS principal. Coloca todo lo que hay en su árbol; una línea une cada equipo con el que lo alimenta.",
+    "mainNas": "NAS principal",
+    "choose": "Elige un NAS principal…",
+    "noMain": "Aún no hay un NAS marcado como principal. Marca uno en la pestaña Árbol para tener su mapa.",
+    "nothingPlaced": "Aún no hay nada de {{name}} en el mapa. Acerca el mapa a donde está y colócalo desde la lista de abajo.",
+    "clickToPlace": "Haz clic en el mapa donde está {{name}}.",
+    "moveHint": "Para mover algo, haz clic en él y luego en su nuevo lugar.",
+    "notPlacedTitle": "Aún no están en el mapa",
+    "placeOnMap": "Colocar en el mapa"
+  },
   "nasTypes": {
     "choose": "Elige…",
     "mikrotik": "MikroTik",
@@ -4449,6 +4495,8 @@
     "escalationsLevel": "Nivel"
   },
   "topologyMap": {
+    "tabTree": "Árbol",
+    "tabTreeMap": "Mapa de red",
     "linkStart": "Agregar un enlace",
     "linkCancel": "Dejar de enlazar",
     "linkPickFirst": "Haz clic en el primer punto del enlace en el mapa.",

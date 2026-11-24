@@ -487,6 +487,7 @@ const DEVICE_TYPES: { value: string; label: string }[] = [
   { value: 'router', label: 'Router' },
   { value: 'switch', label: 'Switch' },
   { value: 'onu', label: 'ONU' },
+  { value: 'battery_monitor', label: 'Battery monitor' },
   { value: 'other', label: 'Other' },
 ];
 const DEVICE_STATUSES = ['online', 'offline', 'maintenance'];

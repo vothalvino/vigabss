@@ -22,6 +22,8 @@ import { MapTiles } from '@/components/MapTiles';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { NetworkFabricTab } from './topology/NetworkFabricTab';
+import { NetworkTreeTab } from './topology/NetworkTreeTab';
+import { NetworkMapTab } from './topology/NetworkMapTab';
 import { parseApiError } from '@/api/errors';
 import { apiFetch } from '@/api/apiFetch';
 
@@ -704,13 +706,15 @@ function DependencyTab() {
 // Root page
 // ---------------------------------------------------------------------------
 
-type Tab = 'fabric' | 'network' | 'geographic' | 'dependency';
+type Tab = 'tree' | 'treeMap' | 'fabric' | 'network' | 'geographic' | 'dependency';
 
 export function TopologyMapPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('fabric');
 
   const tabs: Array<{ id: Tab; label: string }> = [
+    { id: 'tree', label: t('topologyMap.tabTree') },
+    { id: 'treeMap', label: t('topologyMap.tabTreeMap') },
     { id: 'fabric', label: t('topologyMap.tabFabric') },
     { id: 'network', label: t('topologyMap.tabNetwork') },
     { id: 'geographic', label: t('topologyMap.tabGeographic') },
@@ -742,6 +746,8 @@ export function TopologyMapPage() {
         ))}
       </div>
 
+      {activeTab === 'tree' && <NetworkTreeTab />}
+      {activeTab === 'treeMap' && <NetworkMapTab />}
       {activeTab === 'fabric' && <NetworkFabricTab />}
       {activeTab === 'network' && <NetworkTopologyTab />}
       {activeTab === 'geographic' && <GeographicMapTab />}

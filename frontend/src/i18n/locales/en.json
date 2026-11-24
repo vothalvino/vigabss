@@ -1,4 +1,50 @@
 {
+  "networkTree": {
+    "intro": "What feeds what. Each main NAS is the top of a network; everything it feeds is listed under it.",
+    "loading": "Loading…",
+    "loadFailed": "The network tree could not be loaded.",
+    "network": "Network",
+    "allNetworks": "All networks",
+    "noMain": "No NAS is marked as main yet. Mark one below to start a tree.",
+    "emptyTree": "Nothing is placed under this NAS yet.",
+    "unplacedTitle": "Not placed yet ({{count}})",
+    "unplacedNone": "Everything has a place in a tree.",
+    "place": "Place under…",
+    "move": "Move…",
+    "takeOut": "Take out",
+    "markMain": "Make main NAS",
+    "unmarkMain": "Not a main NAS",
+    "placeUnder": "Place {{name}} under",
+    "choose": "Choose…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "noParents": "Mark a NAS as main first.",
+    "types": {
+      "mainNas": "Main NAS",
+      "nas": "NAS",
+      "router": "Router",
+      "ptp": "Point-to-point link",
+      "ptmp_ap": "Point-to-multipoint AP",
+      "olt": "OLT",
+      "switch": "Switch",
+      "battery_monitor": "Battery monitor",
+      "outdoor_cpe": "Outdoor CPE",
+      "indoor_cpe": "Indoor CPE",
+      "onu": "ONU",
+      "other": "Other"
+    }
+  },
+  "networkMap": {
+    "intro": "One map per main NAS. Place everything in its tree; a line joins each piece to the equipment that feeds it.",
+    "mainNas": "Main NAS",
+    "choose": "Choose a main NAS…",
+    "noMain": "No NAS is marked as main yet. Mark one in the Tree tab to get its map.",
+    "nothingPlaced": "Nothing under {{name}} is on the map yet. Zoom in to where it is and place it from the list below.",
+    "clickToPlace": "Click the map where {{name}} is.",
+    "moveHint": "To move something, click it and then click its new place.",
+    "notPlacedTitle": "Not on the map yet",
+    "placeOnMap": "Place on the map"
+  },
   "nasTypes": {
     "choose": "Choose…",
     "mikrotik": "MikroTik",
@@ -4449,6 +4495,8 @@
     "escalationsLevel": "Level"
   },
   "topologyMap": {
+    "tabTree": "Tree",
+    "tabTreeMap": "Network map",
     "linkStart": "Add a link",
     "linkCancel": "Stop linking",
     "linkPickFirst": "Click the first point of the link on the map.",

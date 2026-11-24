@@ -27,6 +27,7 @@ const {
   createDependencyEdge,
 } = require('../middleware/schemas/topologyMap');
 const svc = require('../services/topologyMapService');
+const networkTreeService = require('../services/networkTreeService');
 
 const router = Router();
 
@@ -59,6 +60,36 @@ router.post('/map/links', requirePermission('network_links.create'), async (req,
 
 router.delete('/map/links/:id', requirePermission('network_links.delete'), async (req, res, next) => {
   try { res.json({ data: await svc.removeLink(req.orgId, req.params.id) }); } catch (err) { next(err); }
+});
+
+// The network as a tree: main NAS routers at the top, everything they feed
+// under them, and what has not been placed yet.
+router.get('/tree', requirePermission('topology.view'), async (req, res, next) => {
+  try { res.json({ data: await networkTreeService.getTree(req.orgId) }); } catch (err) { next(err); }
+});
+
+// Place equipment under a parent (or take it out of the tree with parent null).
+router.put('/tree/parent', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    res.json({ data: await networkTreeService.setParent(req.orgId, b.node, b.parent ?? null) });
+  } catch (err) { next(err); }
+});
+
+// Put equipment at a point of the map (the map of one main NAS's network).
+router.put('/tree/position', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    res.json({ data: await networkTreeService.setPosition(req.orgId, b.node, b.latitude, b.longitude) });
+  } catch (err) { next(err); }
+});
+
+// Mark a NAS as the top of a tree, or unmark it.
+router.put('/tree/main-nas/:id', requirePermission('devices.update'), async (req, res, next) => {
+  try {
+    if (typeof req.body?.main !== 'boolean') return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'main is required (true or false)' } });
+    res.json({ data: await networkTreeService.setMain(req.orgId, req.params.id, req.body.main) });
+  } catch (err) { next(err); }
 });
 
 router.get('/map/fabric', requirePermission('topology.view'), async (req, res, next) => {
