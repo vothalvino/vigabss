@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.31 — 2026-11-23
+
 - **A draft closing message is reviewed in the reviewer's own language.**
   The person approving a draft in the Incidents tab reads it in the language
   they use VigaBSS in, with what the customer will receive shown under it in
