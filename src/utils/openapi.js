@@ -2858,6 +2858,8 @@ function generateSpec() {
       '/topology/map/network': {
         get: { tags: ['Topology Map'], summary: 'Network device graph with link utilization', operationId: 'getNetworkGraph', security: [{ bearerAuth: [] }], parameters: [{ name: 'layer', in: 'query', required: false, schema: { type: 'string', enum: ['l2', 'l3', 'physical'] } }], responses: r200('nodes + edges') },
       },
+      '/topology/map/links': { post: { tags: ['Topology'], summary: 'Draw a link between two points of the network map. a and b are node ids from GET /topology/map/network: a device id, or "nas-<id>" for a NAS router, which becomes a device the first time it is linked', operationId: 'createMapLink', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['a', 'b'], properties: { a: { type: ['integer', 'string'] }, b: { type: ['integer', 'string'] }, link_type: { type: 'string', enum: ['fiber', 'wireless', 'copper', 'virtual', 'other'] }, capacity_mbps: { type: ['integer', 'null'] } } }, 'Link'), responses: { 201: { description: 'The link' } } } },
+      '/topology/map/links/{id}': { delete: { tags: ['Topology'], summary: 'Remove a link from the network map', operationId: 'removeMapLink', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('id, removed') } },
       '/topology/map/fabric': {
         get: { tags: ['Topology Map'], summary: 'Schematic network fabric: tier-laid-out nodes + per-node metrics, links, ongoing outages', operationId: 'getNetworkFabric', security: [{ bearerAuth: [] }], responses: r200('{ nodes (with tier + metrics), edges, incidents }') },
       },

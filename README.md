@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 390 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 025)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 026)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -759,6 +759,8 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 026 — NAS device:** `nas.device_id` names the device that represents a NAS router on the network map, so a NAS can be the end of a link. The device is created the first time the NAS is linked.
 
 > **Migration 025 — OLT provisioning:** `olt_connections` gains the values a new ONU is provisioned with (line and service profile, VLANs, GEM port, first traffic-table index). New tables: `olt_traffic_tables` (rate-limit tables VigaBSS created on an OLT), `olt_onus` (the ONUs it authorised, their contract, service-port and speeds) and `olt_operations` (every change sent to an OLT with the OLT's answers).
 

@@ -9,7 +9,7 @@
 
 const db = require('../config/database');
 const { inPlaceholders } = require('../utils/sqlBuild');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, NotFoundError } = require('../utils/errors');
 const _logger = require('../utils/logger').child({ service: 'topologyMapService' });
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,157 @@ async function getNetworkGraph(orgId, layer = null) {
     };
   });
 
-  return { nodes, edges: enrichedEdges };
+  // NAS routers are kept in their own table, so they were missing from the
+  // map. A NAS has no coordinates of its own: it is drawn at its site. One
+  // without a located site cannot be placed and is returned separately so the
+  // page can say why it is not shown.
+  const [nasRows] = await db.query(
+    `SELECT n.id, n.name, n.type, n.status, n.ip_address, n.site_id, n.device_id,
+            s.name AS site_name, s.latitude, s.longitude
+       FROM nas n
+       LEFT JOIN sites s ON s.id = n.site_id AND s.deleted_at IS NULL
+      WHERE n.deleted_at IS NULL AND n.organization_id = ?
+      ORDER BY n.name`,
+    [orgId],
+  );
+  const nasNodes = [];
+  const nasWithoutLocation = [];
+  const deviceNodes = new Map(nodes.map((d) => [Number(d.id), d]));
+  for (const n of nasRows) {
+    // A NAS that has been linked is represented by its device (migration 026):
+    // one marker, placed and linked like any device, labelled as the NAS.
+    const twin = n.device_id ? deviceNodes.get(Number(n.device_id)) : null;
+    if (twin) {
+      twin.kind = 'nas';
+      twin.nas_id = n.id;
+      twin.role = n.type || twin.role;
+      if (twin.latitude === null && n.latitude !== null && n.latitude !== undefined) {
+        twin.latitude = Number(n.latitude);
+        twin.longitude = Number(n.longitude);
+      }
+      continue;
+    }
+    if (n.latitude === null || n.latitude === undefined || n.longitude === null || n.longitude === undefined) {
+      nasWithoutLocation.push({ id: n.id, name: n.name, site_name: n.site_name || null });
+      continue;
+    }
+    nasNodes.push({
+      id: `nas-${n.id}`,
+      kind: 'nas',
+      nas_id: n.id,
+      name: n.name,
+      type: 'nas',
+      role: n.type || 'other',
+      status: n.status,
+      latitude: Number(n.latitude),
+      longitude: Number(n.longitude),
+      ip_address: n.ip_address,
+      site_id: n.site_id,
+      site_name: n.site_name,
+    });
+  }
+
+  return { nodes: [...nodes, ...nasNodes], edges: enrichedEdges, nas_without_location: nasWithoutLocation };
+}
+
+const NODE_REF = /^(?:nas-)?[1-9]\d{0,18}$/;
+const LINK_TYPES = ['fiber', 'wireless', 'copper', 'virtual', 'other'];
+
+/**
+ * The device behind a map node. A device node is its own id. A NAS node
+ * ("nas-<id>") is the device that represents that NAS, created here the
+ * first time it is needed: a router at the NAS's site, with the site's
+ * coordinates so it stays where it was drawn.
+ *
+ * @param {object} conn  transaction connection
+ * @returns {Promise<number>} devices.id
+ */
+async function deviceForNode(conn, orgId, ref) {
+  const text = String(ref ?? '');
+  if (!NODE_REF.test(text)) throw new ValidationError('A link joins two points of the map');
+  if (!text.startsWith('nas-')) {
+    const [rows] = await conn.query(
+      'SELECT id FROM devices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [Number(text), orgId],
+    );
+    if (!rows[0]) throw new ValidationError('That device does not exist');
+    return Number(rows[0].id);
+  }
+  const nasId = Number(text.slice(4));
+  const [rows] = await conn.query(
+    `SELECT n.id, n.name, n.type, n.ip_address, n.site_id, n.device_id, s.latitude, s.longitude
+       FROM nas n
+       LEFT JOIN sites s ON s.id = n.site_id AND s.deleted_at IS NULL
+      WHERE n.id = ? AND n.organization_id = ? AND n.deleted_at IS NULL
+      FOR UPDATE`,
+    [nasId, orgId],
+  );
+  const nas = rows[0];
+  if (!nas) throw new ValidationError('That NAS does not exist');
+  if (nas.device_id) {
+    const [live] = await conn.query(
+      'SELECT id FROM devices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [nas.device_id, orgId],
+    );
+    if (live[0]) return Number(live[0].id);
+  }
+  const [ins] = await conn.query(
+    `INSERT INTO devices (organization_id, site_id, category, name, type, manufacturer, ip_address, latitude, longitude, role)
+     VALUES (?, ?, 'pop', ?, 'router', ?, ?, ?, ?, 'core')`,
+    [orgId, nas.site_id || null, nas.name, nas.type && nas.type !== 'other' ? nas.type : null, nas.ip_address || null,
+      nas.latitude ?? null, nas.longitude ?? null],
+  );
+  await conn.query('UPDATE nas SET device_id = ? WHERE id = ? AND organization_id = ?', [ins.insertId, nasId, orgId]);
+  return Number(ins.insertId);
+}
+
+/**
+ * Draw a link between two map nodes (devices or NAS routers).
+ * @param {{a: number|string, b: number|string, link_type?: string, capacity_mbps?: number|null}} input
+ */
+async function createLink(orgId, input) {
+  const linkType = input.link_type === undefined || input.link_type === null ? 'fiber' : String(input.link_type);
+  if (!LINK_TYPES.includes(linkType)) throw new ValidationError('link_type is not valid');
+  let capacity = null;
+  if (input.capacity_mbps !== undefined && input.capacity_mbps !== null && input.capacity_mbps !== '') {
+    capacity = Number(input.capacity_mbps);
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000000) throw new ValidationError('capacity_mbps must be a whole number of Mbps');
+  }
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const deviceA = await deviceForNode(conn, orgId, input.a);
+    const deviceB = await deviceForNode(conn, orgId, input.b);
+    if (deviceA === deviceB) throw new ValidationError('A link joins two different points');
+    const [existing] = await conn.query(
+      `SELECT id FROM network_links
+        WHERE organization_id = ? AND deleted_at IS NULL AND status != 'decommissioned'
+          AND ((device_a_id = ? AND device_b_id = ?) OR (device_a_id = ? AND device_b_id = ?))
+        LIMIT 1`,
+      [orgId, deviceA, deviceB, deviceB, deviceA],
+    );
+    if (existing[0]) throw new ValidationError('These two points are already linked');
+    const [ins] = await conn.query(
+      `INSERT INTO network_links (organization_id, device_a_id, device_b_id, link_type, medium, capacity_mbps, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+      [orgId, deviceA, deviceB, linkType, ['fiber', 'wireless', 'copper'].includes(linkType) ? linkType : null, capacity],
+    );
+    await conn.commit();
+    return { id: ins.insertId, source: deviceA, target: deviceB, link_type: linkType, capacity_mbps: capacity };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Remove a link from the map (soft delete). */
+async function removeLink(orgId, linkId) {
+  const [result] = await db.query(
+    'UPDATE network_links SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [linkId, orgId],
+  );
+  if (!result.affectedRows) throw new NotFoundError('Network link');
+  return { id: Number(linkId), removed: true };
 }
 
 /**
@@ -719,6 +869,9 @@ async function deleteInfrastructurePoint(orgId, id) {
 }
 
 module.exports = {
+  createLink,
+  removeLink,
+  deviceForNode,
   getNetworkGraph,
   getFabric,
   getCustomerLocations,

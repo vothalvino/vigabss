@@ -592,6 +592,7 @@ CREATE TABLE IF NOT EXISTS nas (
     coa_port    SMALLINT UNSIGNED NULL DEFAULT 3799 COMMENT 'UDP port for RADIUS CoA/Disconnect messages (migration 232)',
     location    VARCHAR(200)    NULL COMMENT 'Free-form physical location description (migration 232)',
     site_id     BIGINT UNSIGNED NULL COMMENT 'Physical site where this NAS is installed (FK -> sites.id; SET NULL on site deletion) (migration 232)',
+    device_id   BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'devices.id that represents this NAS on the network map (migration 026)',
     secondary_nas_id BIGINT UNSIGNED NULL COMMENT 'Standby / secondary NAS for active-standby redundancy (self-ref FK -> nas.id) (migration 232)',
     health_status ENUM('unknown','up','down') NOT NULL DEFAULT 'unknown' COMMENT 'Last known health state (migration 232)',
     last_health_check_at DATETIME NULL COMMENT 'When health_status was last refreshed (migration 232)',
@@ -613,7 +614,10 @@ CREATE TABLE IF NOT EXISTS nas (
     KEY idx_nas_status (status),
     KEY idx_nas_deleted_at (deleted_at),
     KEY idx_nas_site_id (site_id),
+    UNIQUE KEY uq_nas_device (device_id),
     KEY idx_nas_secondary_nas_id (secondary_nas_id),
+    CONSTRAINT fk_nas_device FOREIGN KEY (device_id)
+        REFERENCES devices (id) ON DELETE SET NULL,
     CONSTRAINT fk_nas_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_nas_site FOREIGN KEY (site_id)
