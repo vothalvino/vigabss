@@ -94,7 +94,7 @@ async function pathForContract(orgId, contractId) {
     `SELECT c.id, c.client_id, c.status, c.access_technology, c.wireless_signal_min_dbm, c.optical_min_dbm,
             p.name AS plan_name, p.access_technology AS plan_technology, p.download_speed_mbps, p.upload_speed_mbps
        FROM contracts c
-       LEFT JOIN plans p ON p.id = c.plan_id AND p.organization_id = c.organization_id
+       LEFT JOIN plans p ON p.id = c.plan_id AND p.organization_id = c.organization_id /* includes deleted rows: a contract keeps the speed of a plan that was later retired */
       WHERE c.id = ? AND c.organization_id = ? AND c.deleted_at IS NULL`,
     [contractId, orgId],
   );
