@@ -421,7 +421,7 @@ router.get('/:id/connection-checks', requirePermission('contracts.view'), async 
 });
 
 // Run the check now and keep it as evidence (optionally on a ticket).
-router.post('/:id/connection-checks', requirePermission('contracts.view'), async (req, res, next) => {
+router.post('/:id/connection-checks', requirePermission('contracts.update'), async (req, res, next) => {
   try {
     const path = await customerPathService.pathForContract(req.orgId, req.params.id);
     const ticketId = Number.isInteger(Number(req.body?.ticket_id)) && Number(req.body.ticket_id) > 0

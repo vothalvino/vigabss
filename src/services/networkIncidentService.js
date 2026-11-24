@@ -357,7 +357,7 @@ async function recordCheck(orgId, path, context = {}) {
   const source = context.source === 'assistant' ? 'assistant' : 'staff';
   const [ins] = await db.query(
     `INSERT INTO connection_checks
-       (organization_id, contract_id, client_id, source, channel, conversation_id, ticket_id, conclusion_side, conclusion_state, summary, payload)
+       (organization_id, contract_id, client_id, source, reported_via, conversation_id, ticket_id, conclusion_side, conclusion_state, summary, payload)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [orgId, path.contract_id, path.client_id, source, context.channel || null, context.conversationId || null, context.ticketId || null,
       path.conclusion.side, path.conclusion.state, summary, JSON.stringify(path)],
@@ -397,7 +397,7 @@ async function recordCheck(orgId, path, context = {}) {
 /** The connection checks kept for a contract, newest first. */
 async function listChecks(orgId, contractId) {
   const [rows] = await db.query(
-    `SELECT id, source, channel, ticket_id, conclusion_side, conclusion_state, summary, created_at
+    `SELECT id, source, reported_via AS channel, ticket_id, conclusion_side, conclusion_state, summary, created_at
        FROM connection_checks
       WHERE organization_id = ? AND contract_id = ?
       ORDER BY created_at DESC, id DESC

@@ -11802,7 +11802,7 @@ CREATE TABLE IF NOT EXISTS connection_checks (
     contract_id         BIGINT UNSIGNED NOT NULL,
     client_id           BIGINT UNSIGNED NOT NULL,
     source              ENUM('staff','assistant') NOT NULL COMMENT 'Who asked for the check',
-    channel             VARCHAR(20)     NULL COMMENT 'portal, whatsapp, ... when the customer reported it',
+    reported_via        VARCHAR(20)     NULL COMMENT 'portal, whatsapp, ... when the customer reported it',
     conversation_id     BIGINT UNSIGNED NULL,
     ticket_id           BIGINT UNSIGNED NULL,
     conclusion_side     VARCHAR(30)     NOT NULL,

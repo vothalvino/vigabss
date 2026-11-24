@@ -36,7 +36,7 @@ export interface NetworkPath {
 
 const card: React.CSSProperties = { border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 8, padding: 14, margin: '14px 0' };
 
-export function ContractNetworkPath({ contractId }: { contractId: number | string }) {
+export function ContractNetworkPath({ contractId, canKeep = false }: { contractId: number | string; canKeep?: boolean }) {
   const { t } = useTranslation();
   const [asked, setAsked] = useState(false);
   const { data, isFetching, isError, refetch } = useQuery({
@@ -113,12 +113,12 @@ export function ContractNetworkPath({ contractId }: { contractId: number | strin
               {t('customerPath.usage', { mbps: data.saturation.mbps, plan: data.saturation.plan_mbps, pct: data.saturation.pct })}
             </p>
           )}
-          <p style={{ margin: '10px 0 0' }}>
+          {canKeep && <p style={{ margin: '10px 0 0' }}>
             <button type="button" disabled={keep.isPending || keep.isSuccess} onClick={() => keep.mutate()} style={{ cursor: 'pointer' }}>
               {keep.isSuccess ? t('customerPath.kept') : t('customerPath.keep')}
             </button>
             {keep.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 8 }}>{(keep.error as Error).message}</span>}
-          </p>
+          </p>}
           {data.gaps.length > 0 && (
             <div style={{ marginTop: 10, fontSize: '0.85rem' }}>
               <strong>{t('customerPath.notChecked')}</strong>

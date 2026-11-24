@@ -83,6 +83,21 @@ describe('Connection check', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Not enough of this path is measured to say.');
   });
 
+  it('keeping it as evidence is offered only to someone who may, and stores it once', async () => {
+    apiFetch.mockImplementation(async (_p: string, init?: RequestInit) => (init?.method ? { data: { check_id: 300 } } : { data: path() }));
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    await screen.findByRole('status');
+    expect(screen.queryByRole('button', { name: 'Keep as evidence' })).toBeNull();
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={qc}><ContractNetworkPath contractId={12} canKeep /></QueryClientProvider>);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Check now' }).slice(-1)[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Keep as evidence' }));
+    expect(await screen.findByRole('button', { name: 'Kept as evidence' })).toBeDisabled();
+    expect(apiFetch).toHaveBeenCalledWith('/contracts/12/connection-checks', { method: 'POST', body: '{}' });
+  });
+
   it('a failed check says so', async () => {
     apiFetch.mockRejectedValue(new Error('boom'));
     show();

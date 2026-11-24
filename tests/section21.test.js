@@ -480,6 +480,8 @@ describe('supportConversationService', () => {
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
     // INSERT ticket
     db.query.mockResolvedValueOnce([{ insertId: 99 }, undefined]);
+    // the connection check kept for this conversation, added to the ticket (none here)
+    db.query.mockResolvedValueOnce([[], undefined]);
     // UPDATE support_conversations SET ticket_id
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
     // INSERT system message
@@ -498,6 +500,8 @@ describe('supportConversationService', () => {
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
     // transcript read for the ticket description
     db.query.mockResolvedValueOnce([[mockMessage], undefined]);
+    // the connection check kept for this conversation, added to the ticket (none here)
+    db.query.mockResolvedValueOnce([[], undefined]);
     // ticket INSERT fails
     db.query.mockRejectedValueOnce(new Error('tickets table missing'));
     // INSERT system message
@@ -528,6 +532,8 @@ describe('supportConversationService', () => {
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
     // 4. escalate: INSERT ticket
     db.query.mockResolvedValueOnce([{ insertId: 100 }, undefined]);
+    // the connection check kept for this conversation, added to the ticket (none here)
+    db.query.mockResolvedValueOnce([[], undefined]);
     // 5. escalate: UPDATE ticket_id
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }, undefined]);
     // 6. escalate: INSERT system message

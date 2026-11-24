@@ -13,7 +13,7 @@ export function ContractPanels(props: TransitionProps) {
   return (
     <>
       <ContractTransition {...props} />
-      {can(user, 'contracts.view') && <ContractNetworkPath contractId={props.contractId} />}
+      {can(user, 'contracts.view') && <ContractNetworkPath contractId={props.contractId} canKeep={can(user, 'contracts.update')} />}
     </>
   );
 }

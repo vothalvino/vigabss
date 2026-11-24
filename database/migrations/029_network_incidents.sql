@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS connection_checks (
     contract_id         BIGINT UNSIGNED NOT NULL,
     client_id           BIGINT UNSIGNED NOT NULL,
     source              ENUM('staff','assistant') NOT NULL COMMENT 'Who asked for the check',
-    channel             VARCHAR(20)     NULL COMMENT 'portal, whatsapp, ... when the customer reported it',
+    reported_via        VARCHAR(20)     NULL COMMENT 'portal, whatsapp, ... when the customer reported it',
     conversation_id     BIGINT UNSIGNED NULL,
     ticket_id           BIGINT UNSIGNED NULL,
     conclusion_side     VARCHAR(30)     NOT NULL,
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS network_incident_reports (
   COMMENT='Customers who reported a network incident, and the closing message to each (migration 029)';
 
 DELETE FROM scheduled_tasks WHERE task_name = 'network_health_watch';
-INSERT INTO scheduled_tasks
+INSERT IGNORE INTO scheduled_tasks
     (organization_id, task_name, task_type, handler, description, cron_expression, priority, max_retries, timeout_seconds, is_enabled)
 VALUES
     (NULL, 'network_health_watch', 'other', 'networkIncidentService.watch', 'Judges every line and piece of equipment of the network tree and opens or updates incidents for technicians. Sends nothing to customers.', '*/5 * * * *', 'normal', 1, 120, 1);

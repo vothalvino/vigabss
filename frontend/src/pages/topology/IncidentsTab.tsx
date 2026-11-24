@@ -182,7 +182,7 @@ export function IncidentsTab() {
       {data && data.length === 0 && <p>{t(status === 'open' ? 'incidentsBoard.noneOpen' : 'incidentsBoard.noneClosed')}</p>}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {(data ?? []).map(incident => (
-          <li key={incident.id} data-state={incident.worst_state} style={{ borderLeft: `5px solid ${HEALTH_COLOR[incident.worst_state]}`, padding: '8px 12px', marginBottom: 8, background: 'var(--card-bg, transparent)', border: '1px solid var(--border-color, #e2e8f0)', borderLeftWidth: 5, borderLeftColor: HEALTH_COLOR[incident.worst_state], borderRadius: 6 }}>
+          <li key={incident.id} data-state={incident.worst_state} style={{ borderLeft: `5px solid ${HEALTH_COLOR[incident.worst_state]}`, padding: '8px 12px', marginBottom: 8, border: '1px solid var(--border-color, #e2e8f0)', borderLeftWidth: 5, borderLeftColor: HEALTH_COLOR[incident.worst_state], borderRadius: 6 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
               <strong>{incident.device_name}</strong>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
