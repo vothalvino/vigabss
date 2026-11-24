@@ -96,7 +96,10 @@ export function NetworkMapTab() {
             {onMap.map(node => {
               const from = node.parent_id !== null ? position.get(node.parent_id) : undefined;
               const to = position.get(node.id);
-              return from && to ? <Polyline key={`line-${String(node.id)}`} positions={[from, to]} color={HEALTH_COLOR[lineState(node)]} weight={4} /> : null;
+              // pathOptions, not a color prop: react-leaflet only applies a direct
+              // prop when the line is created, and the health arrives after the
+              // tree, so the lines stayed grey.
+              return from && to ? <Polyline key={`line-${String(node.id)}`} positions={[from, to]} pathOptions={{ color: HEALTH_COLOR[lineState(node)], weight: 4 }} /> : null;
             })}
             {onMap.map(node => (
               <CircleMarker
