@@ -58,6 +58,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { firstOfMonth } = require('../utils/calendarDate');
 const { sqlBusinessToday } = require('../utils/businessDate');
 const { portalAuthenticate } = require('../middleware/portalAuth');
 const { validate } = require('../middleware/validate');
@@ -977,8 +978,7 @@ router.get('/dashboard', async (req, res, next) => {
     // Current month usage summary
     let usage = null;
     if (contract) {
-      const now = new Date();
-      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const monthStart = firstOfMonth();
       const [[usageRow]] = await db.query(
         `SELECT COALESCE(SUM(bytes_in_delta), 0) AS bytes_in,
                 COALESCE(SUM(bytes_out_delta), 0) AS bytes_out,
@@ -1064,8 +1064,7 @@ router.get('/usage/current-month', async (req, res, next) => {
     );
     if (!contracts[0]) return res.json({ data: [] });
 
-    const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const monthStart = firstOfMonth();
 
     const [rows] = await db.query(
       `SELECT u.usage_date AS date,

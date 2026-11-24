@@ -41,6 +41,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { firstOfMonth } = require('../utils/calendarDate');
 const Organization = require('../models/Organization');
 const logger = require('../utils/logger').child({ service: 'revenueSummaryAggregator' });
 
@@ -187,8 +188,7 @@ async function populateOne(organizationId, month = null) {
 }
 
 function firstOfThisMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return firstOfMonth();
 }
 
 module.exports = { populate, populateOne, CYCLE_MONTHS, _firstOfThisMonth: firstOfThisMonth };

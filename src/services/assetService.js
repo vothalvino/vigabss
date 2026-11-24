@@ -3,6 +3,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { monthsBetween } = require('../utils/calendarDate');
 const { sqlBusinessToday } = require('../utils/businessDate');
 const { orgScopeFilter } = require('./organizationFanOut');
 
@@ -37,7 +38,7 @@ function calculateDepreciation(asset) {
   const now = new Date();
   const monthsElapsed = Math.max(
     0,
-    (now.getFullYear() - purchaseDate.getFullYear()) * 12 + (now.getMonth() - purchaseDate.getMonth()),
+    monthsBetween(purchaseDate, now),
   );
 
   if (asset.depreciation_method === 'straight_line') {

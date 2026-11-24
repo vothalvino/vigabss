@@ -42,13 +42,15 @@ describe('generateBillingPeriod', () => {
       .mockResolvedValueOnce([[{ id: 9 }]]);
 
     await billingService.generateBillingPeriod({
-      id: 1, start_date: new Date(2026, 0, 2), first_activated_at: new Date(2026, 0, 20, 15, 30), billing_day: 1,
+      id: 1, start_date: new Date(Date.UTC(2026, 0, 2)), first_activated_at: new Date(Date.UTC(2026, 0, 20, 15, 30)), billing_day: 1,
     });
 
+    // A calendar date is 00:00 UTC of its day, whatever zone this machine is in.
     const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO billing_periods/.test(sql));
-    const periodStart = insert[1][1];
-    expect([periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate()]).toEqual([2026, 0, 20]);
-    expect(periodStart.getHours()).toBe(0);
+    const [, periodStart, periodEnd, scheduledAt] = insert[1];
+    expect(periodStart.toISOString()).toBe('2026-01-20T00:00:00.000Z');
+    expect(periodEnd.toISOString()).toBe('2026-02-19T00:00:00.000Z');
+    expect(scheduledAt.toISOString()).toBe('2026-01-01T00:00:00.000Z');
   });
 });
 

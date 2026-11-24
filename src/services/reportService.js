@@ -7,6 +7,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { firstOfMonth } = require('../utils/calendarDate');
 const { businessToday, sqlBusinessToday } = require('../utils/businessDate');
 
 // ---------------------------------------------------------------------------
@@ -14,9 +15,7 @@ const { businessToday, sqlBusinessToday } = require('../utils/businessDate');
 // ---------------------------------------------------------------------------
 
 function defaultFrom() {
-  return new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  return firstOfMonth();
 }
 
 function defaultTo() {

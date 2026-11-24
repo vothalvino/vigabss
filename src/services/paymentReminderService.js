@@ -7,6 +7,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { utcDay } = require('../utils/calendarDate');
 const messageOutbox = require('./messageOutbox');
 const smsTransport = require('./smsTransport');
 const logger = require('../utils/logger');
@@ -97,10 +98,8 @@ async function logReminder(invoiceId, organizationId, stage, channel) {
  * @returns {string[]}         stage names that should have been sent, e.g. ['before_7', 'on_due']
  */
 function computeStagesToSend(dueDateStr, settings) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dueDate = new Date(dueDateStr);
-  dueDate.setHours(0, 0, 0, 0);
+  const today = utcDay();
+  const dueDate = utcDay(dueDateStr);
 
   const diffDays = Math.round((dueDate - today) / 86400000); // positive = future, negative = past
 
@@ -252,4 +251,6 @@ module.exports = {
   getReminderSettings,
   upsertReminderSettings,
   sendPaymentReminders,
+  // exported for tests
+  computeStagesToSend,
 };

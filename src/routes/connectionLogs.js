@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { addDays } = require('../utils/calendarDate');
 const rateLimit = require('express-rate-limit');
 const net = require('net');
 const { canonicalIpv6, containingIpv6Prefixes } = require('../utils/ipAddress');
@@ -482,7 +483,7 @@ function numericUsage(row) {
 
 router.get('/daily-usage', requirePermission('connection_logs.view'), async (req, res, next) => {
   try {
-    const defaultTo = new Date(); const defaultFrom = new Date(); defaultFrom.setDate(defaultFrom.getDate() - 30);
+    const defaultTo = new Date(); const defaultFrom = addDays(defaultTo, -30);
     const from = req.query.date_from ? dateQuery(req.query.date_from, 'date_from', { dateOnly: true }) : defaultFrom.toISOString().slice(0, 10);
     const to = req.query.date_to ? dateQuery(req.query.date_to, 'date_to', { dateOnly: true }) : defaultTo.toISOString().slice(0, 10);
     const conditions = ['u.organization_id = ?', 'u.usage_date >= ?', 'u.usage_date <= ?'];
@@ -531,7 +532,7 @@ router.get('/daily-usage', requirePermission('connection_logs.view'), async (req
 
 router.get('/top-consumers', requirePermission('connection_logs.view'), async (req, res, next) => {
   try {
-    const defaultTo = new Date(); const defaultFrom = new Date(); defaultFrom.setDate(defaultFrom.getDate() - 30);
+    const defaultTo = new Date(); const defaultFrom = addDays(defaultTo, -30);
     const from = req.query.date_from ? dateQuery(req.query.date_from, 'date_from', { dateOnly: true }) : defaultFrom.toISOString().slice(0, 10);
     const to = req.query.date_to ? dateQuery(req.query.date_to, 'date_to', { dateOnly: true }) : defaultTo.toISOString().slice(0, 10);
     const limit = Math.min(Math.max(1, Number.parseInt(req.query.limit, 10) || 10), 100);

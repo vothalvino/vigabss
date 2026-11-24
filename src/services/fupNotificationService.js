@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { firstOfMonth, lastOfMonth } = require('../utils/calendarDate');
 const dataPackService = require('./dataPackService');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 
@@ -95,10 +96,8 @@ async function monthUsage(contract, billingMonth, endStr) {
 }
 
 async function checkAndNotifyThresholds(organizationId) {
-  const now = new Date();
-  const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const endStr = endOfMonth.toISOString().slice(0, 10);
+  const billingMonth = firstOfMonth();
+  const endStr = lastOfMonth();
 
   const [contracts] = await db.query(
     `SELECT c.id, c.organization_id, c.client_id,

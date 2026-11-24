@@ -1424,6 +1424,17 @@ trees for staff and subscriber users:
 - TanStack Query owns server-state fetching/caching where adopted.
 - `frontend/src/api/client.ts` owns authenticated transport behavior.
 
+Calendar dates (a billing period's first day, a due date, the first of the
+month) are JS Dates at 00:00 UTC of that day: what the database driver returns
+for a DATE column and writes back, its `timezone` being `+00:00`. Arithmetic on
+them goes through `src/utils/calendarDate.js`, which uses the UTC calendar.
+JavaScript's local-time methods (`getDate`, `setMonth`, `new Date(y, m, d)`)
+depend on the process's time zone and must not be used for calendar dates:
+they gave other days on a machine outside UTC. `tests/dateMathTimeZones.test.js`
+runs the billing date code in several zones and demands identical results, and
+lists the few files where local time is intended. The organization's own time
+zone is not applied to these dates; a day is a UTC day.
+
 Staff navigation is registry-driven. Every routed staff page must have a
 matching entry in `frontend/src/nav/routes.ts` unless it is one of the explicit
 registry exceptions. The registry feeds the rail, hub pages, and command
