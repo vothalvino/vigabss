@@ -5,6 +5,27 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The network tree shows what is good, degraded or off.** Each line of the
+  tree, and each piece of equipment, is green, yellow, red, or grey when it
+  is not measured. What is wrong is written under the row with the numbers
+  behind it, and the Network map draws its lines and markers in the same
+  colours. Colours refresh every minute from the SNMP poller's readings.
+  - **Radios (point-to-point and sectors)** are judged on their traffic
+    against what the radio can carry right now, read from the radio, so a
+    link that slows down in bad weather is judged against its real capacity.
+    Airtime is judged where the radio reports it, plus SNR and CCQ. A
+    saturated sector lists the subscriber radios carrying the most.
+  - **Fibre** turns yellow when its received optical power drops suddenly
+    against its own normal of the last seven days, even while traffic still
+    passes, or when the level is near the floor.
+  - **Any line** with a known port turns red when the port is down, and
+    yellow on traffic near its capacity or on climbing port errors.
+  - **Equipment** turns yellow on CPU, memory, temperature or a low battery.
+  - "Line…" on a row chooses which polled port faces what feeds it and the
+    line's capacity. "Limits for the colours" shows every limit and lets
+    someone who may change settings adjust them.
+  Equipment that is not polled is grey, never green. (migration 028)
+
 - **The network as a simple tree, with a map for each main NAS.** Topology
   Map has two new tabs.
   - **Tree** shows what feeds what: a main NAS at the top and, in branches

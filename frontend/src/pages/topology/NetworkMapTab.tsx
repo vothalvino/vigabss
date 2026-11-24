@@ -18,6 +18,8 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { styles } from '../crudStyles';
 import { TREE_QUERY_KEY, fetchTree, flatten, typeKey, type NodeId, type TreeNode } from './networkTree';
+import { HEALTH_COLOR, HEALTH_QUERY_KEY, HEALTH_REFRESH_MS, fetchHealth, verdictText, type HealthState } from './linkHealth';
+import { HealthLegend } from './LinkHealthPanels';
 
 const FALLBACK_CENTER: [number, number] = [19.4326, -99.1332];
 
@@ -35,6 +37,9 @@ export function NetworkMapTab() {
   const [placing, setPlacing] = useState<TreeNode | null>(null);
 
   const { data, isLoading, isError } = useQuery({ queryKey: TREE_QUERY_KEY, queryFn: fetchTree });
+  const { data: health } = useQuery({ queryKey: HEALTH_QUERY_KEY, queryFn: fetchHealth, refetchInterval: HEALTH_REFRESH_MS });
+  const equipmentState = (node: TreeNode): HealthState => health?.nodes?.[String(node.id)]?.equipment.state ?? 'unknown';
+  const lineState = (node: TreeNode): HealthState => health?.nodes?.[String(node.id)]?.uplink?.state ?? 'unknown';
   const placeMutation = useMutation({
     mutationFn: ({ node, lat, lng }: { node: NodeId; lat: number; lng: number }) => apiFetch('/topology/tree/position', {
       method: 'PUT', body: JSON.stringify({ node, latitude: Number(lat.toFixed(7)), longitude: Number(lng.toFixed(7)) }),
@@ -71,6 +76,7 @@ export function NetworkMapTab() {
 
       {main && (
         <>
+          <HealthLegend />
           {!start && <p>{t('networkMap.nothingPlaced', { name: main.name })}</p>}
           {placing && (
             <p style={{ padding: '8px 12px', border: '1px dashed var(--border-color, #9ca3af)', borderRadius: 8 }}>
@@ -90,17 +96,21 @@ export function NetworkMapTab() {
             {onMap.map(node => {
               const from = node.parent_id !== null ? position.get(node.parent_id) : undefined;
               const to = position.get(node.id);
-              return from && to ? <Polyline key={`line-${String(node.id)}`} positions={[from, to]} color="#64748b" weight={2} /> : null;
+              return from && to ? <Polyline key={`line-${String(node.id)}`} positions={[from, to]} color={HEALTH_COLOR[lineState(node)]} weight={4} /> : null;
             })}
             {onMap.map(node => (
               <CircleMarker
                 key={String(node.id)}
                 center={position.get(node.id) as [number, number]}
                 radius={placing?.id === node.id ? 11 : node.is_main ? 10 : node.kind === 'nas' ? 8 : 6}
-                pathOptions={{ color: node.kind === 'nas' ? '#2563eb' : '#0f766e', weight: node.kind === 'nas' ? 3 : 2, fillOpacity: 0.85 }}
+                pathOptions={{ color: node.kind === 'nas' ? '#2563eb' : '#334155', weight: node.kind === 'nas' ? 3 : 2, fillColor: HEALTH_COLOR[equipmentState(node)], fillOpacity: 0.95 }}
                 eventHandlers={canPlace ? { click: () => { placeMutation.reset(); setPlacing(node); } } : undefined}
               >
-                <Tooltip>{node.name} · {t(typeKey(node))}{node.site_name ? ` · ${node.site_name}` : ''}</Tooltip>
+                <Tooltip>
+                  {node.name} · {t(typeKey(node))}{node.site_name ? ` · ${node.site_name}` : ''}
+                  {health?.nodes?.[String(node.id)] ? ` · ${verdictText(t, health!.nodes[String(node.id)].equipment)}` : ''}
+                  {health?.nodes?.[String(node.id)]?.uplink ? ` · ${t('linkHealth.line')}: ${verdictText(t, health!.nodes[String(node.id)].uplink!)}` : ''}
+                </Tooltip>
               </CircleMarker>
             ))}
           </MapContainer>

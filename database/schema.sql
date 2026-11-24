@@ -900,6 +900,8 @@ CREATE TABLE IF NOT EXISTS devices (
     latitude        DECIMAL(10,7)   NULL COMMENT 'Device GPS latitude for topology map pin',
     longitude       DECIMAL(10,7)   NULL COMMENT 'Device GPS longitude for topology map pin',
     parent_device_id BIGINT UNSIGNED NULL COMMENT 'Direct upstream/parent device for dependency graph',
+    uplink_interface VARCHAR(64) NULL DEFAULT NULL COMMENT 'Polled interface (ifIndex) that faces the parent device (migration 028)',
+    uplink_capacity_mbps INT UNSIGNED NULL DEFAULT NULL COMMENT 'What the line to the parent device can carry, in Mbps (migration 028)',
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_devices_org_serial_number (organization_id, serial_number, active_flag),

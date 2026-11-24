@@ -42,6 +42,8 @@ function tree() {
   };
 }
 
+let health: { checked_at: string; limits: Record<string, number>; nodes: Record<string, unknown> };
+
 function show(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
@@ -50,7 +52,14 @@ function show(ui: React.ReactElement) {
 beforeEach(() => {
   permissions = ['devices.update'];
   apiFetch.mockReset();
-  apiFetch.mockImplementation(async (_path: string, init?: RequestInit) => (init?.method ? { data: {} } : { data: tree() }));
+  health = { checked_at: '2026-01-01T00:00:00Z', limits: {}, nodes: {} };
+  apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+    if (init?.method) return { data: {} };
+    if (path === '/topology/health') return { data: health };
+    if (path === '/topology/health/limits') return { data: { limits: { airtime_pct: 80, cpu_pct: 85 }, ranges: { airtime_pct: { default: 80, min: 10, max: 100 }, cpu_pct: { default: 85, min: 10, max: 100 } } } };
+    if (path.endsWith('/ports')) return { data: { uplink_interface: null, uplink_capacity_mbps: null, ports: [{ interface: '3', up: true, rate_mbps: 412.5 }, { interface: '4', up: false, rate_mbps: null }] } };
+    return { data: tree() };
+  });
 });
 
 describe('tree helpers', () => {
@@ -119,6 +128,87 @@ describe('Tree tab', () => {
     apiFetch.mockResolvedValue({ data: { trees: [], unplaced: [], sites: [] } });
     show(<NetworkTreeTab />);
     expect(await screen.findByText(/No NAS is marked as main yet/)).toBeInTheDocument();
+  });
+});
+
+describe('health colours on the tree', () => {
+  const sick = () => {
+    health.nodes = {
+      10: { equipment: { state: 'good', reasons: [] }, uplink: null },
+      11: { equipment: { state: 'good', reasons: [] }, uplink: { state: 'degraded', reasons: [{ code: 'airtime', value: 87, limit: 80 }] } },
+      12: { equipment: { state: 'degraded', reasons: [{ code: 'cpu', value: 97, limit: 85 }] }, uplink: { state: 'off', reasons: [{ code: 'port_down' }] } },
+    };
+  };
+
+  it('each line carries its state, and what is wrong is written out, not only coloured', async () => {
+    sick();
+    show(<NetworkTreeTab />);
+    const ptp = (await screen.findByText('PtP north')).closest('li') as HTMLElement;
+    await waitFor(() => expect(ptp.getAttribute('data-line')).toBe('degraded'));
+    expect(within(ptp).getByText('Line to what feeds it: Degraded: airtime 87% (limit 80%)')).toBeInTheDocument();
+    const olt = screen.getByText('OLT 1').closest('li') as HTMLElement;
+    expect(olt.getAttribute('data-line')).toBe('off');
+    expect(within(olt).getByText('Line to what feeds it: Off: the port is down')).toBeInTheDocument();
+    expect(within(olt).getByText('Equipment: Degraded: CPU 97% (limit 85%)')).toBeInTheDocument();
+    expect(within(olt).getByRole('img', { name: 'Equipment: Degraded: CPU 97% (limit 85%)' })).toBeInTheDocument();
+  });
+
+  it('a saturated sector says what it carries against what it can carry now, and who carries the most', async () => {
+    health.nodes = { 21: {
+      equipment: { state: 'degraded', reasons: [{ code: 'capacity_live', value: 94.4, limit: 85, mbps: 85, capacity_mbps: 90 }], top_clients: [{ device_id: 72, name: 'CPE Luis', mbps: 60 }, { device_id: 71, name: 'CPE Ana', mbps: 20 }] },
+      uplink: { state: 'good', reasons: [] },
+    } };
+    show(<NetworkTreeTab />);
+    const row = (await screen.findByText('Switch B')).closest('li') as HTMLElement;
+    expect(await within(row).findByText('Equipment: Degraded: traffic 85 Mbps is 94.4% of the 90 Mbps the radio can carry right now (limit 85%)')).toBeInTheDocument();
+    expect(within(row).getByText('Carrying the most right now: CPE Luis 60 Mbps, CPE Ana 20 Mbps')).toBeInTheDocument();
+    expect(row.getAttribute('data-line')).toBe('good');
+  });
+
+  it('equipment that is not measured is grey, never green', async () => {
+    show(<NetworkTreeTab />);
+    const row = (await screen.findByText('Switch B')).closest('li') as HTMLElement;
+    expect(row.getAttribute('data-line')).toBe('unknown');
+    expect(within(row).getByRole('img', { name: 'Equipment: Not measured' })).toBeInTheDocument();
+  });
+
+  it('the tree still shows when health cannot be read', async () => {
+    apiFetch.mockImplementation(async (path: string) => { if (path === '/topology/health') throw new Error('down'); return { data: tree() }; });
+    show(<NetworkTreeTab />);
+    expect(await screen.findByText('PtP north')).toBeInTheDocument();
+  });
+
+  it('the port facing the parent and the capacity are chosen per line', async () => {
+    show(<NetworkTreeTab />);
+    const row = (await screen.findByText('PtP north')).closest('li') as HTMLElement;
+    fireEvent.click(within(row).getAllByRole('button', { name: 'Line…' })[0]);
+    const form = await screen.findByRole('form', { name: 'Line from PtP north to what feeds it' });
+    expect(within(form).getByRole('option', { name: 'Port 3 · 412.5 Mbps' })).toBeInTheDocument();
+    expect(within(form).getByRole('option', { name: 'Port 4 · down' })).toBeInTheDocument();
+    fireEvent.change(within(form).getByLabelText('Port facing what feeds it'), { target: { value: '3' } });
+    fireEvent.change(within(form).getByLabelText('Capacity (Mbps)'), { target: { value: '1000' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/topology/health/devices/11/uplink', {
+      method: 'PUT', body: JSON.stringify({ uplink_interface: '3', uplink_capacity_mbps: 1000 }),
+    }));
+  });
+
+  it('limits are changed by someone who may change settings; only what changed is sent', async () => {
+    permissions = ['devices.update', 'settings.update'];
+    show(<NetworkTreeTab />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Limits for the colours' }));
+    const form = await screen.findByRole('form', { name: 'Limits for the colours' });
+    fireEvent.change(within(form).getByLabelText('Airtime in use, % (at or above)'), { target: { value: '65' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save limits' }));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/topology/health/limits', { method: 'PUT', body: JSON.stringify({ airtime_pct: 65 }) }));
+  });
+
+  it('without that permission the limits are shown but cannot be changed', async () => {
+    show(<NetworkTreeTab />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Limits for the colours' }));
+    const form = await screen.findByRole('form', { name: 'Limits for the colours' });
+    expect(within(form).getByLabelText('CPU, % (at or above)')).toBeDisabled();
+    expect(within(form).queryByRole('button', { name: 'Save limits' })).toBeNull();
   });
 });
 
