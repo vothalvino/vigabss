@@ -51,6 +51,10 @@ function cleanLayout(input) {
   };
 }
 
+// db.query prepares its statements, and a prepared statement does not expand a
+// list given for one "?": every value needs its own placeholder.
+const marks = (list) => list.map(() => '?').join(', ');
+
 const asLayout = (value) => (typeof value === 'string' ? JSON.parse(value) : value);
 const templateRow = (row) => ({ id: row.id, name: row.name, locked: Boolean(row.locked), layout: asLayout(row.layout) });
 
@@ -187,21 +191,26 @@ async function assignTemplate(orgId, id, input) {
   const roleIds = idList(input?.group_ids, 'group_ids');
   const userIds = idList(input?.user_ids, 'user_ids');
   if (roleIds.length) {
-    const [roles] = await db.query('SELECT id FROM roles WHERE id IN (?) AND deleted_at IS NULL', [roleIds]);
-    if (roles.length !== roleIds.length) throw new ValidationError('A user group in the list does not exist');
+    const [roles] = await db.query(`SELECT id FROM roles WHERE id IN (${marks(roleIds)}) AND deleted_at IS NULL AND name NOT IN (${marks(NO_SIDEBAR_GROUPS)})`, [...roleIds, ...NO_SIDEBAR_GROUPS]);
+    if (roles.length !== roleIds.length) throw new ValidationError('A user group in the list does not exist or does not use this menu');
   }
   if (userIds.length) {
-    const [users] = await db.query('SELECT id FROM users WHERE id IN (?) AND organization_id = ? AND deleted_at IS NULL', [userIds, orgId]);
+    const [users] = await db.query(`SELECT id FROM users WHERE id IN (${marks(userIds)}) AND organization_id = ? AND deleted_at IS NULL`, [...userIds, orgId]);
     if (users.length !== userIds.length) throw new ValidationError('A person in the list is not in this organization');
   }
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
     await conn.query('DELETE FROM menu_template_assignments WHERE organization_id = ? AND template_id = ?', [orgId, id]);
-    if (roleIds.length) await conn.query('DELETE FROM menu_template_assignments WHERE organization_id = ? AND role_id IN (?)', [orgId, roleIds]);
-    if (userIds.length) await conn.query('DELETE FROM menu_template_assignments WHERE organization_id = ? AND user_id IN (?)', [orgId, userIds]);
+    if (roleIds.length) await conn.query(`DELETE FROM menu_template_assignments WHERE organization_id = ? AND role_id IN (${marks(roleIds)})`, [orgId, ...roleIds]);
+    if (userIds.length) await conn.query(`DELETE FROM menu_template_assignments WHERE organization_id = ? AND user_id IN (${marks(userIds)})`, [orgId, ...userIds]);
     const rows = [...roleIds.map((roleId) => [orgId, id, roleId, null]), ...userIds.map((userId) => [orgId, id, null, userId])];
-    if (rows.length) await conn.query('INSERT INTO menu_template_assignments (organization_id, template_id, role_id, user_id) VALUES ?', [rows]);
+    if (rows.length) {
+      await conn.query(
+        `INSERT INTO menu_template_assignments (organization_id, template_id, role_id, user_id) VALUES ${rows.map(() => '(?, ?, ?, ?)').join(', ')}`,
+        rows.flat(),
+      );
+    }
     await conn.commit();
   } catch (err) {
     await conn.rollback();
@@ -214,7 +223,7 @@ async function assignTemplate(orgId, id, input) {
 
 /** The user groups and people a template can be given to. */
 async function audience(orgId) {
-  const [groups] = await db.query('SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (?) ORDER BY name', [NO_SIDEBAR_GROUPS]);
+  const [groups] = await db.query(`SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (${marks(NO_SIDEBAR_GROUPS)}) ORDER BY name`, NO_SIDEBAR_GROUPS);
   const [people] = await db.query(
     `SELECT id, email, NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), '') AS name
        FROM users WHERE organization_id = ? AND deleted_at IS NULL AND status = 'active' ORDER BY first_name, last_name, email`,

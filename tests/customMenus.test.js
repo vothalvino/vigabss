@@ -168,24 +168,28 @@ describe('templates', () => {
   test('giving a template replaces who had it and moves a group or person off their old one', async () => {
     templates();
     const conn = tx();
-    await menus.assignTemplate(5, 7, { group_ids: [3, 3], user_ids: [9] });
-    expect(conn.calls.map(([sql]) => sql)).toEqual([
-      'DELETE FROM menu_template_assignments WHERE organization_id = ? AND template_id = ?',
-      'DELETE FROM menu_template_assignments WHERE organization_id = ? AND role_id IN (?)',
-      'DELETE FROM menu_template_assignments WHERE organization_id = ? AND user_id IN (?)',
-      'INSERT INTO menu_template_assignments (organization_id, template_id, role_id, user_id) VALUES ?',
+    await menus.assignTemplate(5, '7', { group_ids: [3, 3], user_ids: [9] });
+    expect(conn.calls).toEqual([
+      ['DELETE FROM menu_template_assignments WHERE organization_id = ? AND template_id = ?', [5, '7']],
+      ['DELETE FROM menu_template_assignments WHERE organization_id = ? AND role_id IN (?)', [5, 3]],
+      ['DELETE FROM menu_template_assignments WHERE organization_id = ? AND user_id IN (?)', [5, 9]],
+      ['INSERT INTO menu_template_assignments (organization_id, template_id, role_id, user_id) VALUES (?, ?, ?, ?), (?, ?, ?, ?)', [5, '7', 3, null, 5, '7', null, 9]],
     ]);
-    expect(conn.calls[3][1]).toEqual([[[5, 7, 3, null], [5, 7, null, 9]]]);
     expect(conn.commit).toHaveBeenCalled();
   });
 
   test('a template cannot be given to a person of another organization or to an unknown group', async () => {
     const calls = templates({ users: [] });
     await expect(menus.assignTemplate(5, 7, { user_ids: [44] })).rejects.toMatchObject({ statusCode: 422 });
-    expect(calls.find(([sql]) => /^SELECT id FROM users/.test(sql))[1]).toEqual([[44], 5]);
+    expect(calls.find(([sql]) => /^SELECT id FROM users/.test(sql))).toEqual(['SELECT id FROM users WHERE id IN (?) AND organization_id = ? AND deleted_at IS NULL', [44, 5]]);
     expect(db.getConnection).not.toHaveBeenCalled();
-    templates({ roles: [] });
-    await expect(menus.assignTemplate(5, 7, { group_ids: [77] })).rejects.toMatchObject({ statusCode: 422 });
+    const refused = templates({ roles: [] });
+    await expect(menus.assignTemplate(5, 7, { group_ids: [77, 78] })).rejects.toMatchObject({ statusCode: 422 });
+    // One placeholder per id, and a group that never sees the sidebar is refused too.
+    expect(refused.find(([sql]) => /^SELECT id FROM roles/.test(sql))).toEqual([
+      'SELECT id FROM roles WHERE id IN (?, ?) AND deleted_at IS NULL AND name NOT IN (?, ?, ?)',
+      [77, 78, 'carrier', 'collector', 'reseller_admin'],
+    ]);
     await expect(menus.assignTemplate(5, 7, { group_ids: 'all' })).rejects.toMatchObject({ statusCode: 422 });
   });
 
@@ -197,7 +201,7 @@ describe('templates', () => {
     });
     expect(await menus.audience(5)).toEqual({ groups: [{ id: 3, name: 'billing' }], people: [{ id: 9, name: 'ana@example.com' }, { id: 10, name: 'Beto Ruiz' }] });
     // Carriers, collectors and resellers work in their own apps, without this sidebar.
-    expect(calls[0]).toEqual(['SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (?) ORDER BY name', [['carrier', 'collector', 'reseller_admin']]]);
+    expect(calls[0]).toEqual(['SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (?, ?, ?) ORDER BY name', ['carrier', 'collector', 'reseller_admin']]);
     expect(calls[1][0]).toMatch(/FROM users WHERE organization_id = \? AND deleted_at IS NULL AND status = 'active'/);
     expect(calls[1][1]).toEqual([5]);
   });
@@ -223,6 +227,14 @@ describe('routes and seed', () => {
     }
     expect(routes).toMatch(/const manage = requirePermission\('menu_templates\.manage'\)/);
     expect(routes).toMatch(/router\.use\(authenticate\);\nrouter\.use\(orgScope\);/);
+  });
+
+  test('no list is handed to a single placeholder (prepared statements do not expand it)', () => {
+    const service = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'menuService.js'), 'utf8');
+    expect(service).not.toMatch(/IN \(\?\)/);
+    expect(service).not.toMatch(/VALUES \?[^,)]/);
+    // Every parameter list handed to the database is flat.
+    for (const [, params] of [...service.matchAll(/\.query\([^;]*?,\s*(\[[^\]]*\[[^\]]*\][^\]]*\])\s*\)/g)]) expect(params).toBeUndefined();
   });
 
   test('the service never reads or writes permissions', () => {
