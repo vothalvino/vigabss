@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The message after an incident is closed is written in each customer's
+  own language.** It uses the language the customer wrote in when they
+  reported the fault, whatever language that is, and falls back to the
+  language of their profile when there is nothing they wrote. Before, every
+  customer got the organization's default language. The fixed neutral notice
+  (used when the comment explains nothing or no AI provider is available)
+  exists in English, Spanish and Portuguese only.
+
 - **Network incidents for technicians, and the assistant checks the whole
   path.**
   - **Incidents tab** (Topology Map). The network tree is judged every five

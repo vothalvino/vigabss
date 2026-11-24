@@ -1765,6 +1765,9 @@ the connection service do not change.
 - **Who is written to**: only customers who reported a fault
   (`network_incident_reports`), and only after a technician closes its
   incident. `incidentNoticeService` rewrites the closing comment for them;
+  each customer's message is written in the language of their last message
+  in the conversation where they reported it (any language), else the
+  language of their profile;
   it is sent by itself only when the AI policy is on, the channel is on and
   the mode is `auto_send`, otherwise it is a draft a person approves. A
   message the model did not write (thin comment, no provider, a failure) is
