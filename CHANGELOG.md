@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The Network badge counts its groups.** The number beside Network in the
+  sidebar, and its "View all" row, showed 55 (every page inside the groups)
+  and now show 12, the groups themselves.
+
 - **Fixed: clicking the highlighted Network row jumped to the previous
   tab.** While a page of a group was open, the group's sidebar row still
   pointed at the page opened before it. The row now points at the page
