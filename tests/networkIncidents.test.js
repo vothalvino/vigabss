@@ -316,6 +316,90 @@ describe('each customer is written to in their own language', () => {
   });
 });
 
+describe('a draft is reviewed in the reviewer\'s own language', () => {
+  const policy = { enabled: 1, mode: 'suggest', active_provider_id: 3, default_locale: 'es', tone: 'formal', enabled_channels: { portal: true } };
+  const german = 'Wir haben ein Gerät ersetzt, das Ihre Gegend versorgt.';
+  function draft({ lang = null, reviews = null, said = 'Mein Internet ist langsam', locale = 'de' } = {}) {
+    AiPolicy.findByOrgId.mockResolvedValue(policy);
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM network_incident_reports\s+WHERE id = \? AND incident_id = \? AND organization_id = \?/.test(sql)) {
+        return [[{ id: 1, client_id: 3, contract_id: 9, channel: 'portal', conversation_id: 88, notice_status: 'draft', notice_text: german, notice_lang: lang, notice_reviews: reviews }]];
+      }
+      if (/SELECT locale FROM clients/.test(sql)) return [[{ locale }]];
+      if (/SELECT sm\.content/.test(sql)) return [said ? [{ content: said }] : []];
+      if (/FROM support_conversations/.test(sql)) return [[{ id: 88 }]];
+      return [{ affectedRows: 1 }];
+    });
+  }
+  const sent = () => find(/INSERT INTO support_messages/).map(([, params]) => params[1]);
+
+  test('shown in the reviewer\'s language next to what the customer gets, and translated once', async () => {
+    draft();
+    llm.chat.mockResolvedValue({ text: 'We replaced a piece of equipment that serves your area.' });
+    await expect(notices.review(5, 7, 1, 'en')).resolves.toEqual({ text: 'We replaced a piece of equipment that serves your area.', customer_text: german, translated: true });
+    const { messages } = llm.chat.mock.calls[0][0];
+    expect(messages[0].content).toMatch(/Translate the message into en\./);
+    expect(messages[0].content).toMatch(/add nothing, remove nothing/);
+    expect(find(/SET notice_reviews = \?/)[0][1]).toEqual([JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }), 1, 5]);
+
+    llm.chat.mockClear();
+    draft({ reviews: JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }) });
+    await expect(notices.review(5, 7, 1, 'en-US')).resolves.toMatchObject({ translated: true });
+    expect(llm.chat).not.toHaveBeenCalled();
+  });
+
+  test('two reviewers each get their own language of the same draft', async () => {
+    draft();
+    llm.chat.mockImplementation(async ({ messages }) => ({ text: /into es\./.test(messages[0].content) ? 'Reemplazamos un equipo que da servicio a su zona.' : 'We replaced a piece of equipment that serves your area.' }));
+    expect((await notices.review(5, 7, 1, 'es')).text).toBe('Reemplazamos un equipo que da servicio a su zona.');
+    expect((await notices.review(5, 7, 1, 'en')).text).toBe('We replaced a piece of equipment that serves your area.');
+  });
+
+  test('a draft already in the reviewer\'s language, or with no AI available, is shown as written', async () => {
+    draft({ lang: 'es-MX' });
+    await expect(notices.review(5, 7, 1, 'es')).resolves.toEqual({ text: german, customer_text: german, translated: false });
+    expect(llm.chat).not.toHaveBeenCalled();
+    draft();
+    llm.chat.mockRejectedValue(new Error('down'));
+    await expect(notices.review(5, 7, 1, 'en')).resolves.toMatchObject({ text: german, translated: false });
+    draft();
+    await expect(notices.review(5, 7, 1, 'en; DROP')).resolves.toMatchObject({ translated: false });
+  });
+
+  test('approved unchanged: the customer gets the message exactly as first written, with no new translation', async () => {
+    draft({ reviews: JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }) });
+    await expect(notices.approve(5, 7, 1, 2, 'We replaced a piece of equipment that serves your area.', 'en')).resolves.toMatchObject({ notice_status: 'sent' });
+    expect(sent()).toEqual([german]);
+    expect(llm.chat).not.toHaveBeenCalled();
+  });
+
+  test('approved with changes: the reviewer\'s version is put into the customer\'s language before sending', async () => {
+    draft({ reviews: JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }) });
+    llm.chat.mockResolvedValue({ text: 'Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.' });
+    await notices.approve(5, 7, 1, 2, 'We replaced a piece of equipment. Thank you for your patience.', 'en');
+    expect(sent()).toEqual(['Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.']);
+    const { messages } = llm.chat.mock.calls[0][0];
+    // The customer wrote in German, so their own message says which language.
+    expect(messages[0].content).toMatch(/the language of the sample message given below/);
+    expect(messages[1].content).toMatch(/Mein Internet ist langsam/);
+    expect(messages[1].content).toMatch(/Thank you for your patience/);
+  });
+
+  test('changes that cannot be translated are not sent in the wrong language', async () => {
+    draft({ reviews: JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }) });
+    llm.chat.mockRejectedValue(new Error('down'));
+    await expect(notices.approve(5, 7, 1, 2, 'We replaced a piece of equipment. Thank you.', 'en')).rejects.toThrow(/could not be put into the customer's language/);
+    expect(sent()).toEqual([]);
+  });
+
+  test('a draft never shown translated is sent as the reviewer left it', async () => {
+    draft({ lang: 'es' });
+    await notices.approve(5, 7, 1, 2, 'Texto corregido por una persona.', 'es');
+    expect(sent()).toEqual(['Texto corregido por una persona.']);
+    expect(llm.chat).not.toHaveBeenCalled();
+  });
+});
+
 describe('evidence', () => {
   const path = (findings, conclusion) => ({
     contract_id: 9, client_id: 3, technology: 'wisp', conclusion, findings, saturation: null, gaps: ['not_measured:20'],

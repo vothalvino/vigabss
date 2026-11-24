@@ -6809,6 +6809,10 @@
                 "properties": {
                   "text": {
                     "type": "string"
+                  },
+                  "lang": {
+                    "type": "string",
+                    "description": "The language the reviewer read and edited the draft in. Their changes are put into the customer's language before sending"
                   }
                 }
               }
@@ -6818,6 +6822,57 @@
         "responses": {
           "200": {
             "description": "id, notice_status, error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network-incidents/{id}/reports/{reportId}/draft": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "A draft closing message as its reviewer should read it: in the language given by lang, next to what the customer will receive. Translated once per language",
+        "operationId": "reviewNetworkIncidentNotice",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text, customer_text, translated",
             "content": {
               "application/json": {
                 "schema": {

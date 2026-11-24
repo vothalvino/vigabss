@@ -1,5 +1,7 @@
 {
   "incidentsBoard": {
+    "customerGets": "The customer receives it in their own language:",
+    "willTranslate": "You changed the text. Your version is put into the customer's language when you send it.",
     "intro": "Faulty lines and equipment of the network tree. An incident stays open when the fault clears by itself; a technician closes it and says what was done. Nothing here is sent to customers until then.",
     "show": "Show",
     "status": {

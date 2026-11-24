@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **A draft closing message is reviewed in the reviewer's own language.**
+  The person approving a draft in the Incidents tab reads it in the language
+  they use VigaBSS in, with what the customer will receive shown under it in
+  the customer's language. Sent unchanged, the customer gets the message
+  exactly as first written. If the reviewer changes the text, their version
+  is put into the customer's language when sent; if that cannot be done,
+  nothing is sent. Each language is translated once per draft.
+  (migration 030)
+
 - **The message after an incident is closed is written in each customer's
   own language.** It uses the language the customer wrote in when they
   reported the fault, whatever language that is, and falls back to the

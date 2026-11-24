@@ -1768,6 +1768,9 @@ the connection service do not change.
   each customer's message is written in the language of their last message
   in the conversation where they reported it (any language), else the
   language of their profile;
+  a person approving a draft reads it in their own language
+  (`review()`, cached per language in `notice_reviews`), and an edited
+  draft is translated back into the customer's language before sending;
   it is sent by itself only when the AI policy is on, the channel is on and
   the mode is `auto_send`, otherwise it is a draft a person approves. A
   message the model did not write (thin comment, no provider, a failure) is

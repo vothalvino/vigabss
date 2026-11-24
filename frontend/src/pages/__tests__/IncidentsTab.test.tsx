@@ -33,14 +33,17 @@ function show() {
 }
 let list: unknown[];
 let one: unknown;
+let draft: { text: string; customer_text: string; translated: boolean };
 beforeEach(() => {
   permissions = ['devices.update'];
   list = [incident()];
   one = detail();
+  draft = { text: 'Reemplazamos un equipo que da servicio a su zona.', customer_text: 'Reemplazamos un equipo que da servicio a su zona.', translated: false };
   apiFetch.mockReset();
   apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
     if (init?.method) return { data: {} };
     if (path.startsWith('/network-incidents?')) return { data: list };
+    if (path.includes('/draft?')) return { data: draft };
     return { data: one };
   });
 });
@@ -92,6 +95,7 @@ describe('Incidents', () => {
     expect(await screen.findByText('1 message waiting for approval')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     const box = await screen.findByLabelText('Message for Ana López');
+    await waitFor(() => expect(box).not.toBeDisabled());
     fireEvent.change(box, { target: { value: 'Reemplazamos un equipo de su zona. Gracias por su paciencia.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/send', { method: 'POST', body: JSON.stringify({ text: 'Reemplazamos un equipo de su zona. Gracias por su paciencia.' }) }));
@@ -101,6 +105,41 @@ describe('Incidents', () => {
     expect(screen.queryByLabelText('Message for Luis Pérez')).toBeNull();
     expect(screen.getByText(/Closed by Marta Ruiz/)).toBeInTheDocument();
     expect(screen.getByText(/Technician's note: cambie el radio/)).toBeInTheDocument();
+  });
+
+  describe('a draft in another language', () => {
+    const german = 'Wir haben ein Gerät ersetzt, das Ihre Gegend versorgt.';
+    beforeEach(() => {
+      list = [incident({ status: 'resolved', drafts: 1 })];
+      one = detail({ status: 'resolved', reports: [{ id: 1, client_name: 'Ana López', contract_id: 9, channel: 'portal', reported_at: '2026-03-09T19:20:00Z', notice_status: 'draft', notice_text: german }] });
+      draft = { text: 'We replaced a piece of equipment that serves your area.', customer_text: german, translated: true };
+    });
+    async function open() {
+      show();
+      fireEvent.click(await screen.findByRole('button', { name: 'Closed' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+      const box = await screen.findByLabelText('Message for Ana López');
+      await waitFor(() => expect(box).toHaveValue('We replaced a piece of equipment that serves your area.'));
+      return box;
+    }
+
+    it('is read in the reviewer\'s language, with what the customer will receive shown under it', async () => {
+      await open();
+      expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/draft?lang=en');
+      expect(screen.getByText('The customer receives it in their own language:')).toBeInTheDocument();
+      expect(screen.getByText(german)).toBeInTheDocument();
+    });
+
+    it('sent unchanged or changed, the reviewer\'s language goes with it so the server sends the customer\'s', async () => {
+      const box = await open();
+      fireEvent.change(box, { target: { value: 'We replaced a piece of equipment. Thank you for your patience.' } });
+      expect(screen.getByText(/Your version is put into the customer's language when you send it/)).toBeInTheDocument();
+      expect(screen.queryByText(german)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/send', {
+        method: 'POST', body: JSON.stringify({ text: 'We replaced a piece of equipment. Thank you for your patience.', lang: 'en' }),
+      }));
+    });
   });
 
   it('says that nobody will be written to when no customer reported it', async () => {

@@ -1,5 +1,7 @@
 {
   "incidentsBoard": {
+    "customerGets": "O cliente recebe no próprio idioma:",
+    "willTranslate": "Você alterou o texto. A sua versão é passada para o idioma do cliente ao enviar.",
     "intro": "Linhas e equipamentos da árvore de rede com falha. Um incidente continua aberto quando a falha some sozinha; um técnico o fecha e diz o que foi feito. Nada daqui é enviado aos clientes até então.",
     "show": "Mostrar",
     "status": {

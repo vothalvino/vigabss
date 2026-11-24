@@ -32,7 +32,13 @@ router.post('/:id/close', requirePermission('devices.update'), async (req, res, 
 
 // Approve (optionally edited) or discard the closing message to one customer.
 router.post('/:id/reports/:reportId/send', requirePermission('devices.update'), async (req, res, next) => {
-  try { res.json({ data: await notices.approve(req.orgId, req.params.id, req.params.reportId, req.user?.id, req.body?.text) }); } catch (err) { next(err); }
+  try { res.json({ data: await notices.approve(req.orgId, req.params.id, req.params.reportId, req.user?.id, req.body?.text, req.body?.lang) }); } catch (err) { next(err); }
+});
+
+// The draft as its reviewer should read it: in their language (?lang=), next
+// to what the customer will receive.
+router.get('/:id/reports/:reportId/draft', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await notices.review(req.orgId, req.params.id, req.params.reportId, req.query.lang) }); } catch (err) { next(err); }
 });
 
 router.post('/:id/reports/:reportId/discard', requirePermission('devices.update'), async (req, res, next) => {

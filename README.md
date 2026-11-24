@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 394 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 029)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 030)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -759,6 +759,8 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 030 — Draft review language:** `network_incident_reports.notice_lang` and `notice_reviews` let the person approving a closing message read it in their own language while the customer receives it in theirs.
 
 > **Migration 029 — Network incidents:** `network_incidents` (one per faulty line or equipment, closed only by a technician with a comment), `network_incident_samples` (each bad measurement, for the pattern over days), `network_incident_reports` (customers who reported it and the closing message to each) and `connection_checks` (connection checks kept as evidence). Seeds the task `network_health_watch`.
 
