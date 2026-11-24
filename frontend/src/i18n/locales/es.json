@@ -1,4 +1,46 @@
 {
+  "customerPath": {
+    "title": "Revisión de la conexión",
+    "intro": "Revisa cada salto desde el equipo del cliente hasta el NAS principal y dice dónde está la falla.",
+    "check": "Revisar ahora",
+    "checkAgain": "Revisar de nuevo",
+    "checking": "Revisando…",
+    "failed": "No se pudo revisar la conexión.",
+    "findings": "Lo que se encontró",
+    "path": "La ruta, desde el cliente hacia arriba",
+    "customerEquipment": "Equipo del cliente",
+    "lineToUs": "Enlace hacia nuestra red",
+    "usage": "Usa {{mbps}} Mbps de un plan de {{plan}} Mbps ({{pct}}%).",
+    "notChecked": "Sin revisar:",
+    "sides": {
+      "backhaul": "La falla está en nuestra red, arriba del sector u OLT del cliente.",
+      "access": "La falla está en nuestro equipo de acceso (el sector u OLT) o en la línea que lo alimenta.",
+      "customer_link": "La falla está en el enlace entre el equipo del cliente y nuestra red.",
+      "customer_equipment": "La falla está en el equipo del cliente.",
+      "customer_plan": "Nada está fallando: el cliente usa toda la velocidad de su plan.",
+      "none": "Todo lo medido en esta ruta está bien.",
+      "unknown": "No se mide lo suficiente de esta ruta para saberlo."
+    },
+    "parts": {
+      "equipment": "equipo",
+      "line": "línea",
+      "plan": "plan"
+    },
+    "roles": {
+      "customer": "Cliente",
+      "access": "Acceso",
+      "network": "Red"
+    },
+    "gaps": {
+      "no_customer_equipment": "No hay equipo ligado a este contrato.",
+      "not_seen_on_a_sector": "Ningún sector ha visto el radio del cliente en los últimos 30 minutos.",
+      "onu_not_registered": "El contrato no tiene una ONU registrada en una OLT.",
+      "onu_not_read": "La OLT no tiene una lectura reciente de la ONU.",
+      "access_equipment_unknown": "No se sabe qué sector u OLT atiende a este cliente.",
+      "path_stops_before_main_nas": "La ruta no llega a un NAS principal. Coloca el equipo en el árbol de red.",
+      "not_measured": "{{name}} no se mide (sin lecturas SNMP recientes)."
+    }
+  },
   "linkHealth": {
     "topClients": "Los que más llevan ahora: {{list}}",
     "states": {
@@ -39,6 +81,9 @@
       "battery_pct": "Carga de batería, % (igual o menor)"
     },
     "reasons": {
+      "signal": "señal {{value}} dBm (mínimo {{limit}} dBm)",
+      "onu_offline": "la OLT ve la ONU fuera de línea",
+      "plan_full": "usa {{mbps}} Mbps de un plan de {{plan_mbps}} Mbps ({{value}}%)",
       "capacity_live": "el tráfico de {{mbps}} Mbps es el {{value}}% de los {{capacity}} Mbps que el radio puede llevar ahora (límite {{limit}}%)",
       "offline": "el equipo está fuera de línea",
       "port_down": "el puerto está caído",

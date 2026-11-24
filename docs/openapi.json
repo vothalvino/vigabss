@@ -6557,6 +6557,42 @@
         }
       }
     },
+    "/contracts/{id}/network-path": {
+      "get": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "The contract's path through the network checked hop by hop: the customer's equipment, the sector or OLT, and everything above it up to the main NAS, each with its health. conclusion.side says where a fault is: backhaul, access, customer_link, customer_equipment, customer_plan, none or unknown. gaps lists what could not be checked",
+        "operationId": "getContractNetworkPath",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "technology, plan, hops[], saturation, findings[], conclusion, reaches_main_nas, gaps[], checked_at",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contracts/{id}/transition": {
       "get": {
         "tags": [

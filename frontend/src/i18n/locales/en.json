@@ -1,4 +1,46 @@
 {
+  "customerPath": {
+    "title": "Connection check",
+    "intro": "Checks every hop from the customer's equipment up to the main NAS and says where a fault is.",
+    "check": "Check now",
+    "checkAgain": "Check again",
+    "checking": "Checking…",
+    "failed": "The connection could not be checked.",
+    "findings": "What was found",
+    "path": "The path, from the customer up",
+    "customerEquipment": "Customer's equipment",
+    "lineToUs": "Link to our network",
+    "usage": "Using {{mbps}} Mbps of a {{plan}} Mbps plan ({{pct}}%).",
+    "notChecked": "Not checked:",
+    "sides": {
+      "backhaul": "The fault is in our network, above the customer's sector or OLT.",
+      "access": "The fault is in our access equipment (the sector or OLT) or the line that feeds it.",
+      "customer_link": "The fault is in the link between the customer's equipment and our network.",
+      "customer_equipment": "The fault is in the customer's equipment.",
+      "customer_plan": "Nothing is failing: the customer is using all the speed of their plan.",
+      "none": "Everything measured on this path is good.",
+      "unknown": "Not enough of this path is measured to say."
+    },
+    "parts": {
+      "equipment": "equipment",
+      "line": "line",
+      "plan": "plan"
+    },
+    "roles": {
+      "customer": "Customer",
+      "access": "Access",
+      "network": "Network"
+    },
+    "gaps": {
+      "no_customer_equipment": "No equipment is linked to this contract.",
+      "not_seen_on_a_sector": "No sector has seen the customer's radio in the last 30 minutes.",
+      "onu_not_registered": "The contract has no ONU registered on an OLT.",
+      "onu_not_read": "The OLT has no recent reading of the ONU.",
+      "access_equipment_unknown": "The sector or OLT that serves this customer is not known.",
+      "path_stops_before_main_nas": "The path does not reach a main NAS. Place the equipment in the network tree.",
+      "not_measured": "{{name}} is not measured (no recent SNMP readings)."
+    }
+  },
   "linkHealth": {
     "topClients": "Carrying the most right now: {{list}}",
     "states": {
@@ -39,6 +81,9 @@
       "battery_pct": "Battery charge, % (at or below)"
     },
     "reasons": {
+      "signal": "signal {{value}} dBm (minimum {{limit}} dBm)",
+      "onu_offline": "the OLT sees the ONU offline",
+      "plan_full": "using {{mbps}} Mbps of a {{plan_mbps}} Mbps plan ({{value}}%)",
       "capacity_live": "traffic {{mbps}} Mbps is {{value}}% of the {{capacity}} Mbps the radio can carry right now (limit {{limit}}%)",
       "offline": "the equipment is offline",
       "port_down": "the port is down",
