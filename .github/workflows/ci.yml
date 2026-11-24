@@ -68,6 +68,12 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -424,6 +430,12 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -795,6 +807,12 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

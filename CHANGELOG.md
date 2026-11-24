@@ -12,6 +12,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 - **CI: the number of test workers on a self-hosted runner is a setting.**
   The repository variable `CI_SELF_HOSTED_TEST_WORKERS` sets how many
   backend test suites run at once there; without it the number is 12.
+- **CI: two self-hosted runners on one machine no longer break each
+  other.** Both set up pnpm in the same folder of the shared home directory
+  and cleared it on every run, so jobs running at the same time failed.
+  Each runner now uses its own folder.
 
 ## 0.1.0-alpha.40 — 2026-11-24
 
