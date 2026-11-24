@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: every map had a grey background.** The service worker intercepted
+  the map tile requests to the tile provider, its own fetch was refused by
+  the site's security policy, and it answered each tile with a cached page
+  instead of an image. It now leaves requests to other sites to the browser.
+  It also no longer answers a failed image, script or style with the cached
+  page; only a page falls back to it. Browsers pick up the corrected worker
+  on their next visit; a map already open needs one reload.
+
 ## 0.1.0-alpha.32 — 2026-11-23
 
 - **A reopened incident does not write twice to the same customer.** A
