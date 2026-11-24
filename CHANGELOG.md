@@ -10,6 +10,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   has seen in the last day, and the count is refreshed each time the fault
   is seen, so an incident opened before its customers were known no longer
   stays at zero.
+- A contract's connection check no longer lists a hop as "not measured" when
+  its line was measured.
 - The message written for customers when an incident is closed no longer
   carries a place or direction word taken from an equipment name.
 

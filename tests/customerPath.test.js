@@ -162,6 +162,14 @@ describe('what cannot be checked is said', () => {
     expect(out.hops[1].equipment).toEqual(unknown);
   });
 
+  test('a hop whose line is measured is not listed as unmeasured', async () => {
+    const yellow = { state: 'degraded', reasons: [{ code: 'capacity_live', value: 92, limit: 85 }] };
+    world({ nodes: { 40: { equipment: good, uplink: good }, 30: { equipment: unknown, uplink: yellow }, 20: { equipment: unknown, uplink: null } } });
+    const out = await path.pathForContract(5, 9);
+    // 30: its line is judged. 20: nothing is known about it.
+    expect(out.gaps).toEqual(['not_measured:20']);
+  });
+
   test('a path that does not reach a main NAS says so', async () => {
     world({ nodes: allGood });
     linkHealth.assess.mockResolvedValue({ nodes: allGood });

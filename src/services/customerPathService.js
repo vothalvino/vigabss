@@ -252,7 +252,9 @@ async function pathForContract(orgId, contractId) {
           findings.push({ side, state: verdict.state, part, device_id: id, name: cursor.name, reasons: verdict.reasons, ...(verdict.top_clients ? { top_clients: verdict.top_clients } : {}) });
         }
       }
-      if (verdicts.equipment.state === 'unknown') gaps.push(`not_measured:${id}`);
+      // Not measured means nothing at all is known about the hop: neither
+      // the equipment nor its line. A radio whose line is judged is measured.
+      if (verdicts.equipment.state === 'unknown' && (!verdicts.uplink || verdicts.uplink.state === 'unknown')) gaps.push(`not_measured:${id}`);
       if (isMain) { reachesMainNas = true; break; }
       first = false;
       cursor = cursor.parent_device_id ? byId.get(Number(cursor.parent_device_id)) || null : null;
