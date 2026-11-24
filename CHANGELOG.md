@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The network tree can be shown as a chart.** The Tree tab has a List /
+  Chart switch. The chart draws each main NAS on the left and what it feeds
+  in columns to the right, as boxes joined by lines; each line takes the
+  colour of its health, so a fault and everything behind it show at a
+  glance. Branches open and close, and in a tree of more than 40 pieces only
+  the branches with a problem start open. Clicking a box shows what is wrong
+  with it. Moving a piece and setting up its line stay in the list. The
+  chart is the first view on a wide screen and the list on a phone; the
+  choice is remembered per browser.
+
 ## 0.1.0-alpha.34 — 2026-11-24
 
 - **Fixed: lines on the Network map stayed grey.** A line was coloured only
