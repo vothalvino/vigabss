@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **CI: the database jobs can run on self-hosted runners.** They no longer
+  bind MySQL to a fixed port, so two can share a machine, and they take a
+  self-hosted runner when `CI_SELF_HOSTED_RUNNERS` is 3 or 4. The runners
+  need Docker for these.
+- **CI: the number of test workers on a self-hosted runner is a setting.**
+  The repository variable `CI_SELF_HOSTED_TEST_WORKERS` sets how many
+  backend test suites run at once there; without it the number is 12.
+- **CI: two self-hosted runners on one machine no longer break each
+  other.** Both set up pnpm in the same folder of the shared home directory
+  and cleared it on every run, so jobs running at the same time failed.
+  Each runner now uses its own folder.
+
 ## 0.1.0-alpha.40 — 2026-11-24
 
 - **Fixed: a menu template could not be given to anyone.** Choosing user

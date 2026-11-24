@@ -28,8 +28,8 @@ env:
   NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
 
 # Self-hosted runners (opt-in). Jobs that need nothing from the machine but
-# Node (no Docker, service containers, fixed ports, sudo or system packages)
-# can run on the owner's own runners. A runner takes one job at a time, so a
+# Node, or Node and a service container on a port Docker picks (no fixed
+# ports, sudo or system packages), can run on the owner's own runners. A runner takes one job at a time, so a
 # job sent there waits behind the others: moving more jobs than there are
 # runners makes a run slower, not faster. Each such job therefore has a rank,
 # longest first, and uses a self-hosted runner only when the repository
@@ -38,7 +38,9 @@ env:
 #   0 or unset  every job on GitHub-hosted machines (also the setting to use
 #               while the runners' machine is switched off)
 #   1           lint-and-test
-#   2           lint-and-test and frontend-test
+#   2           and frontend-test
+#   3           and db-integration (MX); needs Docker on the runners
+#   4           and db-integration (global)
 # With both jobs on a single runner the second waited for the first and the
 # run took longer than on GitHub-hosted machines (measured November 2026).
 #
@@ -66,6 +68,12 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -112,10 +120,13 @@ jobs:
         # Three is for GitHub-hosted machines (4 cores). A self-hosted runner
         # has many more, and with three workers it used a fraction of them:
         # there the suites run twelve at a time, which leaves memory and
-        # cores for whatever else the owner's machine is doing.
+        # cores for whatever else the owner's machine is doing. The repository
+        # variable CI_SELF_HOSTED_TEST_WORKERS changes that number without an
+        # edit here; each worker can hold about 1 GB, on top of the coverage
+        # process's own heap.
         env:
           NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169 --max-old-space-size=10240
-        run: pnpm exec jest --forceExit --ci --maxWorkers=${{ runner.environment == 'github-hosted' && '3' || '12' }} --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
+        run: pnpm exec jest --forceExit --ci --maxWorkers=${{ runner.environment == 'github-hosted' && '3' || vars.CI_SELF_HOSTED_TEST_WORKERS || '12' }} --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=json-summary
 
       - name: Check coverage threshold
         # Reads the summary the main run already produced — this used to
@@ -366,15 +377,19 @@ jobs:
     # of routes that branch on locale (the sweep only: the RBAC matrix and
     # the money races do not depend on it).
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # Self-hosted ranks 3 and 4 (see the note above `jobs:`). These need Docker
+    # on the runner, for the MySQL service container.
+    runs-on: ${{ fromJSON((vars.CI_SELF_HOSTED_RUNNERS >= matrix.rank && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '["self-hosted","Linux","X64"]' || '["ubuntu-latest"]') }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - locale: MX
             suites: tests/integration/db
+            rank: 3
           - locale: global
             suites: tests/integration/db/tenantIsolationSweep.test.js
+            rank: 4
 
     services:
       mysql:
@@ -382,8 +397,11 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: vigabss_test
           MYSQL_DATABASE: vigabss_integration
+        # No fixed host port: two of these jobs can share one machine, and
+        # the machine may already have something on 3306. Docker picks a free
+        # port and the first step hands it to the tests.
         ports:
-          - 3306:3306
+          - 3306/tcp
         options: >-
           --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
@@ -394,7 +412,6 @@ jobs:
       NODE_ENV: test
       DB_INTEGRATION: '1'
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: vigabss_test
       DB_NAME: vigabss_integration
@@ -406,16 +423,26 @@ jobs:
       DB_RBAC_REPORT: db-rbac-report.json
 
     steps:
+      - name: Point the tests at the MySQL service's port
+        run: echo "DB_PORT=${{ job.services.mysql.ports['3306'] }}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # See lint-and-test: no cache download on a self-hosted runner.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -780,6 +807,12 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          # Self-hosted runners on one machine share a home directory, and this
+          # action clears and refills its folder on every run: two jobs at once
+          # deleted each other's pnpm and store. Each runner gets its own
+          # folder under its tool cache; GitHub-hosted machines keep the default.
+          dest: ${{ runner.environment == 'github-hosted' && '~/setup-pnpm' || format('{0}/setup-pnpm', runner.tool_cache) }}
 
       - name: Use Node.js 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
