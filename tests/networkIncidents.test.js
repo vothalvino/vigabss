@@ -84,6 +84,12 @@ describe('the watch', () => {
     const [[sql, params]] = find(/reopened_count = reopened_count \+ 1/);
     expect(sql).toMatch(/SET status = 'open'.*closed_at = NULL, watch_until = NULL/);
     expect(params.slice(-2)).toEqual([7, 5]);
+    // Customers already told it was resolved keep that status: closing it again
+    // does not write to them. Only a message still waiting is withdrawn.
+    const [[withdraw, withdrawParams]] = find(/UPDATE network_incident_reports SET notice_status = 'discarded'/);
+    expect(withdraw).toMatch(/WHERE incident_id = \? AND organization_id = \? AND notice_status IN \('draft', 'failed'\)/);
+    expect(withdrawParams).toEqual([7, 5]);
+    expect(calls().some(([sql]) => /network_incident_reports/.test(sql) && /notice_status = 'none'/.test(sql))).toBe(false);
   });
 
   test('the watch reads only this organization and sends nothing', async () => {
@@ -222,6 +228,15 @@ describe('the message to customers who reported it', () => {
     llm.chat.mockRejectedValue(new Error('budget'));
     closed({ reports: [portalReport] });
     expect(await notices.prepare(5, 7)).toEqual({ prepared: 1, sent: 0, drafts: 1 });
+  });
+
+  test('closing a reopened incident does not write again to a customer already told, sent or discarded', async () => {
+    AiPolicy.findByOrgId.mockResolvedValue(policy());
+    closed({ reports: [] });
+    await notices.prepare(5, 7);
+    const [[sql]] = find(/FROM network_incident_reports WHERE organization_id = \? AND incident_id = \? AND notice_status IN/);
+    expect(sql).toMatch(/notice_status IN \('none', 'failed'\)/);
+    expect(sql).not.toMatch(/'sent'|'discarded'/);
   });
 
   test('nobody reported it: nothing is written and the model is not called', async () => {
@@ -457,6 +472,9 @@ describe('evidence', () => {
     const [[sql, params]] = find(/INSERT INTO network_incident_reports/);
     expect(sql).toMatch(/ON DUPLICATE KEY UPDATE/);
     expect(params).toEqual([5, 7, 3, 9, 300, 'portal', 88]);
+    // A customer who contacts us again about an open fault is owed a message
+    // when it is closed, whatever they were told the first time.
+    expect(sql).toMatch(/ON DUPLICATE KEY UPDATE[\s\S]*reported_at = NOW\(\), notice_status = 'none', notice_text = NULL/);
     expect(find(/INSERT INTO connection_checks/)[0][1].slice(0, 9)).toEqual([5, 9, 3, 'assistant', 'portal', 88, null, 'backhaul', 'degraded']);
   });
 

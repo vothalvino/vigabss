@@ -1778,7 +1778,9 @@ the connection service do not change.
   it is sent by itself only when the AI policy is on, the channel is on and
   the mode is `auto_send`, otherwise it is a draft a person approves. A
   message the model did not write (thin comment, no provider, a failure) is
-  always a draft. When the fault is in our network the customer is linked
+  always a draft. A report is written to once: reopening withdraws a draft
+  that was still waiting and leaves sent ones alone, and only a new report
+  from that customer while the incident is open resets it. When the fault is in our network the customer is linked
   to the incident and no technician visit is opened for them.
 
 ### VPN clients keep their own address

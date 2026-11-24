@@ -10,6 +10,9 @@
 //     incident only records when it was last seen good.
 //   - Only a technician closes an incident, and must say what was done.
 //   - After closing it is watched for a week: the same fault reopens it.
+//     Customers who were already told it was resolved are NOT told again
+//     when it is closed a second time, unless they contact us again while it
+//     is open: a new report from a customer is what earns a new message.
 //
 // Every bad measurement is kept as a sample, so the incident shows its
 // pattern over days (every evening, or once and continuously), which tells a
@@ -143,6 +146,13 @@ async function recordRun(orgId, report, now = new Date()) {
                   affected_contracts = ?, closed_at = NULL, watch_until = NULL, last_good_at = NULL
             WHERE id = ? AND organization_id = ?`,
           [now, evidence, verdict.state, await countAffected(orgId, deviceId), previous.id, orgId],
+        );
+        // A message still waiting for approval says the fault was resolved,
+        // which is no longer true: it must not be sent.
+        await db.query(
+          `UPDATE network_incident_reports SET notice_status = 'discarded', notice_at = NOW()
+            WHERE incident_id = ? AND organization_id = ? AND notice_status IN ('draft', 'failed')`,
+          [previous.id, orgId],
         );
         incidentId = previous.id;
         result.reopened += 1;
@@ -394,11 +404,15 @@ async function recordCheck(orgId, path, context = {}) {
     if (!incidentId) continue;
     incidentIds.push(Number(incidentId));
     if (context.reported) {
+      // A customer who contacts us again about a fault that is open is owed a
+      // message when it is closed, whatever they were told before: the
+      // duplicate-key branch resets their report.
       await db.query(
         `INSERT INTO network_incident_reports
            (organization_id, incident_id, client_id, contract_id, connection_check_id, channel, conversation_id, reported_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-         ON DUPLICATE KEY UPDATE connection_check_id = VALUES(connection_check_id), channel = VALUES(channel), conversation_id = VALUES(conversation_id)`,
+         ON DUPLICATE KEY UPDATE connection_check_id = VALUES(connection_check_id), channel = VALUES(channel), conversation_id = VALUES(conversation_id),
+           reported_at = NOW(), notice_status = 'none', notice_text = NULL, notice_lang = NULL, notice_reviews = NULL, notice_at = NULL, notice_by = NULL`,
         [orgId, incidentId, path.client_id, path.contract_id, ins.insertId, context.channel || null, context.conversationId || null],
       );
     }

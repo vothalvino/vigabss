@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **A reopened incident does not write twice to the same customer.** A
+  customer who was already told a fault was resolved is not written to again
+  when the reopened incident is closed a second time, unless they contacted
+  us again while it was open. A closing message still waiting for approval
+  when its incident reopens is withdrawn, since it says the fault was
+  resolved.
+
 - **Fixed: an incident's "contracts behind it" missed wireless customers.**
   Customers connected to a sector are now counted through what the sector
   has seen in the last day, and the count is refreshed each time the fault
