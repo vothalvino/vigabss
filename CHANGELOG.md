@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.36 — 2026-11-24
+
 - **Network menu: related pages are grouped under tabs.** The Network
   section's 55 pages are grouped into 12 sidebar rows (Monitoring, Topology
   Map, Subscribers online, Equipment, Fibre, Wireless, Customer equipment,

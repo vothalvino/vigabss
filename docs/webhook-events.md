@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.35 — Webhook Event Payloads
+# VigaBSS 0.1.0-alpha.36 — Webhook Event Payloads
 
 > All webhook events are dispatched via `POST` to the configured webhook URL.
 > Each delivery includes a JSON body with the event type and payload.
