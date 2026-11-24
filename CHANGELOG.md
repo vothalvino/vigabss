@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.35 — 2026-11-24
+
 - **The network tree can be shown as a chart.** The Tree tab has a List /
   Chart switch. The chart draws each main NAS on the left and what it feeds
   in columns to the right, as boxes joined by lines; each line takes the
