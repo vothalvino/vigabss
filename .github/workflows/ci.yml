@@ -27,6 +27,29 @@ env:
   # The project itself uses only the WHATWG URL API.
   NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
 
+# Self-hosted runners (opt-in). Jobs that need nothing from the machine but
+# Node (no Docker, service containers, fixed ports, sudo or system packages)
+# can run on the owner's own runners. A runner takes one job at a time, so a
+# job sent there waits behind the others: moving more jobs than there are
+# runners makes a run slower, not faster. Each such job therefore has a rank,
+# longest first, and uses a self-hosted runner only when the repository
+# variable CI_SELF_HOSTED_RUNNERS (Settings → Secrets and variables → Actions
+# → Variables) is at least its rank. Set it to the number of runners online:
+#   0 or unset  every job on GitHub-hosted machines (also the setting to use
+#               while the runners' machine is switched off)
+#   1           lint-and-test
+#   2           lint-and-test and frontend-test
+# Measured with one runner in November 2026: lint-and-test took 7.1 minutes on
+# a GitHub-hosted machine and 3.5 minutes of tests on the runner; with both
+# jobs on the one runner the second waited for the first and the run took
+# longer than before.
+#
+# This repository is public, so a runner only ever takes trusted runs: pushes
+# to main and tags, and pull requests whose branch lives in this repository.
+# A pull request from a fork always runs on a GitHub-hosted machine, whatever
+# the variable says. Keep that condition on every job that is given a rank,
+# and keep the repository's "require approval for all external contributors"
+# and "pull requests from collaborators only" settings on.
 jobs:
   # The local-first policy (2026-07-22) ran lint-and-test and frontend-test on
   # main only, trusting a local run before every PR. In November 2026 two
@@ -35,7 +58,10 @@ jobs:
   # Both jobs now run on pull requests too, so the full suite gates the merge.
   lint-and-test:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # Self-hosted rank 1: the owner's own runner when CI_SELF_HOSTED_RUNNERS is
+    # at least 1 and the run is trusted (see the note above `jobs:`);
+    # otherwise a GitHub-hosted machine.
+    runs-on: ${{ fromJSON((vars.CI_SELF_HOSTED_RUNNERS >= 1 && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '["self-hosted","Linux","X64"]' || '["ubuntu-latest"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -739,7 +765,10 @@ jobs:
 
   frontend-test:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # Self-hosted rank 2: the owner's own runner when CI_SELF_HOSTED_RUNNERS is
+    # at least 2 and the run is trusted (see the note above `jobs:`);
+    # otherwise a GitHub-hosted machine.
+    runs-on: ${{ fromJSON((vars.CI_SELF_HOSTED_RUNNERS >= 2 && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '["self-hosted","Linux","X64"]' || '["ubuntu-latest"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

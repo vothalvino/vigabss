@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **CI can use the owner's own runners.** The repository variable
+  `CI_SELF_HOSTED_RUNNERS` says how many self-hosted runners are online: at
+  1 the backend test job runs on one, at 2 the frontend test job too, for
+  pushes and for pull requests from branches of this repository. Pull
+  requests from forks always run on GitHub-hosted machines. Setting it to 0
+  or removing it sends everything back to GitHub.
+
 ## 0.1.0-alpha.38 — 2026-11-24
 
 - **A menu of your own.** Anyone can arrange the sidebar into groups they
