@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Links can be drawn on the network map.** "Add a link" on the Topology Map
+  lets you click two markers and say what joins them (fibre, wireless,
+  copper, virtual or other, with an optional capacity). Clicking a link
+  offers to remove it. Before, links were only listed and there was no way to
+  create one. A NAS router can be either end: the first time a NAS is linked
+  it becomes a device on the map at its site, and from then on it is placed,
+  linked and shown like any other equipment (migration 026).
+
 - **NAS routers appear on the topology map.** They were missing because they
   are stored separately from other devices. A NAS is drawn at its site, with
   a blue outline, and its popup names its make and site. A NAS with no site,
@@ -12,6 +20,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 - **The NAS type is chosen from a list** (MikroTik, Cisco, Juniper, Huawei,
   Ubiquiti, Other) instead of typed. A value typed before stays selectable.
 
+- **The Network section is reorganised.** Its 54 pages are grouped by what
+  you are doing instead of by protocol name. The Network page now has ten
+  groups: Monitoring, Subscriber sessions, Routers and devices, Fibre (FTTH),
+  Wireless (WISP), Customer equipment (CPE), IP addresses, Speed and
+  suspension, Device configuration, and Polling and alerts. The sidebar shows
+  the everyday pages under headings (Monitoring, Subscribers online,
+  Equipment, Addresses, My access), and OLT Management is now in the sidebar
+  beside Devices and NAS. Sites moved here from Field work and is now called
+  "Network sites": it is the first entry under Equipment, since towers, POPs
+  and nodes are where the equipment lives. No page was removed and addresses
+  are unchanged.
 - **An OLT can be added from the OLT page.** OLT Management → Live OLT has an
   "Add an OLT" button (name, model, management address, SNMP community), as
   NAS Devices has for a NAS. Before, an OLT had to be created on the Devices

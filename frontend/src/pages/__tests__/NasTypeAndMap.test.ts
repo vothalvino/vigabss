@@ -42,3 +42,28 @@ describe('NAS routers on the topology map', () => {
     expect(locale('en').topologyMap.nasNotShown).toMatch(/\{\{names\}\}/);
   });
 });
+
+describe('drawing links on the topology map', () => {
+  const src = page('TopologyMapPage.tsx');
+
+  it('two markers are picked, then the kind of link is chosen and saved', () => {
+    expect(src).toMatch(/apiFetch\('\/topology\/map\/links', \{\s+method: 'POST'/);
+    expect(src).toMatch(/a: linking\?\.a\?\.id, b: linking\?\.b\?\.id, link_type: linkType/);
+    // Any marker can be an end, a NAS included.
+    expect(src).toMatch(/eventHandlers=\{linking\s+\? \{ click: \(\) => pickForLink\(node\) \}/);
+    // Clicking the same marker twice does not make a link to itself.
+    expect(src).toMatch(/if \(cur\.a\.id === node\.id\) return cur;/);
+  });
+
+  it('is only offered to someone who may create links, and removal to someone who may delete them', () => {
+    expect(src).toMatch(/const canLink = can\(user, 'network_links\.create'\);/);
+    expect(src).toMatch(/\{canLink && \(/);
+    expect(src).toMatch(/\{canUnlink && !linking && !editMode && \(/);
+  });
+
+  it('every kind of link has a label in every language', () => {
+    for (const lang of ['en', 'es', 'pt-BR']) {
+      for (const kind of ['fiber', 'wireless', 'copper', 'virtual', 'other']) expect(locale(lang).topologyMap.linkTypes[kind]).toBeTruthy();
+    }
+  });
+});
