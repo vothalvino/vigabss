@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.39 — 2026-11-24
+
 - **Menu templates has its own row under Administration.** It was only
   reachable through the Administration overview, search or a pin.
 - **A template's group list shows only groups that use the sidebar.**
