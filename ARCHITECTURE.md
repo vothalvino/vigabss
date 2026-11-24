@@ -1739,6 +1739,9 @@ the connection service do not change.
   `snmp_metrics`: `equipment` and `uplink` (the line to its parent), each
   `good`, `degraded`, `off` or `unknown` with reasons as a code plus numbers.
   `judge()` is pure. Nothing fresh (20 minutes) is `unknown`, never `good`.
+  `devices.status` starts as `offline` for every device, so it is only read
+  as `off` once `consecutive_poll_failures` reaches the poller's threshold
+  (`observedStatus`).
   Radios are judged on traffic against the rate the radio reports now; a
   typed capacity is only the fallback. A fibre port is judged against the
   median of its own hourly optical power over seven days. Limits live in

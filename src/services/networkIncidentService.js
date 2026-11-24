@@ -59,7 +59,11 @@ function subtree(deviceId, parents) {
   return [...out];
 }
 
-/** Active contracts served through a device: ONUs on it or below, and radios on its sectors. */
+/**
+ * Active contracts served through a device: ONUs registered on it or below,
+ * customer equipment placed under it, and customer radios its sectors have
+ * seen in the last day.
+ */
 async function countAffected(orgId, deviceId) {
   const [rows] = await db.query(
     'SELECT id, parent_device_id FROM devices WHERE organization_id = ? AND deleted_at IS NULL', [orgId],
@@ -78,8 +82,14 @@ async function countAffected(orgId, deviceId) {
           FROM devices d
           JOIN contracts c ON c.id = d.contract_id AND c.organization_id = d.organization_id AND c.deleted_at IS NULL AND c.status = 'active'
          WHERE d.organization_id = ? AND d.deleted_at IS NULL AND d.contract_id IS NOT NULL AND d.id IN (${marks})
+        UNION
+        SELECT d.contract_id
+          FROM wireless_client_sessions w
+          JOIN devices d ON d.id = w.client_device_id AND d.organization_id = w.organization_id AND d.deleted_at IS NULL AND d.contract_id IS NOT NULL
+          JOIN contracts c ON c.id = d.contract_id AND c.organization_id = d.organization_id AND c.deleted_at IS NULL AND c.status = 'active'
+         WHERE w.organization_id = ? AND w.device_id IN (${marks}) AND w.last_seen_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
       ) x`,
-    [orgId, ...ids, orgId, ...ids],
+    [orgId, ...ids, orgId, ...ids, orgId, ...ids],
   );
   return Number(counted?.total || 0);
 }
@@ -117,9 +127,11 @@ async function recordRun(orgId, report, now = new Date()) {
       let incidentId;
       if (current) {
         const worst = current.worst_state === 'off' || verdict.state === 'off' ? 'off' : 'degraded';
+        // Recounted each time: customers come and go, and one opened before
+        // its customers were known would otherwise stay at zero.
         await db.query(
-          'UPDATE network_incidents SET last_seen_at = ?, evidence = ?, worst_state = ? WHERE id = ? AND organization_id = ?',
-          [now, evidence, worst, current.id, orgId],
+          'UPDATE network_incidents SET last_seen_at = ?, evidence = ?, worst_state = ?, affected_contracts = ? WHERE id = ? AND organization_id = ?',
+          [now, evidence, worst, await countAffected(orgId, deviceId), current.id, orgId],
         );
         incidentId = current.id;
         result.updated += 1;
@@ -128,9 +140,9 @@ async function recordRun(orgId, report, now = new Date()) {
         await db.query(
           `UPDATE network_incidents
               SET status = 'open', reopened_count = reopened_count + 1, last_seen_at = ?, evidence = ?, worst_state = ?,
-                  closed_at = NULL, watch_until = NULL, last_good_at = NULL
+                  affected_contracts = ?, closed_at = NULL, watch_until = NULL, last_good_at = NULL
             WHERE id = ? AND organization_id = ?`,
-          [now, evidence, verdict.state, previous.id, orgId],
+          [now, evidence, verdict.state, await countAffected(orgId, deviceId), previous.id, orgId],
         );
         incidentId = previous.id;
         result.reopened += 1;

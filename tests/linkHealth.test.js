@@ -201,7 +201,8 @@ describe('assess', () => {
         return [[
           { id: 10, type: 'router', status: 'online', parent_device_id: null, uplink_interface: null, uplink_capacity_mbps: null },
           { id: 11, type: 'switch', status: 'online', parent_device_id: 10, uplink_interface: '3', uplink_capacity_mbps: 1000 },
-          { id: 12, type: 'ptp', status: 'offline', parent_device_id: 11, uplink_interface: null, uplink_capacity_mbps: null },
+          { id: 12, type: 'ptp', status: 'offline', consecutive_poll_failures: 3, parent_device_id: 11, uplink_interface: null, uplink_capacity_mbps: null },
+          { id: 13, type: 'switch', status: 'offline', consecutive_poll_failures: 0, parent_device_id: 11, uplink_interface: null, uplink_capacity_mbps: null },
         ]];
       }
       if (/FROM organization_settings/.test(sql)) return [[{ setting_value: JSON.stringify({ optical_drop_db: 2 }) }]];
@@ -224,11 +225,13 @@ describe('assess', () => {
     expect(out.nodes[10]).toEqual({ equipment: { state: 'good', reasons: [] }, uplink: null });
     expect(out.nodes[11].uplink).toEqual({ state: 'degraded', reasons: [{ code: 'optical_drop', value: -17, normal: -14, drop: 3, limit: 2 }] });
     expect(out.nodes[12].uplink.state).toBe('off');
+    // Every device starts as 'offline'. One that was never polled is not measured, not down.
+    expect(out.nodes[13]).toEqual({ equipment: { state: 'unknown', reasons: [] }, uplink: { state: 'unknown', reasons: [] } });
     const [deviceSql, deviceParams] = db.query.mock.calls[0];
     expect(deviceSql).toMatch(/d\.organization_id = \? AND d\.deleted_at IS NULL/);
     expect(deviceParams).toEqual([5, 'outdoor_cpe', 'indoor_cpe', 'onu']);
     const metrics = db.query.mock.calls.find(([sql]) => /FROM snmp_metrics m/.test(sql));
-    expect(metrics[1]).toEqual([10, 11, 12]);
+    expect(metrics[1]).toEqual([10, 11, 12, 13]);
     expect(metrics[0]).toMatch(/INTERVAL 20 MINUTE/);
     // The newest hour is left out of "normal" so a drop happening now is not part of it.
     const hourly = db.query.mock.calls.find(([sql]) => /FROM snmp_metrics_1hr/.test(sql));
@@ -250,6 +253,22 @@ describe('assess', () => {
     db.query.mockResolvedValue([[]]);
     expect((await health.assess(5)).nodes).toEqual({});
     expect(db.query.mock.calls.some(([sql]) => /snmp_metrics/.test(sql))).toBe(false);
+  });
+});
+
+describe('offline is only believed when polling detected it', () => {
+  test('the starting status of a device is not an outage', () => {
+    expect(health.observedStatus({ status: 'offline', consecutive_poll_failures: 0 })).toBeNull();
+    expect(health.observedStatus({ status: 'offline' })).toBeNull();
+    expect(health.observedStatus({ status: 'offline', consecutive_poll_failures: 2 })).toBeNull();
+    expect(health.observedStatus({ status: 'offline', consecutive_poll_failures: 3 })).toBe('offline');
+    expect(health.observedStatus({ status: 'online', consecutive_poll_failures: 0 })).toBe('online');
+    expect(health.observedStatus({ status: 'maintenance' })).toBe('maintenance');
+  });
+
+  test('the threshold is the one the poller uses to call a device offline', () => {
+    const source = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'services', 'deviceStatusService.js'), 'utf8');
+    expect(Number(/const OFFLINE_THRESHOLD = (\d+)/.exec(source)[1])).toBe(health.OFFLINE_AFTER_FAILURES);
   });
 });
 

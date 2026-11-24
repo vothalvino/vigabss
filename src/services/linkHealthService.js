@@ -35,7 +35,10 @@
 //     the subscriber radios on it that carry the most traffic.
 //
 // Measurements come from the SNMP poller (snmp_metrics). Equipment that is
-// not polled is "unknown", never "good".
+// not polled is "unknown", never "good" and never "off": every device starts
+// with status 'offline' before anything has looked at it, so 'offline' only
+// counts as off once polling has failed enough times to detect an outage
+// (deviceStatusService).
 // =============================================================================
 
 const db = require('../config/database');
@@ -64,6 +67,17 @@ const LIMITS = {
 const DEFAULT_LIMITS = Object.fromEntries(Object.entries(LIMITS).map(([key, def]) => [key, def.default]));
 
 const WORST = { unknown: 0, good: 1, degraded: 2, off: 3 };
+// Failed polls in a row before deviceStatusService calls a device offline.
+const OFFLINE_AFTER_FAILURES = 3;
+
+/**
+ * A device's status as evidence. 'offline' is the starting value of every
+ * device, so it is only believed when polling detected it.
+ */
+function observedStatus(device) {
+  if (device.status !== 'offline') return device.status;
+  return Number(device.consecutive_poll_failures || 0) >= OFFLINE_AFTER_FAILURES ? 'offline' : null;
+}
 const num = (value) => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
 const round = (value, places = 1) => Number(Number(value).toFixed(places));
 
@@ -296,7 +310,7 @@ function readingsFor(rows, uplinkInterface, type = null) {
  */
 async function assess(orgId) {
   const [devices] = await db.query(
-    `SELECT d.id, d.type, d.status, d.parent_device_id, d.uplink_interface, d.uplink_capacity_mbps
+    `SELECT d.id, d.type, d.status, d.consecutive_poll_failures, d.parent_device_id, d.uplink_interface, d.uplink_capacity_mbps
        FROM devices d
       WHERE d.organization_id = ? AND d.deleted_at IS NULL
         AND d.type NOT IN (${SUBSCRIBER_TYPES.map(() => '?').join(', ')})`,
@@ -360,7 +374,7 @@ async function assess(orgId) {
     readings.optical_normal_dbm = normals.get(id) ?? null;
     nodes[id] = judge({
       type: device.type,
-      status: device.status,
+      status: observedStatus(device),
       has_parent: Boolean(device.parent_device_id),
       uplink_interface: device.uplink_interface,
       uplink_capacity_mbps: device.uplink_capacity_mbps,
@@ -491,5 +505,5 @@ async function setUplink(orgId, deviceId, input) {
 module.exports = {
   assess, getLimits, saveLimits, listPorts, setUplink,
   // exported for tests and for the customer path check
-  judge, readingsFor, mergeLimits, median, LIMITS, DEFAULT_LIMITS, WORST, FRESH_MINUTES,
+  judge, readingsFor, mergeLimits, median, observedStatus, LIMITS, DEFAULT_LIMITS, WORST, FRESH_MINUTES, OFFLINE_AFTER_FAILURES,
 };
