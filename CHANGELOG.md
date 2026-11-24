@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.37 — 2026-11-24
+
 - **The Network badge counts its groups.** The number beside Network in the
   sidebar, and its "View all" row, showed 55 (every page inside the groups)
   and now show 12, the groups themselves.
