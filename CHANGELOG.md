@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **CI: the database jobs can run on self-hosted runners.** They no longer
+  bind MySQL to a fixed port, so two can share a machine, and they take a
+  self-hosted runner when `CI_SELF_HOSTED_RUNNERS` is 3 or 4. The runners
+  need Docker for these.
+
 ## 0.1.0-alpha.40 — 2026-11-24
 
 - **Fixed: a menu template could not be given to anyone.** Choosing user
