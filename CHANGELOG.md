@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a menu template could not be given to anyone.** Choosing user
+  groups or people for a template was refused with "a user group in the
+  list does not exist", and the groups that never see the sidebar were
+  still offered. Lists were handed to the database in a form its prepared
+  statements do not expand, so the checks matched nothing. Giving a
+  template to a group that does not use the sidebar is now refused too.
+
 - **CI: backend tests use the self-hosted runner's cores.** The test step
   ran three suites at a time everywhere, a number chosen for GitHub's
   4-core machines; on a self-hosted runner it now runs twelve. The
