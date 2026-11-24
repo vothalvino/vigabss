@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.41 — 2026-11-24
+
 - **Billing dates no longer depend on the server's time zone.** Billing
   periods, invoice due dates, trial ends, payment-plan instalments,
   reminder stages, the "current month" of usage, rollover and reports, and
