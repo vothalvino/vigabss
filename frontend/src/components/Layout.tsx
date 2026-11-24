@@ -32,6 +32,8 @@ import {
   sectionForPath,
   visibleRailRows,
   visibleTabs,
+  setupPageFor,
+  SETUP_PAGES,
   tabsetForPath,
   visibleSectionCount,
   type SectionId,
@@ -263,8 +265,12 @@ export function Layout() {
   // A page shown under tabs is titled by its tab set; the tab names the page.
   const activeTabset = activeRoute ? tabsetForPath(activeRoute.path) : null;
   const activeTabs = user && activeTabset ? visibleTabs(user, activeTabset) : [];
-  const tabbed = activeTabset !== null && activeTabs.length > 1;
-  const pageLabel = tabbed
+  const setupBack = user && activeTabset ? setupPageFor(user, activeTabset) : null;
+  const tabbed = activeTabset !== null && (activeTabs.length > 1 || setupBack !== null);
+  const setupPage = Object.values(SETUP_PAGES).find(page => page.path === location.pathname);
+  const pageLabel = setupPage
+    ? t(setupPage.labelKey)
+    : tabbed && activeTabs.length > 1
     ? t(activeTabset.labelKey)
     : activeRoute
     ? t(activeRoute.labelKey)
@@ -315,7 +321,7 @@ export function Layout() {
         key={entry.section.id}
         section={entry.section}
         items={entry.items}
-        activePath={activeRoute?.path ?? null}
+        activePath={activeRoute?.path ?? location.pathname}
         sectionCount={entry.sectionCount}
         hubVisible={entry.hubVisible}
         expanded={expanded.includes(entry.section.id)}
@@ -487,7 +493,7 @@ export function Layout() {
         <EmailVerificationBanner />
         <UpdateAvailableBanner />
         <AdminIpAllowlistBanner />
-        {tabbed && activeRoute && <PageTabs tabset={activeTabset} tabs={activeTabs} activePath={activeRoute.path} />}
+        {tabbed && activeRoute && <PageTabs tabset={activeTabset} tabs={activeTabs} activePath={activeRoute.path} back={setupBack} />}
         <ErrorBoundary key={location.pathname}>
           <Suspense fallback={<LoadingState />}>
             <Outlet />

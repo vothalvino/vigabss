@@ -1434,13 +1434,20 @@ pages. Keep `navRegistry.test.ts` and `navPersonas.test.ts` aligned with routing
 grants, and intended personas.
 
 A section may group its pages into tab sets (`TABSETS` in the registry). Such a
-section takes its sidebar rows and hub cards from the sets alone, one row and
-one card per set, and its pages carry no `rail`, `sub` or `card`. The layout
-shows `PageTabs` above every page of a set with two or more pages the person
-can open; the tabs are links, so each page keeps its own address, route and
-permission check. A row leads to the page of its set opened last in that
-browser. Network is the first section built this way; a section without tab
-sets works as before.
+section takes its sidebar rows and hub cards from the sets alone, and its pages
+carry no `rail`, `sub` or `card`. A set is one of two kinds. An everyday set is
+a sidebar row: what people open daily. A `setup` set holds what is configured
+once and rarely revisited; it is a card, with a one-line description, on the
+section's setup page (`SETUP_PAGES`, rendered by `SetupPage`), and the whole
+setup page has one sidebar row. No set may exceed `MAX_TABS` pages, so a tab
+strip never needs an overflow menu. The layout shows `PageTabs` above every
+page of a set: the tabs are links, so each page keeps its own address, route
+and permission check, and the pages of a setup set also get a link back to the
+setup page. Rows, cards and tabs show only what the person's permissions open;
+someone with a single page of a set, or a single setup page, gets that page
+directly under its own name. An everyday row leads to the page of its set
+opened last in that browser. Network is the first section built this way; a
+section without tab sets works as before.
 
 The UI permission helper in `frontend/src/auth/permissions.ts` prefers the
 server-resolved `permissions` array, including an authoritative empty array, and

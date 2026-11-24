@@ -692,16 +692,33 @@
       "monitor": "Monitoreo",
       "subscribers": "Suscriptores en línea",
       "equipment": "Equipos",
-      "fibre": "Fibra (FTTH)",
-      "wireless": "Inalámbrico (WISP)",
-      "cpe": "Equipo del cliente",
       "addresses": "Direcciones IP",
-      "speedAccess": "Velocidad y suspensión",
-      "pollingAlerts": "Sondeo y alertas",
-      "deviceConfig": "Configuración de dispositivos"
+      "polling": "Sondeo",
+      "alerts": "Alertas",
+      "deviceConfig": "Configuración de dispositivos",
+      "fibrePlant": "Planta de fibra",
+      "cpeSetup": "Equipo del cliente",
+      "sessionsSpeed": "Sesiones y velocidad",
+      "addressing": "Direccionamiento",
+      "equipmentTools": "Herramientas de equipos",
+      "access": "Acceso"
     },
-    "tabs": {
-      "more": "Más ({{count}})"
+    "setupHints": {
+      "polling": "Cómo se leen los equipos por SNMP: perfiles, horarios, nodos de sondeo y las lecturas y traps que recogen.",
+      "alerts": "A quién se avisa cuando algo falla, en qué orden y qué se silencia.",
+      "deviceConfig": "Copias guardadas de la configuración de los equipos, plantillas y las reglas con que se revisan.",
+      "fibrePlant": "Puertos PON, rutas de fibra, bastidores y registros de pruebas.",
+      "cpeSetup": "Perfiles que se aplican al equipo del cliente y herramientas para probarlo a distancia.",
+      "sessionsSpeed": "Perfiles PPPoE, certificados, clases de velocidad y las reglas que suspenden el servicio.",
+      "addressing": "Servidores DHCP, registros de DNS inverso y mecanismos de transición a IPv6.",
+      "equipmentTools": "Agrupar equipos, encontrarlos con un escaneo, importarlos desde un archivo y revisar lecturas de radio.",
+      "access": "Tus propios túneles VPN hacia la red."
+    },
+    "setup": {
+      "network": {
+        "title": "Configuración de red",
+        "hint": "Lo que se configura una vez y rara vez se vuelve a tocar. El trabajo diario está en la barra lateral; todo lo de aquí también se encuentra con la búsqueda."
+      }
     },
     "dashboard": "Panel",
     "clients": "Clientes",

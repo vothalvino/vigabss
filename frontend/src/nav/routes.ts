@@ -134,10 +134,16 @@ export const HUB_CARDS: Record<string, string[]> = {
 };
 
 /**
- * Pages that are shown together: one sidebar row, and a tab strip above each
- * of the pages so moving between them is one click. Every page keeps its own
- * address. A section listed here takes its sidebar rows and its hub cards from
- * these sets, in this order, instead of from `rail`, `sub` and `card`.
+ * Pages that are shown together: a tab strip above each of the pages moves
+ * between them, and every page keeps its own address. A section listed here
+ * takes its sidebar rows and its hub cards from these sets, in this order,
+ * instead of from `rail`, `sub` and `card`.
+ *
+ * A set is one of two kinds. An everyday set is a sidebar row: what people
+ * open daily. A `setup` set holds what is configured once and rarely
+ * revisited; it lives as a card on the section's setup page (SETUP_PAGES),
+ * which has a single sidebar row. No set has more than MAX_TABS pages, so a
+ * strip never needs an overflow menu.
  * (Not to be confused with WORKSPACES above, the navigation-focus presets.)
  */
 export interface TabsetDef {
@@ -146,25 +152,38 @@ export interface TabsetDef {
   labelKey: string;
   /** The pages, in tab order. */
   paths: string[];
+  /** A card on the section's setup page instead of a sidebar row. */
+  setup?: boolean;
+  /** One line on what the card is for (setup sets). */
+  hintKey?: string;
 }
 
+export const MAX_TABS = 7;
+
 export const TABSETS: TabsetDef[] = [
-  // Network, ordered by what an operator is doing: watching the network,
-  // looking at a subscriber's connection, working on equipment by kind, then
-  // the plumbing.
-  { id: 'monitor', section: 'network', labelKey: 'nav.tabsets.monitor', paths: ['/noc-dashboard', '/network-health', '/outages', '/noc-insights', '/speed-tests', '/technician-map'] },
+  // Network, everyday: watching the network, looking at a subscriber's
+  // connection, working on equipment, handing out addresses.
+  { id: 'monitor', section: 'network', labelKey: 'nav.tabsets.monitor', paths: ['/noc-dashboard', '/network-health', '/outages', '/speed-tests', '/noc-insights'] },
   { id: 'topology', section: 'network', labelKey: 'nav.topologyMap', paths: ['/topology-map'] },
-  { id: 'subscribers', section: 'network', labelKey: 'nav.tabsets.subscribers', paths: ['/radius-sessions', '/connection-logs', '/pppoe-diagnostics', '/session-accounting', '/pppoe-service-profiles', '/mac-move-events', '/subscriber-certificates'] },
-  { id: 'equipment', section: 'network', labelKey: 'nav.tabsets.equipment', paths: ['/sites', '/devices', '/nas', '/device-groups', '/discovery-scans', '/device-import'] },
-  { id: 'fibre', section: 'network', labelKey: 'nav.tabsets.fibre', paths: ['/olt-management', '/onu-management', '/pon-port-management', '/fiber-plant-management'] },
-  { id: 'wireless', section: 'network', labelKey: 'nav.tabsets.wireless', paths: ['/wireless', '/wireless-metrics'] },
-  { id: 'cpe', section: 'network', labelKey: 'nav.tabsets.cpe', paths: ['/cpe-management', '/cpe-profiles', '/cpe-diagnostics'] },
-  { id: 'addresses', section: 'network', labelKey: 'nav.tabsets.addresses', paths: ['/ip-pools', '/ip-assignments', '/vlans', '/dhcp-servers', '/nat-management', '/ptr-records', '/ipv6-management', '/transition-mechanisms'] },
-  { id: 'speedAccess', section: 'network', labelKey: 'nav.tabsets.speedAccess', paths: ['/qos-bandwidth', '/suspension-rules', '/suspension-console'] },
-  { id: 'pollingAlerts', section: 'network', labelKey: 'nav.tabsets.pollingAlerts', paths: ['/snmp-metrics', '/snmp-traps', '/snmp-profiles', '/device-polling-configs', '/poller-nodes', '/poller-performance', '/trap-forwarding-rules', '/alert-channels', '/alert-escalation-chains', '/alert-suppression-rules'] },
-  { id: 'deviceConfig', section: 'network', labelKey: 'nav.tabsets.deviceConfig', paths: ['/device-config-backups', '/config-templates', '/config-backup-schedules', '/config-compliance-rules'] },
-  { id: 'vpn', section: 'network', labelKey: 'nav.myWgTunnels', paths: ['/wg-tunnels'] },
+  { id: 'subscribers', section: 'network', labelKey: 'nav.tabsets.subscribers', paths: ['/radius-sessions', '/connection-logs', '/pppoe-diagnostics', '/session-accounting', '/suspension-console'] },
+  { id: 'equipment', section: 'network', labelKey: 'nav.tabsets.equipment', paths: ['/sites', '/devices', '/nas', '/olt-management', '/onu-management', '/wireless', '/cpe-management'] },
+  { id: 'addresses', section: 'network', labelKey: 'nav.tabsets.addresses', paths: ['/ip-pools', '/ip-assignments', '/vlans', '/nat-management', '/ipv6-management'] },
+  // Network, setup: configured once, then left alone.
+  { id: 'polling', section: 'network', setup: true, labelKey: 'nav.tabsets.polling', hintKey: 'nav.setupHints.polling', paths: ['/snmp-profiles', '/device-polling-configs', '/poller-nodes', '/poller-performance', '/snmp-metrics', '/snmp-traps', '/trap-forwarding-rules'] },
+  { id: 'alerts', section: 'network', setup: true, labelKey: 'nav.tabsets.alerts', hintKey: 'nav.setupHints.alerts', paths: ['/alert-channels', '/alert-escalation-chains', '/alert-suppression-rules'] },
+  { id: 'deviceConfig', section: 'network', setup: true, labelKey: 'nav.tabsets.deviceConfig', hintKey: 'nav.setupHints.deviceConfig', paths: ['/device-config-backups', '/config-templates', '/config-backup-schedules', '/config-compliance-rules'] },
+  { id: 'fibrePlant', section: 'network', setup: true, labelKey: 'nav.tabsets.fibrePlant', hintKey: 'nav.setupHints.fibrePlant', paths: ['/pon-port-management', '/fiber-plant-management'] },
+  { id: 'cpeSetup', section: 'network', setup: true, labelKey: 'nav.tabsets.cpeSetup', hintKey: 'nav.setupHints.cpeSetup', paths: ['/cpe-profiles', '/cpe-diagnostics'] },
+  { id: 'sessionsSpeed', section: 'network', setup: true, labelKey: 'nav.tabsets.sessionsSpeed', hintKey: 'nav.setupHints.sessionsSpeed', paths: ['/pppoe-service-profiles', '/subscriber-certificates', '/mac-move-events', '/qos-bandwidth', '/suspension-rules'] },
+  { id: 'addressing', section: 'network', setup: true, labelKey: 'nav.tabsets.addressing', hintKey: 'nav.setupHints.addressing', paths: ['/dhcp-servers', '/ptr-records', '/transition-mechanisms'] },
+  { id: 'equipmentTools', section: 'network', setup: true, labelKey: 'nav.tabsets.equipmentTools', hintKey: 'nav.setupHints.equipmentTools', paths: ['/device-groups', '/discovery-scans', '/device-import', '/wireless-metrics'] },
+  { id: 'access', section: 'network', setup: true, labelKey: 'nav.tabsets.access', hintKey: 'nav.setupHints.access', paths: ['/wg-tunnels'] },
 ];
+
+/** The setup page of each section that has setup sets: its address and its sidebar label. */
+export const SETUP_PAGES: Partial<Record<SectionId, { path: string; labelKey: string }>> = {
+  network: { path: '/network/setup', labelKey: 'nav.setup.network.title' },
+};
 
 export const ROUTES: RouteDef[] = [
   // --- Clients ---------------------------------------------------------------
@@ -301,7 +320,7 @@ export const ROUTES: RouteDef[] = [
   // them from browser geolocation. technician holds BOTH .view and .ingest
   // (migration 298); support holds .view only, so the share button is gated
   // separately inside the page.
-  { path: '/technician-map', keywords: ['gps', 'mapa', 'tecnicos', 'ubicacion', 'dispatch'], labelKey: 'nav.technicianMap', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['technician_tracking.view'] },
+  { path: '/technician-map', keywords: ['gps', 'mapa', 'tecnicos', 'ubicacion', 'dispatch'], labelKey: 'nav.technicianMap', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['technician_tracking.view'] },
 
   // --- Inventory ---------------------------------------------------------------
   { path: '/inventory', labelKey: 'nav.inventory', section: 'inventory', guard: 'technician', sub: 'stock', rail: true, roles: ['technician'], viewPermissions: ['inventory.view'] },
@@ -449,13 +468,37 @@ export function visibleRailRows(user: NavUser, sectionId: SectionId): RailRow[] 
   if (sets.length === 0) {
     return visibleRailItems(user, sectionId).map(r => ({ key: r.path, labelKey: r.labelKey, to: r.path, paths: [r.path], sub: r.sub }));
   }
-  return sets.flatMap(set => {
+  return sets.filter(set => !set.setup).flatMap((set): RailRow[] => {
     const tabs = visibleTabs(user, set);
     if (tabs.length === 0) return [];
     // Someone who can open only one page of a set sees that page by its own name.
     const labelKey = tabs.length === 1 ? tabs[0].labelKey : set.labelKey;
     return [{ key: set.id, labelKey, to: tabs[0].path, paths: tabs.map(tab => tab.path), tabset: set.id }];
-  });
+  }).concat(setupRow(user, sectionId));
+}
+
+/** The setup cards of a section this user has anything in. */
+export function visibleSetupCards(user: NavUser, sectionId: SectionId): { set: TabsetDef; items: RouteDef[] }[] {
+  return TABSETS.filter(set => set.section === sectionId && set.setup)
+    .map(set => ({ set, items: visibleTabs(user, set) }))
+    .filter(card => card.items.length > 0);
+}
+
+/** The one sidebar row standing for a section's setup page and everything on it. */
+function setupRow(user: NavUser, sectionId: SectionId): RailRow[] {
+  const page = SETUP_PAGES[sectionId];
+  const pages = visibleSetupCards(user, sectionId).flatMap(card => card.items);
+  if (!page || pages.length === 0) return [];
+  // One setup page only: the row is that page, by its own name.
+  if (pages.length === 1) return [{ key: 'setup', labelKey: pages[0].labelKey, to: pages[0].path, paths: [pages[0].path] }];
+  return [{ key: 'setup', labelKey: page.labelKey, to: page.path, paths: [page.path, ...pages.map(r => r.path)] }];
+}
+
+/** Where the "back to setup" link of a setup page leads, or null when the person has only that one. */
+export function setupPageFor(user: NavUser, tabset: TabsetDef): { path: string; labelKey: string } | null {
+  const page = SETUP_PAGES[tabset.section];
+  if (!tabset.setup || !page) return null;
+  return visibleSetupCards(user, tabset.section).flatMap(card => card.items).length > 1 ? page : null;
 }
 
 /** Everything reachable in a section (rail + hub cards) — the "View all N" count. */
@@ -490,7 +533,7 @@ export function visibleHubCards(user: NavUser, sectionId: SectionId): { card: st
     .filter(c => c.items.length > 0);
 }
 
-const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin' };
+const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin', '/network/setup': 'network' };
 
 /** Owning section for a pathname (active trail) — longest-prefix match. */
 export function sectionForPath(pathname: string): SectionId | null {

@@ -11,7 +11,7 @@
 // pages): it is current on any of them and leads to the one opened last.
 // =============================================================================
 
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { RailRow, SectionDef } from '@/nav/routes';
 import { lastTab } from '@/nav/lastTab';
@@ -125,21 +125,23 @@ export function NavSection({
                 <div className="nav-subhead">{t(`nav.subsections.${item.sub}`)}</div>
               ) : null;
             lastSub = item.sub ?? lastSub;
+            // A plain Link: the row is current on any of its pages, which NavLink,
+            // matching only its own target, would not show.
             const current = activePath !== null && item.paths.includes(activePath);
             // On one of the row's pages the row stays there: the remembered page
             // is only written after this render, so it would still be the old one.
-            const remembered = current ? activePath : item.tabset ? lastTab(item.tabset) : null;
+            const remembered = !item.tabset ? null : current ? activePath : lastTab(item.tabset);
             return (
               <div key={item.key}>
                 {subhead}
-                <NavLink
+                <Link
                   to={remembered && item.paths.includes(remembered) ? remembered : item.to}
                   onClick={onNavigate}
                   className={`nav-leaf${current ? ' active' : ''}`}
                   aria-current={current ? 'page' : undefined}
                 >
                   {t(item.labelKey)}
-                </NavLink>
+                </Link>
               </div>
             );
           })}
