@@ -392,6 +392,29 @@ describe('a draft is reviewed in the reviewer\'s own language', () => {
     expect(sent()).toEqual([]);
   });
 
+  test('the edited text can be seen in the customer\'s language before sending; that exact text is then sent', async () => {
+    draft({ reviews: JSON.stringify({ en: 'We replaced a piece of equipment that serves your area.' }) });
+    llm.chat.mockResolvedValue({ text: 'Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.' });
+    await expect(notices.preview(5, 7, 1, 'We replaced a piece of equipment. Thank you for your patience.'))
+      .resolves.toEqual({ customer_text: 'Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.' });
+    // A preview sends nothing and changes nothing.
+    expect(sent()).toEqual([]);
+    expect(calls().some(([sql]) => /^UPDATE/.test(sql))).toBe(false);
+    llm.chat.mockClear();
+    await notices.approve(5, 7, 1, 2, 'Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.');
+    expect(sent()).toEqual(['Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.']);
+    expect(llm.chat).not.toHaveBeenCalled();
+  });
+
+  test('a preview that cannot be translated says so; one of a sent message is refused', async () => {
+    draft();
+    llm.chat.mockRejectedValue(new Error('down'));
+    await expect(notices.preview(5, 7, 1, 'We replaced a piece of equipment. Thank you.')).rejects.toThrow(/could not be put into the customer's language/);
+    await expect(notices.preview(5, 7, 1, 'short')).rejects.toThrow(/too short/);
+    db.query.mockResolvedValue([[{ id: 1, notice_status: 'sent', notice_text: 'x' }]]);
+    await expect(notices.preview(5, 7, 1, 'We replaced a piece of equipment.')).rejects.toThrow(/not waiting/);
+  });
+
   test('a draft never shown translated is sent as the reviewer left it', async () => {
     draft({ lang: 'es' });
     await notices.approve(5, 7, 1, 2, 'Texto corregido por una persona.', 'es');

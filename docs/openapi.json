@@ -6884,6 +6884,69 @@
         }
       }
     },
+    "/network-incidents/{id}/reports/{reportId}/preview": {
+      "post": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "What the customer would receive for a reviewer's edited draft: the text put into the customer's language. Sends and saves nothing. Sending the returned text without lang sends exactly it",
+        "operationId": "previewNetworkIncidentNotice",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Edited text",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "customer_text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/network-incidents/{id}/reports/{reportId}/discard": {
       "post": {
         "tags": [

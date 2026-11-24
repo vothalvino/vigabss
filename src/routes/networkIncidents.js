@@ -41,6 +41,11 @@ router.get('/:id/reports/:reportId/draft', requirePermission('devices.update'), 
   try { res.json({ data: await notices.review(req.orgId, req.params.id, req.params.reportId, req.query.lang) }); } catch (err) { next(err); }
 });
 
+// What the customer would receive for the reviewer's edited text. Sends nothing.
+router.post('/:id/reports/:reportId/preview', requirePermission('devices.update'), async (req, res, next) => {
+  try { res.json({ data: await notices.preview(req.orgId, req.params.id, req.params.reportId, req.body?.text) }); } catch (err) { next(err); }
+});
+
 router.post('/:id/reports/:reportId/discard', requirePermission('devices.update'), async (req, res, next) => {
   try { res.json({ data: await notices.discard(req.orgId, req.params.id, req.params.reportId, req.user?.id) }); } catch (err) { next(err); }
 });

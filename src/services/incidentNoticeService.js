@@ -297,6 +297,29 @@ async function review(orgId, incidentId, reportId, lang) {
   return { text: translated, customer_text: original, translated: translated !== original };
 }
 
+/** A reviewer's text put into the language of the customer the draft is for. Throws when it cannot be. */
+async function toCustomerLanguage(orgId, report, text) {
+  const customer = await languageOf(orgId, report);
+  const target = customer.sample && !report.notice_lang ? customer : { locale: report.notice_lang || customer.locale };
+  const translated = await translate(orgId, await loadPolicy(orgId), text, target);
+  if (!translated) throw new ValidationError('Your changes could not be put into the customer\'s language. Try again, or send the message unchanged.');
+  return translated;
+}
+
+/**
+ * What the customer would receive for a reviewer's edited text, so it can be
+ * read before it is sent. Nothing is sent or saved. Sending that text
+ * afterwards (without a language) sends exactly what was shown.
+ * @returns {Promise<{customer_text: string}>}
+ */
+async function preview(orgId, incidentId, reportId, editedText) {
+  const report = await loadDraft(orgId, incidentId, reportId);
+  const text = String(editedText ?? '').trim();
+  if (text.length < 10) throw new ValidationError('The message is too short');
+  if (text.length > MAX_MESSAGE) throw new ValidationError(`The message is longer than ${MAX_MESSAGE} characters`);
+  return { customer_text: await toCustomerLanguage(orgId, report, text) };
+}
+
 /**
  * A person approves a draft, optionally editing it, and it is sent.
  * With `lang` the text is what they read in their own language: unchanged, the
@@ -313,11 +336,7 @@ async function approve(orgId, incidentId, reportId, userId, editedText, lang = n
     if (text === String(shown).trim()) {
       text = String(report.notice_text).trim();
     } else {
-      const customer = await languageOf(orgId, report);
-      const target = customer.sample && !report.notice_lang ? customer : { locale: report.notice_lang || customer.locale };
-      const translated = await translate(orgId, await loadPolicy(orgId), text, target);
-      if (!translated) throw new ValidationError('Your changes could not be put into the customer\'s language. Try again, or send the message unchanged.');
-      text = translated;
+      text = await toCustomerLanguage(orgId, report, text);
     }
   }
   const sent = await deliver(orgId, report, text).catch((err) => ({ delivered: false, error: err.message }));
@@ -339,7 +358,7 @@ async function discard(orgId, incidentId, reportId, userId) {
 }
 
 module.exports = {
-  prepare, approve, discard, review,
+  prepare, approve, discard, review, preview,
   // exported for tests
   rewrite, translate, deliver, maySendAlone, systemPrompt, neutralFor, languageOf, MAX_MESSAGE,
 };

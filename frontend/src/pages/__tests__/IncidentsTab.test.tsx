@@ -130,15 +130,42 @@ describe('Incidents', () => {
       expect(screen.getByText(german)).toBeInTheDocument();
     });
 
-    it('sent unchanged or changed, the reviewer\'s language goes with it so the server sends the customer\'s', async () => {
-      const box = await open();
-      fireEvent.change(box, { target: { value: 'We replaced a piece of equipment. Thank you for your patience.' } });
-      expect(screen.getByText(/Your version is put into the customer's language when you send it/)).toBeInTheDocument();
-      expect(screen.queryByText(german)).toBeNull();
+    it('sent unchanged, the server is told the reviewer\'s language so the customer gets the original', async () => {
+      await open();
       fireEvent.click(screen.getByRole('button', { name: 'Send' }));
       await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/send', {
-        method: 'POST', body: JSON.stringify({ text: 'We replaced a piece of equipment. Thank you for your patience.', lang: 'en' }),
+        method: 'POST', body: JSON.stringify({ text: 'We replaced a piece of equipment that serves your area.', lang: 'en' }),
       }));
+    });
+
+    it('once edited it cannot be sent until the customer\'s version has been read, and exactly that is sent', async () => {
+      const edited = 'We replaced a piece of equipment. Thank you for your patience.';
+      const inGerman = 'Wir haben ein Gerät ersetzt. Vielen Dank für Ihre Geduld.';
+      const base = apiFetch.getMockImplementation() as (path: string, init?: RequestInit) => Promise<unknown>;
+      apiFetch.mockImplementation(async (path: string, init?: RequestInit) => (path.endsWith('/preview') ? { data: { customer_text: inGerman } } : base(path, init)));
+      const box = await open();
+      fireEvent.change(box, { target: { value: edited } });
+      expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+      expect(screen.queryByText(german)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'See what the customer gets' }));
+      expect(await screen.findByText(inGerman)).toBeInTheDocument();
+      expect(screen.getByText('With your changes, the customer receives:')).toBeInTheDocument();
+      expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/preview', { method: 'POST', body: JSON.stringify({ text: edited }) });
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      await waitFor(() => expect(apiFetch).toHaveBeenCalledWith('/network-incidents/7/reports/1/send', { method: 'POST', body: JSON.stringify({ text: inGerman }) }));
+    });
+
+    it('editing again after a preview asks for a new one', async () => {
+      const base = apiFetch.getMockImplementation() as (path: string, init?: RequestInit) => Promise<unknown>;
+      apiFetch.mockImplementation(async (path: string, init?: RequestInit) => (path.endsWith('/preview') ? { data: { customer_text: 'Erste Fassung der Nachricht.' } } : base(path, init)));
+      const box = await open();
+      fireEvent.change(box, { target: { value: 'First version of the edited message.' } });
+      fireEvent.click(screen.getByRole('button', { name: 'See what the customer gets' }));
+      await screen.findByText('Erste Fassung der Nachricht.');
+      fireEvent.change(box, { target: { value: 'Second version of the edited message.' } });
+      expect(screen.queryByText('Erste Fassung der Nachricht.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'See what the customer gets' })).toBeInTheDocument();
     });
   });
 

@@ -1,7 +1,10 @@
 {
   "incidentsBoard": {
+    "willTranslate": "Cambiaste el texto. Míralo en el idioma del cliente antes de enviarlo.",
+    "customerGetsEdited": "Con tus cambios, el cliente recibe:",
+    "preview": "Ver lo que recibe el cliente",
+    "previewing": "Traduciendo…",
     "customerGets": "El cliente lo recibe en su propio idioma:",
-    "willTranslate": "Cambiaste el texto. Tu versión se pasa al idioma del cliente al enviarla.",
     "intro": "Líneas y equipos del árbol de red con falla. Un incidente sigue abierto cuando la falla se quita sola; un técnico lo cierra y dice qué se hizo. Nada de aquí se envía a los clientes hasta entonces.",
     "show": "Mostrar",
     "status": {
