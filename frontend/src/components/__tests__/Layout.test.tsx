@@ -544,6 +544,14 @@ describe('Layout — grouped sidebar navigation', () => {
     expect(within(nav).queryByText('55')).not.toBeInTheDocument();
   });
 
+  it('Menu templates has its own row under Administration', async () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/menu-templates'] });
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const row = within(nav).getByRole('link', { name: 'Menu templates' });
+    expect([row.getAttribute('href'), row.getAttribute('aria-current')]).toEqual(['/menu-templates', 'page']);
+  });
+
   it('a page that is alone in its set has no tabs and keeps its own title', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/topology-map'] });
