@@ -212,6 +212,8 @@ const TopologyMapPage = lazy(() => import('@/pages/TopologyMapPage').then((m) =>
 const InventoryManagement = lazy(() => import('@/pages/InventoryManagement').then((m) => ({ default: m.InventoryManagement })));
 const HubPage = lazy(() => import('@/pages/HubPage').then((m) => ({ default: m.HubPage })));
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })));
+const MyMenuPage = lazy(() => import('@/pages/MyMenuPage').then((m) => ({ default: m.MyMenuPage })));
+const MenuTemplatesPage = lazy(() => import('@/pages/MenuTemplatesPage').then((m) => ({ default: m.MenuTemplatesPage })));
 const SecurityAccessControlPage = lazy(() => import('@/pages/SecurityAccessControlPage').then((m) => ({ default: m.SecurityAccessControlPage })));
 const AutomationPage = lazy(() => import('@/pages/AutomationPage'));
 const ResellerPage = lazy(() => import('@/pages/ResellerPage'));
@@ -345,6 +347,8 @@ export function App() {
                 {/* Open to any signed-in user: the page lists only the setup
                     pages that person's permissions open. */}
                 <Route path="network/setup" element={<SetupPage section="network" />} />
+                {/* A person's own sidebar arrangement: pages they may open. */}
+                <Route path="my-menu" element={<MyMenuPage />} />
                 <Route path="regulatory-compliance" element={<RegulatoryCompliancePage />} />
                 {/* Exact infrastructure geolocation and every action are
                     permission-gated inside the MX-only SNII workflow. */}
@@ -467,6 +471,7 @@ export function App() {
             <Route element={<PrivateRoute requiredRole="admin" />}>
               <Route element={<Layout />}>
                 <Route path="admin" element={<HubPage section="admin" />} />
+                <Route path="menu-templates" element={<MenuTemplatesPage />} />
                 <Route path="users" element={<UserList />} />
                 <Route path="organizations" element={<OrganizationList />} />
                 <Route path="organizations/:id" element={<OrganizationDetail />} />

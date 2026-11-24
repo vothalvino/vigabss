@@ -1,4 +1,61 @@
 {
+  "customMenu": {
+    "myMenu": "Meu menu",
+    "editMyMenu": "Editar meu menu",
+    "allPages": "Todas as páginas",
+    "loading": "Carregando…",
+    "loadFailed": "Não foi possível carregar o menu.",
+    "intro": "Organize a barra lateral do seu jeito: crie grupos, dê nomes e adicione as páginas que você usa. Só podem ser adicionadas páginas que você tem permissão de abrir. Todo o resto continua em “Todas as páginas” e na busca.",
+    "usingTemplate": "Você está usando o menu “{{name}}” preparado pela sua organização. Ao salvar uma alteração ele passa a ser seu.",
+    "lockedTemplate": "Seu menu é “{{name}}”, definido pela sua organização. Não pode ser alterado aqui.",
+    "backToTemplate": "Voltar para “{{name}}”",
+    "backToStandard": "Voltar ao menu padrão",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "saved": "Salvo.",
+    "noGroups": "Ainda não há grupos. Adicione um para começar.",
+    "groupNumber": "Grupo {{number}}",
+    "groupName": "Nome do grupo",
+    "addGroup": "Adicionar um grupo",
+    "addPage": "Adicionar uma página…",
+    "addPageTo": "Adicionar uma página a {{name}}",
+    "moveGroupUp": "Subir o grupo {{name}}",
+    "moveGroupDown": "Descer o grupo {{name}}",
+    "removeGroup": "Remover o grupo {{name}}",
+    "movePageUp": "Subir {{name}}",
+    "movePageDown": "Descer {{name}}",
+    "removePage": "Remover {{name}}",
+    "problems": {
+      "unnamed": "Dê um nome a cada grupo.",
+      "duplicate": "Dois grupos têm o mesmo nome.",
+      "templateName": "Dê um nome ao modelo."
+    },
+    "pin": {
+      "pin": "Fixar {{page}} no meu menu",
+      "pinned": "{{page}} está no meu menu",
+      "title": "Mostrar {{page}} em",
+      "noGroups": "Dê nome a um grupo para começar seu menu.",
+      "newGroup": "Novo grupo",
+      "add": "Adicionar"
+    },
+    "templates": {
+      "title": "Modelos de menu",
+      "intro": "Prepare um menu lateral uma vez e atribua a grupos de usuários ou a pessoas. Um modelo só organiza páginas: cada pessoa vê as páginas do modelo que suas próprias permissões abrem, e nada mais.",
+      "new": "Novo modelo",
+      "none": "Ainda não há modelos.",
+      "edit": "Editar",
+      "editNamed": "Editar {{name}}",
+      "delete": "Excluir modelo",
+      "name": "Nome do modelo",
+      "locked": "Bloqueado: quem recebe este modelo não pode alterar o próprio menu",
+      "lockedBadge": "Bloqueado",
+      "givenTo": "Atribuído a: {{list}}",
+      "givenToNobody": "Ainda não atribuído a ninguém",
+      "audienceGroups": "Atribuir a grupos de usuários",
+      "audiencePeople": "Atribuir a pessoas",
+      "audienceHint": "O modelo próprio de uma pessoa vem antes do modelo do grupo. Um grupo ou uma pessoa tem um só modelo; atribuir este substitui o outro."
+    }
+  },
   "incidentsBoard": {
     "willTranslate": "Você alterou o texto. Veja-o no idioma do cliente antes de enviar.",
     "customerGetsEdited": "Com as suas alterações, o cliente recebe:",
@@ -688,6 +745,7 @@
     "goToLogin": "Ir para o login"
   },
   "nav": {
+    "menuTemplates": "Modelos de menu",
     "tabsets": {
       "monitor": "Monitoramento",
       "subscribers": "Assinantes online",

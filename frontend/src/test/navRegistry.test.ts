@@ -25,7 +25,9 @@ const appSrc = fs.readFileSync(path.resolve(__dirname, '../App.tsx'), 'utf8');
 // Public/portal paths and the fallbacks are not staff nav destinations.
 // 'ai-assistant' is a redirect to the Settings tab of /ai-support (the two AI
 // pages became one); it has no page and so no nav home of its own.
-const IGNORED = new Set(['login', 'forgot-password', 'reset-password', 'verify-email', '404', '*', 'ai-assistant']);
+// 'my-menu' is a person's own sidebar arrangement: reached from the sidebar's
+// "Edit my menu" link, open to every signed-in user, and not a page of any section.
+const IGNORED = new Set(['login', 'forgot-password', 'reset-password', 'verify-email', '404', '*', 'ai-assistant', 'my-menu']);
 
 /** Parse App.tsx into (path → guard) using the PrivateRoute wrapper structure. */
 function routedPaths(): Map<string, Guard> {

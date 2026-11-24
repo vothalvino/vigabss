@@ -19,6 +19,20 @@ import type { AuthUser } from '@/auth/AuthContext';
 // ---------------------------------------------------------------------------
 
 const mockApiGet = vi.fn();
+// The person's own menu (GET /menus/mine). Tests set `myMenu` to give one.
+let myMenu: unknown = { layout: null, source: 'standard', template: null, can_edit: true };
+const menuSaves: unknown[] = [];
+vi.mock('@/api/apiFetch', () => ({
+  apiFetch: async (path: string, init?: RequestInit) => {
+    if (path === '/menus/mine' && init?.method === 'PUT') {
+      const layout = JSON.parse(String(init.body)).layout;
+      menuSaves.push(layout);
+      myMenu = { layout, source: 'personal', template: null, can_edit: true };
+    }
+    return { data: myMenu };
+  },
+}));
+
 vi.mock('@/api/client', () => ({
   api: { GET: (...args: unknown[]) => mockApiGet(...args) },
   tokenStore: {
@@ -110,6 +124,8 @@ describe('Layout — grouped sidebar navigation', () => {
     mockApiGet.mockResolvedValue({ data: undefined, error: undefined });
     sessionStorage.clear();
     localStorage.clear(); // accordion expanded-state persists here between renders
+    myMenu = { layout: null, source: 'standard', template: null, can_edit: true };
+    menuSaves.length = 0;
     // jsdom does not implement matchMedia, which DarkModeProvider relies on.
     if (!window.matchMedia) {
       window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -539,5 +555,71 @@ describe('Layout — grouped sidebar navigation', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/clients'] });
     expect(document.querySelector('.page-tabs')).toBeNull();
+  });
+
+  // --- A menu of one's own -----------------------------------------------------
+
+  const desk = { layout: { groups: [{ name: 'My mornings', pages: ['/invoices', '/noc-dashboard'] }, { name: 'Empty for me', pages: ['/not-a-page'] }] }, source: 'personal', template: null, can_edit: true };
+
+  it('shows the person\'s groups instead of the standard sidebar, which folds under All pages', async () => {
+    myMenu = desk;
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/invoices'] });
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const group = await within(nav).findByRole('group', { name: 'My mornings' });
+    expect(within(group).getAllByRole('link').map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Invoices', '/invoices'], ['NOC Dashboard', '/noc-dashboard']]);
+    expect(within(group).getByRole('link', { current: 'page' }).textContent).toBe('Invoices');
+    // A group with nothing the person can open is not shown.
+    expect(within(nav).queryByRole('group', { name: 'Empty for me' })).toBeNull();
+    // The standard sections are one click away.
+    expect(within(nav).queryByText('Billing')).toBeNull();
+    const all = within(nav).getByRole('button', { name: 'All pages' });
+    expect(all.getAttribute('aria-expanded')).toBe('false');
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(all);
+    expect(within(nav).getByText('Billing')).toBeInTheDocument();
+    expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+  });
+
+  it('a menu never shows a page the person may not open', async () => {
+    myMenu = { ...desk, layout: { groups: [{ name: 'Mixed', pages: ['/invoices', '/tickets', '/users'] }] } };
+    mockUseAuth(makeUser('support'));
+    renderLayout();
+    const group = await screen.findByRole('group', { name: 'Mixed' });
+    expect(within(group).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/tickets']);
+  });
+
+  it('without a menu the standard sidebar is shown, with no All pages row', async () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout();
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getByText('Billing')).toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'All pages' })).toBeNull();
+    expect(await screen.findByRole('link', { name: 'Edit my menu' })).toHaveAttribute('href', '/my-menu');
+  });
+
+  it('pins the open page into a named group and saves it as the person\'s own menu', async () => {
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/invoices'] });
+    const { fireEvent, waitFor } = await import('@testing-library/react');
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin Invoices to my menu' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'New group' }), { target: { value: 'Collections' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(menuSaves).toEqual([{ groups: [{ name: 'Collections', pages: ['/invoices'] }] }]));
+    const group = await screen.findByRole('group', { name: 'Collections' });
+    expect(within(group).getByRole('link').getAttribute('href')).toBe('/invoices');
+    expect(screen.getByRole('button', { name: 'Invoices is in my menu' })).toBeInTheDocument();
+    // Unticking the group takes the page out again.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Collections' }));
+    await waitFor(() => expect(menuSaves[1]).toEqual({ groups: [{ name: 'Collections', pages: [] }] }));
+  });
+
+  it('a locked template can be neither pinned to nor edited', async () => {
+    myMenu = { ...desk, source: 'template', template: { id: 7, name: 'Billing desk', locked: true, given_to: 'group' }, can_edit: false };
+    mockUseAuth(makeUser('admin'));
+    renderLayout({ initialEntries: ['/invoices'] });
+    await screen.findByRole('group', { name: 'My mornings' });
+    expect(screen.queryByRole('button', { name: /my menu/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Edit my menu' })).toBeNull();
   });
 });

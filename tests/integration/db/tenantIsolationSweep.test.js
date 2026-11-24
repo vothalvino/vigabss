@@ -173,6 +173,8 @@ const PATH_PARAMS = {
   '/network-incidents/:id/reports/:reportId/send': 'network_incident_reports',
   '/network-incidents/:id/reports/:reportId/discard': 'network_incident_reports',
   '/network-incidents/:id/reports/:reportId/draft': 'network_incident_reports',
+  '/menus/templates/:id': 'menu_templates',
+  '/menus/templates/:id/assignments': 'menu_templates',
   '/network-incidents/:id/reports/:reportId/preview': 'network_incident_reports',
   '/topology/health/devices/:id/uplink': 'devices',
   '/portal-kb/:id': 'portal_kb_articles',
