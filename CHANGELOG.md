@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.30 — 2026-11-23
+
 - **FTTH speed is enforced on the OLT.** A contract whose ONU was authorised
   from VigaBSS is rate-limited by the OLT, and RADIUS no longer sends it a
   speed limit, so the MikroTik creates no queue for it. A plan change on such
