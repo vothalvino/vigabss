@@ -284,7 +284,9 @@ export function Layout() {
         section,
         items,
         hubVisible,
-        sectionCount: visibleSectionCount(user, section.id),
+        // A section grouped into tab sets counts its groups: that is what the
+        // sidebar and the overview page show. Others count their pages.
+        sectionCount: items.some(row => row.tabset) ? items.length : visibleSectionCount(user, section.id),
       }];
     })
     : [];

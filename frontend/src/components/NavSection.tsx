@@ -126,7 +126,9 @@ export function NavSection({
               ) : null;
             lastSub = item.sub ?? lastSub;
             const current = activePath !== null && item.paths.includes(activePath);
-            const remembered = item.tabset ? lastTab(item.tabset) : null;
+            // On one of the row's pages the row stays there: the remembered page
+            // is only written after this render, so it would still be the old one.
+            const remembered = current ? activePath : item.tabset ? lastTab(item.tabset) : null;
             return (
               <div key={item.key}>
                 {subhead}
