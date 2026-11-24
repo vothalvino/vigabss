@@ -107,7 +107,7 @@ async function pathForContract(orgId, contractId) {
 
   // --- the customer's own equipment ---
   const [customerDevices] = await db.query(
-    `SELECT DISTINCT d.id, d.name, d.type, d.status, d.parent_device_id
+    `SELECT DISTINCT d.id, d.name, d.type, d.status, d.consecutive_poll_failures, d.parent_device_id
        FROM devices d
        LEFT JOIN cpe_devices cd ON cd.device_id = d.id AND cd.organization_id = d.organization_id AND cd.deleted_at IS NULL
       WHERE d.organization_id = ? AND d.deleted_at IS NULL
@@ -184,7 +184,7 @@ async function pathForContract(orgId, contractId) {
       [customer.id],
     );
     const readings = linkHealth.readingsFor(rows, null);
-    customerVerdict = linkHealth.judge({ type: customer.type, status: customer.status, has_parent: false, uplink_interface: null, uplink_capacity_mbps: null }, readings, limits).equipment;
+    customerVerdict = linkHealth.judge({ type: customer.type, status: linkHealth.observedStatus(customer), has_parent: false, uplink_interface: null, uplink_capacity_mbps: null }, readings, limits).equipment;
     // Traffic: the busiest interface of the customer's equipment.
     const interfaces = [...new Set(rows.filter((r) => r.interface_id !== null && r.interface_id !== undefined).map((r) => String(r.interface_id)))];
     const rates = interfaces.map((iface) => linkHealth.readingsFor(rows, iface).rate_bps).filter((v) => v !== null);

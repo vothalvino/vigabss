@@ -87,6 +87,15 @@ describe('WISP: customer radio → sector → links → main NAS', () => {
     expect(out.findings[0]).toMatchObject({ device_id: 70, reasons: [{ code: 'cpu', value: 99, limit: 85 }] });
   });
 
+  test('customer equipment that was never polled is not called offline', async () => {
+    world({ nodes: allGood, customer: [{ id: 70, name: 'CPE Ana', type: 'outdoor_cpe', status: 'offline', consecutive_poll_failures: 0, parent_device_id: null }] });
+    const out = await path.pathForContract(5, 9);
+    expect(out.hops[0].equipment).toEqual({ state: 'unknown', reasons: [] });
+    expect(out.conclusion).toEqual({ side: 'none', state: 'good' });
+    world({ nodes: allGood, customer: [{ id: 70, name: 'CPE Ana', type: 'outdoor_cpe', status: 'offline', consecutive_poll_failures: 4, parent_device_id: null }] });
+    expect((await path.pathForContract(5, 9)).conclusion).toEqual({ side: 'customer_equipment', state: 'off' });
+  });
+
   test('using all of the plan is the plan, not a fault of ours', async () => {
     world({ nodes: allGood, metrics: [
       { device_id: 70, interface_id: '1', ts: 1300, if_in_octets: 1800000000, if_out_octets: 0 },

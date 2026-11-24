@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: equipment that was never polled showed as "off" (red).** Every
+  device starts with the status "offline" until polling has looked at it, and
+  the network tree read that as an outage. Unmonitored equipment turned red,
+  the watch opened an "offline" incident for it, and a customer's connection
+  check could conclude that our network was down. "Offline" now only counts
+  once polling has detected it (three failed polls in a row); equipment that
+  was never polled is grey, "not measured".
+
 ## 0.1.0-alpha.31 — 2026-11-23
 
 - **A draft closing message is reviewed in the reviewer's own language.**
