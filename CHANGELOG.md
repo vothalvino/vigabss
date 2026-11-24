@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Connection check on a contract.** A contract's page has a "Connection
+  check" that walks every hop from the customer's equipment up to the main
+  NAS (radio, sector, links and routers for wireless; ONU, OLT and what is
+  above it for fibre) and shows each in the network tree's colours. It ends
+  with one sentence on where a fault is: our network above the sector or
+  OLT, our access equipment, the link between the customer and us, the
+  customer's equipment, or nothing failing because the customer is using all
+  of their plan. What could not be checked is listed by name, never assumed
+  good.
+
 - **The network tree shows what is good, degraded or off.** Each line of the
   tree, and each piece of equipment, is green, yellow, red, or grey when it
   is not measured. What is wrong is written under the row with the numbers

@@ -49,7 +49,7 @@ const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
 import { CONTRACT_DETAIL_QUERY } from './contracts/contractDetailQuery';
 import type { ContractClient, Invoice, Device, ContractAddon } from './contracts/contractDetailTypes';
-import { ContractTransition } from './contracts/ContractTransition';
+import { ContractPanels } from './contracts/ContractPanels';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -2184,7 +2184,7 @@ export function ContractDetail() {
           </div>
         )}
       </div>
-      <ContractTransition contractId={contract.id} clientId={contract.clientId} status={contract.status} technology={contract.accessTechnology} connectionType={contract.connectionType} canEdit={canEdit} />
+      <ContractPanels contractId={contract.id} clientId={contract.clientId} status={contract.status} technology={contract.accessTechnology} connectionType={contract.connectionType} canEdit={canEdit} />
 
       <MxSandboxDocumentBanner environment={contract.mxContractEnvironment} />
 

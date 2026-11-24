@@ -30,6 +30,7 @@ const testWindowService = require('../services/testWindowService');
 const { assertPlanSelectable, technologyForNewContract, assertPlanKeepsTechnology } = require('../services/planAvailability');
 const { terminateContract, purgeFreeradiusRows } = require('../services/contractTerminationService');
 const contractTransitionService = require('../services/contractTransitionService');
+const customerPathService = require('../services/customerPathService');
 const { updateContractWithActivationGuard } = require('../services/contractUpdateGuard');
 const contractPlanChangeService = require('../services/contractPlanChangeService');
 const planChangeProrationService = require('../services/planChangeProrationService');
@@ -402,6 +403,12 @@ router.get('/:id', requirePermission('contracts.view'), ctrl.get);
 // What this contract replaces, and what is replacing it (technology transition).
 router.get('/:id/transition', requirePermission('contracts.view'), async (req, res, next) => {
   try { res.json({ data: await contractTransitionService.relations(req.params.id, req.orgId) }); } catch (err) { next(err); }
+});
+
+// The contract's path through the network, checked hop by hop, and where a
+// fault is: the customer's side, their plan, or ours.
+router.get('/:id/network-path', requirePermission('contracts.view'), async (req, res, next) => {
+  try { res.json({ data: await customerPathService.pathForContract(req.orgId, req.params.id) }); } catch (err) { next(err); }
 });
 
 router.get('/:id/activation', requirePermission('contracts.view'), async (req, res, next) => {

@@ -423,6 +423,7 @@ function generateSpec() {
 
       // ---- Contracts ----
       ...withRowResponses(crudPaths('contracts', 'Contracts', 'Contract'), 'Contract'),
+      '/contracts/{id}/network-path': { get: { tags: ['Contracts'], summary: 'The contract\'s path through the network checked hop by hop: the customer\'s equipment, the sector or OLT, and everything above it up to the main NAS, each with its health. conclusion.side says where a fault is: backhaul, access, customer_link, customer_equipment, customer_plan, none or unknown. gaps lists what could not be checked', operationId: 'getContractNetworkPath', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('technology, plan, hops[], saturation, findings[], conclusion, reaches_main_nas, gaps[], checked_at') } },
       '/contracts/{id}/transition': { get: { tags: ['Contracts'], summary: 'Technology transition links of a contract: the contract it replaces and the contract replacing it (each id and status, or null)', operationId: 'getContractTransition', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('replaces, replaced_by') } },
       '/contracts/{id}/activation': {
         get: {
