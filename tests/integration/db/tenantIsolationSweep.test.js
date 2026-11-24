@@ -172,6 +172,8 @@ const PATH_PARAMS = {
   '/network-incidents/:id/close': 'network_incidents',
   '/network-incidents/:id/reports/:reportId/send': 'network_incident_reports',
   '/network-incidents/:id/reports/:reportId/discard': 'network_incident_reports',
+  '/network-incidents/:id/reports/:reportId/draft': 'network_incident_reports',
+  '/network-incidents/:id/reports/:reportId/preview': 'network_incident_reports',
   '/topology/health/devices/:id/uplink': 'devices',
   '/portal-kb/:id': 'portal_kb_articles',
   '/clients/:clientId/dnd/:channel': { value: 'email' },

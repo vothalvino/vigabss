@@ -50,19 +50,45 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hou
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
 function DraftRow({ incidentId, report, canAct }: { incidentId: number; report: Report; canAct: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const [text, setText] = useState(report.notice_text ?? '');
+  const waiting = report.notice_status === 'draft' || report.notice_status === 'failed';
+  // The reviewer reads the draft in their own language; the customer still
+  // receives it in theirs.
+  const lang = i18n.language || 'en';
+  const { data: draft, isLoading: draftLoading } = useQuery({
+    queryKey: ['network-incident-draft', incidentId, report.id, lang],
+    queryFn: async () => (await apiFetch<{ data: { text: string; customer_text: string; translated: boolean } }>(`/network-incidents/${incidentId}/reports/${report.id}/draft?lang=${encodeURIComponent(lang)}`)).data,
+    enabled: waiting && canAct,
+  });
+  const [edited, setEdited] = useState<string | null>(null);
+  const text = edited ?? draft?.text ?? report.notice_text ?? '';
+  // An edited draft is read in the customer's language before it can be sent.
+  const changed = Boolean(draft?.translated) && edited !== null && edited !== draft?.text;
+  const [shown, setShown] = useState<{ source: string; customer_text: string } | null>(null);
+  const previewed = changed && shown !== null && shown.source === text;
+  const setText = setEdited;
+  const preview = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch<{ data: { customer_text: string } }>(`/network-incidents/${incidentId}/reports/${report.id}/preview`, { method: 'POST', body: JSON.stringify({ text }) });
+      return { source: text, customer_text: res.data.customer_text };
+    },
+    onSuccess: (result: { source: string; customer_text: string }) => setShown(result),
+  });
   const refresh = () => { void qc.invalidateQueries({ queryKey: LIST_KEY }); void qc.invalidateQueries({ queryKey: ['network-incident', incidentId] }); };
   const send = useMutation({
-    mutationFn: () => apiFetch(`/network-incidents/${incidentId}/reports/${report.id}/send`, { method: 'POST', body: JSON.stringify({ text }) }),
+    mutationFn: () => apiFetch(`/network-incidents/${incidentId}/reports/${report.id}/send`, {
+      method: 'POST',
+      // Previewed: send exactly the text that was read. Unchanged: the server
+      // sends the message as first written for the customer.
+      body: JSON.stringify(previewed ? { text: shown?.customer_text } : draft?.translated ? { text, lang } : { text }),
+    }),
     onSuccess: refresh,
   });
   const discard = useMutation({
     mutationFn: () => apiFetch(`/network-incidents/${incidentId}/reports/${report.id}/discard`, { method: 'POST' }),
     onSuccess: refresh,
   });
-  const waiting = report.notice_status === 'draft' || report.notice_status === 'failed';
   return (
     <li style={{ padding: '6px 0', borderTop: '1px solid var(--border-color, #e2e8f0)' }}>
       <div>
@@ -75,14 +101,26 @@ function DraftRow({ incidentId, report, canAct }: { incidentId: number; report: 
         <div style={{ marginTop: 6 }}>
           <textarea
             aria-label={t('incidentsBoard.messageFor', { name: report.client_name ?? t('incidentsBoard.customer') })}
-            value={text} onChange={e => setText(e.target.value)} rows={3} maxLength={900}
+            value={text} onChange={e => setText(e.target.value)} rows={3} maxLength={900} disabled={draftLoading}
             style={{ ...styles.input, width: '100%', boxSizing: 'border-box' }}
           />
+          {draft?.translated && (
+            <div style={{ margin: '4px 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              <div>{!changed ? t('incidentsBoard.customerGets') : previewed ? t('incidentsBoard.customerGetsEdited') : t('incidentsBoard.willTranslate')}</div>
+              {(!changed || previewed) && (
+                <blockquote lang="und" style={{ margin: '2px 0 0', paddingLeft: 8, borderLeft: '3px solid var(--border-color, #cbd5e1)' }}>
+                  {previewed ? shown?.customer_text : draft.customer_text}
+                </blockquote>
+              )}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <button type="button" disabled={send.isPending || text.trim().length < 10} onClick={() => send.mutate()} style={{ cursor: 'pointer', fontWeight: 600 }}>{t('incidentsBoard.sendMessage')}</button>
+            {changed && !previewed
+              ? <button type="button" disabled={preview.isPending || text.trim().length < 10} onClick={() => preview.mutate()} style={{ cursor: 'pointer', fontWeight: 600 }}>{preview.isPending ? t('incidentsBoard.previewing') : t('incidentsBoard.preview')}</button>
+              : <button type="button" disabled={send.isPending || draftLoading || text.trim().length < 10} onClick={() => send.mutate()} style={{ cursor: 'pointer', fontWeight: 600 }}>{t('incidentsBoard.sendMessage')}</button>}
             <button type="button" disabled={discard.isPending} onClick={() => discard.mutate()} style={{ cursor: 'pointer' }}>{t('incidentsBoard.dontSend')}</button>
           </div>
-          {(send.isError || discard.isError) && <span role="alert" style={{ color: '#991b1b' }}>{((send.error ?? discard.error) as Error).message}</span>}
+          {(send.isError || discard.isError || preview.isError) && <span role="alert" style={{ color: '#991b1b' }}>{((send.error ?? discard.error ?? preview.error) as Error).message}</span>}
         </div>
       )}
       {!waiting && report.notice_text && report.notice_status === 'sent' && <p style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>{report.notice_text}</p>}

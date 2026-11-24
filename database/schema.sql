@@ -11835,6 +11835,8 @@ CREATE TABLE IF NOT EXISTS network_incident_reports (
     notice_status       ENUM('none','draft','sent','failed','discarded') NOT NULL DEFAULT 'none'
                             COMMENT 'The closing message to this customer: draft waits for a person to approve it',
     notice_text         TEXT            NULL,
+    notice_lang         VARCHAR(12)     NULL DEFAULT NULL COMMENT 'Language notice_text was written in when known; NULL = the language the customer wrote in (migration 030)',
+    notice_reviews      JSON            NULL COMMENT 'notice_text put into each reviewer language asked for, keyed by language (migration 030)',
     notice_at           DATETIME        NULL,
     notice_by           BIGINT UNSIGNED NULL COMMENT 'users.id who approved or discarded a draft',
 
