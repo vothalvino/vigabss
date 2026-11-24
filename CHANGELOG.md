@@ -9,6 +9,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   ran three suites at a time everywhere, a number chosen for GitHub's
   4-core machines; on a self-hosted runner it now runs twelve. The
   dependency cache is no longer downloaded there either.
+## 0.1.0-alpha.39 — 2026-11-24
+
+- **Menu templates has its own row under Administration.** It was only
+  reachable through the Administration overview, search or a pin.
+- **A template's group list shows only groups that use the sidebar.**
+  Carriers, collectors and resellers work in their own apps and never see
+  the staff sidebar, so a menu template could do nothing for them; they are
+  no longer offered when choosing who gets a template.
 
 - **CI can use the owner's own runners.** The repository variable
   `CI_SELF_HOSTED_RUNNERS` says how many self-hosted runners are online: at

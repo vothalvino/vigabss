@@ -365,7 +365,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/users', labelKey: 'nav.users', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['users.view'] },
   { path: '/roles', labelKey: 'nav.roles', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['roles.view'] },
   // Arranges sidebars only: a template shows each person just the pages their own permissions open.
-  { path: '/menu-templates', keywords: ['menu', 'sidebar', 'plantilla', 'pin'], labelKey: 'nav.menuTemplates', section: 'admin', guard: 'admin', card: 'peopleAccess', viewPermissions: ['menu_templates.manage'] },
+  { path: '/menu-templates', keywords: ['menu', 'sidebar', 'plantilla', 'pin'], labelKey: 'nav.menuTemplates', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['menu_templates.manage'] },
   { path: '/organizations', labelKey: 'nav.organizations', section: 'admin', guard: 'admin', card: 'organization', rail: true, viewPermissions: ['organizations.view'] },
   { path: '/settings', labelKey: 'nav.settings', section: 'admin', guard: 'admin', card: 'organization', rail: true, viewPermissions: ['settings.view'] },
   { path: '/automation', labelKey: 'nav.automation', section: 'admin', guard: 'admin', card: 'automationIntegrations', rail: true, viewPermissions: ['automation_rules.view', 'batch_jobs.view', 'provisioning_pipelines.view'] },

@@ -189,6 +189,19 @@ describe('templates', () => {
     await expect(menus.assignTemplate(5, 7, { group_ids: 'all' })).rejects.toMatchObject({ statusCode: 422 });
   });
 
+  test('offers the user groups that use the staff sidebar and the organization\'s active people', async () => {
+    const calls = [];
+    db.query.mockImplementation(async (sql, params) => {
+      calls.push([flat(sql), params]);
+      return [/FROM roles/.test(sql) ? [{ id: 3, name: 'billing' }] : [{ id: 9, email: 'ana@example.com', name: null }, { id: 10, email: 'b@example.com', name: 'Beto Ruiz' }]];
+    });
+    expect(await menus.audience(5)).toEqual({ groups: [{ id: 3, name: 'billing' }], people: [{ id: 9, name: 'ana@example.com' }, { id: 10, name: 'Beto Ruiz' }] });
+    // Carriers, collectors and resellers work in their own apps, without this sidebar.
+    expect(calls[0]).toEqual(['SELECT id, name FROM roles WHERE deleted_at IS NULL AND name NOT IN (?) ORDER BY name', [['carrier', 'collector', 'reseller_admin']]]);
+    expect(calls[1][0]).toMatch(/FROM users WHERE organization_id = \? AND deleted_at IS NULL AND status = 'active'/);
+    expect(calls[1][1]).toEqual([5]);
+  });
+
   test('giving it to nobody clears the list', async () => {
     templates();
     const conn = tx();
