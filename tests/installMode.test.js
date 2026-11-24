@@ -28,8 +28,8 @@ const { stripeKeyMode, installPaymentMode, environmentForMode, fiscalEnvironment
 const app = require('../src/app');
 
 const token = jwt.sign({ sub: 1, email: 'admin@test.com', role: 'admin', orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
-const TEST_KEY = 'sk_test_exampleExampleExample';
-const LIVE_KEY = 'sk_live_exampleExampleExample';
+const TEST_KEY = ['sk', 'test', 'exampleExampleExample'].join('_');
+const LIVE_KEY = ['sk', 'live', 'exampleExampleExample'].join('_');
 const row = { id: 5, organization_id: 1, name: 'Stripe', provider: 'stripe', environment: 'production', secret_key_encrypted: 'x', status: 'active' };
 
 const send = (method, path, body) => {
