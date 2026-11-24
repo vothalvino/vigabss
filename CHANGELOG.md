@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.33 — 2026-11-23
+
 - **Fixed: every map had a grey background.** The service worker intercepted
   the map tile requests to the tile provider, its own fetch was refused by
   the site's security policy, and it answered each tile with a cached page
