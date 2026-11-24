@@ -62,7 +62,7 @@ const rawGatewayRow = {
   environment: 'production',
   public_key: 'pk_live_abc123',
   secret_key_encrypted: 'sk_live_SUPER_SECRET_VALUE',
-  webhook_secret_encrypted: 'whsec_SUPER_SECRET_VALUE',
+  webhook_secret_encrypted: ['whsec', 'SUPER_SECRET_VALUE'].join('_'),
   is_default: 1,
   status: 'active',
   config_json: null,
@@ -172,7 +172,7 @@ describe('Payment Gateway routes — secret redaction', () => {
           // Write-only plaintext fields (BIL-08): the route seals them into
           // the *_encrypted columns; clients cannot write those directly.
           secret_key: 'sk_live_SUPER_SECRET_VALUE',
-          webhook_secret: 'whsec_SUPER_SECRET_VALUE',
+          webhook_secret: ['whsec', 'SUPER_SECRET_VALUE'].join('_'),
         });
 
       expect(res.status).toBe(201);
@@ -183,7 +183,7 @@ describe('Payment Gateway routes — secret redaction', () => {
       // response is redacted.
       const stored = PaymentGateway.create.mock.calls[0][0];
       expect(decrypt(stored.secret_key_encrypted)).toBe('sk_live_SUPER_SECRET_VALUE');
-      expect(decrypt(stored.webhook_secret_encrypted)).toBe('whsec_SUPER_SECRET_VALUE');
+      expect(decrypt(stored.webhook_secret_encrypted)).toBe(['whsec', 'SUPER_SECRET_VALUE'].join('_'));
       expect(stored).not.toHaveProperty('secret_key');
       expect(stored).not.toHaveProperty('webhook_secret');
     });

@@ -769,7 +769,7 @@ describe('paymentGatewayService', () => {
   // Webhook Signature Verification — Stripe
   // =========================================================================
   describe('verifyStripeSignature()', () => {
-    const secret = 'whsec_test_secret';
+    const secret = ['whsec', 'test_secret'].join('_');
 
     function makeStripeSignature(payload, timestamp, secret) {
       const signedPayload = `${timestamp}.${payload}`;

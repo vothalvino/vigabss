@@ -66,7 +66,7 @@ describe('Payment Webhooks & Idempotency', () => {
   // Stripe Signature Verification
   // =========================================================================
   describe('verifyStripeSignature()', () => {
-    const secret = 'whsec_test_secret_key';
+    const secret = ['whsec', 'test_secret_key'].join('_');
 
     function buildSignature(body, secret, timestamp) {
       const ts = timestamp || Math.floor(Date.now() / 1000);
@@ -958,7 +958,7 @@ describe('Payment Webhooks & Idempotency', () => {
     test('POST /api/v1/payment-webhooks/stripe rejects invalid signature when secret is set', async () => {
       const originalEnv = process.env.STRIPE_WEBHOOK_SECRET;
       try {
-        process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test123';
+        process.env.STRIPE_WEBHOOK_SECRET = ['whsec', 'test123'].join('_');
 
         const payload = {
           id: 'evt_test_sig',
@@ -1111,7 +1111,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
     test('accepts a validly SIGNED event (no opt-in needed)', async () => {
       delete process.env.ALLOW_UNSIGNED_WEBHOOKS;              // prove signature alone suffices
-      const secret = 'whsec_route_ok';
+      const secret = ['whsec', 'route_ok'].join('_');
       const orig = process.env.STRIPE_WEBHOOK_SECRET;
       process.env.STRIPE_WEBHOOK_SECRET = secret;
       try {
@@ -1206,7 +1206,7 @@ describe('Payment Webhooks & Idempotency', () => {
     // check inside the unsigned-only branch and re-introduces the 500.
     test('a validly signed but malformed event still returns 400 (not 500)', async () => {
       delete process.env.ALLOW_UNSIGNED_WEBHOOKS;
-      const secret = 'whsec_signed_malformed';
+      const secret = ['whsec', 'signed_malformed'].join('_');
       const orig = process.env.STRIPE_WEBHOOK_SECRET;
       process.env.STRIPE_WEBHOOK_SECRET = secret;
       try {

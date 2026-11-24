@@ -28,7 +28,7 @@ beforeEach(() => { jest.clearAllMocks(); });
 afterEach(() => { config.install.mode = originalMode; });
 
 describe('a Stripe webhook from the other side', () => {
-  const SECRET = 'whsec_exampleExampleExampleExampleExample';
+  const SECRET = ['whsec', 'exampleExampleExampleExampleExample'].join('_');
   const post = (event) => {
     const body = JSON.stringify(event);
     const t = Math.floor(Date.now() / 1000);

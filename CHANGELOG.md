@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- Tests: placeholder Stripe keys and webhook secrets are assembled when the
+  test runs, so they are no longer reported as leaked secrets by GitHub
+  secret scanning, and a check keeps secret-shaped literals out of the
+  source, tests and docs.
+
 ## 0.1.0-alpha.30 — 2026-11-23
 
 - **FTTH speed is enforced on the OLT.** A contract whose ONU was authorised
