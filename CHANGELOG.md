@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Billing menu: everyday pages up front, the rest under Billing setup.**
+  The Billing section now has six sidebar rows. Five hold what is opened
+  daily, each with its pages as tabs: Invoices (invoices, credit notes,
+  CFDI, adjustments), Payments (payments, cash reconciliation,
+  transactions, recurring payments, payment problems), Collections (payment
+  plans, disputes, refunds, chargebacks), Plans, and Reports (reports, tax
+  reports, analytics, expenses). The sixth, Billing setup, opens a page of
+  cards for what is configured once: taxes, the look of invoices, payment
+  gateways, late fees and reminders, and CSV import. Nothing was removed:
+  every page keeps its address and is still found by search.
+
 ## 0.1.0-alpha.41 — 2026-11-24
 
 - **Billing dates no longer depend on the server's time zone.** Billing

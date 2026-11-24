@@ -251,6 +251,24 @@ describe('tab sets', () => {
     expect(visibleRailRows(billing, 'network').map(r => [r.key, r.labelKey, r.to])).toEqual([['setup', 'nav.myWgTunnels', '/wg-tunnels']]);
   });
 
+  it('Billing shows its everyday sets as rows, then one row for setup', () => {
+    const rows = visibleRailRows(admin, 'billing');
+    expect(rows.map(r => [r.key, r.to])).toEqual([
+      ['invoicing', '/invoices'], ['paymentsIn', '/payments'], ['collections', '/payment-plans'],
+      ['plans', '/plans'], ['billingReports', '/reports'], ['setup', '/billing/setup'],
+    ]);
+    expect(visibleSetupCards(admin, 'billing').map(c => [c.set.id, c.items.length])).toEqual([
+      ['taxes', 2], ['invoiceLook', 1], ['gateways', 1], ['lateAndReminders', 2], ['importData', 1],
+    ]);
+    expect(routedPaths().get('/billing/setup')).toBe('any');
+    // An organization outside Mexico has no CFDI tab; the set keeps its other pages.
+    const elsewhere = { role: 'admin', organization_locale: 'global' } as Parameters<typeof visibleRailItems>[0];
+    expect(visibleRailRows(elsewhere, 'billing')[0].paths).toEqual(['/invoices', '/credit-notes', '/billing-adjustments']);
+    // Someone with one billing page sees it by its own name, with no setup row.
+    const onlyInvoices = { role: 'custom', permissions: ['credit_notes.view'] } as Parameters<typeof visibleRailItems>[0];
+    expect(visibleRailRows(onlyInvoices, 'billing').map(r => [r.labelKey, r.to])).toEqual([['nav.creditNotes', '/credit-notes']]);
+  });
+
   it('a section without tab sets keeps one row per rail page', () => {
     const rows = visibleRailRows(admin, 'fieldops');
     expect(rows.map(r => r.to)).toEqual(visibleRailItems(admin, 'fieldops').map(r => r.path));
@@ -262,7 +280,7 @@ describe('tab sets', () => {
     expect(cards.map(c => c.card)).toEqual(TABSETS.filter(set => set.section === 'network').map(set => set.id));
     expect(cards.find(c => c.card === 'alerts')?.items.map(i => i.path)).toEqual(['/alert-channels', '/alert-escalation-chains', '/alert-suppression-rules']);
     expect(cards.find(c => c.card === 'alerts')?.labelKey).toBe('nav.tabsets.alerts');
-    expect(visibleHubCards(admin, 'billing')[0].labelKey).toBe('nav.cards.receivables');
+    expect(visibleHubCards(admin, 'admin')[0].labelKey).toBe('nav.cards.peopleAccess');
   });
 
   it('a detail page belongs to the tab set of its list', () => {

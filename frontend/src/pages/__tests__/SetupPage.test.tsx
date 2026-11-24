@@ -5,10 +5,10 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SetupPage } from '../SetupPage';
 
-let user: { role: string; permissions?: string[] } = { role: 'admin' };
+let user: { role: string; organization_locale?: string; permissions?: string[] } = { role: 'admin' };
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user }) }));
 
-const show = () => render(<MemoryRouter><SetupPage section="network" /></MemoryRouter>);
+const show = (section: 'network' | 'billing' = 'network') => render(<MemoryRouter><SetupPage section={section} /></MemoryRouter>);
 
 describe('Network setup page', () => {
   it('shows every setup card with its description and pages', () => {
@@ -34,5 +34,14 @@ describe('Network setup page', () => {
     user = { role: 'custom', permissions: [] };
     show();
     expect(screen.getByText('No pages available for your role.')).toBeInTheDocument();
+  });
+
+  it('Billing has its own setup page', () => {
+    user = { role: 'admin', organization_locale: 'MX' };
+    show('billing');
+    expect(screen.getByRole('heading', { level: 1, name: 'Billing setup' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual(['Taxes', 'Invoice look', 'Payment gateways', 'Late fees and reminders', 'Import']);
+    const late = screen.getByRole('region', { name: 'Late fees and reminders' });
+    expect(within(late).getAllByRole('link').map(l => l.getAttribute('href'))).toEqual(['/late-fee-rules', '/payment-reminder-settings']);
   });
 });

@@ -347,6 +347,7 @@ export function App() {
                 {/* Open to any signed-in user: the page lists only the setup
                     pages that person's permissions open. */}
                 <Route path="network/setup" element={<SetupPage section="network" />} />
+                <Route path="billing/setup" element={<SetupPage section="billing" />} />
                 {/* A person's own sidebar arrangement: pages they may open. */}
                 <Route path="my-menu" element={<MyMenuPage />} />
                 <Route path="regulatory-compliance" element={<RegulatoryCompliancePage />} />
