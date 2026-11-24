@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.38 — 2026-11-24
+
 - **A menu of your own.** Anyone can arrange the sidebar into groups they
   name, holding the pages they use, from any section. A star in the top bar
   pins the open page into a group (or a new one), and "Edit my menu" at the
