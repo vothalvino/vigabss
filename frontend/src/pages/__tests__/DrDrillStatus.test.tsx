@@ -90,8 +90,10 @@ describe('DrDrillStatus page', () => {
     mockWithRunbook();
     renderPage();
     expect(await screen.findByText('📖 DR Runbook')).toBeInTheDocument();
-    // Lazy MarkdownView chunk + query resolve — findBy* awaits both.
-    expect(await screen.findByRole('heading', { name: /Phase 1 — Take a Fresh Backup/ })).toBeInTheDocument();
+    // Lazy MarkdownView chunk + query resolve — findBy* awaits both. Loading
+    // the chunk took just over the default second on a busy machine, so this
+    // one waits longer.
+    expect(await screen.findByRole('heading', { name: /Phase 1 — Take a Fresh Backup/ }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('pnpm run backup')).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'mysqldump' })).toBeInTheDocument();
   });

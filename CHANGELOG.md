@@ -16,6 +16,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   calendar, so the result is the same everywhere. Nothing changes for an
   install running in the standard container.
 
+- **CI: jobs run in UTC on self-hosted runners too.** A runner in another
+  time zone failed a real-database billing test that passes on
+  GitHub-hosted machines, which are in UTC like the application's
+  container.
+- **Test: the DR runbook page waits longer for its lazily loaded part.** On
+  a busy machine it took just over the default second and failed.
+
 - **CI: the database jobs can run on self-hosted runners.** They no longer
   bind MySQL to a fixed port, so two can share a machine, and they take a
   self-hosted runner when `CI_SELF_HOSTED_RUNNERS` is 3 or 4. The runners
