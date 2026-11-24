@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.34 — 2026-11-24
+
 - **Fixed: lines on the Network map stayed grey.** A line was coloured only
   when it was first drawn, before its health had loaded, so it never turned
   yellow or red unless the Tree tab had been opened first. Lines now follow
