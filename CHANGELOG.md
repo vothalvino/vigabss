@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: an incident's "contracts behind it" missed wireless customers.**
+  Customers connected to a sector are now counted through what the sector
+  has seen in the last day, and the count is refreshed each time the fault
+  is seen, so an incident opened before its customers were known no longer
+  stays at zero.
+- The message written for customers when an incident is closed no longer
+  carries a place or direction word taken from an equipment name.
+
 - **Fixed: equipment that was never polled showed as "off" (red).** Every
   device starts with the status "offline" until polling has looked at it, and
   the network tree read that as an outage. Unmonitored equipment turned red,
