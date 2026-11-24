@@ -22,7 +22,9 @@ vi.mock('react-leaflet', () => ({
   CircleMarker: ({ children, eventHandlers }: { children?: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
     <div data-testid="marker" onClick={eventHandlers?.click}>{children}</div>
   ),
-  Polyline: () => <div data-testid="line" />,
+  // Like react-leaflet, only pathOptions is read: a bare `color` prop is ignored
+  // after the line is first drawn.
+  Polyline: ({ pathOptions }: { pathOptions?: { color?: string } }) => <div data-testid="line" data-color={pathOptions?.color ?? 'none'} />,
   Tooltip: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
@@ -223,6 +225,22 @@ describe('Network map tab: one map per main NAS', () => {
     // Another network's equipment and equipment not in any tree stay out.
     expect(screen.queryByText('Switch B')).toBeNull();
     expect(screen.queryByText('Battery')).toBeNull();
+  });
+
+  it('a line takes the colour of its health, also when the health arrives after the map is drawn', async () => {
+    let release: (v: unknown) => void = () => {};
+    const later = new Promise(r => { release = r; });
+    const base = apiFetch.getMockImplementation() as (path: string, init?: RequestInit) => Promise<unknown>;
+    apiFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/topology/health') { await later; return { data: { checked_at: 'x', limits: {}, nodes: { 11: { equipment: { state: 'good', reasons: [] }, uplink: { state: 'degraded', reasons: [{ code: 'airtime', value: 90, limit: 80 }] } } } } }; }
+      return base(path, init);
+    });
+    show(<NetworkMapTab />);
+    fireEvent.change(await screen.findByLabelText('Main NAS'), { target: { value: '10' } });
+    // Drawn before the health is known: grey.
+    expect(screen.getByTestId('line').getAttribute('data-color')).toBe('#9ca3af');
+    release(null);
+    await waitFor(() => expect(screen.getByTestId('line').getAttribute('data-color')).toBe('#eab308'));
   });
 
   it('places equipment where the map is clicked', async () => {
