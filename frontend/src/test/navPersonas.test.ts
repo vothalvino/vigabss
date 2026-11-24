@@ -96,7 +96,6 @@ describe('technician', () => {
     expect(nav.fieldops.items).toEqual([
       '/work-orders',
       '/maintenance-windows',
-      '/sites',
       '/coverage-zones',
       '/service-areas',
     ]);
@@ -171,7 +170,7 @@ describe('support', () => {
     ]);
   });
   it('gets the support-safe network subset and PPPoE diagnostics — not the device map (no devices.view — audit)', () => {
-    expect(nav.network.items).toEqual(['/network-health', '/outages', '/wg-tunnels', '/connection-logs', '/pppoe-diagnostics']);
+    expect(nav.network.items).toEqual(['/network-health', '/outages', '/connection-logs', '/pppoe-diagnostics', '/wg-tunnels']);
     expect(nav.network.hub).toBe(false);
   });
   it('can discover subscriber connections in both global and MX organizations', () => {
