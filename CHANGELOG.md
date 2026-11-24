@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: clicking the highlighted Network row jumped to the previous
+  tab.** While a page of a group was open, the group's sidebar row still
+  pointed at the page opened before it. The row now points at the page
+  being viewed.
+
 ## 0.1.0-alpha.36 — 2026-11-24
 
 - **Network menu: related pages are grouped under tabs.** The Network

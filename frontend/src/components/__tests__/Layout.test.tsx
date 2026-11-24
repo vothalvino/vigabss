@@ -494,6 +494,14 @@ describe('Layout — grouped sidebar navigation', () => {
     expect(within(nav).getByText('Equipment').getAttribute('href')).toBe('/sites');
   });
 
+  it('the row of the page being viewed points at that page, not at the one opened before', () => {
+    mockUseAuth(makeUser('admin'));
+    localStorage.setItem('vigabss.nav.lastTab.fibre', '/olt-management');
+    renderLayout({ initialEntries: ['/onu-management'] });
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getByText('Fibre (FTTH)').getAttribute('href')).toBe('/onu-management');
+  });
+
   it('a page that is alone in its set has no tabs and keeps its own title', () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/topology-map'] });
