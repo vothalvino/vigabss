@@ -6557,6 +6557,322 @@
         }
       }
     },
+    "/contracts/{id}/connection-checks": {
+      "get": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Connection checks kept as evidence for the contract, newest first",
+        "operationId": "listContractConnectionChecks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "id, source, channel, ticket_id, conclusion_side, conclusion_state, summary, created_at",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Run the connection check now and keep it as evidence, optionally on one of the client's tickets. A fault in our network is linked to its incident",
+        "operationId": "keepContractConnectionCheck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Options",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ticket_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "check_id, summary, incident_ids, path"
+          }
+        }
+      }
+    },
+    "/network-incidents": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Network incidents for technicians: one per faulty line or piece of equipment of the network tree. An incident stays open when the fault clears by itself; only a technician closes it",
+        "operationId": "listNetworkIncidents",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "resolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "incidents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network-incidents/{id}": {
+      "get": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "One incident with its pattern over the last days (when it was bad, recurring or continuous) and the customers who reported it",
+        "operationId": "getNetworkIncident",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "incident, pattern, reports[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network-incidents/{id}/close": {
+      "post": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Close an incident, saying what was done. The comment is rewritten for the customers who reported the fault: sent where the assistant may send by itself, otherwise left as a draft",
+        "operationId": "closeNetworkIncident",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Closing",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "comment"
+                ],
+                "properties": {
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "incident, notices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network-incidents/{id}/reports/{reportId}/send": {
+      "post": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Approve the closing message to one customer, optionally edited, and send it",
+        "operationId": "sendNetworkIncidentNotice",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Message",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "id, notice_status, error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network-incidents/{id}/reports/{reportId}/discard": {
+      "post": {
+        "tags": [
+          "Topology"
+        ],
+        "summary": "Decide not to write to one customer about a closed incident",
+        "operationId": "discardNetworkIncidentNotice",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "id, notice_status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contracts/{id}/network-path": {
       "get": {
         "tags": [

@@ -5,6 +5,35 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Network incidents for technicians, and the assistant checks the whole
+  path.**
+  - **Incidents tab** (Topology Map). The network tree is judged every five
+    minutes and each faulty line or piece of equipment gets one incident:
+    what is wrong with the numbers, since when, how many contracts are
+    behind it and which customers reported it. Its details show the pattern
+    over the last seven days (comes back every evening, or continuous) and
+    whether that points to capacity or to a repair.
+  - **An incident is not closed by the fault clearing.** A link that
+    saturates in the evening is fine at night; the incident stays open and
+    shows "fine right now". Only a technician closes it, and must write what
+    was done. For a week after, the same fault reopens it.
+  - **Nothing is sent to customers by the watch.** When a technician closes
+    an incident, the comment is rewritten into a professional message for
+    the customers who reported that fault, and only them. It names no
+    equipment and adds nothing the comment does not say; a comment that
+    explains nothing gives a short neutral notice. It is sent when the
+    assistant is allowed to send by itself on that channel; otherwise it
+    waits in the incident as a draft to read, edit and send or not send.
+  - **The support assistant** now checks the customer's whole path when they
+    report a problem. If the fault is in our network it says so in plain
+    words, links the customer to the incident and opens no technician visit
+    for them, so one fault is one incident. If the customer is using all of
+    their plan it explains that. Every check is kept as evidence and added
+    to the ticket when one is opened.
+  - **"Keep as evidence"** on a contract's Connection check stores what was
+    measured at that moment.
+  (migration 029)
+
 - **Connection check on a contract.** A contract's page has a "Connection
   check" that walks every hop from the customer's equipment up to the main
   NAS (radio, sector, links and routers for wireless; ONU, OLT and what is

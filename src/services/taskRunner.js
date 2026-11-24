@@ -47,6 +47,7 @@ const { backup: runBackup } = require('../scripts/backup');
 // dispatcher boundary, so it protects cron execution as well as the HTTP Run
 // action (including legacy or direct-SQL org-owned rows).
 const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
+  'network_health_watch',
   'auto_generate_invoices', 'auto_suspend_overdue', 'billing_cycle',
   'radius_sync', 'check_certificate_expiry', 'populate_revenue_summary',
   'populate_network_health_snapshots', 'csd_expiry_monitor', 'alert_evaluation',
@@ -391,6 +392,10 @@ async function dispatchTask(taskName, organizationId) {
     // snmpPoller writes to snmp_metrics, not onu_optical_metrics, so a dedicated
     // handler is needed to map SNMP varbinds to the onu_optical_metrics schema.
     // DEFERRED: needs src/services/ftth/onuOpticalPollHandler.js.
+    // Judges the network tree and keeps incidents for technicians. Seeded
+    // install-wide, so it enters each organization in turn.
+    case 'network_health_watch':
+      return perOrganization(taskName, organizationId, orgId => require('./networkIncidentService').watch(orgId));
     case 'ftth_onu_optical_poll':
       // Each OLT with SNMP enabled: ONU state, distance and signal, remembered
       // per PON port (olt_onu_readings) for the fibre check.

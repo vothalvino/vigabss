@@ -1,5 +1,70 @@
 {
+  "incidentsBoard": {
+    "intro": "Faulty lines and equipment of the network tree. An incident stays open when the fault clears by itself; a technician closes it and says what was done. Nothing here is sent to customers until then.",
+    "show": "Show",
+    "status": {
+      "open": "Open",
+      "resolved": "Closed"
+    },
+    "noneOpen": "No open incidents.",
+    "noneClosed": "No closed incidents.",
+    "loadFailed": "The incidents could not be loaded.",
+    "part": {
+      "equipment": "equipment",
+      "line": "line to what feeds it"
+    },
+    "details": "Details",
+    "hide": "Hide",
+    "since": "Since {{when}}",
+    "lastSeen": "last seen bad {{when}}",
+    "affected_one": "{{count}} contract behind it",
+    "affected_other": "{{count}} contracts behind it",
+    "reported_one": "{{count}} customer reported it",
+    "reported_other": "{{count}} customers reported it",
+    "reopened_one": "reopened {{count}} time",
+    "reopened_other": "reopened {{count}} times",
+    "fineNow": "fine right now",
+    "draftsWaiting_one": "{{count}} message waiting for approval",
+    "draftsWaiting_other": "{{count}} messages waiting for approval",
+    "shape": {
+      "recurring": "Comes back.",
+      "continuous": "Continuous.",
+      "occasional": "Occasional."
+    },
+    "patternDays": "Bad on {{days}} of the last {{window}} days, {{hours}} hours in total.",
+    "kind": {
+      "capacity": "A capacity problem: it needs more capacity or fewer users on it, not a repair.",
+      "repair": "A fault to repair.",
+      "equipment": "A problem of the equipment itself."
+    },
+    "windows": "When it was bad",
+    "reporters_one": "{{count}} customer reported it",
+    "reporters_other": "{{count}} customers reported it",
+    "noReporters": "No customer has reported it. Nobody will be written to when it is closed.",
+    "customer": "Customer",
+    "reportedOn": "reported {{when}}",
+    "notice": {
+      "none": "not written to yet",
+      "draft": "message waiting for approval",
+      "sent": "message sent",
+      "failed": "message could not be sent",
+      "discarded": "not written to"
+    },
+    "messageFor": "Message for {{name}}",
+    "sendMessage": "Send",
+    "dontSend": "Do not send",
+    "closeTitle": "Close this incident",
+    "closeLabel": "What was done?",
+    "closeHint": "Required. Write it your way: it is rewritten for the customers who reported the fault, and your own words are never shown to them.",
+    "close": "Close incident",
+    "closing": "Closing…",
+    "closedBy": "Closed by {{who}}, {{when}}",
+    "technicianSaid": "Technician's note:",
+    "customersTold": "Customers were told:"
+  },
   "customerPath": {
+    "keep": "Keep as evidence",
+    "kept": "Kept as evidence",
     "title": "Connection check",
     "intro": "Checks every hop from the customer's equipment up to the main NAS and says where a fault is.",
     "check": "Check now",
@@ -4596,6 +4661,7 @@
     "escalationsLevel": "Level"
   },
   "topologyMap": {
+    "tabIncidents": "Incidents",
     "tabTree": "Tree",
     "tabTreeMap": "Network map",
     "linkStart": "Add a link",

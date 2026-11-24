@@ -1475,6 +1475,22 @@ async function generateSupportResponse({ orgId, clientId, conversationId, conten
       diagnosticResult: null,
     };
   }
+  // The whole path from the customer's equipment to the main NAS, kept as
+  // evidence. When the fault is in OUR network the customer is linked to its
+  // incident instead of getting a technician visit of their own: one incident
+  // for everyone behind that equipment, not one ticket per customer.
+  const network = await _checkNetworkPath({ orgId, clientId, conversationId: conversationId || null });
+  if (network) {
+    result.networkPath = { side: network.path.conclusion.side, state: network.path.conclusion.state, check_id: network.check_id, incident_ids: network.incident_ids };
+    const override = _networkReply(network.path);
+    if (override && network.ours) {
+      return { reply: override, escalate: false, escalationReason: null, diagnosticResult: result };
+    }
+    // A full plan explains slowness only when the diagnosis found nothing wrong.
+    if (override && network.path.conclusion.side === 'customer_plan' && !result.escalate && !(result.checks || []).some(c => c.status === 'error')) {
+      return { reply: override, escalate: false, escalationReason: null, diagnosticResult: result };
+    }
+  }
   return {
     reply: _buildCustomerReply(symptom, result),
     escalate: Boolean(result.escalate),
@@ -1483,4 +1499,54 @@ async function generateSupportResponse({ orgId, clientId, conversationId, conten
   };
 }
 
-module.exports = { runDiagnostic, generateSupportResponse };
+/**
+ * Check the customer's path through the network and keep it as evidence.
+ * Never throws: the diagnostic above stands on its own when this cannot run.
+ * @returns {Promise<{path: object, check_id: number, incident_ids: number[], ours: boolean}|null>}
+ */
+async function _checkNetworkPath({ orgId, clientId, conversationId }) {
+  try {
+    const [contracts] = await db.query(
+      `SELECT id FROM contracts
+        WHERE client_id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL
+        ORDER BY id DESC LIMIT 1`,
+      [clientId, orgId],
+    );
+    if (!contracts?.[0]?.id) return null;
+    let channel = null;
+    if (conversationId) {
+      const [conversations] = await db.query(
+        'SELECT channel FROM support_conversations WHERE id = ? AND organization_id = ? AND client_id = ?',
+        [conversationId, orgId, clientId],
+      );
+      channel = conversations?.[0]?.channel || null;
+    }
+    const path = await require('./customerPathService').pathForContract(orgId, contracts[0].id);
+    const kept = await require('./networkIncidentService').recordCheck(orgId, path, {
+      source: 'assistant', channel, conversationId, reported: true,
+    });
+    return { path, ...kept, ours: ['access', 'backhaul'].includes(path.conclusion.side) && kept.incident_ids.length > 0 };
+  } catch (err) {
+    logger.warn({ err: err.message, orgId, clientId }, 'diagnosticEngineService: the network path could not be checked');
+    return null;
+  }
+}
+
+/**
+ * What to tell the customer when the path check settles it. In plain words,
+ * naming no equipment. null when the usual reply should be used.
+ */
+function _networkReply(path) {
+  const { side, state } = path.conclusion;
+  if (side === 'access' || side === 'backhaul') {
+    return state === 'off'
+      ? 'Revisamos tu conexión y detectamos una falla en nuestra red que está afectando tu servicio. Nuestro equipo técnico ya la tiene registrada y está trabajando en ella; no necesitas hacer nada en tu equipo. Te informaremos por este medio cuando el equipo técnico la dé por resuelta.'
+      : 'Revisamos tu conexión y detectamos que una parte de nuestra red que da servicio a tu zona no está funcionando como debería, por eso tu internet puede sentirse lento o inestable. Nuestro equipo técnico ya lo tiene registrado y está trabajando en ello. Te informaremos por este medio cuando el equipo técnico lo dé por resuelto.';
+  }
+  if (side === 'customer_plan' && path.saturation) {
+    return `Revisamos tu conexión y nuestra red está funcionando bien. En este momento tu servicio está usando casi toda la velocidad de tu plan (${path.saturation.mbps} de ${path.saturation.plan_mbps} Mbps), por eso puede sentirse lento cuando hay varios dispositivos conectados. Si necesitas más velocidad, con gusto te ayudamos a revisar otros planes.`;
+  }
+  return null;
+}
+
+module.exports = { runDiagnostic, generateSupportResponse, _networkReply, _checkNetworkPath };

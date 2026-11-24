@@ -1727,6 +1727,50 @@ An OLT has no API; it is driven through its interactive command line over SSH.
 A new vendor is a new dialect module registered in `DRIVERS`; the session and
 the connection service do not change.
 
+### Network tree, link health and incidents
+
+- **The tree** is `devices.parent_device_id`: one parent per piece of network
+  equipment. A root is a NAS marked `nas.is_main`; an ISP with several
+  networks has several. A NAS takes part through the device that represents
+  it (`nas.device_id`, created on demand by
+  `topologyMapService.deviceForNode`). Subscriber equipment (`outdoor_cpe`,
+  `indoor_cpe`, `onu`) is never part of the tree.
+- **Health** (`linkHealthService`) gives every tree device two verdicts from
+  `snmp_metrics`: `equipment` and `uplink` (the line to its parent), each
+  `good`, `degraded`, `off` or `unknown` with reasons as a code plus numbers.
+  `judge()` is pure. Nothing fresh (20 minutes) is `unknown`, never `good`.
+  Radios are judged on traffic against the rate the radio reports now; a
+  typed capacity is only the fallback. A fibre port is judged against the
+  median of its own hourly optical power over seven days. Limits live in
+  `organization_settings` under `link_health_limits`.
+- **A customer's path** (`customerPathService.pathForContract`) walks from
+  the contract's equipment (radio seen by a sector, or ONU registered on an
+  OLT) up the tree to the main NAS and returns one `conclusion.side`:
+  `backhaul`, `access`, `customer_link`, `customer_equipment`,
+  `customer_plan`, `none` or `unknown`. What cannot be checked is returned in
+  `gaps`.
+- **Incidents** (`networkIncidentService`): the task `network_health_watch`
+  judges the tree every five minutes and keeps one `network_incidents` row
+  per faulty line or equipment. The watch opens, updates and reopens; it
+  never closes and never writes to a customer. A fault that clears leaves
+  the incident open (`last_good_at`). Only `close()` resolves one, and it
+  requires a comment. A resolved incident is watched for seven days and the
+  same fault reopens it. Each bad measurement is a
+  `network_incident_samples` row; `pattern()` derives recurring or
+  continuous from them.
+- **Evidence**: every connection check that is kept is a `connection_checks`
+  row holding the whole path as measured. The assistant keeps one whenever a
+  customer reports a technical problem (`diagnosticEngineService`), and an
+  escalation ticket's description includes its summary.
+- **Who is written to**: only customers who reported a fault
+  (`network_incident_reports`), and only after a technician closes its
+  incident. `incidentNoticeService` rewrites the closing comment for them;
+  it is sent by itself only when the AI policy is on, the channel is on and
+  the mode is `auto_send`, otherwise it is a draft a person approves. A
+  message the model did not write (thin comment, no provider, a failure) is
+  always a draft. When the fault is in our network the customer is linked
+  to the incident and no technician visit is opened for them.
+
 ### VPN clients keep their own address
 
 A full-tunnel WireGuard client (`wg-clients`) that opens this install's own

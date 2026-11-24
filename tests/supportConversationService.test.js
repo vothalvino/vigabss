@@ -264,6 +264,7 @@ describe('sendMessage — technical intent wiring', () => {
       .mockResolvedValueOnce([{ insertId: 41 }, undefined])           // 4. insert assistant message (reply text)
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])        // 5. escalate: atomic claim UPDATE (affectedRows:1 = we claimed it)
       .mockResolvedValueOnce([{ insertId: 500 }, undefined])          // 6. escalate: INSERT ticket
+      .mockResolvedValueOnce([[], undefined]) // the connection check kept for this conversation, added to the ticket (none here)
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])        // 7. escalate: UPDATE ticket_id
       .mockResolvedValueOnce([{ insertId: 42 }, undefined])           // 8. escalate: INSERT system message
       .mockResolvedValueOnce([[{ ...mockConversation, status: 'escalated' }], undefined]) // 9. escalate's own _loadConversation: conv
@@ -332,6 +333,7 @@ describe('startConversation — technical intent wiring', () => {
       .mockResolvedValueOnce([{ insertId: 23 }, undefined])   // assistant message
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])// escalate: atomic claim UPDATE (affectedRows:1 = we claimed it)
       .mockResolvedValueOnce([{ insertId: 600 }, undefined])  // escalate: INSERT ticket
+      .mockResolvedValueOnce([[], undefined]) // the connection check kept for this conversation, added to the ticket (none here)
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])// escalate: UPDATE ticket_id
       .mockResolvedValueOnce([{ insertId: 24 }, undefined])   // escalate: INSERT system message
       .mockResolvedValueOnce([[{ ...mockConversation, status: 'escalated' }], undefined])
@@ -371,6 +373,7 @@ describe('escalate() idempotency guard (atomic conditional claim)', () => {
     db.query
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])                    // atomic claim UPDATE — WE claimed it
       .mockResolvedValueOnce([{ insertId: 700 }, undefined])                      // INSERT ticket
+      .mockResolvedValueOnce([[], undefined]) // the connection check kept for this conversation, added to the ticket (none here)
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])                    // UPDATE ticket_id
       .mockResolvedValueOnce([{ insertId: 71 }, undefined])                       // INSERT system message
       .mockResolvedValueOnce([[{ ...mockConversation, status: 'escalated', ticket_id: 700 }], undefined]) // _loadConversation: conv
@@ -411,6 +414,7 @@ describe('escalate() idempotency guard (atomic conditional claim)', () => {
       .mockResolvedValueOnce([{ affectedRows: 0 }, undefined])    // atomic claim UPDATE — matches nothing, already escalated
       .mockResolvedValueOnce([[{ ticket_id: null }], undefined])  // SELECT ticket_id — a prior attempt's ticket INSERT failed
       .mockResolvedValueOnce([{ insertId: 900 }, undefined])      // repair: INSERT ticket
+      .mockResolvedValueOnce([[], undefined]) // the connection check kept for this conversation, added to the ticket (none here)
       .mockResolvedValueOnce([{ affectedRows: 1 }, undefined])    // repair: UPDATE ticket_id
       .mockResolvedValueOnce([[{ ...mockConversation, status: 'escalated', ticket_id: 900 }], undefined]) // _loadConversation: conv
       .mockResolvedValueOnce([[mockMessage], undefined]);         // _loadConversation: messages

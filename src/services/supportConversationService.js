@@ -542,7 +542,19 @@ async function _escalationDescription({ conversationId, orgId, reason }) {
   } catch (err) {
     logger.warn({ err: err.message, conversationId, orgId }, 'supportConversationService: could not read the transcript for the escalation ticket');
   }
-  if (!Array.isArray(messages) || messages.length === 0) return header;
+  // What was measured on the customer's path when they reported it, so the
+  // technician sees what the assistant saw.
+  let evidence = '';
+  try {
+    const [checks] = await db.query(
+      `SELECT summary FROM connection_checks
+        WHERE conversation_id = ? AND organization_id = ?
+        ORDER BY id DESC LIMIT 1`,
+      [conversationId, orgId],
+    );
+    if (checks?.[0]?.summary) evidence = `\n\nConnection check:\n${checks[0].summary}`;
+  } catch (_) { /* the ticket is still created without it */ }
+  if (!Array.isArray(messages) || messages.length === 0) return `${header}${evidence}`;
 
   const lines = messages.map(m => `${TRANSCRIPT_SPEAKER[m.role] || m.role}: ${String(m.content ?? '').trim()}`);
   let omitted = 0;
@@ -553,7 +565,7 @@ async function _escalationDescription({ conversationId, orgId, reason }) {
   }
   if (lines[0].length > TRANSCRIPT_MAX_CHARS) lines[0] = `${lines[0].slice(0, TRANSCRIPT_MAX_CHARS)}…`;
   const note = omitted ? `(${omitted} earlier message${omitted === 1 ? '' : 's'} not shown)\n` : '';
-  return `${header}\n\nConversation so far:\n${note}${lines.join('\n')}`;
+  return `${header}${evidence}\n\nConversation so far:\n${note}${lines.join('\n')}`;
 }
 
 /**
@@ -594,6 +606,10 @@ async function _createEscalationTicket({ conversationId, orgId, reason }) {
       );
       logger.info({ conversationId, orgId, ticketId: ticketResult.insertId }, 'supportConversationService: escalation ticket created');
       await require('./businessEvents').emitTicketCreated(orgId, ticketResult.insertId);
+      await db.query(
+        'UPDATE connection_checks SET ticket_id = ? WHERE conversation_id = ? AND organization_id = ? AND ticket_id IS NULL',
+        [ticketResult.insertId, conversationId, orgId],
+      ).catch(() => {});
     }
   } catch (err) {
     // Ticket creation failure must not abort the escalation itself

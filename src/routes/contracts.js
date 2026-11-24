@@ -31,6 +31,7 @@ const { assertPlanSelectable, technologyForNewContract, assertPlanKeepsTechnolog
 const { terminateContract, purgeFreeradiusRows } = require('../services/contractTerminationService');
 const contractTransitionService = require('../services/contractTransitionService');
 const customerPathService = require('../services/customerPathService');
+const networkIncidentService = require('../services/networkIncidentService');
 const { updateContractWithActivationGuard } = require('../services/contractUpdateGuard');
 const contractPlanChangeService = require('../services/contractPlanChangeService');
 const planChangeProrationService = require('../services/planChangeProrationService');
@@ -409,6 +410,26 @@ router.get('/:id/transition', requirePermission('contracts.view'), async (req, r
 // fault is: the customer's side, their plan, or ours.
 router.get('/:id/network-path', requirePermission('contracts.view'), async (req, res, next) => {
   try { res.json({ data: await customerPathService.pathForContract(req.orgId, req.params.id) }); } catch (err) { next(err); }
+});
+
+// Connection checks kept as evidence for this contract.
+router.get('/:id/connection-checks', requirePermission('contracts.view'), async (req, res, next) => {
+  try {
+    await customerPathService.assertContract(req.orgId, req.params.id);
+    res.json({ data: await networkIncidentService.listChecks(req.orgId, req.params.id) });
+  } catch (err) { next(err); }
+});
+
+// Run the check now and keep it as evidence (optionally on a ticket).
+router.post('/:id/connection-checks', requirePermission('contracts.update'), async (req, res, next) => {
+  try {
+    const path = await customerPathService.pathForContract(req.orgId, req.params.id);
+    const ticketId = Number.isInteger(Number(req.body?.ticket_id)) && Number(req.body.ticket_id) > 0
+      ? await customerPathService.ownTicket(req.orgId, path.client_id, Number(req.body.ticket_id))
+      : null;
+    const kept = await networkIncidentService.recordCheck(req.orgId, path, { source: 'staff', ticketId });
+    res.status(201).json({ data: { ...kept, path } });
+  } catch (err) { next(err); }
 });
 
 router.get('/:id/activation', requirePermission('contracts.view'), async (req, res, next) => {

@@ -92,6 +92,11 @@
   "config_deployment_records": {
     "device_id": "devices"
   },
+  "connection_checks": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "ticket_id": "tickets"
+  },
   "contacts": {
     "client_id": "clients"
   },
@@ -286,6 +291,13 @@
     "nas_id": "nas"
   },
   "network_health_snapshots": {
+    "device_id": "devices"
+  },
+  "network_incident_reports": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
+  "network_incidents": {
     "device_id": "devices"
   },
   "network_links": {
