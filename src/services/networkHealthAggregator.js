@@ -46,6 +46,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { ymd } = require('../utils/calendarDate');
 const { orgScopeFilter } = require('./organizationFanOut');
 const logger = require('../utils/logger').child({ service: 'networkHealthAggregator' });
 
@@ -204,8 +205,7 @@ function num(v) {
 }
 
 function yesterday() {
-  const d = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return ymd(Date.now() - 24 * 60 * 60 * 1000);
 }
 
 module.exports = { aggregateDay, downtimeMinutesByDevice, _yesterday: yesterday, MAX_PLAUSIBLE_MBPS };

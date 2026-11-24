@@ -11,6 +11,7 @@
 'use strict';
 
 const db = require('../config/database');
+const { monthsBetween } = require('../utils/calendarDate');
 const { requireOrgId } = require('../utils/requireOrgId');
 const { NotFoundError } = require('../utils/errors');
 const { resolveOrCreateStockRow } = require('./inventoryDrawdownService');
@@ -493,8 +494,7 @@ function computeDepreciation(device) {
 
   const start = new Date(purchase_date);
   const now = new Date();
-  const elapsedMonths = Math.max(0, (now.getFullYear() - start.getFullYear()) * 12
-    + (now.getMonth() - start.getMonth()));
+  const elapsedMonths = Math.max(0, monthsBetween(start, now));
 
   let currentValue;
   let accumulatedDepreciation;

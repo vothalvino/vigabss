@@ -198,8 +198,8 @@ describe('scoping and defaults', () => {
   it('defaults to YESTERDAY, not today', async () => {
     // Today is still accumulating; writing a partial day as final understates
     // throughput and uptime for whatever has not happened yet.
-    const y = new Date(Date.now() - 86400000);
-    const expected = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+    // The UTC calendar day, like every date the application keeps.
+    const expected = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const res = await agg.aggregateDay(1);
     expect(res.snapshot_date).toBe(expected);
   });

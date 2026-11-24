@@ -61,7 +61,7 @@ describe('rolloverService', () => {
       // completed previous month; the balance row stays keyed to the month
       // it is available in.
       jest.useFakeTimers();
-      jest.setSystemTime(new Date(2026, 2, 1, 0, 0, 0)); // 2026-03-01 00:00 local
+      jest.setSystemTime(new Date(Date.UTC(2026, 2, 1, 0, 0, 0))); // 2026-03-01 00:00 UTC, when the task fires
       try {
         db.query
           .mockResolvedValueOnce([[{ id: 7, organization_id: 1, data_cap_gb: '100.000' }]])

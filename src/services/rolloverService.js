@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { firstOfMonth, lastOfMonth } = require('../utils/calendarDate');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 
@@ -25,12 +26,9 @@ async function accrueRollover(organizationId) {
   // month. The scheduled task fires at 00:00 on the 1st — measuring the
   // just-started month here would read ~0 usage and hand every capped
   // contract the maximum 25% rollover.
-  const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
-  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const prevStart = fmt(prevStartDate);
-  const prevEnd = fmt(prevEndDate);
+  const billingMonth = firstOfMonth(now);
+  const prevStart = firstOfMonth(now, -1);
+  const prevEnd = lastOfMonth(now, -1);
 
   const scope = orgScopeFilter('c.organization_id', organizationId);
   const [contracts] = await db.query(
@@ -102,8 +100,7 @@ async function accrueRollover(organizationId) {
  * @returns {Promise<object>}
  */
 async function getRolloverBalance(contractId) {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const currentMonth = firstOfMonth();
 
   const [rows] = await db.query(
     `SELECT billing_month,
@@ -139,8 +136,7 @@ async function getRolloverBalance(contractId) {
  * @returns {Promise<{consumed: number, remaining: number}>}
  */
 async function consumeRollover(contractId, gb) {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const currentMonth = firstOfMonth();
 
   const [[row]] = await db.query(
     `SELECT id, rollover_gb, consumed_rollover_gb

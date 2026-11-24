@@ -368,7 +368,7 @@ function informacionGlobalXml(doc, fecha) {
   if (doc.global_periodicidad) {
     return `\n  <cfdi:InformacionGlobal Periodicidad="${escapeXml(doc.global_periodicidad)}" Meses="${escapeXml(doc.global_meses)}" Año="${escapeXml(String(doc.global_anio))}" />`;
   }
-  const anio = String(fecha || '').slice(0, 4) || String(new Date().getFullYear());
+  const anio = String(fecha || '').slice(0, 4) || String(new Date().getUTCFullYear());
   const mes = String(fecha || '').slice(5, 7) || '01';
   return `\n  <cfdi:InformacionGlobal Periodicidad="01" Meses="${mes}" Año="${anio}" />`;
 }

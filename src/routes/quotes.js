@@ -18,6 +18,7 @@ const { createQuote, updateQuote, createQuoteItem } = require('../middleware/sch
 const db = require('../config/database');
 const { resolveLineItemPricing } = require('../utils/lineItemPricing');
 const billingService = require('../services/billingService');
+const { addDays } = require('../utils/calendarDate');
 const inventoryDrawdownService = require('../services/inventoryDrawdownService');
 const auditLog = require('../services/auditLog');
 const { ValidationError, NotFoundError } = require('../utils/errors');
@@ -541,8 +542,7 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
       // invoice generation for the same org.
       const invoiceNumber = await billingService.nextInvoiceNumber(conn, req.orgId);
 
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 15);
+      const dueDate = addDays(new Date(), 15);
 
       // Create invoice from quote — all writes run on the transaction connection
       const [invResult] = await conn.execute(

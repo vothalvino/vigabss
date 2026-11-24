@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const calendar = require('../utils/calendarDate');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 
 /**
@@ -163,8 +164,7 @@ async function getTopUsers(organizationId, { from, to, limit = 20 } = {}) {
  * Returns contracts that have exceeded their monthly data cap.
  */
 async function checkDataCaps(organizationId) {
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const firstOfMonth = calendar.firstOfMonth();
 
   const [rows] = await db.query(`
     SELECT
@@ -207,8 +207,7 @@ async function checkDataCaps(organizationId) {
  * but NOT the hard data cap (those are handled by checkDataCaps).
  */
 async function checkFupThresholds(organizationId) {
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const firstOfMonth = calendar.firstOfMonth();
 
   const [rows] = await db.query(`
     SELECT

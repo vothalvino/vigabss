@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Billing dates no longer depend on the server's time zone.** Billing
+  periods, invoice due dates, trial ends, payment-plan instalments,
+  reminder stages, the "current month" of usage, rollover and reports, and
+  asset depreciation were computed with the time zone of the machine the
+  application ran on. In the product's container that is UTC and the
+  results were right; on a machine in another zone the same code landed on
+  other days (a period starting on the last day of the previous month) and
+  could not find the row it had just written. All of it now uses the UTC
+  calendar, so the result is the same everywhere. Nothing changes for an
+  install running in the standard container.
+
 - **CI: jobs run in UTC on self-hosted runners too.** A runner in another
   time zone failed a real-database billing test that passes on
   GitHub-hosted machines, which are in UTC like the application's

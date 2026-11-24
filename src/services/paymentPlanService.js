@@ -3,6 +3,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { utcDay, addDays, addMonths, ymd } = require('../utils/calendarDate');
 const { sqlBusinessToday } = require('../utils/businessDate');
 const repService = require('./repService');
 const logger = require('../utils/logger').child({ service: 'paymentPlan' });
@@ -16,23 +17,16 @@ const { creditAppliedSql } = require('../utils/invoiceBalance');
  * @returns {string[]} ISO date strings (YYYY-MM-DD)
  */
 function computeDueDates(count, frequency) {
-  // First due date = midnight tomorrow
-  const base = new Date(Date.now());
-  base.setDate(base.getDate() + 1);
-  base.setHours(0, 0, 0, 0);
+  // First due date = tomorrow
+  const base = addDays(utcDay(Date.now()), 1);
 
   const dates = [];
   for (let i = 0; i < count; i++) {
-    const d = new Date(base);
-    if (frequency === 'weekly') {
-      d.setDate(base.getDate() + i * 7);
-    } else if (frequency === 'biweekly') {
-      d.setDate(base.getDate() + i * 14);
-    } else {
-      // monthly
-      d.setMonth(base.getMonth() + i);
-    }
-    dates.push(d.toISOString().slice(0, 10));
+    let d;
+    if (frequency === 'weekly') d = addDays(base, i * 7);
+    else if (frequency === 'biweekly') d = addDays(base, i * 14);
+    else d = addMonths(base, i); // monthly
+    dates.push(ymd(d));
   }
   return dates;
 }
@@ -344,4 +338,8 @@ async function getPlanWithInstallments(planId, orgId) {
   return { plan, installments };
 }
 
-module.exports = { createPlan, payInstallment, checkInstallmentsDue, getPlanWithInstallments };
+module.exports = {
+  createPlan, payInstallment, checkInstallmentsDue, getPlanWithInstallments,
+  // exported for tests
+  computeDueDates,
+};

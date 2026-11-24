@@ -16,6 +16,7 @@ const { InvoiceGenerationError, AppError } = require('../utils/errors');
 const auditLog = require('./auditLog');
 const { drawdownForSale } = require('./inventoryDrawdownService');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
+const { utcDay, addDays, addMonths, onDayOfMonth } = require('../utils/calendarDate');
 
 /**
  * Normalise a free-text postal code to a 5-digit Mexican CP, or null.
@@ -507,16 +508,13 @@ async function resolveFullPlan(contract, plan, orgId) {
 // When service actually started: the first activation, or the contract's
 // start date for a contract that predates activation tracking.
 function serviceStartDate(contract) {
-  const anchor = new Date(contract.first_activated_at || contract.start_date);
-  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  return utcDay(contract.first_activated_at || contract.start_date);
 }
 
 function isContractInTrial(contract, plan) {
   if (!plan.trial_days || plan.trial_days <= 0) return false;
   const startDate = serviceStartDate(contract);
-  const trialEnd = new Date(startDate);
-  trialEnd.setDate(trialEnd.getDate() + plan.trial_days);
-  return new Date() < trialEnd;
+  return new Date() < addDays(startDate, plan.trial_days);
 }
 
 /**
@@ -614,20 +612,15 @@ async function generateBillingPeriod(contract) {
 
   let periodStart;
   if (lastPeriod.length > 0) {
-    periodStart = new Date(lastPeriod[0].period_end);
-    periodStart.setDate(periodStart.getDate() + 1);
+    periodStart = addDays(lastPeriod[0].period_end, 1);
   } else {
     // Bill from when service started, not from the order date: a contract
     // ordered weeks before the install was billed for the weeks with no service.
     periodStart = serviceStartDate(contract);
   }
 
-  const periodEnd = new Date(periodStart);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
-  periodEnd.setDate(periodEnd.getDate() - 1);
-
-  const scheduledAt = new Date(periodStart);
-  scheduledAt.setDate(contract.billing_day || 1);
+  const periodEnd = addDays(addMonths(periodStart, 1), -1);
+  const scheduledAt = onDayOfMonth(periodStart, contract.billing_day || 1);
 
   let result;
   try {
@@ -709,8 +702,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     const invoiceNumber = await nextInvoiceNumber(conn, orgId);
 
     // Due date = period end + 15 days
-    const dueDate = new Date(billingPeriod.period_end);
-    dueDate.setDate(dueDate.getDate() + 15);
+    const dueDate = addDays(billingPeriod.period_end, 15);
 
     // Create invoice
     const [invResult] = await conn.execute(
@@ -896,8 +888,7 @@ async function createOneOffInvoice({
     // race-free under concurrent invoice generation for the same org.
     const invoiceNumber = await nextInvoiceNumber(conn, orgId);
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 15);
+    const dueDate = addDays(new Date(), 15);
 
     const [invResult] = await conn.execute(
       `INSERT INTO invoices (organization_id, client_id, contract_id, invoice_number,

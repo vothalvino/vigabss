@@ -13,6 +13,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createInvoice, updateInvoice, patchInvoice, addInvoiceItem, stampInvoice } = require('../middleware/schemas/invoices');
 const billingService = require('../services/billingService');
+const { addDays } = require('../utils/calendarDate');
 const invoiceCfdiService = require('../services/invoiceCfdiService');
 const clientCreditService = require('../services/clientCreditService');
 const { requireMxLocale } = require('../middleware/orgLocale');
@@ -1007,8 +1008,7 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
       // invoice generation for the same org.
       const invoiceNumber = await billingService.nextInvoiceNumber(conn, req.orgId);
 
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 15);
+      const dueDate = addDays(new Date(), 15);
 
       const [invResult] = await conn.execute(
         `INSERT INTO invoices
