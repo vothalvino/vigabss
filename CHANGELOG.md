@@ -5,10 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-- **Changed: the client portal's browser tab shows the company's name.** A
-  customer signed in to the portal sees the name of the company they deal
-  with in the tab, and the sign-in and password pages read "Customer portal".
-  The tab no longer shows the software's name or version there.
+- **Changed: the client portal shows the company's name, not the software's.**
+  A signed-in customer sees the name of the company they deal with in the
+  browser tab, at the top of every portal page and in the footer. The sign-in
+  and password pages show the company's name when the installation serves a
+  single company, and read "Customer portal" when it serves several, because
+  the company is not known before sign-in. The software's name and version no
+  longer appear anywhere in the portal.
 
 ## 0.1.0-alpha.44 — 2026-11-25
 

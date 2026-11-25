@@ -8,14 +8,15 @@ import { useTranslation } from 'react-i18next';
 import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
 import { usePortalAuth } from '@/auth/PortalAuthContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { BrandLockup } from '@/components/BrandLockup';
+import { usePortalCompanyName } from '@/hooks/usePortalCompanyName';
 
 export function PortalLogin() {
   const { login } = usePortalAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  usePortalTabTitle();
+  const companyName = usePortalCompanyName();
+  usePortalTabTitle(companyName);
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/portal';
 
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ export function PortalLogin() {
         <LanguageSwitcher variant="bar" />
       </div>
       <form style={styles.card} onSubmit={handleSubmit}>
-        <h1 style={styles.title}><BrandLockup size="hero" showVersion /></h1>
+        <h1 style={styles.title}>{companyName ?? t('portalLayout.tabTitle')}</h1>
         <p style={styles.subtitle}>{t('portalLogin.subtitle')}</p>
 
         {error && <div style={styles.error}>{error}</div>}

@@ -74,3 +74,25 @@ it('carries the company name for the browser tab', async () => {
   expect(res.status).toBe(200);
   expect(res.body.data.organization_name).toBe('Red Norte');
 });
+
+describe('GET /portal/brand (no sign-in)', () => {
+  function orgs(names) {
+    db.query.mockImplementation((sql) => (/FROM organizations/.test(sql)
+      ? Promise.resolve([names.map((name) => ({ name }))])
+      : Promise.resolve([[]])));
+  }
+
+  it('names the company when the installation serves exactly one', async () => {
+    orgs(['Red Norte']);
+    const res = await request(app).get('/api/v1/portal/brand');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ organization_name: 'Red Norte' });
+  });
+
+  it('names nobody when there are several companies', async () => {
+    orgs(['Red Norte', 'Red Sur']);
+    const res = await request(app).get('/api/v1/portal/brand');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ organization_name: null });
+  });
+});

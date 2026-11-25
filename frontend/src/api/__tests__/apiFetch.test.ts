@@ -88,6 +88,7 @@ describe('no page reaches the API around the shared transport', () => {
     // The customer signs through the ISP's link without any session (migration 009).
     'pages/PublicSigning.tsx',
     'pages/portal/PortalForgotPassword.tsx', 'pages/portal/PortalResetPassword.tsx',
+    'hooks/usePortalCompanyName.ts',
   ]);
 
   it('no local apiFetch copies', () => {

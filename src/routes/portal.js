@@ -189,6 +189,19 @@ const kbRateSchema = {
 // AUTH — public endpoints
 // ---------------------------------------------------------------------------
 
+// GET /portal/brand — the company name for the sign-in pages. Nobody is signed
+// in yet, so it is only given when the installation serves exactly one active
+// company; with several there is no telling which one the visitor belongs to.
+router.get('/brand', authLimiter, async (_req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT name FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
+    );
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ data: { organization_name: rows.length === 1 ? rows[0].name : null } });
+  } catch (err) { next(err); }
+});
+
 // POST /portal/auth/login
 router.post('/auth/login', authLimiter, loginIpGuard, validate(portalLoginSchema, { strip: false }), async (req, res, next) => {
   try {
@@ -899,7 +912,7 @@ router.get('/legal-info', async (req, res, next) => {
     const [rows] = await db.query(
       `SELECT c.locale, omp.carta_derechos_url, o.name AS organization_name
        FROM clients c
-       LEFT JOIN organizations o ON o.id = c.organization_id
+       LEFT JOIN organizations o ON o.id = c.organization_id AND o.deleted_at IS NULL
        LEFT JOIN organization_mx_profiles omp
          ON omp.organization_id = c.organization_id AND omp.deleted_at IS NULL
        WHERE c.id = ? AND c.deleted_at IS NULL`,

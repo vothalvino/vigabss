@@ -48,7 +48,8 @@ describe('PortalResetPassword page', () => {
     fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
 
     await waitFor(() => expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument());
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // The page may ask for the company name; it must not send the reset.
+    expect(fetchSpy.mock.calls.some((c) => String(c[0]).includes('password-reset'))).toBe(false);
   });
 
   it('submits to the portal endpoint and shows a success message + portal login link', async () => {
