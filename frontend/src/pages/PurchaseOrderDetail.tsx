@@ -17,6 +17,7 @@
 // =============================================================================
 
 import { useState } from 'react';
+import { useTimedMessage } from '@/hooks/useTimedMessage';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -412,7 +413,7 @@ export function PurchaseOrderDetail() {
   const qc = useQueryClient();
   const [addItemError, setAddItemError] = useState('');
   const [showReceive, setShowReceive] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
+  const [toastMsg, showToast] = useTimedMessage();
 
   const poQ = useQuery({ queryKey: ['purchase-order', id], queryFn: () => fetchPo(id!), enabled: !!id });
   const itemsQ = useQuery({ queryKey: ['purchase-order-items', id], queryFn: () => fetchPoItems(id!), enabled: !!id });
@@ -427,10 +428,6 @@ export function PurchaseOrderDetail() {
     enabled: !!poQ.data?.warehouse_id,
   });
 
-  function showToast(msg: string) {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 4000);
-  }
 
   const po = poQ.data;
 
