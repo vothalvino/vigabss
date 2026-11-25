@@ -71,7 +71,7 @@ const { validate } = require('../middleware/validate');
 // passwordResetLimiter (see its doc comment in middleware/rateLimit.js) —
 // sharing one instance across the staff and portal routes would silently
 // merge their budgets since express-rate-limit's default store keys by IP.
-const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter } = require('../middleware/rateLimit');
+const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter, publicLimiter } = require('../middleware/rateLimit');
 const portalAuthService = require('../services/portalAuthService');
 const loginSecurity = require('../services/loginSecurityService');
 const { loginIpGuard } = require('../middleware/loginIpGuard');
@@ -192,7 +192,8 @@ const kbRateSchema = {
 // GET /portal/brand — the company name for the sign-in pages. Nobody is signed
 // in yet, so it is only given when the installation serves exactly one active
 // company; with several there is no telling which one the visitor belongs to.
-router.get('/brand', authLimiter, async (_req, res, next) => {
+// It has its own allowance: opening the sign-in page must not use up sign-in attempts.
+router.get('/brand', publicLimiter, async (_req, res, next) => {
   try {
     const [rows] = await db.query(
       "SELECT name FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
