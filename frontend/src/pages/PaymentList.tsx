@@ -319,7 +319,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
         </td>
         {/* Actions */}
         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="row-actions-one-line" style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'center' }}>
             <button
               style={{ ...actionBtn, background: expanded === 'alloc' ? '#ede9fe' : '#f3f4f6', color: '#5b21b6' }}
               onClick={() => toggleExpand('alloc')}
