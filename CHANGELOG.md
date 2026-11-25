@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: tables on a phone.** On a phone-width screen the Payments and
+  Invoices tables were cut off at the right edge with no way to scroll to the
+  remaining columns, and each Payments row stretched several screens tall
+  because its action buttons stacked one per line. Every table in the app now
+  scrolls sideways inside its own frame on a phone, tables with many columns
+  keep a workable width, and the Payments action buttons stay on one line.
+
 - **Fixed: "Devices online" read 0 / 0 for someone who may not see devices.**
   The dashboard now shows "—" there, as it does for the other figures a
   person may not read.

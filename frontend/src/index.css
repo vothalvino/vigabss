@@ -1847,3 +1847,29 @@ button:disabled {
     justify-content: flex-end;
   }
 }
+
+/* Tables on a phone. A table is wider than the screen, so whatever holds it
+   scrolls sideways (this wins over a holder that clips, which used to cut the
+   right-hand columns off with no way to reach them). A table with many columns
+   also keeps a workable width, so its cells are not squeezed until every word
+   and button sits on its own line. */
+@media (max-width: 768px) {
+  .app-main :has(> table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .app-main table:has(tr > :nth-child(6)) {
+    min-width: 760px;
+  }
+  .app-main table:has(tr > :nth-child(9)) {
+    min-width: 980px;
+  }
+}
+
+/* A table row's action buttons stay on one line; the shared button group
+   inside wraps by default, which in a narrow cell stacks one button per line. */
+.row-actions-one-line,
+.row-actions-one-line > div {
+  flex-wrap: nowrap !important;
+}
+
