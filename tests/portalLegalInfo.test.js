@@ -22,7 +22,7 @@ const app = require('../src/app');
 
 beforeEach(() => jest.clearAllMocks());
 
-function wire({ client, cartaUrl }) {
+function wire({ client, cartaUrl, orgName }) {
   jwt.verify.mockReturnValue({ sub: 1, orgId: client.organization_id, type: 'portal' });
   db.query.mockImplementation((sql) => {
     // portalAuthenticate's identity lookup (no locale column — that omission
@@ -31,7 +31,7 @@ function wire({ client, cartaUrl }) {
       return Promise.resolve([[{ id: client.id, organization_id: client.organization_id, name: client.name, email: client.email, status: client.status }]]);
     }
     if (/LEFT JOIN organization_mx_profiles/.test(sql)) {
-      return Promise.resolve([[{ locale: client.locale, carta_derechos_url: cartaUrl ?? null }]]);
+      return Promise.resolve([[{ locale: client.locale, carta_derechos_url: cartaUrl ?? null, organization_name: orgName ?? null }]]);
     }
     return Promise.resolve([[]]);
   });
@@ -45,7 +45,7 @@ it('returns the org-configured Carta URL for an MX client', async () => {
     .get('/api/v1/portal/legal-info')
     .set('Authorization', 'Bearer portal.valid');
   expect(res.status).toBe(200);
-  expect(res.body.data).toEqual({ locale: 'MX', carta_derechos_url: 'https://mx-isp.example/carta.pdf' });
+  expect(res.body.data).toEqual({ locale: 'MX', carta_derechos_url: 'https://mx-isp.example/carta.pdf', organization_name: null });
 });
 
 it('falls back to the official IFT document when the org has none configured', async () => {
@@ -64,4 +64,13 @@ it('a global client gets locale global — the footer link stays hidden', async 
     .set('Authorization', 'Bearer portal.valid');
   expect(res.status).toBe(200);
   expect(res.body.data.locale).toBe('global');
+});
+
+it('carries the company name for the browser tab', async () => {
+  wire({ client: MX_CLIENT, cartaUrl: null, orgName: 'Red Norte' });
+  const res = await request(app)
+    .get('/api/v1/portal/legal-info')
+    .set('Authorization', 'Bearer portal.valid');
+  expect(res.status).toBe(200);
+  expect(res.body.data.organization_name).toBe('Red Norte');
 });

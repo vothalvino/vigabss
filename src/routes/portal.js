@@ -897,8 +897,9 @@ router.get('/legal-info', async (req, res, next) => {
     // columns — locale is NOT among them, so read it here alongside the org's
     // configured Carta URL in one round trip.
     const [rows] = await db.query(
-      `SELECT c.locale, omp.carta_derechos_url
+      `SELECT c.locale, omp.carta_derechos_url, o.name AS organization_name
        FROM clients c
+       LEFT JOIN organizations o ON o.id = c.organization_id
        LEFT JOIN organization_mx_profiles omp
          ON omp.organization_id = c.organization_id AND omp.deleted_at IS NULL
        WHERE c.id = ? AND c.deleted_at IS NULL`,
@@ -907,6 +908,8 @@ router.get('/legal-info', async (req, res, next) => {
     res.json({
       data: {
         locale: rows[0]?.locale || 'global',
+        // The portal names the company in the browser tab.
+        organization_name: rows[0]?.organization_name || null,
         carta_derechos_url: rows[0]?.carta_derechos_url
           || 'https://www.ift.org.mx/usuarios-y-audiencias/carta-de-derechos-minimos-de-los-usuarios',
       },

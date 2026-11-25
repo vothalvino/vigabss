@@ -11,10 +11,12 @@
 import { type FormEvent, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export function PortalResetPassword() {
   const { t } = useTranslation();
+  usePortalTabTitle();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 

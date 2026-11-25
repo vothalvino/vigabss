@@ -5,6 +5,7 @@
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
 import { usePortalAuth } from '@/auth/PortalAuthContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { BrandLockup } from '@/components/BrandLockup';
@@ -14,6 +15,7 @@ export function PortalLogin() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  usePortalTabTitle();
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/portal';
 
   const [email, setEmail] = useState('');

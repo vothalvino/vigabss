@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the client portal's browser tab shows the company's name.** A
+  customer signed in to the portal sees the name of the company they deal
+  with in the tab, and the sign-in and password pages read "Customer portal".
+  The tab no longer shows the software's name or version there.
+
 ## 0.1.0-alpha.44 — 2026-11-25
 
 - **Fixed: tables on a phone.** On a phone-width screen the Payments and

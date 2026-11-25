@@ -8,6 +8,7 @@
 import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
 import { useQuery } from '@tanstack/react-query';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { useDarkMode } from '@/auth/DarkModeContext';
@@ -42,11 +43,12 @@ export function PortalLayout() {
     queryFn: async () => {
       const res = await portalAuthedFetch('/api/v1/portal/legal-info');
       if (!res.ok) throw new Error('legal info fetch failed');
-      return res.json() as Promise<{ data: { locale: string; carta_derechos_url: string } }>;
+      return res.json() as Promise<{ data: { locale: string; carta_derechos_url: string; organization_name?: string | null } }>;
     },
     staleTime: 60 * 60 * 1000,
     retry: false,
   });
+  usePortalTabTitle(legalInfo.data?.data.organization_name);
   const cartaUrl = legalInfo.data?.data.locale === 'MX' ? legalInfo.data.data.carta_derechos_url : null;
 
   // The Data packs tab is for subscribers whose plan has a data allowance (or
