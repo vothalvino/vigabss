@@ -16,57 +16,47 @@ const THROUGHPUT_RANGES = {
   '7D': { hours: 168, buckets: 84 },
 };
 
-/**
- * GET /api/dashboard/summary
- * High-level KPI overview for the current organization.
- */
-async function summary(req, res, next) {
-  try {
-    const orgId = req.orgId;
+// Summary block → the permission that guards the data it counts.
+const SUMMARY_BLOCKS = {
+  clients: 'clients.view',
+  contracts: 'contracts.view',
+  revenue_30d: 'invoices.view',
+  tickets: 'tickets.view',
+  devices: 'devices.view',
+};
 
-    const [
-      [clientsResult],
-      [contractsResult],
-      [revenueResult],
-      [ticketsResult],
-      [devicesResult],
-    ] = await Promise.all([
-      db.queryReplica(
-        'SELECT COUNT(*) AS total, SUM(status = \'active\') AS active FROM clients WHERE organization_id = ?',
-        [orgId],
-      ),
-      db.queryReplica(
-        'SELECT COUNT(*) AS total, SUM(status = \'active\') AS active, SUM(status = \'suspended\') AS suspended FROM contracts WHERE organization_id = ?',
-        [orgId],
-      ),
-      db.queryReplica(
-        `SELECT
+const SUMMARY_QUERIES = {
+  clients: 'SELECT COUNT(*) AS total, SUM(status = \'active\') AS active FROM clients WHERE organization_id = ?',
+  contracts: 'SELECT COUNT(*) AS total, SUM(status = \'active\') AS active, SUM(status = \'suspended\') AS suspended FROM contracts WHERE organization_id = ?',
+  revenue_30d: `SELECT
            COALESCE(SUM(CASE WHEN status IN ('issued', 'sent', 'overdue') THEN total ELSE 0 END), 0) AS outstanding,
            COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) AS collected,
            COALESCE(SUM(CASE WHEN status NOT IN ('draft', 'void', 'cancelled') THEN total ELSE 0 END), 0) AS total_invoiced
          FROM invoices
          WHERE organization_id = ? AND deleted_at IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-        [orgId],
-      ),
-      db.queryReplica(
-        'SELECT COUNT(*) AS total, SUM(status = \'open\') AS open_count FROM tickets WHERE organization_id = ?',
-        [orgId],
-      ),
-      db.queryReplica(
-        'SELECT COUNT(*) AS total, SUM(snmp_enabled = 1) AS monitored FROM devices WHERE organization_id = ?',
-        [orgId],
-      ),
-    ]);
+  tickets: 'SELECT COUNT(*) AS total, SUM(status = \'open\') AS open_count FROM tickets WHERE organization_id = ?',
+  devices: 'SELECT COUNT(*) AS total, SUM(snmp_enabled = 1) AS monitored FROM devices WHERE organization_id = ?',
+};
 
-    res.json({
-      data: {
-        clients: clientsResult[0],
-        contracts: contractsResult[0],
-        revenue_30d: revenueResult[0],
-        tickets: ticketsResult[0],
-        devices: devicesResult[0],
-      },
-    });
+/**
+ * GET /api/dashboard/summary
+ * High-level KPI overview for the current organization. Only the blocks in
+ * req.summaryBlocks (set by the route from the caller's permissions) are
+ * counted; every other block is null.
+ */
+async function summary(req, res, next) {
+  try {
+    const allowed = Array.isArray(req.summaryBlocks) ? req.summaryBlocks : [];
+    const blocks = Object.keys(SUMMARY_BLOCKS).filter((block) => allowed.includes(block));
+    const results = await Promise.all(
+      blocks.map((block) => db.queryReplica(SUMMARY_QUERIES[block], [req.orgId])),
+    );
+
+    const data = {};
+    for (const block of Object.keys(SUMMARY_BLOCKS)) data[block] = null;
+    blocks.forEach((block, i) => { data[block] = results[i][0][0]; });
+
+    res.json({ data });
   } catch (err) {
     next(err);
   }
@@ -448,4 +438,4 @@ async function networkDevices(req, res, next) {
   }
 }
 
-module.exports = { summary, revenue, mrr, deviceHealth, overdue, throughput, liveSessions, sitesUtilization, networkDevices };
+module.exports = { SUMMARY_BLOCKS, summary, revenue, mrr, deviceHealth, overdue, throughput, liveSessions, sitesUtilization, networkDevices };

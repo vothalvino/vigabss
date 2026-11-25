@@ -4,6 +4,7 @@
 // Wraps protected routes:
 //   • Redirects unauthenticated users to /login
 //   • Renders the not-allowed page when the user may not open the page
+//   • Renders the not-in-region page for a page of another country's rules
 //   • Sends an account bound to a reseller to the reseller app (/punto)
 //   • Sends a cash-bag carrier to the route app (/ruta)
 //   • Shows a full-page spinner while auth state is initialising
@@ -24,8 +25,10 @@ import { hasRole } from './roles';
 
 export { hasRole };
 
-function NotAllowed() {
+function NotAllowed({ reason = 'notAllowed' }: { reason?: 'notAllowed' | 'notInRegion' }) {
   const { t } = useTranslation();
+  const title = reason === 'notInRegion' ? t('notInRegion.title') : t('notAllowed.title');
+  const body = reason === 'notInRegion' ? t('notInRegion.body') : t('notAllowed.body');
   return (
     <div
       style={{
@@ -38,8 +41,8 @@ function NotAllowed() {
         gap: 8,
       }}
     >
-      <h2>{t('notAllowed.title')}</h2>
-      <p>{t('notAllowed.body')}</p>
+      <h2>{title}</h2>
+      <p>{body}</p>
     </div>
   );
 }
@@ -99,6 +102,13 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
   }
 
   const route = routeForPath(location.pathname);
+  // A page for one country's rules is not part of a company set up for
+  // another: the menu leaves it out and the server refuses its data, so a
+  // typed address gets a plain answer and not a page of errors. This holds
+  // for an administrator too.
+  if (route?.requiredLocale && user.organization_locale !== route.requiredLocale) {
+    return <NotAllowed reason="notInRegion" />;
+  }
   const byPermissions = user.role === 'admin' || !route ? null : permitsByPermissions(user, route);
   const allowed = byPermissions ?? (!requiredRole || hasRole(user.role, requiredRole));
   if (!allowed) return <NotAllowed />;

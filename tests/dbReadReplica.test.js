@@ -209,7 +209,7 @@ describe('dashboardController — replica routing', () => {
 
   test('summary calls queryReplica, not query', async () => {
     const res = makeRes();
-    await dashboardController.summary(makeReq(), res, jest.fn());
+    await dashboardController.summary({ ...makeReq(), summaryBlocks: ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'] }, res, jest.fn());
     expect(db.queryReplica).toHaveBeenCalled();
     expect(db.query).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalled();

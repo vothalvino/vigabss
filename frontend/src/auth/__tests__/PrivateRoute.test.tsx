@@ -183,4 +183,35 @@ describe('PrivateRoute with resolved permissions', () => {
     renderAt('/invoices/42', <PrivateRoute requiredRole="billing" />);
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
+
+  // A page for Mexico's rules, typed by address in a company set up for
+  // another country: the server refuses its data, so the page says why.
+  it('answers a Mexico-only page plainly in a company outside Mexico, administrator included', () => {
+    mockAuth({ user: { ...adminUser, organization_locale: 'global' } as AuthUser, loading: false, initialized: true });
+    render(
+      <MemoryRouter initialEntries={['/csd-certificates']}>
+        <Routes>
+          <Route element={<PrivateRoute requiredRole="billing" />}>
+            <Route path="/csd-certificates" element={<div>Certificates page</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Not available for this company')).toBeInTheDocument();
+    expect(screen.queryByText('Certificates page')).not.toBeInTheDocument();
+  });
+
+  it('opens the same page in a company set up for Mexico', () => {
+    mockAuth({ user: { ...adminUser, organization_locale: 'MX' } as AuthUser, loading: false, initialized: true });
+    render(
+      <MemoryRouter initialEntries={['/csd-certificates']}>
+        <Routes>
+          <Route element={<PrivateRoute requiredRole="billing" />}>
+            <Route path="/csd-certificates" element={<div>Certificates page</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Certificates page')).toBeInTheDocument();
+  });
 });

@@ -167,7 +167,7 @@ describe('dashboardController — deep', () => {
         .mockResolvedValueOnce([[{ total: 0, monitored: 0 }]]);
 
       const res = mockRes();
-      await dashboardController.summary(mockReq(), res, mockNext);
+      await dashboardController.summary({ ...mockReq(), summaryBlocks: ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'] }, res, mockNext);
 
       const data = res.json.mock.calls[0][0].data;
       expect(data).toEqual({
@@ -183,7 +183,7 @@ describe('dashboardController — deep', () => {
       db.queryReplica.mockRejectedValueOnce(new Error('timeout'));
       const res = mockRes();
 
-      await dashboardController.summary(mockReq(), res, mockNext);
+      await dashboardController.summary({ ...mockReq(), summaryBlocks: ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'] }, res, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({ message: 'timeout' }));
     });

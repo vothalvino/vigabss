@@ -65,12 +65,13 @@ export interface ConsoleModel {
 // Live-endpoint payload shapes (mirrors src/pages/Dashboard.tsx)
 // ---------------------------------------------------------------------------
 
+/** A block is null when the person may not read the data it counts. */
 export interface SummaryData {
-  clients: { total: number; active: number };
-  contracts: { total: number; active: number; suspended: number };
-  revenue_30d: { outstanding: string; collected: string; total_invoiced: string };
-  tickets: { total: number; open_count: number };
-  devices: { total: number; monitored: number };
+  clients: { total: number; active: number } | null;
+  contracts: { total: number; active: number; suspended: number } | null;
+  revenue_30d: { outstanding: string; collected: string; total_invoiced: string } | null;
+  tickets: { total: number; open_count: number } | null;
+  devices: { total: number; monitored: number } | null;
 }
 
 export interface MrrRow { currency: string; active_contracts: number; mrr: string; arpu: string; }
@@ -492,8 +493,8 @@ export function buildRealModel(inp: RealInputs): ConsoleModel {
 
   // "Devices online" has no true reachability count in the summary; monitored
   // (SNMP-enabled) is the closest available signal until an up/down count lands.
-  const devTotal = summary?.devices.total ?? health?.devices_by_type.reduce((s, d) => s + d.total, 0) ?? 0;
-  const devOnline = summary?.devices.monitored ?? health?.devices_by_type.reduce((s, d) => s + d.active, 0) ?? 0;
+  const devTotal = summary?.devices?.total ?? health?.devices_by_type.reduce((s, d) => s + d.total, 0) ?? 0;
+  const devOnline = summary?.devices?.monitored ?? health?.devices_by_type.reduce((s, d) => s + d.active, 0) ?? 0;
 
   // Overdue: /dashboard/overdue is server-capped at 100 rows (ORDER BY age DESC
   // LIMIT 100). Show "100+" when saturated rather than a silently-truncated exact
@@ -502,10 +503,10 @@ export function buildRealModel(inp: RealInputs): ConsoleModel {
   const overdueTotal = sumCurrency(overdue, orgCurrency);
   const overdueAmt = compact(overdueTotal);
 
-  const openTickets = summary?.tickets.open_count ?? 0;
+  const openTickets = summary?.tickets?.open_count ?? 0;
 
   const kpis: KpiModel = {
-    activeClients: { value: fmtInt(summary?.clients.active ?? 0), spark: null },
+    activeClients: { value: fmtInt(summary?.clients?.active ?? 0), spark: null },
     mrr: { value: mrrC.value, unit: mrrC.unit, code: orgCurrency, spark: null },
     devicesOnline: { online: devOnline, total: devTotal },
     liveSessions: inp.sessions ?? { value: '—', note: 'RADIUS' },
@@ -543,7 +544,7 @@ export function buildRealModel(inp: RealInputs): ConsoleModel {
 // ---------------------------------------------------------------------------
 
 export function hasRealData(summary?: SummaryData): boolean {
-  return !!summary && summary.clients.total > 0;
+  return (summary?.clients?.total ?? 0) > 0;
 }
 
 /**
@@ -553,22 +554,18 @@ export function hasRealData(summary?: SummaryData): boolean {
  * MRR 4.28M while the user's real MRR and overdue data were discarded (FE-08).
  */
 export function isDemoInstall(summary?: SummaryData): boolean {
-  return !!summary && summary.clients.total === 0;
+  return summary?.clients?.total === 0;
 }
 
 export function resolveModel(inp: RealInputs): ConsoleModel {
   if (!isDemoInstall(inp.summary)) {
     const model = buildRealModel(inp);
-    if (inp.summary) return model;
-    // Without the summary its two KPIs are unknown, not zero.
-    return {
-      ...model,
-      kpis: {
-        ...model.kpis,
-        activeClients: { ...model.kpis.activeClients, value: '—' },
-        openTickets: { ...model.kpis.openTickets, value: '—' },
-      },
-    };
+    // A figure the summary does not carry (not loaded, or not this person's
+    // to read) is unknown, not zero.
+    const kpis = { ...model.kpis };
+    if (!inp.summary?.clients) kpis.activeClients = { ...kpis.activeClients, value: '—' };
+    if (!inp.summary?.tickets) kpis.openTickets = { ...kpis.openTickets, value: '—' };
+    return { ...model, kpis };
   }
   // Demo: keep the design's sample figures, but label MRR with the org's own
   // currency so the currency is consistent even before real data exists.

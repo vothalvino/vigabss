@@ -72,8 +72,11 @@ async function bustCache(orgId, resource) {
  * @param {string} resource - Logical resource name (e.g. 'plans', 'clients').
  *   Used as part of the cache key and for version-based invalidation.
  * @param {number} ttl - Cache TTL in seconds.
+ * @param {{vary?: (req: object) => string}} [options] - `vary` returns a string
+ *   that is added to the cache key, for a response that differs between
+ *   callers of the same organization (for example by what they may read).
  */
-function httpCache(resource, ttl) {
+function httpCache(resource, ttl, options = {}) {
   return async function httpCacheMiddleware(req, res, next) {
     // Only cache GET requests
     if (req.method !== 'GET') return next();
@@ -89,7 +92,8 @@ function httpCache(resource, ttl) {
     let key;
     try {
       const version = await getVersion(orgId, resource);
-      key = `cache:GET:${orgId}:${resource}:v${version}:${qs}`;
+      const variant = options.vary ? `:${encodeURIComponent(options.vary(req))}:` : ':';
+      key = `cache:GET:${orgId}:${resource}:v${version}${variant}${qs}`;
     } catch (err) {
       logger.warn({ err, resource }, 'httpCache: failed to read version — bypassing cache');
       return next();

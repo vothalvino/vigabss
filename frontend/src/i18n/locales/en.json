@@ -7732,6 +7732,10 @@
       "other": "Other"
     }
   },
+  "notInRegion": {
+    "title": "Not available for this company",
+    "body": "This page belongs to Mexico's tax and regulatory rules, and this company is not set up for Mexico."
+  },
   "notAllowed": {
     "title": "403 — Not Allowed",
     "body": "You don't have permission to view this page."

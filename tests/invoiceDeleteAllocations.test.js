@@ -97,7 +97,7 @@ describe('selectors leave archived invoices out', () => {
     const dash = require('../src/controllers/dashboardController');
     db.queryReplica.mockResolvedValue([[{}]]);
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-    const req = { orgId: 5, query: {} };
+    const req = { orgId: 5, query: {}, summaryBlocks: ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'] };
     for (const fn of [dash.summary, dash.revenue, dash.mrr, dash.overdue]) await fn(req, res, jest.fn());
     const invoiceReads = sqlOf(db.queryReplica, /FROM invoices/);
     expect(invoiceReads.length).toBeGreaterThanOrEqual(3);
