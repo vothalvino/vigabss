@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: Navigation focus appeared above your own menu.** With a menu of
+  your own, opening "All pages" showed the Navigation focus box at the top
+  of the sidebar, far from the sections it reorders. It now appears
+  directly under "All pages".
+
 - **Administration menu: everyday pages up front, the rest under
   Administration setup.** Administration now has five sidebar rows that
   reach all 23 of its pages, where 16 were only reachable through its

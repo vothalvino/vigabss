@@ -332,6 +332,26 @@ export function Layout() {
     ? areaSections.filter(entry => !focusedIds.has(entry.section.id))
     : areaSections;
 
+  // Puts one job's sections first in the standard sidebar.
+  const focusControl = (
+    <div className="nav-focus-control">
+      <label htmlFor="nav-focus-select">{t('nav.workspaces.label')}</label>
+      <select
+        id="nav-focus-select"
+        className="nav-workspace-select"
+        value={workspace}
+        onChange={e => setWorkspace(e.target.value)}
+      >
+        {WORKSPACES.map(w => (
+          <option key={w.id} value={w.id}>
+            {t(w.labelKey)}
+          </option>
+        ))}
+      </select>
+      <span>{t('nav.workspaces.hint')}</span>
+    </div>
+  );
+
   function renderNavigationSection(entry: (typeof navigationSections)[number]) {
     return (
       <NavSection
@@ -406,24 +426,9 @@ export function Layout() {
           <kbd className="nav-search-kbd">⌘K</kbd>
         </button>
 
-        {canUseWorkspaces && (!customMenu || allPagesOpen) && (
-          <div className="nav-focus-control">
-            <label htmlFor="nav-focus-select">{t('nav.workspaces.label')}</label>
-            <select
-              id="nav-focus-select"
-              className="nav-workspace-select"
-              value={workspace}
-              onChange={e => setWorkspace(e.target.value)}
-            >
-              {WORKSPACES.map(w => (
-                <option key={w.id} value={w.id}>
-                  {t(w.labelKey)}
-                </option>
-              ))}
-            </select>
-            <span>{t('nav.workspaces.hint')}</span>
-          </div>
-        )}
+        {/* Without a menu of one's own this sits above the standard sidebar. With
+            one, it belongs to that sidebar and is shown under "All pages". */}
+        {canUseWorkspaces && !customMenu && focusControl}
 
         <nav className="app-nav" aria-label={t('layout.primaryNavigation')}>
           {dashboardSection && renderNavigationSection(dashboardSection)}
@@ -450,6 +455,7 @@ export function Layout() {
           )}
           {(!customMenu || allPagesOpen) && (
             <div id="nav-all-pages">
+              {canUseWorkspaces && customMenu && focusControl}
               {workspaceSections && focusedSections.length > 0 && (
                 <div className="nav-area-label">{t('nav.workspaces.focusedAreas')}</div>
               )}
