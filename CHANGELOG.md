@@ -5,6 +5,24 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: the dashboard's headline figures followed the wrong permission.**
+  The summary behind the Operations Console (clients, contracts, 30-day
+  invoicing, tickets, devices) opened with "view audit logs" and returned all
+  five totals together, so someone with that one permission saw counts for
+  data they could not otherwise open, while billing and support staff, who can
+  open that data, were refused. Each figure now follows the view permission of
+  its own data: the summary opens for anyone who holds at least one of them,
+  returns the figures they may read, and shows "—" for the rest. The short-lived
+  cached copy is kept separately for each combination, so a fuller answer is
+  never replayed to someone who holds less.
+
+- **A Mexico-only page typed by address says so in a company outside Mexico.**
+  The menu already left these pages out and the server already refused their
+  data, but entering the address (CSD certificates, PAC providers, SAT
+  catalogues, CFDI, IFT and PROFECO pages, contract templates) still opened
+  the page frame around an error. It now shows "Not available for this
+  company", for an administrator as well.
+
 - **Shorter tab names where the group already says the rest.** Under
   Equipment the tabs read Sites, Devices, NAS, OLT, ONU, Wireless, CPE;
   under People and access, "Security & Access Control" is Security; and the

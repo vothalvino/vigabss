@@ -29,6 +29,16 @@ describe('demo↔real gate', () => {
     expect(m.kpis.mrr.value).not.toBe(DEMO_MODEL.kpis.mrr.value);
   });
 
+  // The summary carries only the blocks the person may read.
+  it('shows the blocks it was given and marks the others unknown', () => {
+    const partial: SummaryData = { ...summary(10, 8), clients: null, devices: null };
+    expect(hasRealData(partial)).toBe(false);
+    const m = resolveModel({ summary: partial });
+    expect(m.isDemo).toBe(false);
+    expect(m.kpis.activeClients.value).toBe('—');
+    expect(m.kpis.openTickets.value).toBe('3');
+  });
+
   it('is demo when the system has zero clients', () => {
     expect(hasRealData(summary(0, 0))).toBe(false);
     expect(resolveModel({ summary: summary(0, 0) })).toBe(DEMO_MODEL);

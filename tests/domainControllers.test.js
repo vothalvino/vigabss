@@ -267,8 +267,31 @@ describe('Domain Controllers', () => {
   // dashboardController
   // =========================================================================
   describe('dashboardController', () => {
+    test('summary counts only the blocks the caller may read', async () => {
+      const req = mockReq({ summaryBlocks: ['tickets'] });
+      const res = mockRes();
+      db.queryReplica.mockResolvedValueOnce([[{ total: 50, open_count: 10 }]]);
+
+      await dashboardController.summary(req, res, jest.fn());
+
+      expect(db.queryReplica).toHaveBeenCalledTimes(1);
+      expect(db.queryReplica.mock.calls[0][0]).toMatch(/FROM tickets/);
+      expect(res.json).toHaveBeenCalledWith({
+        data: { clients: null, contracts: null, revenue_30d: null, tickets: { total: 50, open_count: 10 }, devices: null },
+      });
+    });
+
+    test('summary without a resolved block list counts nothing', async () => {
+      const res = mockRes();
+      await dashboardController.summary(mockReq(), res, jest.fn());
+      expect(db.queryReplica).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({
+        data: { clients: null, contracts: null, revenue_30d: null, tickets: null, devices: null },
+      });
+    });
+
     test('summary returns aggregated KPIs', async () => {
-      const req = mockReq();
+      const req = mockReq({ summaryBlocks: ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'] });
       const res = mockRes();
       const next = jest.fn();
 

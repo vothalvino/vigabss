@@ -7726,6 +7726,10 @@
       "other": "Otro"
     }
   },
+  "notInRegion": {
+    "title": "No disponible para esta empresa",
+    "body": "Esta página corresponde a las reglas fiscales y regulatorias de México, y esta empresa no está configurada para México."
+  },
   "notAllowed": {
     "title": "403 — Sin acceso",
     "body": "No tienes permiso para ver esta página."

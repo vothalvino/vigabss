@@ -19,6 +19,8 @@ const db = require('../src/config/database');
 const { summary, revenue, throughput, liveSessions, sitesUtilization, networkDevices } = require('../src/controllers/dashboardController');
 
 // Minimal Express-style request/response helpers
+const ALL_BLOCKS = ['clients', 'contracts', 'revenue_30d', 'tickets', 'devices'];
+
 function makeReq(orgId = 1) {
   return { orgId };
 }
@@ -48,7 +50,7 @@ describe('dashboardController', () => {
       seedSummaryMocks();
       const req = makeReq();
       const res = makeRes();
-      await summary(req, res, jest.fn());
+      await summary({ ...req, summaryBlocks: ALL_BLOCKS }, res, jest.fn());
       const payload = res.json.mock.calls[0][0];
       expect(payload.data.revenue_30d).toMatchObject({
         outstanding: '500.00',
@@ -62,7 +64,7 @@ describe('dashboardController', () => {
       // Before fix: SUM(total) with no status filter — inflated by void/cancelled/draft.
       seedSummaryMocks();
       const req = makeReq();
-      await summary(req, makeRes(), jest.fn());
+      await summary({ ...req, summaryBlocks: ALL_BLOCKS }, makeRes(), jest.fn());
       // The revenue query is the 3rd queryReplica call (index 2)
       const invoiceSql = db.queryReplica.mock.calls[2][0];
       expect(invoiceSql).toContain("NOT IN ('draft', 'void', 'cancelled')");
@@ -73,7 +75,7 @@ describe('dashboardController', () => {
       // A sent invoice that hasn't been paid IS outstanding; an overdue one even more so.
       seedSummaryMocks();
       const req = makeReq();
-      await summary(req, makeRes(), jest.fn());
+      await summary({ ...req, summaryBlocks: ALL_BLOCKS }, makeRes(), jest.fn());
       const invoiceSql = db.queryReplica.mock.calls[2][0];
       expect(invoiceSql).toContain("IN ('issued', 'sent', 'overdue')");
     });
