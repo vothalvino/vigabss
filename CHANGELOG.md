@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.44 — 2026-11-25
+
 - **Fixed: tables on a phone.** On a phone-width screen the Payments and
   Invoices tables were cut off at the right edge with no way to scroll to the
   remaining columns, and each Payments row stretched several screens tall
