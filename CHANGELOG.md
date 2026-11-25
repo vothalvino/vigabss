@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a toast's timer outlived its page.** The invoice, quote and
+  purchase order pages started a 4-second timer for their "done" message
+  and never cleared it, so it could fire after the page was gone. The timer
+  is now cleared when the message is replaced or the page closes.
+
 ## 0.1.0-alpha.42 — 2026-11-24
 
 - **Fixed: Navigation focus appeared above your own menu.** With a menu of
