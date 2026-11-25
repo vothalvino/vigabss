@@ -599,9 +599,16 @@ describe('Layout — grouped sidebar navigation', () => {
     const all = within(nav).getByRole('button', { name: 'All pages' });
     expect(all.getAttribute('aria-expanded')).toBe('false');
     const { fireEvent } = await import('@testing-library/react');
+    // Navigation focus orders the standard sidebar, so with a menu of one's own
+    // it is hidden until that sidebar is, and then sits right under "All pages".
+    expect(screen.queryByLabelText('Navigation focus')).toBeNull();
     fireEvent.click(all);
     expect(within(nav).getByText('Billing')).toBeInTheDocument();
     expect(within(nav).getByText('Dashboard')).toBeInTheDocument();
+    const focus = screen.getByLabelText('Navigation focus');
+    expect(document.getElementById('nav-all-pages')?.contains(focus)).toBe(true);
+    expect(all.compareDocumentPosition(focus) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(focus.compareDocumentPosition(within(nav).getByText('Billing')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('a menu never shows a page the person may not open', async () => {
@@ -618,6 +625,8 @@ describe('Layout — grouped sidebar navigation', () => {
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     expect(within(nav).getByText('Billing')).toBeInTheDocument();
     expect(within(nav).queryByRole('button', { name: 'All pages' })).toBeNull();
+    // With no menu of one's own, Navigation focus stays above the sidebar.
+    expect(nav.contains(screen.getByLabelText('Navigation focus'))).toBe(false);
     expect(await screen.findByRole('link', { name: 'Edit my menu' })).toHaveAttribute('href', '/my-menu');
   });
 
