@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { useState } from 'react';
+import { useTimedMessage } from '@/hooks/useTimedMessage';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -449,7 +450,7 @@ export function QuoteDetail() {
   const qc = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
   const [addItemError, setAddItemError] = useState('');
-  const [toastMsg, setToastMsg] = useState('');
+  const [toastMsg, showToast] = useTimedMessage();
 
   const quoteQ = useQuery({
     queryKey: ['quote', id],
@@ -475,10 +476,6 @@ export function QuoteDetail() {
     enabled: !!quoteQ.data?.converted_invoice_id,
   });
 
-  function showToast(msg: string) {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 4000);
-  }
 
   const quote = quoteQ.data;
 

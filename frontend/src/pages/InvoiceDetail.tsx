@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react';
+import { useTimedMessage } from '@/hooks/useTimedMessage';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -735,7 +736,7 @@ export function InvoiceDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showCancelCfdi, setShowCancelCfdi] = useState(false);
   const [showStamp, setShowStamp] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
+  const [toastMsg, showToast] = useTimedMessage();
   const [addItemError, setAddItemError] = useState('');
 
   const invoiceQ = useQuery({
@@ -907,10 +908,6 @@ export function InvoiceDetail() {
     }
   }
 
-  function showToast(msg: string) {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 4000);
-  }
 
   async function handleDownloadPdf() {
     const token = tokenStore.getAccess();
