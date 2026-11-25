@@ -102,7 +102,9 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
           <span className="fi-dot" style={{ background: 'var(--success)' }} />
         </div>
         <div className="fi-kpi-num">
-          {k.devicesOnline.online.toLocaleString()}<span className="unit">/{k.devicesOnline.total.toLocaleString()}</span>
+          {k.devicesOnline.unknown
+            ? '—'
+            : <>{k.devicesOnline.online.toLocaleString()}<span className="unit">/{k.devicesOnline.total.toLocaleString()}</span></>}
         </div>
         <div className="fi-bar">
           <i style={{ width: (k.devicesOnline.total ? (k.devicesOnline.online / k.devicesOnline.total) * 100 : 0).toFixed(1) + '%' }} />
