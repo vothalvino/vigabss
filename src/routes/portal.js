@@ -71,7 +71,7 @@ const { validate } = require('../middleware/validate');
 // passwordResetLimiter (see its doc comment in middleware/rateLimit.js) —
 // sharing one instance across the staff and portal routes would silently
 // merge their budgets since express-rate-limit's default store keys by IP.
-const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter } = require('../middleware/rateLimit');
+const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter, publicLimiter } = require('../middleware/rateLimit');
 const portalAuthService = require('../services/portalAuthService');
 const loginSecurity = require('../services/loginSecurityService');
 const { loginIpGuard } = require('../middleware/loginIpGuard');
@@ -188,6 +188,20 @@ const kbRateSchema = {
 // ---------------------------------------------------------------------------
 // AUTH — public endpoints
 // ---------------------------------------------------------------------------
+
+// GET /portal/brand — the company name for the sign-in pages. Nobody is signed
+// in yet, so it is only given when the installation serves exactly one active
+// company; with several there is no telling which one the visitor belongs to.
+// It has its own allowance: opening the sign-in page must not use up sign-in attempts.
+router.get('/brand', publicLimiter, async (_req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT name FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
+    );
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ data: { organization_name: rows.length === 1 ? rows[0].name : null } });
+  } catch (err) { next(err); }
+});
 
 // POST /portal/auth/login
 router.post('/auth/login', authLimiter, loginIpGuard, validate(portalLoginSchema, { strip: false }), async (req, res, next) => {
@@ -897,8 +911,9 @@ router.get('/legal-info', async (req, res, next) => {
     // columns — locale is NOT among them, so read it here alongside the org's
     // configured Carta URL in one round trip.
     const [rows] = await db.query(
-      `SELECT c.locale, omp.carta_derechos_url
+      `SELECT c.locale, omp.carta_derechos_url, o.name AS organization_name
        FROM clients c
+       LEFT JOIN organizations o ON o.id = c.organization_id AND o.deleted_at IS NULL
        LEFT JOIN organization_mx_profiles omp
          ON omp.organization_id = c.organization_id AND omp.deleted_at IS NULL
        WHERE c.id = ? AND c.deleted_at IS NULL`,
@@ -907,6 +922,8 @@ router.get('/legal-info', async (req, res, next) => {
     res.json({
       data: {
         locale: rows[0]?.locale || 'global',
+        // The portal names the company in the browser tab.
+        organization_name: rows[0]?.organization_name || null,
         carta_derechos_url: rows[0]?.carta_derechos_url
           || 'https://www.ift.org.mx/usuarios-y-audiencias/carta-de-derechos-minimos-de-los-usuarios',
       },

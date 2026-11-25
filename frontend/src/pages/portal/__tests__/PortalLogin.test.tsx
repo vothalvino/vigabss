@@ -51,9 +51,10 @@ describe('PortalLogin page', () => {
   it('renders the portal login form', () => {
     mockPortalLogin(vi.fn());
     renderPortalLogin();
-    expect(screen.getByText('VigaBSS')).toBeInTheDocument();
-    expect(screen.getByText('Alpha')).toBeInTheDocument();
-    expect(screen.getByText('v0.1.0-alpha.44')).toBeInTheDocument();
+    // The customer never sees the software's name or version here.
+    expect(screen.queryByText(/VigaBSS/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/alpha/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Customer portal');
     expect(screen.getByText('Client Account Portal')).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();

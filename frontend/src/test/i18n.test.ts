@@ -332,7 +332,7 @@ const INTERPOLATED_KEYS: Array<{ key: string; placeholders: string[] }> = [
   { key: 'drDrill.failed.detailWithReason',         placeholders: ['{{reason}}'] },
   { key: 'drDrill.overdue.headline',                placeholders: ['{{days}}', '{{date}}'] },
   { key: 'portalDashboard.welcome',                 placeholders: ['{{name}}'] },
-  { key: 'portalLayout.footer',                     placeholders: ['{{year}}'] },
+  { key: 'portalLayout.footer',                     placeholders: ['{{year}}', '{{company}}'] },
   { key: 'clientList.pageInfo',                     placeholders: ['{{page}}', '{{total}}'] },
 ];
 

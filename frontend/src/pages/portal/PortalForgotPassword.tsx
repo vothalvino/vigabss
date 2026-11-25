@@ -16,10 +16,13 @@
 import { type FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
+import { usePortalCompanyName } from '@/hooks/usePortalCompanyName';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export function PortalForgotPassword() {
   const { t } = useTranslation();
+  usePortalTabTitle(usePortalCompanyName());
 
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
