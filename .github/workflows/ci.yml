@@ -1252,6 +1252,15 @@ jobs:
           # Fail loudly if the list is not actually multi-arch — a manifest that
           # silently lost an architecture would send ARM hosts back to building
           # from source, which is the whole problem this exists to remove.
+          # The registry can answer "not found" for a tag it accepted a moment
+          # ago, so wait for the tag to be readable before judging it.
+          for attempt in 1 2 3 4 5 6; do
+            if docker buildx imagetools inspect "${RELEASE_IMAGE}:${PUBLISH_TAG}" --raw >/dev/null 2>&1; then
+              break
+            fi
+            echo "tag not readable yet (attempt ${attempt}), waiting"
+            sleep $((attempt * 5))
+          done
           PLATFORMS=$(docker buildx imagetools inspect "${RELEASE_IMAGE}:${PUBLISH_TAG}" --raw \
             | jq -r '.manifests[] | select(.platform.os != "unknown") | "\(.platform.os)/\(.platform.architecture)"' | sort -u)
           echo "platforms: $PLATFORMS"
