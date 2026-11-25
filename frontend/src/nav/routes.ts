@@ -52,6 +52,12 @@ export interface RouteDef {
   path: string;
   /** i18n key for the label (reused by rail, hub cards and palette). */
   labelKey: string;
+  /**
+   * A shorter name for the page's tab, where its tab set already says the
+   * rest ("OLT" under Equipment). The full label stays everywhere else:
+   * search, the overview, setup cards, a person's own menu.
+   */
+  tabLabelKey?: string;
   section: SectionId;
   /** Must mirror the App.tsx PrivateRoute wrapper — tested. */
   guard: Guard;
@@ -230,7 +236,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/payments', keywords: ['pagos', 'abonos'], labelKey: 'nav.payments', section: 'billing', guard: 'any', roles: ['billing'], viewPermissions: ['payments.view'] },
   { path: '/cfdi', keywords: ['sat', 'timbrado', 'stamp', 'factura'], labelKey: 'nav.cfdi', section: 'billing', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
   { path: '/credit-notes', labelKey: 'nav.creditNotes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['credit_notes.view'] },
-  { path: '/cash-reconciliation', keywords: ['corte', 'caja'], labelKey: 'nav.cashReconciliation', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['cash_reconciliation.view'] },
+  { path: '/cash-reconciliation', keywords: ['corte', 'caja'], labelKey: 'nav.cashReconciliation', tabLabelKey: 'nav.tabNames.cash', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['cash_reconciliation.view'] },
   { path: '/plans', labelKey: 'nav.plans', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['plans.view'] },
   { path: '/billing-disputes', labelKey: 'nav.billingDisputes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing_disputes.view'] },
   { path: '/reports', labelKey: 'nav.reports', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'ift_statistical_reports.view'] },
@@ -240,9 +246,9 @@ export const ROUTES: RouteDef[] = [
   { path: '/refund-requests', labelKey: 'nav.refundRequests', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['refund_requests.view'] },
   { path: '/chargebacks', labelKey: 'nav.chargebacks', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['chargebacks.view'] },
   { path: '/payment-gateways', labelKey: 'nav.paymentGateways', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
-  { path: '/payment-problems', keywords: ['webhooks', 'conciliacion', 'pagos', 'reembolsos', 'rep'], labelKey: 'nav.paymentProblems', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
-  { path: '/payment-transactions', labelKey: 'nav.paymentTransactions', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_transactions.view'] },
-  { path: '/recurring-payment-profiles', labelKey: 'nav.recurringPaymentProfiles', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['recurring_payment_profiles.view'] },
+  { path: '/payment-problems', keywords: ['webhooks', 'conciliacion', 'pagos', 'reembolsos', 'rep'], labelKey: 'nav.paymentProblems', tabLabelKey: 'nav.tabNames.problems', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
+  { path: '/payment-transactions', labelKey: 'nav.paymentTransactions', tabLabelKey: 'nav.tabNames.transactions', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['payment_transactions.view'] },
+  { path: '/recurring-payment-profiles', labelKey: 'nav.recurringPaymentProfiles', tabLabelKey: 'nav.tabNames.recurring', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['recurring_payment_profiles.view'] },
   { path: '/tax-reports', keywords: ['iva', 'impuestos', 'fiscal'], labelKey: 'nav.taxReports', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing.tax_reports'] },
   { path: '/analytics-dashboard', labelKey: 'nav.analyticsDashboard', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'reports.view'] },
   { path: '/tax-rules', keywords: ['iva', 'impuestos'], labelKey: 'nav.taxRules', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['tax_rules.view'] },
@@ -274,7 +280,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/maintenance-windows', labelKey: 'nav.maintenanceWindows', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['maintenance_windows.view'] },
   // A site (tower, POP, node) is where network equipment lives, so it is listed
   // with the equipment, first: devices, pools and VLANs are attached to one.
-  { path: '/sites', keywords: ['tower', 'torre', 'pop', 'nodo', 'node', 'sitio'], labelKey: 'nav.sites', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['sites.view'] },
+  { path: '/sites', keywords: ['tower', 'torre', 'pop', 'nodo', 'node', 'sitio'], labelKey: 'nav.sites', tabLabelKey: 'nav.tabNames.sites', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['sites.view'] },
   { path: '/coverage-zones', labelKey: 'nav.coverageZones', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['coverage_zones.view'] },
   { path: '/service-areas', labelKey: 'nav.serviceAreas', section: 'fieldops', guard: 'technician', rail: true, roles: ['technician'], viewPermissions: ['service_areas.view'] },
 
@@ -288,20 +294,20 @@ export const ROUTES: RouteDef[] = [
   // outages.view via mig 377 — the "is it down?" subset
   { path: '/network-health', labelKey: 'nav.networkHealth', section: 'network', guard: 'any', roles: ['technician', 'support'], viewPermissions: ['network_health.view'] },
   { path: '/outages', keywords: ['down', 'caida', 'fuera de servicio'], labelKey: 'nav.outages', section: 'network', guard: 'any', roles: ['technician', 'support'], viewPermissions: ['outages.view'] },
-  { path: '/radius-sessions', keywords: ['pppoe', 'sesiones', 'online'], labelKey: 'nav.radiusSessions', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['connection_logs.view', 'connection_logs.summary'] },
-  { path: '/nas', keywords: ['mikrotik', 'router', 'bras'], labelKey: 'nav.nas', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
+  { path: '/radius-sessions', keywords: ['pppoe', 'sesiones', 'online'], labelKey: 'nav.radiusSessions', tabLabelKey: 'nav.tabNames.sessions', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['connection_logs.view', 'connection_logs.summary'] },
+  { path: '/nas', keywords: ['mikrotik', 'router', 'bras'], labelKey: 'nav.nas', tabLabelKey: 'nav.tabNames.nas', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
   { path: '/ip-pools', labelKey: 'nav.ipPools', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['ip_pools.view'] },
   { path: '/wg-tunnels', keywords: ['wireguard', 'vpn'], labelKey: 'nav.myWgTunnels', section: 'network', guard: 'any', viewPermissions: ['wireguard.peers.view'] },
   { path: '/speed-tests', labelKey: 'nav.speedTests', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['speed_tests.view'] },
-  { path: '/connection-logs', labelKey: 'nav.connectionLogs', section: 'network', guard: 'any', roles: ['technician', 'support'], viewPermissions: ['connection_logs.view'] },
+  { path: '/connection-logs', labelKey: 'nav.connectionLogs', tabLabelKey: 'nav.tabNames.evidence', section: 'network', guard: 'any', roles: ['technician', 'support'], viewPermissions: ['connection_logs.view'] },
   { path: '/topology-map', labelKey: 'nav.topologyMap', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['topology.view', 'mapping.customer_locations', 'mapping.infrastructure', 'mapping.fiber_routes'] },
-  { path: '/snmp-metrics', labelKey: 'nav.snmpMetrics', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
-  { path: '/snmp-traps', labelKey: 'nav.snmpTraps', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
-  { path: '/session-accounting', labelKey: 'nav.sessionAccounting', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['connection_logs.view'] },
-  { path: '/subscriber-certificates', labelKey: 'nav.subscriberCertificates', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['subscriber_certificates.view'] },
-  { path: '/mac-move-events', labelKey: 'nav.macMoveEvents', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['radius.mac_move_events.view'] },
+  { path: '/snmp-metrics', labelKey: 'nav.snmpMetrics', tabLabelKey: 'nav.tabNames.metrics', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
+  { path: '/snmp-traps', labelKey: 'nav.snmpTraps', tabLabelKey: 'nav.tabNames.traps', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.view'] },
+  { path: '/session-accounting', labelKey: 'nav.sessionAccounting', tabLabelKey: 'nav.tabNames.accounting', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['connection_logs.view'] },
+  { path: '/subscriber-certificates', labelKey: 'nav.subscriberCertificates', tabLabelKey: 'nav.tabNames.certificates', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['subscriber_certificates.view'] },
+  { path: '/mac-move-events', labelKey: 'nav.macMoveEvents', tabLabelKey: 'nav.tabNames.macMoves', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['radius.mac_move_events.view'] },
   { path: '/pppoe-service-profiles', labelKey: 'nav.pppoeServiceProfiles', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['pppoe_service_profiles.view'] },
-  { path: '/pppoe-diagnostics', labelKey: 'nav.pppoeDiagnostics', section: 'network', guard: 'any', roles: ['technician', 'support', 'readonly'], viewPermissions: ['pppoe.diagnostics'] },
+  { path: '/pppoe-diagnostics', labelKey: 'nav.pppoeDiagnostics', tabLabelKey: 'nav.tabNames.diagnostics', section: 'network', guard: 'any', roles: ['technician', 'support', 'readonly'], viewPermissions: ['pppoe.diagnostics'] },
   { path: '/ip-assignments', labelKey: 'nav.ipAssignments', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['ip_assignments.view'] },
   { path: '/vlans', labelKey: 'nav.vlans', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['vlans.view'] },
   { path: '/dhcp-servers', labelKey: 'nav.dhcpServers', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['dhcp_servers.view'] },
@@ -312,37 +318,37 @@ export const ROUTES: RouteDef[] = [
   { path: '/device-groups', labelKey: 'nav.deviceGroups', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['device_groups.view'] },
   { path: '/discovery-scans', labelKey: 'nav.discoveryScans', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['discovery_scans.view'] },
   { path: '/device-import', labelKey: 'nav.deviceImport', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['devices.create'] },
-  { path: '/snmp-profiles', labelKey: 'nav.snmpProfiles', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['snmp_profiles.view'] },
+  { path: '/snmp-profiles', labelKey: 'nav.snmpProfiles', tabLabelKey: 'nav.tabNames.profiles', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['snmp_profiles.view'] },
   { path: '/device-config-backups', labelKey: 'nav.deviceConfigBackups', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['device_config_backups.view'] },
   { path: '/config-templates', labelKey: 'nav.configTemplates', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['config_templates.view'] },
   { path: '/config-backup-schedules', labelKey: 'nav.configBackupSchedules', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['config_backup_schedules.view'] },
   { path: '/config-compliance-rules', labelKey: 'nav.configComplianceRules', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['config_compliance.view'] },
-  { path: '/poller-nodes', labelKey: 'nav.pollerNodes', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['poller_nodes.view'] },
-  { path: '/device-polling-configs', labelKey: 'nav.devicePollingConfigs', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['polling_configs.view'] },
-  { path: '/poller-performance', labelKey: 'nav.pollerPerformance', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['poller_performance.view'] },
-  { path: '/trap-forwarding-rules', labelKey: 'nav.trapForwardingRules', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['trap_forwarding.view'] },
+  { path: '/poller-nodes', labelKey: 'nav.pollerNodes', tabLabelKey: 'nav.tabNames.nodes', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['poller_nodes.view'] },
+  { path: '/device-polling-configs', labelKey: 'nav.devicePollingConfigs', tabLabelKey: 'nav.tabNames.polling', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['polling_configs.view'] },
+  { path: '/poller-performance', labelKey: 'nav.pollerPerformance', tabLabelKey: 'nav.tabNames.performance', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['poller_performance.view'] },
+  { path: '/trap-forwarding-rules', labelKey: 'nav.trapForwardingRules', tabLabelKey: 'nav.tabNames.trapForwarding', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['trap_forwarding.view'] },
   { path: '/alert-channels', labelKey: 'nav.alertChannels', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['alert_channels.view'] },
   { path: '/alert-escalation-chains', labelKey: 'nav.alertEscalationChains', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['alert_escalations.view'] },
   { path: '/alert-suppression-rules', labelKey: 'nav.alertSuppressionRules', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['alert_suppression.view'] },
-  { path: '/olt-management', labelKey: 'nav.oltManagement', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['olt_ports.view', 'olt_splitters.view'] },
-  { path: '/onu-management', keywords: ['ftth', 'fibra', 'provision'], labelKey: 'nav.onuManagement', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['onu_management.view', 'onu_profiles.view', 'onu_whitelist.view'] },
+  { path: '/olt-management', labelKey: 'nav.oltManagement', tabLabelKey: 'nav.tabNames.olt', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['olt_ports.view', 'olt_splitters.view'] },
+  { path: '/onu-management', keywords: ['ftth', 'fibra', 'provision'], labelKey: 'nav.onuManagement', tabLabelKey: 'nav.tabNames.onu', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['onu_management.view', 'onu_profiles.view', 'onu_whitelist.view'] },
   { path: '/pon-port-management', labelKey: 'nav.ponPortManagement', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['olt_ports.utilization', 'onu_migration_jobs.view'] },
   { path: '/fiber-plant-management', labelKey: 'nav.fiberPlantManagement', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['fiber_routes.view', 'odf_frames.view', 'otdr_tests.view'] },
-  { path: '/cpe-management', labelKey: 'nav.cpeManagement', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['cpe_devices.view', 'cpe_firmware_versions.view', 'cpe_firmware_campaigns.view'] },
+  { path: '/cpe-management', labelKey: 'nav.cpeManagement', tabLabelKey: 'nav.tabNames.cpe', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['cpe_devices.view', 'cpe_firmware_versions.view', 'cpe_firmware_campaigns.view'] },
   // cpe_profiles.view is admin-only (mig 276; 391's CPE grants to technician
   // cover devices/inventory/lifecycle, not profiles)
   { path: '/cpe-profiles', labelKey: 'nav.cpeProfiles', section: 'network', guard: 'technician', roles: ['admin'], viewPermissions: ['cpe_profiles.view'] },
   { path: '/cpe-diagnostics', labelKey: 'nav.cpeDiagnostics', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['cpe_devices.view', 'cpe_diagnostics.view', 'cpe_session_logs.view'] },
-  { path: '/wireless', labelKey: 'nav.wireless', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['ap_sectors.view', 'wireless_clients.view'] },
+  { path: '/wireless', labelKey: 'nav.wireless', tabLabelKey: 'nav.tabNames.wireless', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['ap_sectors.view', 'wireless_clients.view'] },
   { path: '/wireless-metrics', labelKey: 'nav.wirelessMetrics', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['rf_metrics.view', 'link_planning.view'] },
-  { path: '/qos-bandwidth', labelKey: 'nav.qosBandwidth', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['quality_classes.view', 'queue_tree_nodes.view', 'rate_limit_templates.view'] },
+  { path: '/qos-bandwidth', labelKey: 'nav.qosBandwidth', tabLabelKey: 'nav.tabNames.qos', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['quality_classes.view', 'queue_tree_nodes.view', 'rate_limit_templates.view'] },
   { path: '/suspension-rules', labelKey: 'nav.suspensionRules', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['suspension_rules.view'] },
   // The OPERATIONS side of the same feature: preview who a rule would hit, run
   // it on demand, and see what it did. Sits beside the rule authoring page.
   // roles mirrors suspension-rules exactly — evaluate needs contracts.view,
   // which technician holds; the run button is separately gated on
   // contracts.update inside the page.
-  { path: '/suspension-console', keywords: ['suspension', 'corte', 'suspender', 'reconectar'], labelKey: 'nav.suspensionConsole', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['contracts.view'] },
+  { path: '/suspension-console', keywords: ['suspension', 'corte', 'suspender', 'reconectar'], labelKey: 'nav.suspensionConsole', tabLabelKey: 'nav.tabNames.suspension', section: 'network', guard: 'technician', roles: ['technician'], viewPermissions: ['contracts.view'] },
   // Both halves of GPS tracking: dispatch sees positions, the technician posts
   // them from browser geolocation. technician holds BOTH .view and .ingest
   // (migration 298); support holds .view only, so the share button is gated
@@ -395,7 +401,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/settings', labelKey: 'nav.settings', section: 'admin', guard: 'admin', viewPermissions: ['settings.view'] },
   { path: '/automation', labelKey: 'nav.automation', section: 'admin', guard: 'admin', viewPermissions: ['automation_rules.view', 'batch_jobs.view', 'provisioning_pipelines.view'] },
   { path: '/audit-logs', labelKey: 'nav.auditLogs', section: 'admin', guard: 'admin', viewPermissions: ['audit_logs.view'] },
-  { path: '/security-access-control', labelKey: 'nav.securityAccessControl', section: 'admin', guard: 'admin', viewPermissions: ['webauthn.view', 'password_policy.view', 'admin_ip_allowlist.view'] },
+  { path: '/security-access-control', labelKey: 'nav.securityAccessControl', tabLabelKey: 'nav.tabNames.security', section: 'admin', guard: 'admin', viewPermissions: ['webauthn.view', 'password_policy.view', 'admin_ip_allowlist.view'] },
   { path: '/api-tokens', labelKey: 'nav.apiTokens', section: 'admin', guard: 'admin', viewPermissions: ['api_tokens.view'] },
   { path: '/resellers', labelKey: 'nav.resellers', section: 'admin', guard: 'admin', viewPermissions: ['resellers.view'] },
   { path: '/cash-bags', keywords: ['bolsas', 'efectivo', 'transportista', 'recoleccion'], labelKey: 'nav.cashBags', section: 'admin', guard: 'admin', viewPermissions: ['cash_bags.view', 'carriers.manage'] },
@@ -411,7 +417,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/dsar', labelKey: 'nav.dsar', section: 'admin', guard: 'admin', viewPermissions: ['clients.view', 'dsar_requests.manage', 'connection_logs.export'] },
   { path: '/dr-drill', labelKey: 'nav.drDrill', section: 'admin', guard: 'admin', installOperatorOnly: true, viewPermissions: ['settings.view'] },
   { path: '/backups', labelKey: 'nav.backups', section: 'admin', guard: 'admin', installOperatorOnly: true, viewPermissions: ['backup_settings.view'] },
-  { path: '/admin/user-tunnels', labelKey: 'nav.adminUserTunnels', section: 'admin', guard: 'admin', viewPermissions: ['wireguard.peers.admin'] },
+  { path: '/admin/user-tunnels', labelKey: 'nav.adminUserTunnels', tabLabelKey: 'nav.tabNames.tunnels', section: 'admin', guard: 'admin', viewPermissions: ['wireguard.peers.admin'] },
 ];
 
 // =============================================================================

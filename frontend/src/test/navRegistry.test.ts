@@ -154,6 +154,7 @@ describe('nav registry i18n coverage', () => {
     for (const [section, page] of Object.entries(SETUP_PAGES)) { keys.add(page.labelKey); keys.add(`nav.setup.${section}.hint`); }
     for (const r of ROUTES) {
       keys.add(r.labelKey);
+      if (r.tabLabelKey) keys.add(r.tabLabelKey);
       if (r.sub) keys.add(`nav.subsections.${r.sub}`);
       if (r.card) keys.add(`nav.cards.${r.card}`);
     }
@@ -214,6 +215,22 @@ describe('tab sets', () => {
     const stray = ROUTES.filter(r => tabbedSections.includes(r.section) && (r.rail || r.sub || r.card)).map(r => r.path);
     expect(stray).toEqual([]);
     expect(tabbedSections.filter(section => HUB_CARDS[section])).toEqual([]);
+  });
+
+  it('a short tab name is only given to a page that is in a tab set', () => {
+    const tabbed = new Set(TABSETS.flatMap(set => set.paths));
+    expect(ROUTES.filter(r => r.tabLabelKey && !tabbed.has(r.path)).map(r => r.path)).toEqual([]);
+  });
+
+  it('every strip fits a narrow window in English (about 90 characters of tab names)', () => {
+    const dict = en as unknown as Record<string, unknown>;
+    const text = (key: string) => String(key.split('.').reduce<unknown>((acc, k) => (acc as Record<string, unknown>)[k], dict));
+    const long = TABSETS.map(set => {
+      const names = set.paths.map(path => { const r = ROUTES.find(route => route.path === path)!; return text(r.tabLabelKey ?? r.labelKey); });
+      // Each tab costs its letters plus padding worth about three more.
+      return { id: set.id, size: names.reduce((sum, name) => sum + name.length + 3, 0) };
+    }).filter(set => set.size > 90);
+    expect(long).toEqual([]);
   });
 
   it('no tab set has more pages than fit a strip', () => {
