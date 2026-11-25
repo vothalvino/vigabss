@@ -747,6 +747,16 @@
   "nav": {
     "menuTemplates": "Modelos de menu",
     "tabsets": {
+      "cfdiSat": "CFDI e SAT",
+      "ift": "IFT",
+      "consumer": "Consumidor e geral",
+      "peopleAccess": "Pessoas e acesso",
+      "organization": "Organização",
+      "pointsOfSale": "Pontos de venda",
+      "auditSafety": "Auditoria e segurança",
+      "automation": "Automação",
+      "connections": "Integrações e mensagens",
+      "assistant": "Assistente de IA",
       "invoicing": "Faturas",
       "paymentsIn": "Pagamentos",
       "collections": "Cobrança",
@@ -771,6 +781,9 @@
       "access": "Acesso"
     },
     "setupHints": {
+      "automation": "Regras e scripts que agem sozinhos, as tarefas agendadas e a fila que as executa.",
+      "connections": "Conexões com outros sistemas, os webhooks que os avisam e o texto das mensagens enviadas aos clientes.",
+      "assistant": "O assistente que responde aos clientes e ajuda a equipe.",
       "taxes": "Quais impostos se aplicam e com qual alíquota.",
       "invoiceLook": "Logotipo, cores e o texto impresso nas faturas.",
       "gateways": "Os processadores de cartão e transferência que recebem por você.",
@@ -787,6 +800,10 @@
       "access": "Seus próprios túneis VPN para a rede."
     },
     "setup": {
+      "admin": {
+        "title": "Configuração de administração",
+        "hint": "O que se configura uma vez e raramente se revisita. O trabalho diário fica na barra lateral; tudo aqui também é encontrado pela busca."
+      },
       "billing": {
         "title": "Configuração de faturamento",
         "hint": "O que se configura uma vez e raramente se revisita. O trabalho diário fica na barra lateral; tudo aqui também é encontrado pela busca."
@@ -946,11 +963,7 @@
       "sales": "Vendas e Pedidos",
       "retention": "Retenção",
       "stock": "Estoque",
-      "purchasing": "Compras",
-      "cfdiSat": "CFDI / SAT",
-      "ift": "IFT",
-      "consumer": "Consumidor",
-      "general": "Geral"
+      "purchasing": "Compras"
     },
     "viewAll": "Ver todos os {{total}} →",
     "hubs": {
@@ -964,16 +977,11 @@
       },
       "admin": {
         "title": "Administração",
-        "hint": "Todo o módulo de Administração. A barra lateral mostra o uso diário; o restante fica aqui, a um clique."
+        "hint": "Todo o módulo de Administração, agrupado como na barra lateral."
       },
       "empty": "Nenhuma página disponível para o seu perfil."
     },
     "cards": {
-      "peopleAccess": "Pessoas e Acesso",
-      "organization": "Organização",
-      "automationIntegrations": "Automação e Integrações",
-      "ai": "IA",
-      "governance": "Governança e Continuidade"
     },
     "toggleSection": "Mostrar ou ocultar {{section}}",
     "palette": {

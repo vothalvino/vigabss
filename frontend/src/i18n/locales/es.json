@@ -747,6 +747,16 @@
   "nav": {
     "menuTemplates": "Plantillas de menú",
     "tabsets": {
+      "cfdiSat": "CFDI y SAT",
+      "ift": "IFT",
+      "consumer": "Consumidor y general",
+      "peopleAccess": "Personas y acceso",
+      "organization": "Organización",
+      "pointsOfSale": "Puntos de venta",
+      "auditSafety": "Auditoría y respaldo",
+      "automation": "Automatización",
+      "connections": "Integraciones y mensajes",
+      "assistant": "Asistente de IA",
       "invoicing": "Facturas",
       "paymentsIn": "Pagos",
       "collections": "Cobranza",
@@ -771,6 +781,9 @@
       "access": "Acceso"
     },
     "setupHints": {
+      "automation": "Reglas y scripts que actúan solos, las tareas programadas y la cola que las ejecuta.",
+      "connections": "Conexiones con otros sistemas, los webhooks que les avisan y el texto de los mensajes que reciben los clientes.",
+      "assistant": "El asistente que responde a los clientes y ayuda al personal.",
       "taxes": "Qué impuestos aplican y con qué tasa.",
       "invoiceLook": "Logotipo, colores y el texto impreso en las facturas.",
       "gateways": "Los procesadores de tarjeta y transferencia que cobran por ti.",
@@ -787,6 +800,10 @@
       "access": "Tus propios túneles VPN hacia la red."
     },
     "setup": {
+      "admin": {
+        "title": "Configuración de administración",
+        "hint": "Lo que se configura una vez y rara vez se vuelve a tocar. El trabajo diario está en la barra lateral; todo lo de aquí también se encuentra con la búsqueda."
+      },
       "billing": {
         "title": "Configuración de facturación",
         "hint": "Lo que se configura una vez y rara vez se vuelve a tocar. El trabajo diario está en la barra lateral; todo lo de aquí también se encuentra con la búsqueda."
@@ -946,11 +963,7 @@
       "sales": "Ventas y Órdenes",
       "retention": "Retención",
       "stock": "Existencias",
-      "purchasing": "Compras",
-      "cfdiSat": "CFDI / SAT",
-      "ift": "IFT",
-      "consumer": "Consumidor",
-      "general": "General"
+      "purchasing": "Compras"
     },
     "viewAll": "Ver los {{total}} →",
     "hubs": {
@@ -964,16 +977,11 @@
       },
       "admin": {
         "title": "Administración",
-        "hint": "Todo el módulo de Administración. La barra lateral muestra lo de uso diario; el resto vive aquí, a un clic."
+        "hint": "Todo el módulo de Administración, agrupado igual que en la barra lateral."
       },
       "empty": "No hay páginas disponibles para tu rol."
     },
     "cards": {
-      "peopleAccess": "Personas y Acceso",
-      "organization": "Organización",
-      "automationIntegrations": "Automatización e Integraciones",
-      "ai": "IA",
-      "governance": "Gobernanza y Continuidad"
     },
     "toggleSection": "Mostrar u ocultar {{section}}",
     "palette": {

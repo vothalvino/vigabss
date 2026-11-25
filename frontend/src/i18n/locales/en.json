@@ -747,6 +747,16 @@
   "nav": {
     "menuTemplates": "Menu templates",
     "tabsets": {
+      "cfdiSat": "CFDI and SAT",
+      "ift": "IFT",
+      "consumer": "Consumer and general",
+      "peopleAccess": "People and access",
+      "organization": "Organization",
+      "pointsOfSale": "Points of sale",
+      "auditSafety": "Audit and safety",
+      "automation": "Automation",
+      "connections": "Integrations and messages",
+      "assistant": "AI assistant",
       "invoicing": "Invoices",
       "paymentsIn": "Payments",
       "collections": "Collections",
@@ -771,6 +781,9 @@
       "access": "Access"
     },
     "setupHints": {
+      "automation": "Rules and scripts that act by themselves, the tasks that run on a schedule, and the queue behind them.",
+      "connections": "Connections to other systems, the webhooks that notify them, and the wording of messages sent to customers.",
+      "assistant": "The assistant that answers customers and helps staff.",
       "taxes": "Which taxes apply and at what rate.",
       "invoiceLook": "Logo, colours and the text printed on invoices.",
       "gateways": "The card and transfer processors that take payments for you.",
@@ -787,6 +800,10 @@
       "access": "Your own VPN tunnels into the network."
     },
     "setup": {
+      "admin": {
+        "title": "Administration setup",
+        "hint": "What is configured once and rarely revisited. Everyday work is in the sidebar; everything here is also found by search."
+      },
       "billing": {
         "title": "Billing setup",
         "hint": "What is configured once and rarely revisited. Everyday work is in the sidebar; everything here is also found by search."
@@ -946,11 +963,7 @@
       "sales": "Sales & Orders",
       "retention": "Retention",
       "stock": "Stock",
-      "purchasing": "Purchasing",
-      "cfdiSat": "CFDI / SAT",
-      "ift": "IFT",
-      "consumer": "Consumer",
-      "general": "General"
+      "purchasing": "Purchasing"
     },
     "viewAll": "View all {{total}} →",
     "hubs": {
@@ -964,16 +977,11 @@
       },
       "admin": {
         "title": "Administration",
-        "hint": "Everything in the Admin section. The sidebar keeps the day-to-day shortlist; the rest lives here, one click away."
+        "hint": "Everything in Administration, grouped the same way as the sidebar."
       },
       "empty": "No pages available for your role."
     },
     "cards": {
-      "peopleAccess": "People & Access",
-      "organization": "Organization",
-      "automationIntegrations": "Automation & Integrations",
-      "ai": "AI",
-      "governance": "Governance & Continuity"
     },
     "toggleSection": "Expand or collapse {{section}}",
     "palette": {

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canSee, ROUTES, visibleRailItems } from '@/nav/routes';
+import { canSee, ROUTES, TABSETS, visibleRailRows } from '@/nav/routes';
 import en from '@/i18n/locales/en.json';
 import es from '@/i18n/locales/es.json';
 import ptBR from '@/i18n/locales/pt-BR.json';
@@ -29,11 +29,11 @@ describe('SNII App and navigation registration', () => {
       labelKey: 'nav.sniiInfrastructure',
       section: 'compliance',
       guard: 'any',
-      sub: 'ift',
-      rail: true,
       requiredLocale: 'MX',
       requiredAnyPermissions: ['snii_reporting.view'],
     });
+    // It is reached as a tab of the IFT set.
+    expect(TABSETS.find(set => set.id === 'ift')?.paths).toContain('/snii-infrastructure');
   });
 
   it('shows the nav row only to an MX principal with the view permission', () => {
@@ -44,14 +44,14 @@ describe('SNII App and navigation registration', () => {
       permissions: ['snii_reporting.view'],
     };
     expect(canSee(permittedMx, route!)).toBe(true);
-    expect(visibleRailItems(permittedMx, 'compliance').map(item => item.path))
+    expect(visibleRailRows(permittedMx, 'compliance').flatMap(row => row.paths))
       .toContain('/snii-infrastructure');
 
     expect(canSee({ ...permittedMx, permissions: [] }, route!)).toBe(false);
     expect(canSee({ ...permittedMx, organization_locale: 'global' }, route!)).toBe(false);
-    expect(visibleRailItems({ ...permittedMx, permissions: [] }, 'compliance').map(item => item.path))
+    expect(visibleRailRows({ ...permittedMx, permissions: [] }, 'compliance').flatMap(row => row.paths))
       .not.toContain('/snii-infrastructure');
-    expect(visibleRailItems({ ...permittedMx, organization_locale: 'global' }, 'compliance').map(item => item.path))
+    expect(visibleRailRows({ ...permittedMx, organization_locale: 'global' }, 'compliance').flatMap(row => row.paths))
       .not.toContain('/snii-infrastructure');
   });
 });

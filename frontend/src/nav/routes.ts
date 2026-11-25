@@ -129,7 +129,6 @@ export const WORKSPACES: WorkspaceDef[] = [
 
 /** Hub card ordering per hub section (card id → nav.cards.<id>). */
 export const HUB_CARDS: Record<string, string[]> = {
-  admin: ['peopleAccess', 'organization', 'automationIntegrations', 'ai', 'governance'],
 };
 
 /**
@@ -173,6 +172,20 @@ export const TABSETS: TabsetDef[] = [
   { id: 'gateways', section: 'billing', setup: true, labelKey: 'nav.tabsets.gateways', hintKey: 'nav.setupHints.gateways', paths: ['/payment-gateways'] },
   { id: 'lateAndReminders', section: 'billing', setup: true, labelKey: 'nav.tabsets.lateAndReminders', hintKey: 'nav.setupHints.lateAndReminders', paths: ['/late-fee-rules', '/payment-reminder-settings'] },
   { id: 'importData', section: 'billing', setup: true, labelKey: 'nav.tabsets.importData', hintKey: 'nav.setupHints.importData', paths: ['/data-import'] },
+  // Compliance (Mexico): three groups, all of them opened in the course of work.
+  { id: 'cfdiSat', section: 'compliance', labelKey: 'nav.tabsets.cfdiSat', paths: ['/csd-certificates', '/pac-providers', '/sat-catalogs', '/facturas-publicas'] },
+  { id: 'ift', section: 'compliance', labelKey: 'nav.tabsets.ift', paths: ['/regulatory-filings', '/concession-titles', '/ift-statistical-reports', '/snii-infrastructure'] },
+  { id: 'consumer', section: 'compliance', labelKey: 'nav.tabsets.consumer', paths: ['/profeco-complaints', '/regulatory-compliance'] },
+  // Administration, everyday: people, the organization, points of sale, and
+  // the records kept about what happened.
+  { id: 'peopleAccess', section: 'admin', labelKey: 'nav.tabsets.peopleAccess', paths: ['/users', '/roles', '/menu-templates', '/security-access-control', '/api-tokens', '/admin/user-tunnels'] },
+  { id: 'organization', section: 'admin', labelKey: 'nav.tabsets.organization', paths: ['/organizations', '/settings', '/sla-definitions', '/document-templates'] },
+  { id: 'pointsOfSale', section: 'admin', labelKey: 'nav.tabsets.pointsOfSale', paths: ['/resellers', '/cash-bags'] },
+  { id: 'auditSafety', section: 'admin', labelKey: 'nav.tabsets.auditSafety', paths: ['/audit-logs', '/dsar', '/backups', '/dr-drill'] },
+  // Administration, setup.
+  { id: 'automation', section: 'admin', setup: true, labelKey: 'nav.tabsets.automation', hintKey: 'nav.setupHints.automation', paths: ['/automation', '/scheduled-tasks', '/queue-stats'] },
+  { id: 'connections', section: 'admin', setup: true, labelKey: 'nav.tabsets.connections', hintKey: 'nav.setupHints.connections', paths: ['/integrations', '/webhooks', '/message-templates'] },
+  { id: 'assistant', section: 'admin', setup: true, labelKey: 'nav.tabsets.assistant', hintKey: 'nav.setupHints.assistant', paths: ['/ai-support'] },
   // Network, everyday: watching the network, looking at a subscriber's
   // connection, working on equipment, handing out addresses.
   { id: 'monitor', section: 'network', labelKey: 'nav.tabsets.monitor', paths: ['/noc-dashboard', '/network-health', '/outages', '/speed-tests', '/noc-insights'] },
@@ -194,6 +207,7 @@ export const TABSETS: TabsetDef[] = [
 
 /** The setup page of each section that has setup sets: its address and its sidebar label. */
 export const SETUP_PAGES: Partial<Record<SectionId, { path: string; labelKey: string }>> = {
+  admin: { path: '/admin/setup', labelKey: 'nav.setup.admin.title' },
   billing: { path: '/billing/setup', labelKey: 'nav.setup.billing.title' },
   network: { path: '/network/setup', labelKey: 'nav.setup.network.title' },
 };
@@ -344,28 +358,26 @@ export const ROUTES: RouteDef[] = [
   { path: '/purchase-orders', labelKey: 'nav.purchaseOrders', section: 'inventory', guard: 'technician', sub: 'purchasing', rail: true, roles: ['technician'], viewPermissions: ['purchase_orders.view'] },
 
   // --- Compliance -----------------------------------------------------------------
-  { path: '/csd-certificates', labelKey: 'nav.csdCertificates', section: 'compliance', guard: 'billing', sub: 'cfdiSat', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['csd_certificates.view'] },
-  { path: '/pac-providers', labelKey: 'nav.pacProviders', section: 'compliance', guard: 'billing', sub: 'cfdiSat', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['pac_providers.view'] },
-  { path: '/sat-catalogs', labelKey: 'nav.satCatalogs', section: 'compliance', guard: 'billing', sub: 'cfdiSat', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
-  { path: '/facturas-publicas', labelKey: 'nav.facturasPublicas', section: 'compliance', guard: 'billing', sub: 'cfdiSat', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['facturas_publicas.view'] },
-  { path: '/regulatory-filings', labelKey: 'nav.regulatoryFilings', section: 'compliance', guard: 'billing', sub: 'ift', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['regulatory_filings.view'] },
-  { path: '/concession-titles', labelKey: 'nav.concessionTitles', section: 'compliance', guard: 'billing', sub: 'ift', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['concession_titles.view'] },
-  { path: '/ift-statistical-reports', labelKey: 'nav.iftStatisticalReports', section: 'compliance', guard: 'billing', sub: 'ift', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['ift_statistical_reports.view'] },
-  { path: '/profeco-complaints', labelKey: 'nav.profecoComplaints', section: 'compliance', guard: 'billing', sub: 'consumer', rail: true, roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['tickets.view'] },
+  { path: '/csd-certificates', labelKey: 'nav.csdCertificates', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['csd_certificates.view'] },
+  { path: '/pac-providers', labelKey: 'nav.pacProviders', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['pac_providers.view'] },
+  { path: '/sat-catalogs', labelKey: 'nav.satCatalogs', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
+  { path: '/facturas-publicas', labelKey: 'nav.facturasPublicas', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['facturas_publicas.view'] },
+  { path: '/regulatory-filings', labelKey: 'nav.regulatoryFilings', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['regulatory_filings.view'] },
+  { path: '/concession-titles', labelKey: 'nav.concessionTitles', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['concession_titles.view'] },
+  { path: '/ift-statistical-reports', labelKey: 'nav.iftStatisticalReports', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['ift_statistical_reports.view'] },
+  { path: '/profeco-complaints', labelKey: 'nav.profecoComplaints', section: 'compliance', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['tickets.view'] },
   {
     path: '/snii-infrastructure',
     labelKey: 'nav.sniiInfrastructure',
     section: 'compliance',
     guard: 'any',
-    sub: 'ift',
-    rail: true,
     requiredLocale: 'MX',
     requiredAnyPermissions: ['snii_reporting.view'],
     keywords: ['snii', 'crt', 'torres', 'infraestructura', 'fiber', 'towers'],
   },
   // deliberately NOT MX-gated — Compliance still renders for non-Mexico orgs
   {
-    path: '/regulatory-compliance', labelKey: 'nav.regulatoryCompliance', section: 'compliance', guard: 'any', sub: 'general', rail: true,
+    path: '/regulatory-compliance', labelKey: 'nav.regulatoryCompliance', section: 'compliance', guard: 'any',
     requiredAnyPermissions: [
       'subscriber_consents.view', 'dsar_requests.view', 'gov_data_requests.view',
       'identity_verification.view', 'phone_number_inventory.view', 'uso_obligations.view',
@@ -375,31 +387,31 @@ export const ROUTES: RouteDef[] = [
   },
 
   // --- Admin (hub: /admin) ---------------------------------------------------------
-  { path: '/users', labelKey: 'nav.users', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['users.view'] },
-  { path: '/roles', labelKey: 'nav.roles', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['roles.view'] },
+  { path: '/users', labelKey: 'nav.users', section: 'admin', guard: 'admin', viewPermissions: ['users.view'] },
+  { path: '/roles', labelKey: 'nav.roles', section: 'admin', guard: 'admin', viewPermissions: ['roles.view'] },
   // Arranges sidebars only: a template shows each person just the pages their own permissions open.
-  { path: '/menu-templates', keywords: ['menu', 'sidebar', 'plantilla', 'pin'], labelKey: 'nav.menuTemplates', section: 'admin', guard: 'admin', card: 'peopleAccess', rail: true, viewPermissions: ['menu_templates.manage'] },
-  { path: '/organizations', labelKey: 'nav.organizations', section: 'admin', guard: 'admin', card: 'organization', rail: true, viewPermissions: ['organizations.view'] },
-  { path: '/settings', labelKey: 'nav.settings', section: 'admin', guard: 'admin', card: 'organization', rail: true, viewPermissions: ['settings.view'] },
-  { path: '/automation', labelKey: 'nav.automation', section: 'admin', guard: 'admin', card: 'automationIntegrations', rail: true, viewPermissions: ['automation_rules.view', 'batch_jobs.view', 'provisioning_pipelines.view'] },
-  { path: '/audit-logs', labelKey: 'nav.auditLogs', section: 'admin', guard: 'admin', card: 'governance', rail: true, viewPermissions: ['audit_logs.view'] },
-  { path: '/security-access-control', labelKey: 'nav.securityAccessControl', section: 'admin', guard: 'admin', card: 'peopleAccess', viewPermissions: ['webauthn.view', 'password_policy.view', 'admin_ip_allowlist.view'] },
-  { path: '/api-tokens', labelKey: 'nav.apiTokens', section: 'admin', guard: 'admin', card: 'peopleAccess', viewPermissions: ['api_tokens.view'] },
-  { path: '/resellers', labelKey: 'nav.resellers', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['resellers.view'] },
-  { path: '/cash-bags', keywords: ['bolsas', 'efectivo', 'transportista', 'recoleccion'], labelKey: 'nav.cashBags', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['cash_bags.view', 'carriers.manage'] },
-  { path: '/sla-definitions', labelKey: 'nav.slaDefinitions', section: 'admin', guard: 'admin', card: 'organization', viewPermissions: ['sla_definitions.view'] },
-  { path: '/scheduled-tasks', labelKey: 'nav.scheduledTasks', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['scheduled_tasks.view'] },
-  { path: '/queue-stats', labelKey: 'nav.queueStats', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['settings.view'] },
-  { path: '/webhooks', labelKey: 'nav.webhooks', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['webhooks.view'] },
-  { path: '/integrations', labelKey: 'nav.integrations', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['integration_connections.view', 'integration_providers.view', 'integration_sync_logs.view'] },
-  { path: '/message-templates', labelKey: 'nav.messageTemplates', section: 'admin', guard: 'admin', card: 'automationIntegrations', viewPermissions: ['settings.view'] },
-  { path: '/document-templates', keywords: ['contrato', 'adhesion', 'firma', 'legal'], labelKey: 'nav.documentTemplates', section: 'admin', guard: 'admin', card: 'governance', requiredLocale: 'MX', viewPermissions: ['document_templates.view'] },
-  { path: '/ai-support', keywords: ['assistant', 'asistente', 'chatbot', 'claude', 'llm'], labelKey: 'nav.aiSupport', section: 'admin', guard: 'admin', card: 'ai', viewPermissions: ['support.conversations.view', 'support.kb.view', 'ai.policy.read', 'ai.providers.read'] },
+  { path: '/menu-templates', keywords: ['menu', 'sidebar', 'plantilla', 'pin'], labelKey: 'nav.menuTemplates', section: 'admin', guard: 'admin', viewPermissions: ['menu_templates.manage'] },
+  { path: '/organizations', labelKey: 'nav.organizations', section: 'admin', guard: 'admin', viewPermissions: ['organizations.view'] },
+  { path: '/settings', labelKey: 'nav.settings', section: 'admin', guard: 'admin', viewPermissions: ['settings.view'] },
+  { path: '/automation', labelKey: 'nav.automation', section: 'admin', guard: 'admin', viewPermissions: ['automation_rules.view', 'batch_jobs.view', 'provisioning_pipelines.view'] },
+  { path: '/audit-logs', labelKey: 'nav.auditLogs', section: 'admin', guard: 'admin', viewPermissions: ['audit_logs.view'] },
+  { path: '/security-access-control', labelKey: 'nav.securityAccessControl', section: 'admin', guard: 'admin', viewPermissions: ['webauthn.view', 'password_policy.view', 'admin_ip_allowlist.view'] },
+  { path: '/api-tokens', labelKey: 'nav.apiTokens', section: 'admin', guard: 'admin', viewPermissions: ['api_tokens.view'] },
+  { path: '/resellers', labelKey: 'nav.resellers', section: 'admin', guard: 'admin', viewPermissions: ['resellers.view'] },
+  { path: '/cash-bags', keywords: ['bolsas', 'efectivo', 'transportista', 'recoleccion'], labelKey: 'nav.cashBags', section: 'admin', guard: 'admin', viewPermissions: ['cash_bags.view', 'carriers.manage'] },
+  { path: '/sla-definitions', labelKey: 'nav.slaDefinitions', section: 'admin', guard: 'admin', viewPermissions: ['sla_definitions.view'] },
+  { path: '/scheduled-tasks', labelKey: 'nav.scheduledTasks', section: 'admin', guard: 'admin', viewPermissions: ['scheduled_tasks.view'] },
+  { path: '/queue-stats', labelKey: 'nav.queueStats', section: 'admin', guard: 'admin', viewPermissions: ['settings.view'] },
+  { path: '/webhooks', labelKey: 'nav.webhooks', section: 'admin', guard: 'admin', viewPermissions: ['webhooks.view'] },
+  { path: '/integrations', labelKey: 'nav.integrations', section: 'admin', guard: 'admin', viewPermissions: ['integration_connections.view', 'integration_providers.view', 'integration_sync_logs.view'] },
+  { path: '/message-templates', labelKey: 'nav.messageTemplates', section: 'admin', guard: 'admin', viewPermissions: ['settings.view'] },
+  { path: '/document-templates', keywords: ['contrato', 'adhesion', 'firma', 'legal'], labelKey: 'nav.documentTemplates', section: 'admin', guard: 'admin', requiredLocale: 'MX', viewPermissions: ['document_templates.view'] },
+  { path: '/ai-support', keywords: ['assistant', 'asistente', 'chatbot', 'claude', 'llm'], labelKey: 'nav.aiSupport', section: 'admin', guard: 'admin', viewPermissions: ['support.conversations.view', 'support.kb.view', 'ai.policy.read', 'ai.providers.read'] },
   { path: '/noc-insights', labelKey: 'nav.nocInsights', section: 'network', guard: 'admin', viewPermissions: ['noc_ai.read'] },
-  { path: '/dsar', labelKey: 'nav.dsar', section: 'admin', guard: 'admin', card: 'governance', viewPermissions: ['clients.view', 'dsar_requests.manage', 'connection_logs.export'] },
-  { path: '/dr-drill', labelKey: 'nav.drDrill', section: 'admin', guard: 'admin', card: 'governance', installOperatorOnly: true, viewPermissions: ['settings.view'] },
-  { path: '/backups', labelKey: 'nav.backups', section: 'admin', guard: 'admin', card: 'governance', installOperatorOnly: true, viewPermissions: ['backup_settings.view'] },
-  { path: '/admin/user-tunnels', labelKey: 'nav.adminUserTunnels', section: 'admin', guard: 'admin', card: 'governance', viewPermissions: ['wireguard.peers.admin'] },
+  { path: '/dsar', labelKey: 'nav.dsar', section: 'admin', guard: 'admin', viewPermissions: ['clients.view', 'dsar_requests.manage', 'connection_logs.export'] },
+  { path: '/dr-drill', labelKey: 'nav.drDrill', section: 'admin', guard: 'admin', installOperatorOnly: true, viewPermissions: ['settings.view'] },
+  { path: '/backups', labelKey: 'nav.backups', section: 'admin', guard: 'admin', installOperatorOnly: true, viewPermissions: ['backup_settings.view'] },
+  { path: '/admin/user-tunnels', labelKey: 'nav.adminUserTunnels', section: 'admin', guard: 'admin', viewPermissions: ['wireguard.peers.admin'] },
 ];
 
 // =============================================================================
@@ -548,7 +560,7 @@ export function visibleHubCards(user: NavUser, sectionId: SectionId): { card: st
     .filter(c => c.items.length > 0);
 }
 
-const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin', '/network/setup': 'network', '/billing/setup': 'billing' };
+const HUB_PATHS: Record<string, SectionId> = { '/billing': 'billing', '/network': 'network', '/admin': 'admin', '/network/setup': 'network', '/billing/setup': 'billing', '/admin/setup': 'admin' };
 
 /** Owning section for a pathname (active trail) — longest-prefix match. */
 export function sectionForPath(pathname: string): SectionId | null {

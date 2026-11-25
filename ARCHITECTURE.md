@@ -1457,8 +1457,9 @@ and permission check, and the pages of a setup set also get a link back to the
 setup page. Rows, cards and tabs show only what the person's permissions open;
 someone with a single page of a set, or a single setup page, gets that page
 directly under its own name. An everyday row leads to the page of its set
-opened last in that browser. Billing and Network are built this way; a section
-without tab sets works as before.
+opened last in that browser. Administration, Billing, Compliance and Network are
+built this way, which leaves `HUB_CARDS` empty; a section without tab sets
+(Clients, Support, Field Work, Inventory) keeps one row per `rail` page.
 
 A person may have a menu of their own (`frontend/src/nav/customMenu.ts`,
 `src/services/menuService.js`, migration 031): groups they name, each holding
