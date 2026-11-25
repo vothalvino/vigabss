@@ -5,6 +5,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Administration menu: everyday pages up front, the rest under
+  Administration setup.** Administration now has five sidebar rows that
+  reach all 23 of its pages, where 16 were only reachable through its
+  overview: People and access (users, user groups, menu templates,
+  security, API tokens, user tunnels), Organization (organizations,
+  settings, SLA definitions, legal documents), Points of sale (resellers,
+  cash bags), Audit and safety (audit logs, DSAR, backups, DR drill), and
+  Administration setup, a page of cards for automation, integrations and
+  messages, and the AI assistant. Menu templates is now a tab of People and
+  access.
+- **Compliance menu: three rows.** Its ten pages are grouped as CFDI and
+  SAT, IFT, and Consumer and general, each with its pages as tabs. An
+  organization outside Mexico still sees the one general page, by its own
+  name.
+
 - **Billing menu: everyday pages up front, the rest under Billing setup.**
   The Billing section now has six sidebar rows. Five hold what is opened
   daily, each with its pages as tabs: Invoices (invoices, credit notes,

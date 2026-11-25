@@ -269,6 +269,31 @@ describe('tab sets', () => {
     expect(visibleRailRows(onlyInvoices, 'billing').map(r => [r.labelKey, r.to])).toEqual([['nav.creditNotes', '/credit-notes']]);
   });
 
+  it('Administration shows its everyday sets as rows, then one row for setup', () => {
+    const rows = visibleRailRows(admin, 'admin');
+    expect(rows.map(r => [r.key, r.to])).toEqual([
+      ['peopleAccess', '/users'], ['organization', '/organizations'], ['pointsOfSale', '/resellers'],
+      ['auditSafety', '/audit-logs'], ['setup', '/admin/setup'],
+    ]);
+    expect(visibleSetupCards(admin, 'admin').map(c => [c.set.id, c.items.map(i => i.path)])).toEqual([
+      ['automation', ['/automation', '/scheduled-tasks', '/queue-stats']],
+      ['connections', ['/integrations', '/webhooks', '/message-templates']],
+      ['assistant', ['/ai-support']],
+    ]);
+    expect(routedPaths().get('/admin/setup')).toBe('any');
+    // Backups and the DR drill belong to whoever runs the install, not to a tenant's administrator.
+    const tenant = rows.find(r => r.key === 'auditSafety')!.paths;
+    expect(tenant).toEqual(['/audit-logs', '/dsar']);
+    const operator = { role: 'admin', is_install_operator: true } as Parameters<typeof visibleRailItems>[0];
+    expect(visibleRailRows(operator, 'admin').find(r => r.key === 'auditSafety')!.paths).toEqual(['/audit-logs', '/dsar', '/backups', '/dr-drill']);
+  });
+
+  it('Compliance shows three sets in Mexico and only the general page elsewhere', () => {
+    const mx = { role: 'admin', organization_locale: 'MX' } as Parameters<typeof visibleRailItems>[0];
+    expect(visibleRailRows(mx, 'compliance').map(r => [r.key, r.paths.length])).toEqual([['cfdiSat', 4], ['ift', 4], ['consumer', 2]]);
+    expect(visibleRailRows(admin, 'compliance').map(r => [r.labelKey, r.to])).toEqual([['nav.regulatoryCompliance', '/regulatory-compliance']]);
+  });
+
   it('a section without tab sets keeps one row per rail page', () => {
     const rows = visibleRailRows(admin, 'fieldops');
     expect(rows.map(r => r.to)).toEqual(visibleRailItems(admin, 'fieldops').map(r => r.path));
@@ -280,7 +305,9 @@ describe('tab sets', () => {
     expect(cards.map(c => c.card)).toEqual(TABSETS.filter(set => set.section === 'network').map(set => set.id));
     expect(cards.find(c => c.card === 'alerts')?.items.map(i => i.path)).toEqual(['/alert-channels', '/alert-escalation-chains', '/alert-suppression-rules']);
     expect(cards.find(c => c.card === 'alerts')?.labelKey).toBe('nav.tabsets.alerts');
-    expect(visibleHubCards(admin, 'admin')[0].labelKey).toBe('nav.cards.peopleAccess');
+    expect(visibleHubCards(admin, 'admin')[0].labelKey).toBe('nav.tabsets.peopleAccess');
+    // Every hub section is described by tab sets now; none lists cards of its own.
+    expect(Object.keys(HUB_CARDS)).toEqual([]);
   });
 
   it('a detail page belongs to the tab set of its list', () => {

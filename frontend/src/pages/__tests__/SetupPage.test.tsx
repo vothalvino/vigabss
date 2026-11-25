@@ -8,7 +8,7 @@ import { SetupPage } from '../SetupPage';
 let user: { role: string; organization_locale?: string; permissions?: string[] } = { role: 'admin' };
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user }) }));
 
-const show = (section: 'network' | 'billing' = 'network') => render(<MemoryRouter><SetupPage section={section} /></MemoryRouter>);
+const show = (section: 'network' | 'billing' | 'admin' = 'network') => render(<MemoryRouter><SetupPage section={section} /></MemoryRouter>);
 
 describe('Network setup page', () => {
   it('shows every setup card with its description and pages', () => {
@@ -43,5 +43,12 @@ describe('Network setup page', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual(['Taxes', 'Invoice look', 'Payment gateways', 'Late fees and reminders', 'Import']);
     const late = screen.getByRole('region', { name: 'Late fees and reminders' });
     expect(within(late).getAllByRole('link').map(l => l.getAttribute('href'))).toEqual(['/late-fee-rules', '/payment-reminder-settings']);
+  });
+
+  it('Administration has its own setup page', () => {
+    user = { role: 'admin' };
+    show('admin');
+    expect(screen.getByRole('heading', { level: 1, name: 'Administration setup' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual(['Automation', 'Integrations and messages', 'AI assistant']);
   });
 });

@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
 import { visibleSetupCards, type SectionId } from '@/nav/routes';
 
-export function SetupPage({ section }: { section: Extract<SectionId, 'billing' | 'network'> }) {
+export function SetupPage({ section }: { section: Extract<SectionId, 'admin' | 'billing' | 'network'> }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const cards = user ? visibleSetupCards(user, section) : [];

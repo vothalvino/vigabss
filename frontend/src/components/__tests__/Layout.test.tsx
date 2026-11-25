@@ -544,12 +544,13 @@ describe('Layout — grouped sidebar navigation', () => {
     expect(within(nav).queryByText('55')).not.toBeInTheDocument();
   });
 
-  it('Menu templates has its own row under Administration', async () => {
+  it('Menu templates is a tab of People and access, and that row is highlighted on it', async () => {
     mockUseAuth(makeUser('admin'));
     renderLayout({ initialEntries: ['/menu-templates'] });
-    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    const row = within(nav).getByRole('link', { name: 'Menu templates' });
-    expect([row.getAttribute('href'), row.getAttribute('aria-current')]).toEqual(['/menu-templates', 'page']);
+    expect(document.querySelector('.nav-leaf.active')?.textContent).toBe('People and access');
+    const strip = document.querySelector('.page-tabs-strip') as HTMLElement;
+    expect(within(strip).getAllByRole('link').map(link => link.textContent)).toEqual(['Users', 'User groups', 'Menu templates', 'Security & Access Control', 'API Tokens', 'User Tunnels']);
+    expect(within(strip).getByRole('link', { current: 'page' }).getAttribute('href')).toBe('/menu-templates');
   });
 
   it('Billing: an everyday page shows its set\'s tabs, a setup page the way back', () => {
