@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.43 — 2026-11-24
+
 - **Fixed: the dashboard's headline figures followed the wrong permission.**
   The summary behind the Operations Console (clients, contracts, 30-day
   invoicing, tickets, devices) opened with "view audit logs" and returned all
