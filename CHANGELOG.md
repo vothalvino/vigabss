@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Shorter tab names where the group already says the rest.** Under
+  Equipment the tabs read Sites, Devices, NAS, OLT, ONU, Wireless, CPE;
+  under People and access, "Security & Access Control" is Security; and the
+  same for Payments, Subscribers online, Polling, and Sessions and speed.
+  Every tab strip now fits on one line in a narrow window. Hovering a tab
+  shows the page's full name, which is unchanged in search, the overview
+  pages, setup cards and your own menu.
+
 - **Fixed: a toast's timer outlived its page.** The invoice, quote and
   purchase order pages started a 4-second timer for their "done" message
   and never cleared it, so it could fire after the page was gone. The timer

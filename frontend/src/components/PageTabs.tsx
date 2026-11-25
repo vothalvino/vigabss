@@ -39,8 +39,9 @@ export function PageTabs({ tabset, tabs, activePath, back }: PageTabsProps) {
           <Link
             key={tab.path} to={tab.path} className={`page-tab${tab.path === activePath ? ' active' : ''}`}
             aria-current={tab.path === activePath ? 'page' : undefined}
+            title={tab.tabLabelKey ? t(tab.labelKey) : undefined}
           >
-            {t(tab.labelKey)}
+            {t(tab.tabLabelKey ?? tab.labelKey)}
           </Link>
         ))}
       </div>
@@ -48,7 +49,7 @@ export function PageTabs({ tabset, tabs, activePath, back }: PageTabsProps) {
         {back && <Link to={back.path} className="page-tabs-back">‹ {t(back.labelKey)}</Link>}
         {tabs.length > 1 && (
           <select className="page-tabs-select" aria-label={t(tabset.labelKey)} value={activePath} onChange={e => navigate(e.target.value)}>
-            {tabs.map(tab => <option key={tab.path} value={tab.path}>{t(tab.labelKey)}</option>)}
+            {tabs.map(tab => <option key={tab.path} value={tab.path}>{t(tab.tabLabelKey ?? tab.labelKey)}</option>)}
           </select>
         )}
       </div>

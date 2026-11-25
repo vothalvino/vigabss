@@ -492,7 +492,10 @@ describe('Layout — grouped sidebar navigation', () => {
     const tabs = screen.getByRole('navigation', { name: 'Equipment' });
     const links = within(tabs.querySelector('.page-tabs-strip') as HTMLElement).getAllByRole('link');
     expect(links.map(link => link.getAttribute('href'))).toEqual(['/sites', '/devices', '/nas', '/olt-management', '/onu-management', '/wireless', '/cpe-management']);
-    expect(links.find(link => link.getAttribute('aria-current'))?.textContent).toBe('ONU Management');
+    // Under Equipment the tab is just "ONU"; hovering shows the full name.
+    expect(links.map(link => link.textContent)).toEqual(['Sites', 'Devices', 'NAS', 'OLT', 'ONU', 'Wireless', 'CPE']);
+    const open = links.find(link => link.getAttribute('aria-current'));
+    expect([open?.textContent, open?.getAttribute('title')]).toEqual(['ONU', 'ONU Management']);
     expect(document.querySelector('.app-topbar-title')?.textContent).toBe('Equipment');
     // The sidebar row for the set is current on any of its pages.
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
@@ -549,7 +552,7 @@ describe('Layout — grouped sidebar navigation', () => {
     renderLayout({ initialEntries: ['/menu-templates'] });
     expect(document.querySelector('.nav-leaf.active')?.textContent).toBe('People and access');
     const strip = document.querySelector('.page-tabs-strip') as HTMLElement;
-    expect(within(strip).getAllByRole('link').map(link => link.textContent)).toEqual(['Users', 'User groups', 'Menu templates', 'Security & Access Control', 'API Tokens', 'User Tunnels']);
+    expect(within(strip).getAllByRole('link').map(link => link.textContent)).toEqual(['Users', 'User groups', 'Menu templates', 'Security', 'API Tokens', 'Tunnels']);
     expect(within(strip).getByRole('link', { current: 'page' }).getAttribute('href')).toBe('/menu-templates');
   });
 
