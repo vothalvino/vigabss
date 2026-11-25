@@ -37,6 +37,9 @@ describe('demo↔real gate', () => {
     expect(m.isDemo).toBe(false);
     expect(m.kpis.activeClients.value).toBe('—');
     expect(m.kpis.openTickets.value).toBe('3');
+    // No device count from the summary and none from device health: unknown, not 0/0.
+    expect(m.kpis.devicesOnline.unknown).toBe(true);
+    expect(resolveModel({ summary: summary(10, 8) }).kpis.devicesOnline.unknown).toBeUndefined();
   });
 
   it('is demo when the system has zero clients', () => {

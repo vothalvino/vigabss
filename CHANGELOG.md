@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: "Devices online" read 0 / 0 for someone who may not see devices.**
+  The dashboard now shows "—" there, as it does for the other figures a
+  person may not read.
+
 ## 0.1.0-alpha.43 — 2026-11-24
 
 - **Fixed: the dashboard's headline figures followed the wrong permission.**

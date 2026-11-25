@@ -24,7 +24,8 @@ export interface KpiSegment { tone: 'danger' | 'warning' | 'accent'; w: number; 
 export interface KpiModel {
   activeClients: { value: string; trend?: string; spark: number[] | null };
   mrr: { value: string; unit?: string; code?: string; trend?: string; spark: number[] | null };
-  devicesOnline: { online: number; total: number };
+  /** unknown: neither device source reached this person, so there is no count to show. */
+  devicesOnline: { online: number; total: number; unknown?: boolean };
   liveSessions: { value: string; note: string };
   openTickets: { value: string; sla?: string; mix: KpiSegment[] };
   overdue: { value: string; amount: string; note: string };
@@ -508,7 +509,7 @@ export function buildRealModel(inp: RealInputs): ConsoleModel {
   const kpis: KpiModel = {
     activeClients: { value: fmtInt(summary?.clients?.active ?? 0), spark: null },
     mrr: { value: mrrC.value, unit: mrrC.unit, code: orgCurrency, spark: null },
-    devicesOnline: { online: devOnline, total: devTotal },
+    devicesOnline: { online: devOnline, total: devTotal, ...(!summary?.devices && !health ? { unknown: true } : {}) },
     liveSessions: inp.sessions ?? { value: '—', note: 'RADIUS' },
     openTickets: {
       value: fmtInt(openTickets),
