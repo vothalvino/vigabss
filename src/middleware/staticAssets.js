@@ -26,7 +26,7 @@ const NO_STORE = 'no-store';
 
 /**
  * @param {string} distDir - frontend/dist
- * @returns {{ assets: import('express').RequestHandler, spa: import('express').RequestHandler }}
+ * @returns {{ assets: import('express').RequestHandler, spa: import('express').RequestHandler, portalPage: import('express').RequestHandler }}
  *   `assets` is mounted at /assets (before `spa`).
  */
 function staticAssets(distDir) {
@@ -69,7 +69,26 @@ function staticAssets(distDir) {
     return res.status(404).type('text/plain').send('Not found');
   };
 
-  return { assets: [precompressed, plain, missing], spa };
+  // The client portal's first paint: the same page with a neutral head. The
+  // app replaces the title with the company's name once it has loaded; until
+  // then a customer's browser tab must not show the software's name or
+  // version.
+  const portalPage = (req, res, next) => {
+    fs.readFile(path.join(distDir, 'index.html'), 'utf8', (err, html) => {
+      if (err) return next();
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.type('html').send(neutralHead(html));
+    });
+  };
+
+  return { assets: [precompressed, plain, missing], spa, portalPage };
 }
 
-module.exports = { staticAssets };
+/** The page's title and description with nothing that names the software. */
+function neutralHead(html) {
+  return html
+    .replace(/<title>[^<]*<\/title>/i, '<title>Portal</title>')
+    .replace(/<meta\s+name="description"[^>]*>/i, '<meta name="description" content="Portal" />');
+}
+
+module.exports = { staticAssets, neutralHead };
