@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a downloaded payment receipt was two pages.** The small
+  "generated" line at the foot of the page was pushed onto a second page of
+  its own. The same happened to invoices, credit notes, quotes, account
+  statements and the plain CFDI printout; each now stays on the pages its
+  content needs.
+
 ## 0.1.0-alpha.48 — 2026-11-26
 
 - **Changed: closing a cashier is a count, not a hand-in.** The cash stays in
