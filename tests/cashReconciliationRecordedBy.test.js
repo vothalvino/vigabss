@@ -129,3 +129,40 @@ describe('the session window', () => {
     expect(close[1].slice(0, 3)).toEqual([5000, 5000, 0]);
   });
 });
+
+describe('a cashier left open past the allowed hours is closed before more cash is taken', () => {
+  const overdueFor = (userId) => {
+    const base = db.query.getMockImplementation();
+    db.query.mockImplementation(async (sql, params) => {
+      if (/FROM cash_reconciliation_sessions/.test(sql) && /DATE_SUB\(NOW\(\), INTERVAL \? HOUR\)/.test(sql)) {
+        return [Number(params[1]) === userId ? [{ id: 3 }] : []];
+      }
+      return base(sql, params);
+    });
+    db.execute.mockImplementation(db.query.getMockImplementation());
+  };
+
+  it('a cash payment is refused with 409 and nothing is recorded', async () => {
+    overdueFor(8);
+    const res = await request(app).post('/api/v1/payments')
+      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'cash' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CASHIER_NOT_CLOSED');
+    expect(paymentInsert()).toBeUndefined();
+  });
+
+  it('a transfer or card payment is not affected', async () => {
+    overdueFor(8);
+    const res = await request(app).post('/api/v1/payments')
+      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'transfer' });
+    expect(res.status).toBe(201);
+    expect(db.query.mock.calls.some(([sql]) => /FROM cash_reconciliation_sessions/.test(sql))).toBe(false);
+  });
+
+  it('someone else\'s overdue cashier does not stop this person', async () => {
+    overdueFor(99);
+    const res = await request(app).post('/api/v1/payments')
+      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'cash' });
+    expect(res.status).toBe(201);
+  });
+});

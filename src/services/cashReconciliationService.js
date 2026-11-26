@@ -83,7 +83,7 @@ async function closeSession(sessionId, orgId, countedTotal) {
   const conn = await db.getConnection();
   let expectedTotal;
   let variance;
-  let matched = false;
+  let matched;
   try {
     await conn.beginTransaction();
     const [sessionRows] = await conn.query(
@@ -227,6 +227,24 @@ async function myOpenSession(orgId, userId) {
   };
 }
 
+/** id → "First Last" for staff users. Staff identities live in the primary database. */
+async function staffNames(ids) {
+  const unique = [...new Set((ids || []).map(Number).filter(Boolean))];
+  const names = new Map();
+  if (!unique.length) return names;
+  const read = () => db.query(
+    `SELECT id, first_name, last_name FROM users WHERE id IN (${unique.map(() => '?').join(', ')})`,
+    unique,
+  );
+  try {
+    const [rows] = await (typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(read) : read());
+    for (const row of rows || []) names.set(Number(row.id), `${row.first_name || ''} ${row.last_name || ''}`.trim());
+  } catch (err) {
+    logger.warn({ err }, 'Could not read cashier owners\' names');
+  }
+  return names;
+}
+
 /**
  * What a supervisor should look at: cashiers left open longer than allowed,
  * and closed ones whose count did not match and nobody has reviewed yet.
@@ -234,16 +252,15 @@ async function myOpenSession(orgId, userId) {
 async function attention(orgId) {
   const { maxOpenHours } = await rules(orgId);
   const [open] = await db.query(
-    `SELECT s.id, s.agent_user_id, s.opened_at, TIMESTAMPDIFF(HOUR, s.opened_at, NOW()) AS hours_open,
-            TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS agent_name
-       FROM cash_reconciliation_sessions s
-       LEFT JOIN users u ON u.id = s.agent_user_id AND u.deleted_at IS NULL
-      WHERE s.organization_id = ? AND s.status = 'open' AND s.deleted_at IS NULL
-        AND s.opened_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
-      ORDER BY s.opened_at ASC
+    `SELECT id, agent_user_id, opened_at, TIMESTAMPDIFF(HOUR, opened_at, NOW()) AS hours_open
+       FROM cash_reconciliation_sessions
+      WHERE organization_id = ? AND status = 'open' AND deleted_at IS NULL
+        AND opened_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+      ORDER BY opened_at ASC
       LIMIT 50`,
     [orgId, maxOpenHours],
   );
+  const names = await staffNames((open || []).map((r) => r.agent_user_id));
   const [[review]] = await db.query(
     `SELECT COUNT(*) AS n FROM cash_reconciliation_sessions
       WHERE organization_id = ? AND status = 'closed' AND deleted_at IS NULL`,
@@ -252,7 +269,7 @@ async function attention(orgId) {
   return {
     max_open_hours: maxOpenHours,
     overdue_open: (open || []).map((r) => ({
-      id: Number(r.id), agent_user_id: Number(r.agent_user_id), agent_name: r.agent_name || null,
+      id: Number(r.id), agent_user_id: Number(r.agent_user_id), agent_name: names.get(Number(r.agent_user_id)) || null,
       opened_at: r.opened_at, hours_open: Number(r.hours_open) || 0,
     })),
     awaiting_review: Number(review?.n) || 0,
@@ -320,4 +337,7 @@ async function getSessionDetail(sessionId, orgId) {
   return { session, payments };
 }
 
-module.exports = { openSession, closeSession, approveSession, getSessionDetail };
+module.exports = {
+  openSession, closeSession, approveSession, disputeSession, getSessionDetail,
+  myOpenSession, attention, assertCashierNotOverdue, rules, matches,
+};

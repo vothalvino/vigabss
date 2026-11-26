@@ -27,6 +27,8 @@ const cashReconciliationService = require('../src/services/cashReconciliationSer
 describe('cashReconciliationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Answers a test queued and did not use must not reach the next test.
+    db.query.mockReset();
     // closeSession runs on one transaction; its statements go through the
     // same db.query mock so the sequences below answer them in order.
     db.getConnection.mockResolvedValue({
@@ -105,14 +107,16 @@ describe('cashReconciliationService', () => {
         .mockResolvedValueOnce([[openSession]])             // SELECT session
         .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '200.00' }]]) // SUM payments
+        .mockResolvedValueOnce([[]])                          // the organization's cashier settings: none stored
         .mockResolvedValueOnce([{ affectedRows: 1 }])       // UPDATE
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', expected_total: '200.00', counted_total: '220.00', variance: '20.00' }]]); // SELECT updated
 
       const result = await cashReconciliationService.closeSession(1, 1, 220);
 
       // Verify the UPDATE was called with the right values
-      const updateCall = db.query.mock.calls[3];
-      expect(updateCall[0]).toContain("status = 'closed'");
+      const updateCall = db.query.mock.calls[4];
+      expect(updateCall[1]).toContain('closed'); // 220 counted against 200: a supervisor has to look
+      expect(updateCall[0]).toContain('approved_at = NULL');
       expect(updateCall[1]).toContain(200);  // expectedTotal
       expect(updateCall[1]).toContain(220);  // countedTotal
     });
@@ -122,12 +126,13 @@ describe('cashReconciliationService', () => {
         .mockResolvedValueOnce([[openSession]])
         .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '300.00' }]])
+        .mockResolvedValueOnce([[]])                          // the organization's cashier settings: none stored
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', variance: '50.00' }]]);
 
       await cashReconciliationService.closeSession(1, 1, 350);
 
-      const updateCall = db.query.mock.calls[3];
+      const updateCall = db.query.mock.calls[4];
       // variance = 350 - 300 = 50
       expect(updateCall[1]).toContain(50);
     });
@@ -137,12 +142,13 @@ describe('cashReconciliationService', () => {
         .mockResolvedValueOnce([[openSession]])
         .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '500.00' }]])
+        .mockResolvedValueOnce([[]])                          // the organization's cashier settings: none stored
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', variance: '-25.00' }]]);
 
       await cashReconciliationService.closeSession(1, 1, 475);
 
-      const updateCall = db.query.mock.calls[3];
+      const updateCall = db.query.mock.calls[4];
       // variance = 475 - 500 = -25
       expect(updateCall[1]).toContain(-25);
     });
@@ -163,18 +169,56 @@ describe('cashReconciliationService', () => {
       ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
     });
 
-    test('updates status to closed', async () => {
+    test('a count that matches is approved on the spot, with no approver', async () => {
       db.query
         .mockResolvedValueOnce([[openSession]])
-        .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
+        .mockResolvedValueOnce([{ affectedRows: 2 }])
         .mockResolvedValueOnce([[{ expected_total: '100.00' }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[{ ...openSession, status: 'closed' }]]);
+        .mockResolvedValueOnce([[{ ...openSession, status: 'approved' }]]);
 
-      const result = await cashReconciliationService.closeSession(1, 1, 100);
+      await cashReconciliationService.closeSession(1, 1, 100);
 
-      const updateCall = db.query.mock.calls[3];
-      expect(updateCall[0]).toContain("'closed'");
+      const updateCall = db.query.mock.calls[4];
+      expect(updateCall[1]).toContain('approved');
+      expect(updateCall[1]).not.toContain('closed');
+      expect(updateCall[0]).toContain('approved_at = NOW()');
+      expect(updateCall[0]).toContain('approved_by = NULL');
+    });
+
+    test('a difference within the organization\'s tolerance still counts as a match; a larger one does not', async () => {
+      const closeWith = async (counted) => {
+        db.query.mockReset();
+        db.query
+          .mockResolvedValueOnce([[openSession]])
+          .mockResolvedValueOnce([{ affectedRows: 2 }])
+          .mockResolvedValueOnce([[{ expected_total: '100.00' }]])
+          .mockResolvedValueOnce([[{ setting_key: 'cashier_match_tolerance', setting_value: '5' }]])
+          .mockResolvedValueOnce([{ affectedRows: 1 }])
+          .mockResolvedValueOnce([[openSession]]);
+        await cashReconciliationService.closeSession(1, 1, counted);
+        const settings = db.query.mock.calls[3];
+        expect(settings[0]).toMatch(/FROM organization_settings/);
+        expect(settings[1]).toEqual([1, 'cashier_match_tolerance', 'cashier_max_open_hours']);
+        return db.query.mock.calls[4][1];
+      };
+      expect(await closeWith(97)).toContain('approved');   // 3 short
+      expect(await closeWith(105)).toContain('approved');  // exactly 5 over
+      expect(await closeWith(105.01)).toContain('closed'); // a cent past it
+      expect(await closeWith(94)).toContain('closed');     // 6 short
+    });
+
+    test('a stored tolerance the settings would refuse today is ignored', async () => {
+      db.query
+        .mockResolvedValueOnce([[openSession]])
+        .mockResolvedValueOnce([{ affectedRows: 2 }])
+        .mockResolvedValueOnce([[{ expected_total: '100.00' }]])
+        .mockResolvedValueOnce([[{ setting_key: 'cashier_match_tolerance', setting_value: 'lots' }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([[openSession]]);
+      await cashReconciliationService.closeSession(1, 1, 99);
+      expect(db.query.mock.calls[4][1]).toContain('closed');
     });
 
     // The total and the list a closed session shows come from one frozen set:
@@ -184,6 +228,7 @@ describe('cashReconciliationService', () => {
         .mockResolvedValueOnce([[openSession]])
         .mockResolvedValueOnce([{ affectedRows: 2 }])
         .mockResolvedValueOnce([[{ expected_total: '200.00' }]])
+        .mockResolvedValueOnce([[]])                          // the organization's cashier settings: none stored
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed' }]]);
 
@@ -214,58 +259,123 @@ describe('cashReconciliationService', () => {
   });
 
   // ===========================================================================
-  // approveSession
+  // approveSession / disputeSession
   // ===========================================================================
-  describe('approveSession', () => {
-    const closedSession = {
-      id: 1,
-      organization_id: 1,
-      agent_user_id: 10,
-      status: 'closed',
-    };
+  describe('reviewing a count that did not match', () => {
+    const closedSession = { id: 1, organization_id: 1, agent_user_id: 10, status: 'closed', variance: '-20.00' };
+    const answer = (session, after) => db.query
+      .mockResolvedValueOnce([[session]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[after]]);
 
     test('throws NOT_FOUND when session not found', async () => {
-      db.query.mockResolvedValueOnce([[]]); // no session
-
-      await expect(
-        cashReconciliationService.approveSession(999, 1, 5),
-      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+      db.query.mockResolvedValueOnce([[]]);
+      await expect(cashReconciliationService.approveSession(999, 1, 5, 'ok')).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
 
-    test('throws ValidationError when session is not closed', async () => {
-      db.query.mockResolvedValueOnce([[{ ...closedSession, status: 'open' }]]);
-
-      await expect(
-        cashReconciliationService.approveSession(1, 1, 5),
-      ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+    test('an open or already approved session cannot be approved', async () => {
+      for (const status of ['open', 'approved']) {
+        db.query.mockResolvedValueOnce([[{ ...closedSession, status }]]);
+        await expect(cashReconciliationService.approveSession(1, 1, 5, 'explained')).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+      }
     });
 
-    test('updates status to approved', async () => {
-      const approvedSession = { ...closedSession, status: 'approved', approved_by: 5 };
+    test('approving records who, why, and only moves a session still in the state that was read', async () => {
+      answer(closedSession, { ...closedSession, status: 'approved', approved_by: 5, review_note: 'cambio mal dado, repuesto' });
+      const result = await cashReconciliationService.approveSession(1, 1, 5, '  cambio mal dado, repuesto ');
+      const [sql, params] = db.query.mock.calls[1];
+      expect(sql).toMatch(/SET status = \?, approved_by = \?, approved_at = NOW\(\), review_note = \?/);
+      expect(sql).toMatch(/AND status = \?/);
+      expect(params).toEqual(['approved', 5, 'cambio mal dado, repuesto', 1, 1, 'closed']);
+      expect(result).toMatchObject({ status: 'approved', approved_by: 5 });
+    });
 
+    test('a note explaining the difference is required', async () => {
+      for (const note of [undefined, '', '  a ']) {
+        db.query.mockResolvedValueOnce([[closedSession]]);
+        await expect(cashReconciliationService.approveSession(1, 1, 5, note)).rejects.toMatchObject({ statusCode: 422 });
+      }
+      expect(db.query.mock.calls.some(([sql]) => /UPDATE/.test(sql))).toBe(false);
+    });
+
+    test('nobody reviews their own cashier', async () => {
+      db.query.mockResolvedValueOnce([[closedSession]]);
+      await expect(cashReconciliationService.approveSession(1, 1, 10, 'it is fine')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
+      db.query.mockResolvedValueOnce([[closedSession]]);
+      await expect(cashReconciliationService.disputeSession(1, 1, 10, 'it is not')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
+      expect(db.query.mock.calls.some(([sql]) => /UPDATE/.test(sql))).toBe(false);
+    });
+
+    test('disputing marks it disputed with the note', async () => {
+      answer(closedSession, { ...closedSession, status: 'disputed', approved_by: 5 });
+      const result = await cashReconciliationService.disputeSession(1, 1, 5, 'faltan 20 sin explicar');
+      expect(db.query.mock.calls[1][1]).toEqual(['disputed', 5, 'faltan 20 sin explicar', 1, 1, 'closed']);
+      expect(result.status).toBe('disputed');
+    });
+
+    test('a disputed session can be approved once it is settled, but not disputed again', async () => {
+      const disputed = { ...closedSession, status: 'disputed' };
+      answer(disputed, { ...disputed, status: 'approved' });
+      await cashReconciliationService.approveSession(1, 1, 5, 'repuso los 20');
+      expect(db.query.mock.calls[1][1]).toEqual(['approved', 5, 'repuso los 20', 1, 1, 'disputed']);
+      db.query.mockResolvedValueOnce([[disputed]]);
+      await expect(cashReconciliationService.disputeSession(1, 1, 5, 'otra vez')).rejects.toMatchObject({ statusCode: 422 });
+    });
+  });
+
+  // ===========================================================================
+  // reminders
+  // ===========================================================================
+  describe('the reminders', () => {
+    test('my open cashier: when it opened, the cash so far and whether it is overdue', async () => {
       db.query
-        .mockResolvedValueOnce([[closedSession]])          // SELECT session
-        .mockResolvedValueOnce([{ affectedRows: 1 }])     // UPDATE
-        .mockResolvedValueOnce([[approvedSession]]);        // SELECT updated
-
-      const result = await cashReconciliationService.approveSession(1, 1, 5);
-
-      const updateCall = db.query.mock.calls[1];
-      expect(updateCall[0]).toContain("'approved'");
-      expect(updateCall[1]).toContain(5); // approverUserId
+        .mockResolvedValueOnce([[{ id: 7, opened_at: '2026-11-25 09:00:00', minutes_open: 17 * 60 + 5 }]])
+        .mockResolvedValueOnce([[]])                               // settings: defaults (16 hours)
+        .mockResolvedValueOnce([[{ expected_total: '3450.00' }]]);
+      const mine = await cashReconciliationService.myOpenSession(1, 10);
+      expect(mine).toEqual({ id: 7, opened_at: '2026-11-25 09:00:00', hours_open: 17, expected_total: 3450, max_open_hours: 16, overdue: true });
+      expect(db.query.mock.calls[0][1]).toEqual([1, 10]);
+      expect(db.query.mock.calls[2][1]).toEqual([1, 10, '2026-11-25 09:00:00']);
     });
 
-    test('returns approved session with approver info', async () => {
-      const approvedSession = { ...closedSession, status: 'approved', approved_by: 5 };
-
+    test('my open cashier is null when none is open, and not overdue inside the allowed hours', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+      expect(await cashReconciliationService.myOpenSession(1, 10)).toBeNull();
       db.query
-        .mockResolvedValueOnce([[closedSession]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[approvedSession]]);
+        .mockResolvedValueOnce([[{ id: 7, opened_at: 'x', minutes_open: 120 }]])
+        .mockResolvedValueOnce([[{ setting_key: 'cashier_max_open_hours', setting_value: '8' }]])
+        .mockResolvedValueOnce([[{ expected_total: '0.00' }]]);
+      expect(await cashReconciliationService.myOpenSession(1, 10)).toMatchObject({ hours_open: 2, max_open_hours: 8, overdue: false });
+    });
 
-      const result = await cashReconciliationService.approveSession(1, 1, 5);
-      expect(result.status).toBe('approved');
-      expect(result.approved_by).toBe(5);
+    test('a supervisor sees cashiers open too long, with their owners, and how many counts wait for review', async () => {
+      db.query
+        .mockResolvedValueOnce([[]])                                                        // settings
+        .mockResolvedValueOnce([[{ id: 3, agent_user_id: 10, opened_at: 'y', hours_open: 30 }]])
+        .mockResolvedValueOnce([[{ id: 10, first_name: 'Ana', last_name: 'Ruiz' }]])
+        .mockResolvedValueOnce([[{ n: 2 }]]);
+      const out = await cashReconciliationService.attention(1);
+      expect(out).toEqual({
+        max_open_hours: 16,
+        overdue_open: [{ id: 3, agent_user_id: 10, agent_name: 'Ana Ruiz', opened_at: 'y', hours_open: 30 }],
+        awaiting_review: 2,
+      });
+      expect(db.query.mock.calls[1][1]).toEqual([1, 16]);
+      expect(db.query.mock.calls[3][0]).toMatch(/status = 'closed'/);
+    });
+
+    test('a person with a cashier open past the allowed hours cannot take more cash', async () => {
+      db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 3 }]]);
+      await expect(cashReconciliationService.assertCashierNotOverdue(1, 10)).rejects.toMatchObject({ statusCode: 409, code: 'CASHIER_NOT_CLOSED' });
+      expect(db.query.mock.calls[1][1]).toEqual([1, 10, 16]);
+    });
+
+    test('someone with no overdue cashier, or no user at all, is not stopped', async () => {
+      db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
+      await expect(cashReconciliationService.assertCashierNotOverdue(1, 10)).resolves.toBeUndefined();
+      db.query.mockReset();
+      await expect(cashReconciliationService.assertCashierNotOverdue(1, null)).resolves.toBeUndefined();
+      expect(db.query).not.toHaveBeenCalled();
     });
   });
 
