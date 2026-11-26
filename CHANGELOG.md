@@ -11,6 +11,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   expected in both. A payment a close has already counted is now left out of
   every later cashier.
 
+- **Fixed: old reseller cash sessions waiting for a review.** Cash sessions a
+  reseller or collector had closed in the reseller app still showed on the
+  staff Cashier page as counts to review. They are retired by this release,
+  like the open ones were.
+
+- **Changed: the Cashier page lists the newest cashiers first.**
+
 ## 0.1.0-alpha.48 — 2026-11-26
 
 - **Changed: closing a cashier is a count, not a hand-in.** The cash stays in

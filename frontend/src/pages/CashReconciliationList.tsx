@@ -259,7 +259,8 @@ export function CashReconciliationList() {
     queryKey: ['cash-sessions', page],
     queryFn: async () => {
       const res = await api.GET('/cash-reconciliation/sessions', {
-        params: { query: { page, limit: PAGE_SIZE } as never },
+        // Newest first: today's cashiers are what the page is opened for.
+        params: { query: { page, limit: PAGE_SIZE, order_by: 'id', order: 'desc' } as never },
       });
       if (res.error) throw new Error('Failed to load sessions');
       return res.data as unknown as SessionsResponse;
