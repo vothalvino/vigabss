@@ -168,7 +168,7 @@ export const TABSETS: TabsetDef[] = [
   // Billing, everyday: what is owed, what came in, chasing what did not, the
   // plans being sold, and how the business is doing.
   { id: 'invoicing', section: 'billing', labelKey: 'nav.tabsets.invoicing', paths: ['/invoices', '/credit-notes', '/cfdi', '/billing-adjustments'] },
-  { id: 'paymentsIn', section: 'billing', labelKey: 'nav.tabsets.paymentsIn', paths: ['/payments', '/cash-reconciliation', '/payment-transactions', '/recurring-payment-profiles', '/payment-problems'] },
+  { id: 'paymentsIn', section: 'billing', labelKey: 'nav.tabsets.paymentsIn', paths: ['/payments', '/cash-reconciliation', '/money-tieout', '/payment-transactions', '/recurring-payment-profiles', '/payment-problems'] },
   { id: 'collections', section: 'billing', labelKey: 'nav.tabsets.collections', paths: ['/payment-plans', '/billing-disputes', '/refund-requests', '/chargebacks'] },
   { id: 'plans', section: 'billing', labelKey: 'nav.plans', paths: ['/plans'] },
   { id: 'billingReports', section: 'billing', labelKey: 'nav.tabsets.billingReports', paths: ['/reports', '/tax-reports', '/analytics-dashboard', '/expenses'] },
@@ -237,6 +237,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/cfdi', keywords: ['sat', 'timbrado', 'stamp', 'factura'], labelKey: 'nav.cfdi', section: 'billing', guard: 'billing', roles: ['billing'], requiredLocale: 'MX', viewPermissions: ['cfdi_documents.view'] },
   { path: '/credit-notes', labelKey: 'nav.creditNotes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['credit_notes.view'] },
   { path: '/cash-reconciliation', keywords: ['corte', 'caja'], labelKey: 'nav.cashReconciliation', tabLabelKey: 'nav.tabNames.cash', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['cash_reconciliation.view'] },
+  { path: '/money-tieout', keywords: ['cuadre', 'banco', 'deposito', 'safe', 'bank', 'deposit', 'tie'], labelKey: 'nav.moneyTieOut', tabLabelKey: 'nav.tabNames.tieOut', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['cash_reconciliation.approve'] },
   { path: '/plans', labelKey: 'nav.plans', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['plans.view'] },
   { path: '/billing-disputes', labelKey: 'nav.billingDisputes', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['billing_disputes.view'] },
   { path: '/reports', labelKey: 'nav.reports', section: 'billing', guard: 'billing', roles: ['billing'], viewPermissions: ['invoices.view', 'clients.view', 'ift_statistical_reports.view'] },

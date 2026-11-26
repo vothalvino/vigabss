@@ -373,6 +373,10 @@
       "description": "Field agent cash collection reconciliation sessions — §2.3"
     },
     {
+      "name": "Money Tie-out",
+      "description": "A month's collections tied to the bank: bank accounts, the safe and the cash still on its way"
+    },
+    {
       "name": "Refund Requests",
       "description": "Refund request workflow — create, review, and process refunds — §2.5.1"
     },
@@ -80479,6 +80483,1203 @@
         }
       }
     },
+    "/money-tieout": {
+      "get": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getMoneyTieOut",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Defaults to the current year"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "description": "Defaults to the current month"
+          }
+        ],
+        "summary": "A month's collections tied to the bank: what was collected and how it is invoiced, where the cash is (points, bags, drawers, the safe, the bank), and whether the month's cash adds up. Needs cash_reconciliation.approve",
+        "responses": {
+          "200": {
+            "description": "The tie-out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "period": {
+                          "type": "object",
+                          "properties": {
+                            "year": {
+                              "type": "integer"
+                            },
+                            "month": {
+                              "type": "integer"
+                            },
+                            "from": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "to": {
+                              "type": "string",
+                              "format": "date",
+                              "description": "Exclusive"
+                            },
+                            "cutoff": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "closed": {
+                              "type": "boolean"
+                            },
+                            "today": {
+                              "type": "string",
+                              "format": "date"
+                            }
+                          }
+                        },
+                        "collected": {
+                          "type": "object",
+                          "properties": {
+                            "count": {
+                              "type": "integer"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "cash": {
+                              "type": "number"
+                            },
+                            "cash_staff": {
+                              "type": "number"
+                            },
+                            "cash_points": {
+                              "type": "number"
+                            },
+                            "non_cash": {
+                              "type": "number"
+                            },
+                            "by_method": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "method": {
+                                    "type": "string"
+                                  },
+                                  "total": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "fiscal": {
+                          "type": "object",
+                          "properties": {
+                            "client_cfdi": {
+                              "type": "number"
+                            },
+                            "general_public_stamped": {
+                              "type": "number"
+                            },
+                            "general_public_pending": {
+                              "type": "number"
+                            },
+                            "unpaid_no_cfdi": {
+                              "type": "number"
+                            },
+                            "credit": {
+                              "type": "number"
+                            },
+                            "general_public": {
+                              "type": "number"
+                            },
+                            "cash": {
+                              "type": "object",
+                              "properties": {
+                                "client_cfdi": {
+                                  "type": "number"
+                                },
+                                "general_public_stamped": {
+                                  "type": "number"
+                                },
+                                "general_public_pending": {
+                                  "type": "number"
+                                },
+                                "unpaid_no_cfdi": {
+                                  "type": "number"
+                                },
+                                "credit": {
+                                  "type": "number"
+                                },
+                                "general_public": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "cash": {
+                          "type": "object",
+                          "properties": {
+                            "tracked": {
+                              "type": "boolean"
+                            },
+                            "recorded": {
+                              "type": "number"
+                            },
+                            "in_transit_start": {
+                              "type": "object",
+                              "properties": {
+                                "at_points": {
+                                  "type": "number"
+                                },
+                                "owed_to_points": {
+                                  "type": "number"
+                                },
+                                "in_bags": {
+                                  "type": "number"
+                                },
+                                "in_drawers": {
+                                  "type": "number"
+                                },
+                                "in_safe": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ],
+                                  "description": "Null until the safe has been counted once"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "position": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "in_transit_end": {
+                              "type": "object",
+                              "properties": {
+                                "at_points": {
+                                  "type": "number"
+                                },
+                                "owed_to_points": {
+                                  "type": "number"
+                                },
+                                "in_bags": {
+                                  "type": "number"
+                                },
+                                "in_drawers": {
+                                  "type": "number"
+                                },
+                                "in_safe": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ],
+                                  "description": "Null until the safe has been counted once"
+                                },
+                                "total": {
+                                  "type": "number"
+                                },
+                                "position": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "deposited": {
+                              "type": "number"
+                            },
+                            "commissions_kept": {
+                              "type": "number"
+                            },
+                            "other_out": {
+                              "type": "number"
+                            },
+                            "other_in": {
+                              "type": "number"
+                            },
+                            "reached_safe": {
+                              "type": "object",
+                              "properties": {
+                                "pickups": {
+                                  "type": "number"
+                                },
+                                "bags": {
+                                  "type": "number"
+                                },
+                                "handed_in": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "differences": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "description": "Positive = more cash than the records expected. Null until the safe has been counted once",
+                              "properties": {
+                                "total": {
+                                  "type": "number"
+                                },
+                                "cashier_counts": {
+                                  "type": "number"
+                                },
+                                "bag_counts": {
+                                  "type": "number"
+                                },
+                                "safe_counts": {
+                                  "type": "number"
+                                },
+                                "point_adjustments": {
+                                  "type": "number"
+                                },
+                                "point_payouts": {
+                                  "type": "number"
+                                },
+                                "unexplained": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "bank": {
+                          "type": "object",
+                          "properties": {
+                            "deposited": {
+                              "type": "number"
+                            },
+                            "cash_for_client_invoices": {
+                              "type": "number"
+                            },
+                            "cash_for_general_public": {
+                              "type": "number"
+                            },
+                            "accounts": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "integer"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "bank_name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "account_hint": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "purpose": {
+                                    "type": "string",
+                                    "enum": [
+                                      "client_invoices",
+                                      "general_public",
+                                      "any"
+                                    ]
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "active",
+                                      "inactive"
+                                    ]
+                                  },
+                                  "deposits": {
+                                    "type": "integer"
+                                  },
+                                  "deposited": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "attention": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "bag_waiting",
+                                  "pickup_unconfirmed",
+                                  "safe_waiting",
+                                  "safe_not_counted"
+                                ]
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "days": {
+                                "type": "integer"
+                              },
+                              "serial": {
+                                "type": "string"
+                              },
+                              "point_name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "bag_id": {
+                                "type": "integer"
+                              },
+                              "pickup_id": {
+                                "type": "integer"
+                              },
+                              "session_id": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        },
+                        "resico": {
+                          "type": "object",
+                          "properties": {
+                            "applies": {
+                              "type": "boolean"
+                            },
+                            "year": {
+                              "type": "integer"
+                            },
+                            "income": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "percent": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A year or month out of range, or a month that has not started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/money-tieout/bank-accounts": {
+      "get": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "listBankAccounts",
+        "summary": "The organization's bank accounts. Needs cash_reconciliation.approve",
+        "responses": {
+          "200": {
+            "description": "Bank accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "bank_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "account_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "client_invoices",
+                              "general_public",
+                              "any"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "inactive"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "createBankAccount",
+        "summary": "Add a bank account and say what it is for: money invoiced to a client RFC, money invoiced to General Public, or any",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "account_hint": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "description": "Last digits or another short hint; never the account number"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "client_invoices",
+                      "general_public",
+                      "any"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The bank account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "bank_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "account_hint": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "enum": [
+                            "client_invoices",
+                            "general_public",
+                            "any"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "inactive"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/money-tieout/bank-accounts/{id}": {
+      "put": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "updateBankAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "summary": "Rename a bank account, change what it is for, or make it inactive",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "account_hint": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "client_invoices",
+                      "general_public",
+                      "any"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The bank account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "bank_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "account_hint": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "enum": [
+                            "client_invoices",
+                            "general_public",
+                            "any"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "inactive"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/money-tieout/safe-movements": {
+      "get": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "listSafeMovements",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Defaults to the current year"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "description": "Defaults to the current month"
+          }
+        ],
+        "summary": "The safe's movements of a month, newest first: counts, bank deposits and other cash in or out",
+        "responses": {
+          "200": {
+            "description": "Safe movements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "count",
+                              "deposit",
+                              "other_in",
+                              "other_out"
+                            ]
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "expected_amount": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "description": "A count only: what the safe should have held"
+                          },
+                          "bank_account_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "bank_account_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "moved_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "reference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_by": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "created_by_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "in_safe": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "description": "On the response of a new movement: what the safe holds after it"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "recordSafeMovement",
+        "summary": "Record a safe movement. A count states what is in the safe and keeps the difference with what it should have held; the safe is tracked from its first count. A deposit names an active bank account. Nothing but a count may take out more than the safe holds (422 SAFE_INSUFFICIENT)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "amount"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "count",
+                      "deposit",
+                      "other_in",
+                      "other_out"
+                    ]
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "bank_account_id": {
+                    "type": "integer",
+                    "description": "Required for a deposit"
+                  },
+                  "moved_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Defaults to now; not in the future"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The movement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "count",
+                            "deposit",
+                            "other_in",
+                            "other_out"
+                          ]
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "expected_amount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "A count only: what the safe should have held"
+                        },
+                        "bank_account_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "bank_account_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "moved_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "reference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "created_by_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "in_safe": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "On the response of a new movement: what the safe holds after it"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bank account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SAFE_NOT_COUNTED, SAFE_INSUFFICIENT, BANK_ACCOUNT_INACTIVE or invalid values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/money-tieout/safe-movements/{id}": {
+      "delete": {
+        "tags": [
+          "Money Tie-out"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "removeSafeMovement",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "summary": "Remove a safe movement recorded by mistake. The first count cannot be removed while other movements rest on it (409 SAFE_COUNT_IN_USE)",
+        "responses": {
+          "200": {
+            "description": "What was removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "count",
+                            "deposit",
+                            "other_in",
+                            "other_out"
+                          ]
+                        },
+                        "amount": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SAFE_COUNT_IN_USE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reseller-app/tickets": {
       "get": {
         "tags": [
@@ -93458,6 +94659,107 @@
       "metrics_metricsQuery": {
         "type": "object",
         "properties": {}
+      },
+      "moneyTieOut_createBankAccountSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "bank_name": {
+            "type": "string",
+            "maximum": 100
+          },
+          "account_hint": {
+            "type": "string",
+            "maximum": 20
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "client_invoices",
+              "general_public",
+              "any"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "moneyTieOut_updateBankAccountSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "bank_name": {
+            "type": "string",
+            "maximum": 100
+          },
+          "account_hint": {
+            "type": "string",
+            "maximum": 20
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "client_invoices",
+              "general_public",
+              "any"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          }
+        }
+      },
+      "moneyTieOut_safeMovementSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "count",
+              "deposit",
+              "other_in",
+              "other_out"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999.99
+          },
+          "bank_account_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "moved_at": {
+            "type": "string",
+            "maximum": 40
+          },
+          "reference": {
+            "type": "string",
+            "maximum": 100
+          },
+          "note": {
+            "type": "string",
+            "maximum": 500
+          }
+        },
+        "required": [
+          "kind",
+          "amount"
+        ]
       },
       "mplsVlanPrioritization_createMplsVlanRule": {
         "type": "object",

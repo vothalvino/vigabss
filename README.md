@@ -124,8 +124,8 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 398 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 036)
+│   ├── schema.sql           # Combined schema (all 400 tables + column additions)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 037)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -763,6 +763,8 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 035 — Invoices billed ahead:** `invoices.billed_ahead` marks an invoice created before its billing period was due because the client paid ahead; the money is invoiced when it arrives (`services/billAheadService.js`).
 
 > **Migration 036 — Formal invoices by choice:** `client_mx_profiles.wants_cfdi` records that a client asked for CFDIs in its own RFC. Automatic stamping follows it; everyone else's paid invoices go into the General Public invoice. Existing profiles with their own RFC are set to 1.
+
+> **Migration 037 — Cash followed to the bank:** `bank_accounts` (each with what it is for: client invoices, General Public or any) and `cash_safe_movements` (safe counts, bank deposits, other cash in or out) let the money tie-out follow a month's collections from the point of charge to the bank.
 
 > **Migration 034 — Retire point cash sessions:** retires the reseller-app cash sessions that had been closed (032 retired the open ones), so none waits for a review on the staff Cashier page.
 

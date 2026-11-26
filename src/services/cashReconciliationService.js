@@ -680,4 +680,5 @@ module.exports = {
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
   myOpenSession, attention, assertMayTakeCash, assertRequestMayTakeCash, rules, setPickupRules, matches, addStaffNames,
   openingExpectation, drawer, createPickup, confirmPickup, cancelPickup, listPickups,
+  staffNames,
 };
