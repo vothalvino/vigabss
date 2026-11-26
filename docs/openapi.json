@@ -33026,6 +33026,414 @@
         }
       }
     },
+    "/cash-reconciliation/opening": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "What the drawer of the caller should hold when they open: the count of their last close, or null when there is none to compare with",
+        "operationId": "getCashierOpening",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The expected opening cash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "expected": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/rules": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "The cashier rules of the organization: match tolerance, hours a cashier may stay open, the cash pickup threshold and whether it is strict",
+        "operationId": "getCashierRules",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "match_tolerance": {
+                          "type": "number"
+                        },
+                        "max_open_hours": {
+                          "type": "integer"
+                        },
+                        "pickup_threshold": {
+                          "type": "number",
+                          "description": "0 = no reminder"
+                        },
+                        "pickup_strict": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "A supervisor sets the cash pickup threshold (0 turns the reminder off) and whether a cashier holding that much is stopped from taking more cash or only reminded",
+        "operationId": "updateCashierRules",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pickup_threshold": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "pickup_strict": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "match_tolerance": {
+                          "type": "number"
+                        },
+                        "max_open_hours": {
+                          "type": "integer"
+                        },
+                        "pickup_threshold": {
+                          "type": "number",
+                          "description": "0 = no reminder"
+                        },
+                        "pickup_strict": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/sessions/{id}/pickups": {
+      "post": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "A supervisor takes cash out of an open session. It waits for the owner of the session to confirm it (an admin taking from their own session is confirmed at once); not allowed on your own session otherwise (403 OWN_CASHIER)",
+        "operationId": "createCashPickup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The pickup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "session_id": {
+                          "type": "integer"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled"
+                          ]
+                        },
+                        "taken_by": {
+                          "type": "integer"
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/pickups/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "The owner of the session confirms a pending cash pickup; from then on it lowers what the drawer should hold",
+        "operationId": "confirmCashPickup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pickup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "session_id": {
+                          "type": "integer"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled"
+                          ]
+                        },
+                        "taken_by": {
+                          "type": "integer"
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/pickups/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "Cancel a pending cash pickup: by the owner of the session or the supervisor who recorded it",
+        "operationId": "cancelCashPickup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pickup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "session_id": {
+                          "type": "integer"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled"
+                          ]
+                        },
+                        "taken_by": {
+                          "type": "integer"
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cash-reconciliation/my-cashier": {
       "get": {
         "tags": [
@@ -85455,8 +85863,16 @@
         "properties": {
           "notes": {
             "type": "string"
+          },
+          "opening_total": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999.99
           }
-        }
+        },
+        "required": [
+          "opening_total"
+        ]
       },
       "cashReconciliation_closeSessionSchema": {
         "type": "object",
@@ -85491,6 +85907,36 @@
         "required": [
           "note"
         ]
+      },
+      "cashReconciliation_pickupSchema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999.99
+          },
+          "note": {
+            "type": "string",
+            "maximum": 500
+          }
+        },
+        "required": [
+          "amount"
+        ]
+      },
+      "cashReconciliation_pickupRulesSchema": {
+        "type": "object",
+        "properties": {
+          "pickup_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999.99
+          },
+          "pickup_strict": {
+            "type": "boolean"
+          }
+        }
       },
       "cfdi_generateXml": {
         "type": "object",

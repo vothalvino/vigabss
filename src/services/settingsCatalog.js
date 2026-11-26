@@ -75,6 +75,22 @@ const ORG_SETTING_DEFS = {
       return Number.isInteger(n) && n >= 1 && n <= 72 ? null : 'must be an integer between 1 and 72';
     },
   },
+  cashier_pickup_threshold: {
+    default: '0',
+    description: 'Cash an open cashier may hold before its owner is reminded to hand cash to a supervisor, and supervisors see it as over the limit. 0 turns the reminder off.',
+    validate(value) {
+      const n = Number(value);
+      return String(value).trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 9999999999.99 && Math.round(n * 100) === n * 100
+        ? null : 'must be an amount of 0 or more with at most two decimals';
+    },
+  },
+  cashier_pickup_strict: {
+    default: 'false',
+    description: "When 'true', a cashier holding the pickup threshold or more cannot record another cash payment until a supervisor picks up cash. When 'false' it is only reminded.",
+    validate(value) {
+      return ['true', 'false'].includes(value) ? null : "must be 'true' or 'false'";
+    },
+  },
   install_test_window_minutes: {
     default: '60',
     description: 'Minutes of temporary internet the technician gets on a pending contract to test the install (speed test included) before formal activation. The line is disabled again when the window ends.',

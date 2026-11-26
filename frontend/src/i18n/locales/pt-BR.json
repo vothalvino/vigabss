@@ -615,7 +615,9 @@
     "keyLabels": {
       "resellerDefaultCreditLimit": "Limite de dinheiro padrão para revendedores",
       "cashierMatchTolerance": "Caixa: diferença que ainda conta como conferida",
-      "cashierMaxOpenHours": "Caixa: horas que pode ficar aberto"
+      "cashierMaxOpenHours": "Caixa: horas que pode ficar aberto",
+      "cashierPickupThreshold": "Caixa: limite de dinheiro antes de uma retirada",
+      "cashierPickupStrict": "Caixa: impedir pagamentos em dinheiro acima do limite"
     }
   },
   "common": {
@@ -2615,7 +2617,16 @@
   "cashierReminder": {
     "mineOpen": "Seu caixa está aberto desde {{since}}.",
     "mineOverdue": "Seu caixa está aberto há mais de {{hours}} horas. Feche-o antes de registrar mais dinheiro.",
-    "expected": "Dinheiro esperado: {{amount}}.",
+    "expected": "Dinheiro no caixa: {{amount}}.",
+    "overLimit": "Está acima do limite de {{limit}}: peça a um supervisor para retirar dinheiro.",
+    "overLimitStrict": "Está acima do limite de {{limit}}: um supervisor precisa retirar dinheiro antes de você registrar mais.",
+    "pendingPickup_one": "Um supervisor registrou uma retirada de {{amount}} que aguarda a sua confirmação.",
+    "pendingPickup_other": "Supervisores registraram {{count}} retiradas, {{amount}} no total, que aguardam a sua confirmação.",
+    "confirmIt": "Confirmar",
+    "othersOverLimit_one": "{{count}} caixa está acima do limite de dinheiro: {{names}}.",
+    "othersOverLimit_other": "{{count}} caixas estão acima do limite de dinheiro: {{names}}.",
+    "openedDifferent_one": "{{count}} caixa foi aberto com um valor diferente do último fechamento: {{names}}.",
+    "openedDifferent_other": "{{count}} caixas foram abertos com um valor diferente do último fechamento: {{names}}.",
     "closeIt": "Fechar caixa",
     "othersOverdue_one": "{{count}} caixa está aberto há mais de {{hours}} horas: {{names}}.",
     "othersOverdue_other": "{{count}} caixas estão abertos há mais de {{hours}} horas: {{names}}.",
@@ -2650,6 +2661,44 @@
     "close": "Fechar caixa",
     "approve": "Aprovar",
     "dispute": "Contestar",
+    "opening": {
+      "help": "Conte o dinheiro no caixa antes de começar. Ele fica lá entre os turnos, então deve ser o que você contou no último fechamento.",
+      "counted": "Dinheiro contado no caixa",
+      "lastClose": "Seu último fechamento foi de {{amount}}.",
+      "differs": "É diferente do seu último fechamento. Você ainda pode abrir; um supervisor verá a diferença.",
+      "required": "Informe o dinheiro que você contou no caixa.",
+      "failed": "Não foi possível abrir o caixa.",
+      "shown": "Abriu com:",
+      "shownDiffers": "o último fechamento foi de {{amount}}"
+    },
+    "pickups": {
+      "title": "Retiradas de dinheiro por supervisores",
+      "none": "Nenhuma.",
+      "record": "Registrar retirada de dinheiro",
+      "amount": "Valor retirado",
+      "amountRequired": "Informe o valor retirado, maior que zero.",
+      "takenBy": "retirado por {{name}}",
+      "confirm": "Confirmar",
+      "reject": "Rejeitar",
+      "failed": "Não foi possível salvar.",
+      "status": {
+        "pending": "Aguardando a confirmação de quem opera o caixa",
+        "confirmed": "Confirmada",
+        "cancelled": "Cancelada"
+      }
+    },
+    "rules": {
+      "title": "Regras de retirada de dinheiro",
+      "help": "O dinheiro fica no caixa entre os turnos. Ele é entregue a um supervisor somente quando o caixa passa deste limite.",
+      "threshold": "Limite de dinheiro por caixa",
+      "strict": "Rígido: impedir que um caixa acima do limite receba mais dinheiro",
+      "offHint": "Com limite 0 ninguém é lembrado de entregar dinheiro.",
+      "remindHint": "Acima do limite, o caixa e os supervisores são lembrados. Ainda é possível receber dinheiro.",
+      "strictHint": "Acima do limite, o caixa não pode registrar outro pagamento em dinheiro até um supervisor retirar dinheiro.",
+      "saved": "Regras salvas.",
+      "failed": "Não foi possível salvar as regras.",
+      "invalid": "Informe um limite de 0 ou mais."
+    },
     "review": {
       "approveTitle": "Aprovar este fechamento",
       "disputeTitle": "Contestar este fechamento",

@@ -615,7 +615,9 @@
     "keyLabels": {
       "resellerDefaultCreditLimit": "Default cash limit for resellers",
       "cashierMatchTolerance": "Cashier: difference that still counts as a match",
-      "cashierMaxOpenHours": "Cashier: hours it may stay open"
+      "cashierMaxOpenHours": "Cashier: hours it may stay open",
+      "cashierPickupThreshold": "Cashier: cash limit before a pickup",
+      "cashierPickupStrict": "Cashier: stop cash payments over the limit"
     }
   },
   "common": {
@@ -2615,7 +2617,16 @@
   "cashierReminder": {
     "mineOpen": "Your cashier has been open since {{since}}.",
     "mineOverdue": "Your cashier has been open for more than {{hours}} hours. Close it before you record more cash.",
-    "expected": "Cash expected: {{amount}}.",
+    "expected": "Cash in the drawer: {{amount}}.",
+    "overLimit": "That is over the {{limit}} limit: ask a supervisor to pick up cash.",
+    "overLimitStrict": "That is over the {{limit}} limit: a supervisor has to pick up cash before you can record more.",
+    "pendingPickup_one": "A supervisor recorded a pickup of {{amount}} that waits for you to confirm.",
+    "pendingPickup_other": "Supervisors recorded {{count}} pickups, {{amount}} in all, that wait for you to confirm.",
+    "confirmIt": "Confirm it",
+    "othersOverLimit_one": "{{count}} cashier holds more than the cash limit: {{names}}.",
+    "othersOverLimit_other": "{{count}} cashiers hold more than the cash limit: {{names}}.",
+    "openedDifferent_one": "{{count}} cashier was opened with a different amount than it was closed with: {{names}}.",
+    "openedDifferent_other": "{{count}} cashiers were opened with a different amount than they were closed with: {{names}}.",
     "closeIt": "Close it",
     "othersOverdue_one": "{{count}} cashier has been open for more than {{hours}} hours: {{names}}.",
     "othersOverdue_other": "{{count}} cashiers have been open for more than {{hours}} hours: {{names}}.",
@@ -2650,6 +2661,44 @@
     "close": "Close Cashier",
     "approve": "Approve",
     "dispute": "Dispute",
+    "opening": {
+      "help": "Count the cash in the drawer before you start. It stays there between shifts, so it should be what you counted when you last closed.",
+      "counted": "Cash counted in the drawer",
+      "lastClose": "You closed with {{amount}} last time.",
+      "differs": "This is different from your last close. You can still open; a supervisor will see the difference.",
+      "required": "Enter the cash you counted in the drawer.",
+      "failed": "The cashier could not be opened.",
+      "shown": "Opened with:",
+      "shownDiffers": "it had been closed with {{amount}}"
+    },
+    "pickups": {
+      "title": "Cash picked up by supervisors",
+      "none": "None.",
+      "record": "Record cash pickup",
+      "amount": "Amount taken",
+      "amountRequired": "Enter the amount taken, more than zero.",
+      "takenBy": "taken by {{name}}",
+      "confirm": "Confirm",
+      "reject": "Reject",
+      "failed": "That could not be saved.",
+      "status": {
+        "pending": "Waiting for the owner to confirm",
+        "confirmed": "Confirmed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "rules": {
+      "title": "Cash pickup rules",
+      "help": "Cash stays in the drawer between shifts. It is handed to a supervisor only once the drawer holds more than this limit.",
+      "threshold": "Cash limit per cashier",
+      "strict": "Strict: stop a cashier over the limit from taking more cash",
+      "offHint": "With a limit of 0 nobody is reminded to hand cash in.",
+      "remindHint": "Over the limit, the cashier and the supervisors are reminded. Cash can still be taken.",
+      "strictHint": "Over the limit, the cashier cannot record another cash payment until a supervisor picks up cash.",
+      "saved": "Rules saved.",
+      "failed": "The rules could not be saved.",
+      "invalid": "Enter a limit of 0 or more."
+    },
     "review": {
       "approveTitle": "Approve this count",
       "disputeTitle": "Dispute this count",

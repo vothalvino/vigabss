@@ -5,6 +5,28 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: closing a cashier is a count, not a hand-in.** The cash stays in
+  the drawer between shifts. Opening a cashier now starts by counting the
+  drawer, and the page shows what was counted at the last close. What the
+  drawer should hold at closing is the opening count plus the cash taken,
+  minus the cash supervisors picked up. A cashier opened with a different
+  amount than it was closed with is flagged for supervisors and is not
+  approved automatically.
+
+- **Added: cash pickups.** A supervisor records the cash they take out of an
+  open cashier, and the cashier's owner confirms it; from then on it is no
+  longer expected in the drawer. A pickup can be rejected by the owner or
+  cancelled by the supervisor while it waits, and a cashier cannot be closed
+  with one still waiting. The company's admin may pick up from their own
+  cashier, which is confirmed at once.
+
+- **Added: a cash limit per cashier, set by supervisors.** The Cashier page
+  has a "Cash pickup rules" box where a supervisor sets how much cash a
+  drawer may hold. Over it, the cashier's owner and the supervisors are
+  reminded on every page. A "Strict" switch in the same box stops a cashier
+  over the limit from recording another cash payment until cash is picked
+  up; it is off by default. A limit of 0 turns the reminder off.
+
 - **Changed: the Cashier page shows who each cashier belongs to by name.** The
   owner column used to show only a user number; it now shows the person's
   name with the number beside it, and a review note names who wrote it.

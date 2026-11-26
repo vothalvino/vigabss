@@ -177,9 +177,11 @@ router.post('/', requirePermission('payments.create'), validate(createPayment, {
     delete req.body.reseller_id;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
     // A cashier this person left open past the allowed hours has to be
-    // closed before they take more cash (409 CASHIER_NOT_CLOSED).
+    // closed before they take more cash (409 CASHIER_NOT_CLOSED), and when
+    // the supervisors made the pickup threshold strict, one already holding
+    // that much has to hand cash in first (409 CASHIER_OVER_LIMIT).
     if (req.body.payment_method === 'cash') {
-      await cashReconciliationService.assertCashierNotOverdue(req.orgId, req.user?.id ?? null);
+      await cashReconciliationService.assertMayTakeCash(req.orgId, req.user?.id ?? null);
     }
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would

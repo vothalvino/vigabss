@@ -19,6 +19,9 @@ import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { CashierReviewDialog, type CashierDecision } from '@/pages/cashier/CashierReviewDialog';
+import { CashierOpenDialog } from '@/pages/cashier/CashierOpenDialog';
+import { CashierPickupsRow } from '@/pages/cashier/CashierPickups';
+import { CashierRulesBox } from '@/pages/cashier/CashierRulesBox';
 import { CASHIER_ATTENTION_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
 import { styles } from './crudStyles';
 import {
@@ -51,6 +54,10 @@ interface ReconciliationSession {
   /** Who owns the cashier and who reviewed it, by name. */
   agent_name?: string | null;
   approved_by_name?: string | null;
+  /** The cash counted when opening, and what the drawer should have held. */
+  opening_total?: string | null;
+  opening_expected?: string | null;
+  pickups_total?: string | null;
 }
 
 interface SessionsResponse {
@@ -106,47 +113,6 @@ function SessionStatusBadge({ status, automatic = false }: { status: string; aut
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {automatic ? t('cashReconciliation.status.approvedAuto') : t(`cashReconciliation.status.${status}`, status)}
     </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Open Session Modal
-// ---------------------------------------------------------------------------
-
-function OpenSessionModal({ onClose, onOpened }: { onClose: () => void; onOpened: () => void }) {
-  const { t } = useTranslation();
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const body = notes.trim() ? { notes: notes.trim() } : {};
-      const { error: e } = await api.POST('/cash-reconciliation/sessions', { body: body });
-      if (e) throw new Error(extractApiError(e, 'Failed to open session'));
-    },
-    onSuccess: () => { onOpened(); onClose(); },
-    onError: (err: unknown) => setError(err instanceof Error ? err.message : 'Failed to open session'),
-  });
-
-  return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('cashReconciliation.openSession')}>
-      <div style={{ ...modalBox, width: 420 }}>
-        <h3 style={{ margin: '0 0 1rem' }}>{t('cashReconciliation.openSession')}</h3>
-        {error && <div style={errorBox}>{error}</div>}
-        <form onSubmit={e => { e.preventDefault(); setError(''); mutation.mutate(); }}>
-          <label style={labelStyle}>{t('cashReconciliation.notes')}</label>
-          <input style={inputStyle} type="text" value={notes} autoFocus
-            onChange={e => setNotes(e.target.value)}
-            placeholder={t('ui.cashReconciliationList.optionalNotesForThisSession')} />
-          <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>{t('common.cancel')}</button>
-            <button type="submit" style={submitBtn} disabled={mutation.isPending}>
-              {mutation.isPending ? t('common.saving') : t('cashReconciliation.openSession')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 
@@ -335,6 +301,8 @@ export function CashReconciliationList() {
         )}
       </div>
 
+      <CashierRulesBox canEdit={canApprove} />
+
       <div style={styles.tableCard}>
         {isLoading ? (
           <p style={styles.msg}>{t('common.loading')}</p>
@@ -425,6 +393,14 @@ export function CashReconciliationList() {
                           </tr>
                         )}
                         {expandedId === session.id && (
+                          <CashierPickupsRow
+                            session={session}
+                            colSpan={COLS.length}
+                            userId={user?.id ?? null}
+                            canTake={canApprove && (Number(session.agent_user_id) !== Number(user?.id) || user?.role === 'admin')}
+                          />
+                        )}
+                        {expandedId === session.id && (
                           <CashPaymentsRow sessionId={session.id} colSpan={COLS.length} />
                         )}
                       </React.Fragment>
@@ -449,9 +425,7 @@ export function CashReconciliationList() {
         )}
       </div>
 
-      {showOpen && (
-        <OpenSessionModal onClose={() => setShowOpen(false)} onOpened={refresh} />
-      )}
+      {showOpen && <CashierOpenDialog onClose={() => setShowOpen(false)} onOpened={refresh} />}
       {closingId !== null && (
         <CloseSessionModal
           sessionId={closingId}

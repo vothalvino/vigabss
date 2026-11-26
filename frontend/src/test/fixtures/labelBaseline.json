@@ -11,7 +11,7 @@
   "pages/BackupSettings.tsx": 7,
   "pages/BillingAdjustmentList.tsx": 6,
   "pages/BillingDisputeList.tsx": 9,
-  "pages/CashReconciliationList.tsx": 2,
+  "pages/CashReconciliationList.tsx": 1,
   "pages/CfdiList.tsx": 2,
   "pages/ChargebackList.tsx": 9,
   "pages/ClientActivityTab.tsx": 5,
