@@ -748,7 +748,7 @@
     "tabNames": {
       "cash": "Caixa",
       "transactions": "Transações",
-      "recurring": "Recorrentes",
+      "recurring": "Cartões",
       "problems": "Problemas",
       "security": "Segurança",
       "tunnels": "Túneis",
@@ -904,7 +904,7 @@
     "paymentGateways": "Gateways de Pagamento",
     "paymentProblems": "Problemas de pagamentos",
     "paymentTransactions": "Transações de Pagamento",
-    "recurringPaymentProfiles": "Pagamentos Recorrentes",
+    "recurringPaymentProfiles": "Cartões cadastrados",
     "users": "Usuários",
     "organizations": "Organizações",
     "dsar": "DSAR",
@@ -9715,11 +9715,11 @@
       "close": "Fechar"
     },
     "recurringPaymentProfileList": {
-      "recurringPaymentProfiles": "🔁 Perfis de pagamento recorrente",
+      "recurringPaymentProfiles": "💳 Cartões cadastrados",
       "total": " no total",
       "loading": "Carregando…",
-      "failedToLoadRecurringPayment": "Não foi possível carregar os perfis de pagamento recorrente.",
-      "noRecurringPaymentProfilesFound": "Nenhum perfil de pagamento recorrente encontrado.",
+      "failedToLoadRecurringPayment": "Não foi possível carregar os cartões cadastrados.",
+      "noRecurringPaymentProfilesFound": "Nenhum cartão cadastrado.",
       "prev": "← Anterior",
       "page": "Página ",
       "of": " de ",

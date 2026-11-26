@@ -41,7 +41,7 @@ describe('RecurringPaymentProfileList page', () => {
 
   it('renders the page heading', async () => {
     renderList();
-    await waitFor(() => expect(screen.getByText('🔁 Recurring Payment Profiles')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('💳 Cards on File')).toBeInTheDocument());
   });
 
   it('renders a profile row with masked card and expiry', async () => {
@@ -57,6 +57,6 @@ describe('RecurringPaymentProfileList page', () => {
       return Promise.resolve({ data: { data: [] }, error: undefined });
     });
     renderList();
-    await waitFor(() => expect(screen.getByText(/No recurring payment profiles found/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/No cards on file/)).toBeInTheDocument());
   });
 });

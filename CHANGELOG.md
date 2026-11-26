@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: "Recurring Payments" is now "Cards on File".** The page that
+  lists the cards customers have saved for automatic payment has a plainer
+  name in the menu, on its tab and in its title: "Tarjetas registradas" in
+  Spanish and "Cartões cadastrados" in Portuguese.
+
 - **Changed: the Payments page's ID column shows the payment's number.** It
   used to show the client's number, which the client's linked name beside it
   already leads to.

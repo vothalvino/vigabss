@@ -748,7 +748,7 @@
     "tabNames": {
       "cash": "Cash",
       "transactions": "Transactions",
-      "recurring": "Recurring",
+      "recurring": "Cards",
       "problems": "Problems",
       "security": "Security",
       "tunnels": "Tunnels",
@@ -904,7 +904,7 @@
     "paymentGateways": "Payment Gateways",
     "paymentProblems": "Payment problems",
     "paymentTransactions": "Payment Transactions",
-    "recurringPaymentProfiles": "Recurring Payments",
+    "recurringPaymentProfiles": "Cards on File",
     "users": "Users",
     "organizations": "Organizations",
     "dsar": "DSAR",
@@ -9721,11 +9721,11 @@
       "close": "Close"
     },
     "recurringPaymentProfileList": {
-      "recurringPaymentProfiles": "🔁 Recurring Payment Profiles",
+      "recurringPaymentProfiles": "💳 Cards on File",
       "total": " total",
       "loading": "Loading…",
-      "failedToLoadRecurringPayment": "Failed to load recurring payment profiles.",
-      "noRecurringPaymentProfilesFound": "No recurring payment profiles found.",
+      "failedToLoadRecurringPayment": "Failed to load the cards on file.",
+      "noRecurringPaymentProfilesFound": "No cards on file.",
       "prev": "← Prev",
       "page": "Page ",
       "of": " of ",
