@@ -317,7 +317,7 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/approve', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('approved');
-    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, 1, 'cambio mal dado');
+    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, { id: 1, role: 'admin' }, 'cambio mal dado');
   });
 
   test('returns 422 when session is not closed', async () => {
@@ -376,7 +376,7 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/dispute', () => {
     const res = await dispute({ note: 'faltan 20 sin explicar' });
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('disputed');
-    expect(cashReconciliationService.disputeSession).toHaveBeenCalledWith(1, 1, 1, 'faltan 20 sin explicar');
+    expect(cashReconciliationService.disputeSession).toHaveBeenCalledWith(1, 1, { id: 1, role: 'admin' }, 'faltan 20 sin explicar');
   });
 
   test('a dispute without a note is refused before the service', async () => {

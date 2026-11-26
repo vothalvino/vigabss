@@ -387,7 +387,8 @@ export function CashReconciliationList() {
                               </button>
                             )}
                             {canApprove && ['closed', 'disputed'].includes(session.status) && (
-                              Number(session.agent_user_id) === Number(user?.id) ? (
+                              // Nobody reviews their own cashier, except the company's admin (the owner).
+                              Number(session.agent_user_id) === Number(user?.id) && user?.role !== 'admin' ? (
                                 <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{t('cashReconciliation.review.ownCashier')}</span>
                               ) : (
                                 <>
@@ -417,6 +418,9 @@ export function CashReconciliationList() {
                             <td colSpan={COLS.length} style={{ padding: '8px 20px 0', background: '#f8faff', fontSize: '0.82rem' }}>
                               <strong>{t('cashReconciliation.review.noteShown')}</strong> {session.review_note}
                               {session.approved_by_name && <span style={{ color: '#6b7280' }}> — {session.approved_by_name}</span>}
+                              {session.approved_by != null && Number(session.approved_by) === Number(session.agent_user_id) && (
+                                <span style={{ color: '#92400e', fontWeight: 600 }}> · {t('cashReconciliation.review.selfReviewed')}</span>
+                              )}
                             </td>
                           </tr>
                         )}

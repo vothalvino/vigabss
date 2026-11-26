@@ -270,19 +270,19 @@ describe('cashReconciliationService', () => {
 
     test('throws NOT_FOUND when session not found', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(cashReconciliationService.approveSession(999, 1, 5, 'ok')).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+      await expect(cashReconciliationService.approveSession(999, 1, { id: 5, role: 'manager' }, 'ok')).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
 
     test('an open or already approved session cannot be approved', async () => {
       for (const status of ['open', 'approved']) {
         db.query.mockResolvedValueOnce([[{ ...closedSession, status }]]);
-        await expect(cashReconciliationService.approveSession(1, 1, 5, 'explained')).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+        await expect(cashReconciliationService.approveSession(1, 1, { id: 5, role: 'manager' }, 'explained')).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
       }
     });
 
     test('approving records who, why, and only moves a session still in the state that was read', async () => {
       answer(closedSession, { ...closedSession, status: 'approved', approved_by: 5, review_note: 'cambio mal dado, repuesto' });
-      const result = await cashReconciliationService.approveSession(1, 1, 5, '  cambio mal dado, repuesto ');
+      const result = await cashReconciliationService.approveSession(1, 1, { id: 5, role: 'manager' }, '  cambio mal dado, repuesto ');
       const [sql, params] = db.query.mock.calls[1];
       expect(sql).toMatch(/SET status = \?, approved_by = \?, approved_at = NOW\(\), review_note = \?/);
       expect(sql).toMatch(/AND status = \?/);
@@ -293,22 +293,40 @@ describe('cashReconciliationService', () => {
     test('a note explaining the difference is required', async () => {
       for (const note of [undefined, '', '  a ']) {
         db.query.mockResolvedValueOnce([[closedSession]]);
-        await expect(cashReconciliationService.approveSession(1, 1, 5, note)).rejects.toMatchObject({ statusCode: 422 });
+        await expect(cashReconciliationService.approveSession(1, 1, { id: 5, role: 'manager' }, note)).rejects.toMatchObject({ statusCode: 422 });
       }
       expect(db.query.mock.calls.some(([sql]) => /UPDATE/.test(sql))).toBe(false);
     });
 
     test('nobody reviews their own cashier', async () => {
       db.query.mockResolvedValueOnce([[closedSession]]);
-      await expect(cashReconciliationService.approveSession(1, 1, 10, 'it is fine')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
+      await expect(cashReconciliationService.approveSession(1, 1, { id: 10, role: 'manager' }, 'it is fine')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
       db.query.mockResolvedValueOnce([[closedSession]]);
-      await expect(cashReconciliationService.disputeSession(1, 1, 10, 'it is not')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
+      await expect(cashReconciliationService.disputeSession(1, 1, { id: 10, role: 'manager' }, 'it is not')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
       expect(db.query.mock.calls.some(([sql]) => /UPDATE/.test(sql))).toBe(false);
+    });
+
+    test('the company\'s admin, with nobody above them, may review their own cashier', async () => {
+      answer(closedSession, { ...closedSession, status: 'approved', approved_by: 10 });
+      const result = await cashReconciliationService.approveSession(1, 1, { id: 10, role: 'admin' }, 'faltaron 20, los repuse');
+      expect(db.query.mock.calls[1][1]).toEqual(['approved', 10, 'faltaron 20, los repuse', 1, 1, 'closed']);
+      // approved_by equal to the cashier's owner is what marks it as a self-review.
+      expect(Number(result.approved_by)).toBe(Number(closedSession.agent_user_id));
+      db.query.mockReset();
+      db.query.mockResolvedValueOnce([[closedSession]]);
+      await expect(cashReconciliationService.approveSession(1, 1, { id: 10, role: 'admin' }, '')).rejects.toMatchObject({ statusCode: 422 });
+    });
+
+    test('a manager or any other supervisor still cannot', async () => {
+      for (const role of ['manager', 'billing', undefined]) {
+        db.query.mockResolvedValueOnce([[closedSession]]);
+        await expect(cashReconciliationService.approveSession(1, 1, { id: 10, role }, 'it is fine')).rejects.toMatchObject({ statusCode: 403, code: 'OWN_CASHIER' });
+      }
     });
 
     test('disputing marks it disputed with the note', async () => {
       answer(closedSession, { ...closedSession, status: 'disputed', approved_by: 5 });
-      const result = await cashReconciliationService.disputeSession(1, 1, 5, 'faltan 20 sin explicar');
+      const result = await cashReconciliationService.disputeSession(1, 1, { id: 5, role: 'manager' }, 'faltan 20 sin explicar');
       expect(db.query.mock.calls[1][1]).toEqual(['disputed', 5, 'faltan 20 sin explicar', 1, 1, 'closed']);
       expect(result.status).toBe('disputed');
     });
@@ -316,10 +334,10 @@ describe('cashReconciliationService', () => {
     test('a disputed session can be approved once it is settled, but not disputed again', async () => {
       const disputed = { ...closedSession, status: 'disputed' };
       answer(disputed, { ...disputed, status: 'approved' });
-      await cashReconciliationService.approveSession(1, 1, 5, 'repuso los 20');
+      await cashReconciliationService.approveSession(1, 1, { id: 5, role: 'manager' }, 'repuso los 20');
       expect(db.query.mock.calls[1][1]).toEqual(['approved', 5, 'repuso los 20', 1, 1, 'disputed']);
       db.query.mockResolvedValueOnce([[disputed]]);
-      await expect(cashReconciliationService.disputeSession(1, 1, 5, 'otra vez')).rejects.toMatchObject({ statusCode: 422 });
+      await expect(cashReconciliationService.disputeSession(1, 1, { id: 5, role: 'manager' }, 'otra vez')).rejects.toMatchObject({ statusCode: 422 });
     });
   });
 

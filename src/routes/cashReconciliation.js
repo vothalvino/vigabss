@@ -96,13 +96,15 @@ router.post('/sessions/:id/close', requirePermission('cash_reconciliation.update
 });
 
 // A supervisor's decision on a closed session whose count did not match.
+// Not on the reviewer's own session, unless the reviewer is the company's
+// admin (the owner).
 // A matching count is approved when the session is closed and never gets here.
 router.post('/sessions/:id/approve', requirePermission('cash_reconciliation.approve'), validate(approveSessionSchema, { strip: false }), async (req, res, next) => {
   try {
     const session = await cashReconciliationService.approveSession(
       parseInt(req.params.id, 10),
       req.orgId,
-      req.user.id,
+      { id: req.user.id, role: req.user.role },
       req.body.note,
     );
     res.json({ data: session });
@@ -116,7 +118,7 @@ router.post('/sessions/:id/dispute', requirePermission('cash_reconciliation.appr
     const session = await cashReconciliationService.disputeSession(
       parseInt(req.params.id, 10),
       req.orgId,
-      req.user.id,
+      { id: req.user.id, role: req.user.role },
       req.body.note,
     );
     res.json({ data: session });

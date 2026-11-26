@@ -206,8 +206,8 @@ user reads its own position in the app (`GET /reseller-app/me`, `/ledger`).
 The staff cashier (`/cash-reconciliation`): `cash_reconciliation.create`
 opens one and reads the caller's own (`GET /my-cashier`, also allowed with
 `.view`); `.update` closes it; `.approve` reviews a count that did not match
-(`POST /sessions/:id/approve` and `/dispute`, each with a note, never on the
-reviewer's own session) and reads the supervisor list (`GET /attention`). A
+(`POST /sessions/:id/approve` and `/dispute`, each with a note; never on the
+reviewer's own session, except by the organization's admin) and reads the supervisor list (`GET /attention`). A
 count within the organization's `cashier_match_tolerance` is approved when the
 session is closed, with no approver. Recording a cash payment
 (`POST /payments`) answers 409 `CASHIER_NOT_CLOSED` while the caller has a

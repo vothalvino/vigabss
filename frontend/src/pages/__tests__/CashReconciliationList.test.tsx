@@ -18,8 +18,9 @@ vi.mock('@/api/client', () => ({
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },
 }));
 
+const auth = vi.hoisted(() => ({ user: { id: 1, role: 'admin' } as { id: number; role: string; permissions?: string[] } }));
 vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, role: 'admin' } }),
+  useAuth: () => ({ user: auth.user }),
 }));
 
 const session1 = {
@@ -48,6 +49,7 @@ function renderList() {
 describe('CashReconciliationList page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.user = { id: 1, role: 'admin' };
     mockApiGet.mockImplementation((path: string) => {
       if (path === '/cash-reconciliation/sessions')
         return Promise.resolve({ data: { data: [session1], meta: { total: 1, page: 1, limit: 50, totalPages: 1 } }, error: undefined });
@@ -108,13 +110,32 @@ describe('CashReconciliationList page', () => {
       expect(screen.getByLabelText('Note')).toBeInTheDocument();
     });
 
-    it('does not let a supervisor review their own cashier', async () => {
+    it('does not let a manager review their own cashier', async () => {
+      auth.user = { id: 1, role: 'manager', permissions: ['cash_reconciliation.view', 'cash_reconciliation.approve'] };
       withSessions([{ ...closed, id: 6, agent_user_id: 1 }]);
       renderList();
       await waitFor(() => expect(screen.getByText('#6')).toBeInTheDocument());
       expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Dispute' })).not.toBeInTheDocument();
       expect(screen.getByText('Another supervisor reviews your own cashier')).toBeInTheDocument();
+    });
+
+    it('lets the company\'s admin, who has nobody above them, review their own cashier', async () => {
+      withSessions([{ ...closed, id: 6, agent_user_id: 1 }]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#6')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dispute' })).toBeInTheDocument();
+      expect(screen.queryByText('Another supervisor reviews your own cashier')).not.toBeInTheDocument();
+    });
+
+    it('marks a review made by the cashier\'s own owner', async () => {
+      withSessions([{ ...closed, id: 6, agent_user_id: 1, status: 'approved', approved_by: 1, approved_by_name: 'Ana Ruiz', review_note: 'faltaron 20, los repuse' }]);
+      renderList();
+      (await screen.findByText('#6')).click();
+      const note = await screen.findByText(/faltaron 20, los repuse/);
+      expect(note.closest('td')).toHaveTextContent('Ana Ruiz');
+      expect(note.closest('td')).toHaveTextContent('reviewed by the owner of this cashier');
     });
 
     it('a disputed count can still be approved, but not disputed again', async () => {
