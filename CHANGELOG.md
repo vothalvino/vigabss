@@ -5,6 +5,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a cash payment could be counted by two cashiers in a row.** Times
+  are kept to the second, so when a person closed a cashier and opened the
+  next one within the same second a payment was recorded, that payment was
+  expected in both. A payment a close has already counted is now left out of
+  every later cashier.
+
+- **Fixed: old reseller cash sessions waiting for a review.** Cash sessions a
+  reseller or collector had closed in the reseller app still showed on the
+  staff Cashier page as counts to review. They are retired by this release,
+  like the open ones were.
+
+- **Changed: the Cashier page lists the newest cashiers first.**
+
 - **Fixed: a downloaded payment receipt was two pages.** The small
   "generated" line at the foot of the page was pushed onto a second page of
   its own. The same happened to invoices, credit notes, quotes, account
