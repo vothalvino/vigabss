@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: an invoice covered by a payment and a credit note could stay
+  unpaid.** The check that marks an invoice paid added the amounts as
+  floating-point numbers, so some combinations (346.84 paid plus 232.00
+  credited against 578.84) came out a fraction under the total. It now
+  compares whole cents. This is what kept a partly paid month open after a
+  downgrade even though it was fully covered.
+
 ## 0.1.0-alpha.50 — 2026-11-26
 
 - **Added: filter lists by date and by client.** Invoices, Payments, CFDI,
