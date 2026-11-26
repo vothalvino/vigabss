@@ -12067,13 +12067,6 @@
       "nonCash": "No en efectivo (llega directo al banco)",
       "total": "Total cobrado"
     },
-    "methods": {
-      "transfer": "Transferencia",
-      "card": "Tarjeta",
-      "check": "Cheque",
-      "online": "En línea",
-      "other": "Otro"
-    },
     "fiscal": {
       "title": "Cómo está facturado",
       "hint": "El dinero con RFC del cliente ya está facturado. Todo lo demás termina en una factura global al Público en General.",

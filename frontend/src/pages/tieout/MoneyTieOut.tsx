@@ -102,7 +102,7 @@ export function MoneyTieOut() {
           <Line label={t('tieOut.collected.cashPoints')} value={collected?.cash_points} />
           <Line label={t('tieOut.collected.nonCash')} value={collected?.non_cash} />
           {(collected?.by_method ?? []).filter(m => m.method !== 'cash').map(m => (
-            <Line key={m.method} indent label={t(`tieOut.methods.${m.method}`, { defaultValue: m.method ?? '' })} value={m.total} />
+            <Line key={m.method} indent label={t(`paymentMethods.${m.method}`, { defaultValue: m.method ?? '' })} value={m.total} />
           ))}
           <Line strong label={t('tieOut.collected.total')} value={collected?.total} />
         </section>

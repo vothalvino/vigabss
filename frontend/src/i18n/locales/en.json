@@ -12073,13 +12073,6 @@
       "nonCash": "Not in cash (goes straight to the bank)",
       "total": "Total collected"
     },
-    "methods": {
-      "transfer": "Transfer",
-      "card": "Card",
-      "check": "Check",
-      "online": "Online",
-      "other": "Other"
-    },
     "fiscal": {
       "title": "How it is invoiced",
       "hint": "Money in a client's RFC is already invoiced. Everything else ends in a General Public invoice.",
