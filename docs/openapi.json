@@ -9329,6 +9329,15 @@
               "format": "date"
             },
             "description": "Only rows up to and including this day, by the payment date"
+          },
+          {
+            "name": "collected_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Who took the money: 'staff:<user id>', 'reseller:<id>' (a reseller or collector) or 'system' (recorded by no one: a gateway, an import)"
           }
         ],
         "responses": {
@@ -9530,6 +9539,77 @@
         "responses": {
           "204": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/payments/collectors": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Who has taken payments in the organization, for the list's collected_by filter: staff who recorded one, resellers and collectors that collected one, and whether any was recorded by no one",
+        "operationId": "listPaymentCollectors",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collectors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "staff": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "points": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "reseller",
+                                  "collector"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "system": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

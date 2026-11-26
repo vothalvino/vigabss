@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: "Collected by" on Payments lists everyone who took a payment.**
+  It listed only resellers and collectors. It now has the staff who recorded
+  payments, the resellers, the collectors, and "Online and automatic" for
+  payments nobody recorded by hand (a gateway, an import). Only people and
+  points that appear on a payment are listed. "Clear filters" clears it too.
+  In the API: `collected_by=staff:<id>`, `reseller:<id>` or `system`.
+
 - **Fixed: an invoice covered by a payment and a credit note could stay
   unpaid.** The check that marks an invoice paid added the amounts as
   floating-point numbers, so some combinations (346.84 paid plus 232.00

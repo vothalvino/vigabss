@@ -36,17 +36,19 @@ const input: React.CSSProperties = {
   background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem',
 };
 
-export function ListFilters({ value, onChange, dateLabel, showClient = true, children }: {
+export function ListFilters({ value, onChange, dateLabel, showClient = true, extraActive = false, children }: {
   value: ListFilterValue;
   onChange: (next: ListFilterValue) => void;
   /** What the dates mean on this list, e.g. "Issue date". */
   dateLabel: string;
   showClient?: boolean;
+  /** A filter of the page's own (in children) is set, so Clear is offered. */
+  extraActive?: boolean;
   children?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const id = useId();
-  const active = Boolean(value.from || value.to || value.clientId);
+  const active = Boolean(value.from || value.to || value.clientId) || extraActive;
   return (
     <div
       role="group"

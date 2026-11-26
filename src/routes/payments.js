@@ -174,6 +174,41 @@ router.use(orgScope);
 // Rows carry reseller_id (the reseller that collected the payment in the
 // reseller app, migration 004) and reseller_name; ?reseller_id= filters.
 router.get('/', requirePermission('payments.view'), withResellerNames(ctrl.list));
+// Who has taken payments in this organization, for the list's "Collected
+// by" filter: the staff who recorded one, the resellers and collectors that
+// collected one, and whether any was recorded by no one (a gateway, an
+// import). Only people and points that actually appear on a payment are
+// listed, so it needs no access to the user list. Before '/:id'.
+router.get('/collectors', requirePermission('payments.view'), async (req, res, next) => {
+  try {
+    const [staffRows] = await db.query(
+      `SELECT DISTINCT p.recorded_by AS id FROM payments p
+        WHERE p.organization_id = ? AND p.deleted_at IS NULL AND p.recorded_by IS NOT NULL AND p.reseller_id IS NULL
+        LIMIT 500`,
+      [req.orgId],
+    );
+    const names = await cashReconciliationService.staffNames(staffRows.map(r => r.id));
+    const staff = staffRows
+      .map(r => ({ id: Number(r.id), name: names.get(Number(r.id)) || `#${r.id}` }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const [points] = await db.query(
+      `SELECT r.id, r.name, r.kind FROM resellers r
+        WHERE r.organization_id = ? /* includes deleted rows: a removed point still collected its payments */
+          AND EXISTS (SELECT 1 FROM payments p
+                       WHERE p.organization_id = r.organization_id AND p.reseller_id = r.id AND p.deleted_at IS NULL)
+        ORDER BY r.name, r.id LIMIT 500`,
+      [req.orgId],
+    );
+    const [[system]] = await db.query(
+      `SELECT EXISTS (SELECT 1 FROM payments p
+                       WHERE p.organization_id = ? AND p.deleted_at IS NULL
+                         AND p.recorded_by IS NULL AND p.reseller_id IS NULL) AS present`,
+      [req.orgId],
+    );
+    res.json({ data: { staff, points, system: Number(system.present) === 1 } });
+  } catch (err) { next(err); }
+});
+
 // The active bank accounts a non-cash payment can name. Before '/:id'.
 router.get('/bank-accounts', requirePermission('payments.create', 'payments.view'), async (req, res, next) => {
   try {
