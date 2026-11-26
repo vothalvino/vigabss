@@ -1713,7 +1713,7 @@
     "recordPayment": "+ Registrar pagamento",
     "table": {
       "client": "Cliente",
-      "clientId": "ID",
+      "paymentId": "ID",
       "amount": "Valor",
       "method": "Método",
       "status": "Status",

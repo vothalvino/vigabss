@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the Payments page's ID column shows the payment's number.** It
+  used to show the client's number, which the client's linked name beside it
+  already leads to.
+
 ## 0.1.0-alpha.47 — 2026-11-25
 
 - **Fixed: a signed-in customer did not see the company's logo in the client
