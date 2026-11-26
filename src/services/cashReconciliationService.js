@@ -150,10 +150,15 @@ async function closeSession(sessionId, orgId, countedTotal) {
 /**
  * A supervisor's decision on a closed session whose count did not match:
  * approve it (the difference is explained) or dispute it (it is not). Both
- * need a note, and neither can be made by the person whose cashier it is.
+ * need a note. Nobody reviews their own cashier, except the company's admin
+ * (the owner): with nobody above them, they are the one person who may. Such
+ * a review is told apart later by approved_by being the cashier's own owner.
  * A disputed session can still be approved later, once it is settled.
+ *
+ * @param {{ id: number, role?: string }} reviewer - the signed-in user
  */
-async function reviewSession(sessionId, orgId, reviewerUserId, decision, note) {
+async function reviewSession(sessionId, orgId, reviewer, decision, note) {
+  const reviewerUserId = reviewer.id;
   const text = String(note || '').trim();
   const [sessionRows] = await db.query(
     `SELECT * FROM cash_reconciliation_sessions
@@ -169,7 +174,8 @@ async function reviewSession(sessionId, orgId, reviewerUserId, decision, note) {
       ? 'Only a closed or disputed cashier can be approved'
       : 'Only a closed cashier can be disputed');
   }
-  if (Number(session.agent_user_id) === Number(reviewerUserId)) {
+  const ownCashier = Number(session.agent_user_id) === Number(reviewerUserId);
+  if (ownCashier && reviewer.role !== 'admin') {
     throw new AppError('You cannot review your own cashier; another supervisor has to.', 403, 'OWN_CASHIER');
   }
   if (text.length < 3) {
@@ -184,7 +190,7 @@ async function reviewSession(sessionId, orgId, reviewerUserId, decision, note) {
   );
   if (result.affectedRows === 0) throw new NotFoundError('cash_reconciliation_sessions');
 
-  logger.info({ sessionId, reviewerUserId, decision }, 'Reconciliation session reviewed');
+  logger.info({ sessionId, reviewerUserId, decision, ownCashier }, 'Reconciliation session reviewed');
 
   const [updated] = await db.query(
     'SELECT * FROM cash_reconciliation_sessions WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
@@ -193,8 +199,8 @@ async function reviewSession(sessionId, orgId, reviewerUserId, decision, note) {
   return updated[0];
 }
 
-const approveSession = (sessionId, orgId, userId, note) => reviewSession(sessionId, orgId, userId, 'approved', note);
-const disputeSession = (sessionId, orgId, userId, note) => reviewSession(sessionId, orgId, userId, 'disputed', note);
+const approveSession = (sessionId, orgId, reviewer, note) => reviewSession(sessionId, orgId, reviewer, 'approved', note);
+const disputeSession = (sessionId, orgId, reviewer, note) => reviewSession(sessionId, orgId, reviewer, 'disputed', note);
 
 /**
  * The caller's own open cashier, for the reminder shown on every page: when it
@@ -246,6 +252,22 @@ async function staffNames(ids) {
     logger.warn({ err }, 'Could not read cashier owners\' names');
   }
   return names;
+}
+
+/**
+ * Set agent_name and approved_by_name on each session row (or the one row):
+ * who owns the cashier and who reviewed it. approved_by_name stays null on a
+ * count that was approved automatically.
+ */
+async function addStaffNames(data) {
+  const rows = Array.isArray(data) ? data : (data && typeof data === 'object' ? [data] : []);
+  const names = await staffNames(rows.flatMap((r) => [r.agent_user_id, r.approved_by]));
+  for (const row of rows) {
+    if (!('agent_user_id' in row)) continue;
+    row.agent_name = names.get(Number(row.agent_user_id)) || null;
+    row.approved_by_name = row.approved_by === null || row.approved_by === undefined
+      ? null : names.get(Number(row.approved_by)) || null;
+  }
 }
 
 /**
@@ -342,5 +364,5 @@ async function getSessionDetail(sessionId, orgId) {
 
 module.exports = {
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
-  myOpenSession, attention, assertCashierNotOverdue, rules, matches,
+  myOpenSession, attention, assertCashierNotOverdue, rules, matches, addStaffNames,
 };

@@ -17,6 +17,7 @@ jest.mock('../src/services/cashReconciliationService', () => ({
   closeSession: jest.fn(),
   approveSession: jest.fn(),
   disputeSession: jest.fn(),
+  addStaffNames: jest.fn(),
   getSessionDetail: jest.fn(),
   myOpenSession: jest.fn(),
   attention: jest.fn(),
@@ -164,10 +165,15 @@ describe('GET /api/v1/cash-reconciliation/sessions', () => {
     db.query
       .mockResolvedValueOnce([[mockSession]])      // findAll
       .mockResolvedValueOnce([[{ total: 1 }]]);    // count
+    // The rows are named before they are sent.
+    cashReconciliationService.addStaffNames.mockImplementation(async (rows) => {
+      for (const row of rows) row.agent_name = 'Ana Ruiz';
+    });
 
     const res = await request(app)
       .get('/api/v1/cash-reconciliation/sessions')
       .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.data[0].agent_name).toBe('Ana Ruiz');
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -311,7 +317,7 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/approve', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('approved');
-    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, 1, 'cambio mal dado');
+    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, { id: 1, role: 'admin' }, 'cambio mal dado');
   });
 
   test('returns 422 when session is not closed', async () => {
@@ -370,7 +376,7 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/dispute', () => {
     const res = await dispute({ note: 'faltan 20 sin explicar' });
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('disputed');
-    expect(cashReconciliationService.disputeSession).toHaveBeenCalledWith(1, 1, 1, 'faltan 20 sin explicar');
+    expect(cashReconciliationService.disputeSession).toHaveBeenCalledWith(1, 1, { id: 1, role: 'admin' }, 'faltan 20 sin explicar');
   });
 
   test('a dispute without a note is refused before the service', async () => {

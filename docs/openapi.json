@@ -32923,7 +32923,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "Approve a closed or disputed session whose count did not match (a matching count is approved when the session is closed). Needs a note; not allowed on your own session (403 OWN_CASHIER)",
+        "summary": "Approve a closed or disputed session whose count did not match (a matching count is approved when the session is closed). Needs a note; not allowed on your own session (403 OWN_CASHIER) unless you are the admin of the organization",
         "operationId": "approveCashReconciliationSession",
         "security": [
           {
@@ -32975,7 +32975,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "Dispute a closed session whose count did not match. Needs a note; not allowed on your own session (403 OWN_CASHIER)",
+        "summary": "Dispute a closed session whose count did not match. Needs a note; not allowed on your own session (403 OWN_CASHIER) unless you are the admin of the organization",
         "operationId": "disputeCashReconciliationSession",
         "security": [
           {

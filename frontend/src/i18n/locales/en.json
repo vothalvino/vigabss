@@ -2659,7 +2659,8 @@
       "noteRequired": "Write a note explaining the difference.",
       "failed": "The review could not be saved.",
       "ownCashier": "Another supervisor reviews your own cashier",
-      "noteShown": "Review note:"
+      "noteShown": "Review note:",
+      "selfReviewed": "reviewed by the owner of this cashier"
     },
     "countedTotal": "Counted Total",
     "notes": "Notes",

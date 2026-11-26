@@ -2659,7 +2659,8 @@
       "noteRequired": "Escribe una nota que explique la diferencia.",
       "failed": "No se pudo guardar la revisión.",
       "ownCashier": "Otro supervisor revisa tu propia caja",
-      "noteShown": "Nota de revisión:"
+      "noteShown": "Nota de revisión:",
+      "selfReviewed": "revisado por quien hizo este corte"
     },
     "countedTotal": "Total Contado",
     "notes": "Notas",

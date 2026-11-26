@@ -18,6 +18,21 @@ const ctrl = crudController(CashReconciliationSession);
 router.use(authenticate);
 router.use(orgScope);
 
+// Session rows name their owner and reviewer (agent_name, approved_by_name),
+// so the page shows who a cashier belongs to instead of a user number.
+function withStaffNames(handler) {
+  return (req, res, next) => {
+    const send = res.json.bind(res);
+    res.json = (body) => {
+      res.json = send;
+      if (res.statusCode >= 400 || !body || body.data === undefined) return send(body);
+      cashReconciliationService.addStaffNames(body.data).then(() => send(body), next);
+      return res;
+    };
+    return handler(req, res, next);
+  };
+}
+
 // Open a new session
 router.post('/sessions', requirePermission('cash_reconciliation.create'), validate(openSessionSchema, { strip: false }), async (req, res, next) => {
   try {
@@ -51,7 +66,7 @@ router.get('/attention', requirePermission('cash_reconciliation.approve'), async
 });
 
 // List sessions
-router.get('/sessions', requirePermission('cash_reconciliation.view'), ctrl.list);
+router.get('/sessions', requirePermission('cash_reconciliation.view'), withStaffNames(ctrl.list));
 
 // Get session detail with payments
 router.get('/sessions/:id', requirePermission('cash_reconciliation.view'), async (req, res, next) => {
@@ -81,13 +96,15 @@ router.post('/sessions/:id/close', requirePermission('cash_reconciliation.update
 });
 
 // A supervisor's decision on a closed session whose count did not match.
+// Not on the reviewer's own session, unless the reviewer is the company's
+// admin (the owner).
 // A matching count is approved when the session is closed and never gets here.
 router.post('/sessions/:id/approve', requirePermission('cash_reconciliation.approve'), validate(approveSessionSchema, { strip: false }), async (req, res, next) => {
   try {
     const session = await cashReconciliationService.approveSession(
       parseInt(req.params.id, 10),
       req.orgId,
-      req.user.id,
+      { id: req.user.id, role: req.user.role },
       req.body.note,
     );
     res.json({ data: session });
@@ -101,7 +118,7 @@ router.post('/sessions/:id/dispute', requirePermission('cash_reconciliation.appr
     const session = await cashReconciliationService.disputeSession(
       parseInt(req.params.id, 10),
       req.orgId,
-      req.user.id,
+      { id: req.user.id, role: req.user.role },
       req.body.note,
     );
     res.json({ data: session });
