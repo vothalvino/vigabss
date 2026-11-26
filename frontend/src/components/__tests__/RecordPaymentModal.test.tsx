@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('@/api/client', () => ({
   api: { GET: vi.fn() },
@@ -32,6 +33,12 @@ vi.mock('@/api/client', () => ({
 // existing amount/allocation assertions below are unaffected; a dedicated
 // test below overrides this mock to prove the priming actually happens.
 const mockOrgCurrency = vi.fn(() => 'MXN');
+// The payer's open cashier: open unless a test closes it.
+const cashier = vi.hoisted(() => ({ open: true }));
+vi.mock('@/components/cashierReminderData', () => ({
+  useMyCashier: () => ({ data: cashier.open ? { id: 1 } : null, isLoading: false }),
+}));
+
 vi.mock('@/auth/useOrgCurrency', () => ({
   useOrgCurrency: () => mockOrgCurrency(),
 }));
@@ -77,21 +84,24 @@ function renderModal(props: Partial<RecordPaymentModalProps> = {}) {
   const onClose = vi.fn();
   const onRecorded = vi.fn();
   render(
-    <QueryClientProvider client={qc}>
-      <RecordPaymentModal
-        lockedClientId={5}
-        lockedClientName="Acme Corp"
-        onClose={onClose}
-        onRecorded={onRecorded}
-        {...props}
-      />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={qc}>
+        <RecordPaymentModal
+          lockedClientId={5}
+          lockedClientName="Acme Corp"
+          onClose={onClose}
+          onRecorded={onRecorded}
+          {...props}
+        />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
   return { onClose, onRecorded };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cashier.open = true;
   mockOrgCurrency.mockReturnValue('MXN');
   setupApi();
 });
@@ -302,5 +312,23 @@ describe('RecordPaymentModal', () => {
       .filter((c) => String(c[0]).endsWith('/api/v1/payments'));
     expect(createCalls).toHaveLength(1); // payment created exactly once
     expect(allocAttempts).toBe(2);       // allocation retried
+  });
+
+  it('with no cashier open, cash shows a notice with a way to open one; other methods do not', async () => {
+    cashier.open = false;
+    const { onClose } = renderModal();
+    expect(await screen.findByText('Cash needs your open cashier, and you have none open.')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Open your cashier' });
+    expect(link).toHaveAttribute('href', '/cash-reconciliation');
+    fireEvent.click(link);
+    expect(onClose).toHaveBeenCalled();
+    fireEvent.change(screen.getByDisplayValue('Cash'), { target: { value: 'transfer' } });
+    expect(screen.queryByText('Cash needs your open cashier, and you have none open.')).not.toBeInTheDocument();
+  });
+
+  it('with a cashier open there is no notice', async () => {
+    renderModal();
+    await screen.findByDisplayValue('Cash');
+    expect(screen.queryByText(/Cash needs your open cashier/)).not.toBeInTheDocument();
   });
 });

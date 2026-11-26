@@ -16,6 +16,13 @@
 //   BIL-10  PUT /cfdi-documents/:id re-pointed filed CFDIs.
 // =============================================================================
 
+// Cash needs the caller's open cashier (tests/cashReconciliationRecordedBy.test.js);
+// here the caller has one.
+jest.mock('../src/services/cashReconciliationService', () => ({
+  ...jest.requireActual('../src/services/cashReconciliationService'),
+  assertRequestMayTakeCash: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),

@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: taking cash needs an open cashier.** A person who records a cash
+  payment, or pays a client group in cash, must have their cashier open;
+  otherwise the payment is refused with "Open your cashier before recording a
+  cash payment". The record-payment form says so as soon as cash is chosen
+  and links to the Cashier page. Transfers, cards and other methods are not
+  affected, and neither are payments posted by another system with an API
+  token.
+
 - **Fixed: a cash payment could be counted by two cashiers in a row.** Times
   are kept to the second, so when a person closed a cashier and opened the
   next one within the same second a payment was recorded, that payment was

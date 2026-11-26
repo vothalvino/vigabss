@@ -38,9 +38,18 @@ const cashReconciliationService = require('../src/services/cashReconciliationSer
 
 const STORED = { id: 70, organization_id: 5, client_id: 42, amount: '500.00', currency: 'MXN', status: 'completed', recorded_by: 8 };
 
+// Whose cashier is open, as the cash check reads it: the caller's (user 8)
+// unless a test says otherwise. `overdue` 1 = open past its hours.
+let cashier;
+
 beforeEach(() => {
   jest.clearAllMocks();
-  db.query.mockImplementation(async (sql) => {
+  cashier = { userId: 8, overdue: 0 };
+  db.query.mockImplementation(async (sql, params) => {
+    if (/FROM cash_reconciliation_sessions/.test(sql) && /AS overdue/.test(sql)) {
+      return [cashier && Number(params[2]) === cashier.userId
+        ? [{ id: 3, agent_user_id: cashier.userId, opened_at: 'x', opening_total: '0.00', overdue: cashier.overdue }] : []];
+    }
     if (/FROM clients/.test(sql)) return [[{ id: 42 }]];
     if (/^\s*INSERT/i.test(sql)) return [{ insertId: 70, affectedRows: 1 }];
     if (/^\s*UPDATE/i.test(sql)) return [{ affectedRows: 1 }];
@@ -130,40 +139,47 @@ describe('the session window', () => {
   });
 });
 
-describe('a cashier left open past the allowed hours is closed before more cash is taken', () => {
-  // The caller's open cashier, as the check reads it: overdue or not.
-  const overdueFor = (userId) => {
-    const base = db.query.getMockImplementation();
-    db.query.mockImplementation(async (sql, params) => {
-      if (/FROM cash_reconciliation_sessions/.test(sql) && /AS overdue/.test(sql)) {
-        return [Number(params[2]) === userId ? [{ id: 3, agent_user_id: userId, opened_at: 'x', opening_total: '0.00', overdue: 1 }] : []];
-      }
-      return base(sql, params);
-    });
-    db.execute.mockImplementation(db.query.getMockImplementation());
-  };
+describe('recording cash needs the caller\'s open cashier', () => {
+  const cashierOf = (userId, overdue = 0) => { cashier = userId === null ? null : { userId, overdue }; };
+  const pay = (body) => request(app).post('/api/v1/payments').send({ client_id: 42, amount: 500, currency: 'MXN', ...body });
 
-  it('a cash payment is refused with 409 and nothing is recorded', async () => {
-    overdueFor(8);
-    const res = await request(app).post('/api/v1/payments')
-      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'cash' });
+  it('with no cashier open, a cash payment is refused and nothing is recorded', async () => {
+    cashierOf(null);
+    const res = await pay({ payment_method: 'cash' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CASHIER_NOT_OPEN');
+    expect(paymentInsert()).toBeUndefined();
+  });
+
+  it('a payment with no method is cash, and is refused the same way', async () => {
+    cashierOf(null);
+    const res = await pay({});
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CASHIER_NOT_OPEN');
+  });
+
+  it('with the caller\'s cashier open, cash is recorded', async () => {
+    cashierOf(8);
+    expect((await pay({ payment_method: 'cash' })).status).toBe(201);
+  });
+
+  it('someone else\'s open cashier does not count', async () => {
+    cashierOf(99);
+    expect((await pay({ payment_method: 'cash' })).body.error.code).toBe('CASHIER_NOT_OPEN');
+  });
+
+  it('a cashier left open past its hours has to be closed first', async () => {
+    cashierOf(8, 1);
+    const res = await pay({ payment_method: 'cash' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CASHIER_NOT_CLOSED');
     expect(paymentInsert()).toBeUndefined();
   });
 
-  it('a transfer or card payment is not affected', async () => {
-    overdueFor(8);
-    const res = await request(app).post('/api/v1/payments')
-      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'transfer' });
+  it('a transfer or card payment needs no cashier and never looks for one', async () => {
+    cashierOf(null);
+    const res = await pay({ payment_method: 'transfer' });
     expect(res.status).toBe(201);
     expect(db.query.mock.calls.some(([sql]) => /FROM cash_reconciliation_sessions/.test(sql))).toBe(false);
-  });
-
-  it('someone else\'s overdue cashier does not stop this person', async () => {
-    overdueFor(99);
-    const res = await request(app).post('/api/v1/payments')
-      .send({ client_id: 42, amount: 500, currency: 'MXN', payment_method: 'cash' });
-    expect(res.status).toBe(201);
   });
 });
