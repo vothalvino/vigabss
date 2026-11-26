@@ -13,7 +13,9 @@
 const crypto = require('crypto');
 const db = require('../config/database');
 const billingService = require('./billingService');
-const { issueProrationCreditNote } = require('./planChangeProrationService');
+const {
+  issueProrationCreditNote, invoicedPeriods, creditAheadMonths, extendAfterChange,
+} = require('./planChangeProrationService');
 
 const { calculateProration } = billingService;
 const { NotFoundError, ValidationError } = require('../utils/errors');
@@ -162,28 +164,31 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
       throw new ValidationError('Client is already on this plan');
     }
 
-    // Find the current billing period. invoices has no period_start/
-    // period_end columns — those live on billing_periods; the most recent
-    // 'invoiced' period is the one the customer is actually being charged for
-    // (the nearest equivalent of "an invoice exists for this period").
-    const [periods] = await db.query(
-      `SELECT period_start, period_end FROM billing_periods
-       WHERE contract_id = ? AND status = 'invoiced'
-       ORDER BY period_start DESC LIMIT 1`,
-      [contract.id],
-    );
-
-    if (periods[0]) {
+    // The period that contains today is prorated by days. Months invoiced
+    // after it (billed ahead, billAheadService) change by the whole
+    // difference; the subscriber is shown both together, and the months'
+    // share is kept on the request so approval can tell them apart.
+    const { current, ahead } = await invoicedPeriods(db.query.bind(db), contract.id, organizationId);
+    if (current) {
       const proration = calculateProration({
         oldPrice: contract.price,
         newPrice: plans[0].price,
         changeDate: new Date(),
-        periodStart: periods[0].period_start,
-        periodEnd: periods[0].period_end,
+        periodStart: current.period_start,
+        periodEnd: current.period_end,
       });
       prorationCredit = proration.credit;
       prorationCharge = proration.charge;
       prorationNet = proration.net;
+    }
+    if (ahead.length) {
+      const round = (n) => Math.round(n * 100) / 100;
+      const aheadNet = round((Number(plans[0].price) - Number(contract.price)) * ahead.length);
+      payload.ahead_months = ahead.length;
+      payload.ahead_net = aheadNet;
+      prorationNet = round((prorationNet || 0) + aheadNet);
+      if (aheadNet > 0) prorationCharge = round((prorationCharge || 0) + aheadNet);
+      else prorationCredit = round((prorationCredit || 0) - aheadNet);
     }
 
     payload.new_plan_name = plans[0].name;
@@ -561,6 +566,7 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
   const conn = await db.getConnection();
   let invoice = null;
   let creditNoteId = null;
+  let freed = 0;
   try {
     await conn.beginTransaction();
     const exec = conn.execute.bind(conn);
@@ -582,15 +588,40 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
     }
 
     if (net > 0) {
+      // An upgrade: the stored net already holds the months billed ahead.
       invoice = await billingService.createOneOffInvoice({
         orgId: organizationId, clientId: req.client_id, contractId: req.contract_id,
         description, amount: net, conn,
       });
     } else if (net < 0) {
-      creditNoteId = await issueProrationCreditNote(exec, {
-        organizationId, clientId: req.client_id, contractId: req.contract_id, number: `PCN-${req.id}`,
-        amount: -net, description, createdBy: approvedByUserId,
-      });
+      // A downgrade. The days left of this period become credit on the
+      // account; each month billed ahead gets a credit note on its own
+      // invoice, which frees that much of the payment (planChangeProrationService).
+      const aheadShare = Math.round((Number(payload.ahead_net) || 0) * 100) / 100;
+      const currentNet = Math.round((net - aheadShare) * 100) / 100;
+      if (currentNet < 0) {
+        creditNoteId = await issueProrationCreditNote(exec, {
+          organizationId, clientId: req.client_id, contractId: req.contract_id, number: `PCN-${req.id}`,
+          amount: -currentNet, description, createdBy: approvedByUserId,
+        });
+      }
+      if (aheadShare < 0 && req.contract_id) {
+        const { ahead } = await invoicedPeriods(exec, req.contract_id, organizationId);
+        if (ahead.length) {
+          const credited = await creditAheadMonths(exec, {
+            organizationId,
+            contract: { id: req.contract_id, client_id: req.client_id },
+            proration: {
+              monthDifference: Math.round((aheadShare / (Number(payload.ahead_months) || ahead.length)) * 100) / 100,
+              aheadInvoiceIds: ahead.map((p) => Number(p.invoice_id)).filter(Boolean),
+              oldPlanName: payload.current_plan_name || payload.current_plan_id || 'previous plan',
+              newPlanName: payload.new_plan_name || payload.new_plan_id,
+            },
+            actorId: approvedByUserId,
+          });
+          freed = credited.freed;
+        }
+      }
     }
 
     await conn.commit();
@@ -602,6 +633,8 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
   }
 
   if (invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, invoice);
+  // Money freed from months billed ahead pays for further months at the new price.
+  if (freed > 0) await extendAfterChange({ organizationId, clientId: req.client_id, actorId: approvedByUserId });
   if (req.contract_id && payload.new_plan_id) {
     await require('./contractPlanChangeService').pushPlanChange(req.contract_id, organizationId);
   }

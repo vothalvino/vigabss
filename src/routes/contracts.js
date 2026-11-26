@@ -296,6 +296,13 @@ async function updateContractHandler(req, res, next) {
         conn.release();
       }
       if (proration?.invoice) await businessEvents.emitInvoiceCreated(req.orgId, proration.invoice);
+      // A downgrade freed money from the months billed ahead: it pays for
+      // further months at the new price.
+      if (proration?.freed > 0) {
+        await planChangeProrationService.extendAfterChange({
+          organizationId: req.orgId, clientId: old.client_id, actorId: req.user?.id ?? null,
+        });
+      }
     } else {
       record = await updateContractWithActivationGuard(old, req.body, req.orgId);
     }
