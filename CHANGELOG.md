@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a signed-in customer did not see the company's logo in the client
+  portal.** The portal asked for the logo without saying which company the
+  customer belongs to, so the tab icon and the header stayed plain even after
+  a logo was uploaded.
+
 ## 0.1.0-alpha.46 — 2026-11-25
 
 - **Added: a company can upload its logo.** The organization screen has a

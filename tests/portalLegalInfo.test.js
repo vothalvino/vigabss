@@ -111,3 +111,49 @@ describe('GET /portal/brand (no sign-in)', () => {
     expect(db.query.mock.calls.some(([sql]) => /FROM files/.test(sql))).toBe(false);
   });
 });
+
+describe('GET /portal/logo (signed-in customer)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { STORAGE_ROOT } = require('../src/middleware/upload');
+  const rel = path.join('organizations', 'logos', 'portal-logo-test.png');
+  const abs = path.join(STORAGE_ROOT, rel);
+
+  beforeAll(() => {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32, 1)]));
+  });
+  afterAll(() => fs.rmSync(abs, { force: true }));
+
+  function signedIn(orgId, { hasLogo }) {
+    jwt.verify.mockReturnValue({ sub: 1, orgId, type: 'portal' });
+    db.query.mockImplementation((sql, params) => {
+      if (/FROM clients WHERE id/.test(sql)) return Promise.resolve([[{ id: 1, organization_id: orgId, name: 'María', email: 'm@x.mx', status: 'active' }]]);
+      // Only the customer's own company has a logo in this test.
+      if (/FROM files/.test(sql)) return Promise.resolve([hasLogo && Number(params[0]) === orgId ? [{ id: 2, file_name: 'l.png', file_path: rel, mime_type: 'image/png' }] : []]);
+      return Promise.resolve([[]]);
+    });
+  }
+
+  it('serves the logo of the customer\'s own company', async () => {
+    signedIn(5, { hasLogo: true });
+    const res = await request(app).get('/api/v1/portal/logo').set('Authorization', 'Bearer portal.valid');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.headers['cache-control']).toBe('private, max-age=300');
+    const lookup = db.query.mock.calls.find(([sql]) => /FROM files/.test(sql));
+    expect(lookup[1]).toEqual([5]);
+  });
+
+  it('answers 404 when the company has none', async () => {
+    signedIn(5, { hasLogo: false });
+    const res = await request(app).get('/api/v1/portal/logo').set('Authorization', 'Bearer portal.valid');
+    expect(res.status).toBe(404);
+  });
+
+  it('needs a portal session', async () => {
+    jwt.verify.mockImplementation(() => { throw new Error('bad token'); });
+    const res = await request(app).get('/api/v1/portal/logo');
+    expect(res.status).toBe(401);
+  });
+});
