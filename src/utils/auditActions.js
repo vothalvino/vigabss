@@ -58,6 +58,7 @@ const EXACT = Object.freeze({
   stamp_request: 'billing',
   cancel_cfdi: 'billing',
   client_credit_apply: 'billing',
+  bill_ahead: 'billing',
   tax_report_export: 'billing',
 
   // Contracts, activation, field work.

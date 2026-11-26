@@ -11,6 +11,8 @@
 // Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
 // Client credit (migration 012) has its own tests (tests/clientCredit.test.js);
 // stubbed so these sequenced db mocks only see the billing run's queries.
+// The suspension run also bills ahead whatever credit is left (its own tests cover it).
+jest.mock('../src/services/billAheadService', () => ({ sweepOrg: jest.fn().mockResolvedValue({ clients: 0, invoices: 0, failed: 0 }) }));
 jest.mock('../src/services/clientCreditService', () => ({
   applyCreditQuietly: jest.fn(async () => ({ allocations: [], applied: 0, paid_invoice_ids: [] })),
   sweepOrg: jest.fn(async () => ({ clients: 0, applied: 0, failed: 0 })),

@@ -21,6 +21,7 @@ const { AppError } = require('../utils/errors');
 const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
 const { withResellerNames } = require('../utils/resellerNames');
 const cashReconciliationService = require('../services/cashReconciliationService');
+const billAheadService = require('../services/billAheadService');
 
 const router = Router();
 
@@ -447,7 +448,17 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
     const paidIds = new Set(justPaidInvoices.map((inv) => inv.id));
     const enrichedAllocations = allocations.map((a) => ({ ...a, fully_paid: paidIds.has(a.invoice_id) }));
 
-    res.status(201).json({ data: { allocations: enrichedAllocations, remaining_credit: remainder }, reps });
+    // Money left over is paid ahead: the client's coming months are invoiced
+    // now and paid by it (services/billAheadService.js). Best effort; the
+    // daily sweep retries.
+    let billedAhead = [];
+    if (remainder > 0.005) {
+      const ahead = await billAheadService.billAheadQuietly({ orgId: req.orgId, clientId: payment.client_id, actorUserId: req.user?.id ?? null });
+      billedAhead = ahead.invoices;
+      remainder = Math.max(0, Math.round((remainder - ahead.applied) * 100) / 100);
+    }
+
+    res.status(201).json({ data: { allocations: enrichedAllocations, remaining_credit: remainder, billed_ahead: billedAhead }, reps });
   } catch (err) {
     if (!connReleased) await conn.rollback().catch(() => {});
     next(err);

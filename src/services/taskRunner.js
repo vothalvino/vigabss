@@ -724,6 +724,14 @@ async function runAutoSuspend(organizationId) {
     } catch (err) {
       logger.error({ err, orgId: org.id }, 'Client credit sweep failed');
     }
+    // Credit still held after that is money paid ahead that no hook invoiced
+    // (an online payment, an invoice voided after it was paid): invoice the
+    // coming months with it.
+    try {
+      await require('./billAheadService').sweepOrg(org.id);
+    } catch (err) {
+      logger.error({ err, orgId: org.id }, 'Bill-ahead sweep failed');
+    }
     const results = await suspensionService.evaluateRules(org.id);
     for (const { rule, contract } of results) {
       if (rule.action === 'soft_suspend') {

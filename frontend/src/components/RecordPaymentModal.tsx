@@ -74,9 +74,20 @@ interface AllocationResult {
   fully_paid: boolean;
 }
 
+/** A coming month invoiced now because the money was paid ahead. */
+interface BilledAhead {
+  id: number;
+  invoice_number: string;
+  period_start: string;
+  period_end: string;
+  total: number;
+  paid: boolean;
+}
+
 interface AllocateAutoResult {
   allocations: AllocationResult[];
   remaining_credit: number;
+  billed_ahead?: BilledAhead[];
 }
 
 
@@ -114,6 +125,12 @@ async function createPaymentReq(body: CreatePaymentBody): Promise<number> {
   }
   const { data } = await res.json() as { data: { id: number } };
   return data.id;
+}
+
+async function billAheadReq(clientId: number): Promise<BilledAhead[]> {
+  const res = await authedFetch(`${API_BASE}/clients/${clientId}/bill-ahead`, { method: 'POST' });
+  if (!res.ok) throw new Error('bill ahead failed');
+  return ((await res.json()) as { data: { invoices: BilledAhead[] } }).data.invoices;
 }
 
 async function allocateAutoReq(paymentId: number, invoiceIds: number[]): Promise<AllocateAutoResult> {
@@ -273,6 +290,11 @@ export function RecordPaymentModal({
       if (canAllocate && checkedIds.size > 0) {
         const allocResult = await allocateAutoReq(pid, [...checkedIds]);
         setResult(allocResult);
+      } else if (canAllocate) {
+        // Nothing to pay it against: the money is paid ahead, and the
+        // client's coming months are invoiced with it now.
+        const ahead = await billAheadReq(numericClientId).catch(() => null);
+        setResult(ahead ? { allocations: [], remaining_credit: 0, billed_ahead: ahead } : null);
       } else {
         setResult(null);
       }
@@ -316,7 +338,23 @@ export function RecordPaymentModal({
               {t('recordPayment.remainingCredit', { amount: formatMoney(result.remaining_credit, form.currency) })}
             </p>
           )}
-          {(!result || result.allocations.length === 0) && (
+          {result && (result.billed_ahead?.length ?? 0) > 0 && (
+            <>
+              <p style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 4px' }}>{t('recordPayment.billedAheadTitle')}</p>
+              <ul style={{ margin: '0 0 1rem', padding: 0, listStyle: 'none' }}>
+                {result.billed_ahead?.map((b) => (
+                  <li key={b.id} style={{
+                    display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0',
+                    borderBottom: '1px solid var(--border-strong)', fontSize: '0.85rem',
+                  }}>
+                    <span>{b.invoice_number} · {formatDate(b.period_start)} – {formatDate(b.period_end)}</span>
+                    <span>{b.paid ? t('recordPayment.paidInFull') : t('recordPayment.partiallyPaid')}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {(!result || (result.allocations.length === 0 && (result.billed_ahead?.length ?? 0) === 0)) && (
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
               {t('recordPayment.recordedAsCredit')}
             </p>

@@ -505,6 +505,12 @@ async function collect(req, body, idempotencyKey = null) {
     await afterCommit(() => repService.maybeGenerateRep(paymentId, a.invoice_id, a.amount, orgId, userId), 'REP generation');
   }
 
+  // Money collected beyond what the customer owed is paid ahead: its coming
+  // months are invoiced now and paid by it (services/billAheadService.js).
+  if (Number(responseBody.data.credit) > 0.005) {
+    await afterCommit(() => require('./billAheadService').billAhead({ orgId, clientId: Number(client.id), actorUserId: userId }), 'billing ahead');
+  }
+
   responseBody.data.reconnected = reconnected ? true : (reconnectFailed ? null : false);
   if (storedKey) {
     await afterCommit(() => db.query(

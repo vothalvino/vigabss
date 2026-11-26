@@ -21,6 +21,10 @@
 //   • and as a sweep of every client at the start of the suspension run, so
 //     nobody holding credit is suspended for an invoice it covers.
 //
+// Credit that nothing owed takes up is money paid ahead: billAheadService
+// invoices the client's coming months with it as it arrives, and calls
+// applyCredit here to pay each one.
+//
 // applyCredit takes the client's payments with a remainder, oldest first,
 // and runs the allocate-auto waterfall for each over the client's payable
 // invoices in the payment's currency, oldest first — exactly what staff

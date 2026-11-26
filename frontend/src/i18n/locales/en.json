@@ -1611,6 +1611,7 @@
     }
   },
   "invoiceList": {
+    "billedAhead": "Billed ahead",
     "title": "Invoices",
     "generateInvoice": "+ Generate Invoice",
     "table": {
@@ -1734,6 +1735,7 @@
     "clearResellerFilter": "Show all payments"
   },
   "recordPayment": {
+    "billedAheadTitle": "Paid ahead: these coming months were invoiced now",
     "needsCashier": "Cash needs your open cashier, and you have none open.",
     "openCashier": "Open your cashier",
     "title": "Record Payment",

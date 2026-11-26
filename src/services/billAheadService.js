@@ -60,7 +60,7 @@ async function contractsToBillAhead(orgId, clientId) {
     `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency,
             p.trial_days AS plan_trial_days, p.overage_mode AS plan_overage_mode
        FROM contracts c
-       JOIN plans p ON p.id = c.plan_id AND p.organization_id <=> c.organization_id
+       JOIN plans p ON p.id = c.plan_id AND p.organization_id <=> c.organization_id AND p.deleted_at IS NULL
        JOIN clients cl ON cl.id = c.client_id AND cl.organization_id <=> c.organization_id AND cl.deleted_at IS NULL
       WHERE c.organization_id = ? AND c.client_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
       ORDER BY c.id ASC`,
