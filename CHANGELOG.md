@@ -5,6 +5,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Added: a client chooses to receive formal invoices.** The Mexican fiscal
+  profile of a client has a new box, "Wants formal invoices (CFDI) in this
+  RFC". Automatic stamping now stamps only the invoices of clients with the
+  box on; everyone else's paid invoices go into the period's General Public
+  invoice. A fiscal profile is filled in for the service contract, so having
+  one no longer means a CFDI in the client's name. Clients that already had a
+  profile with their own RFC keep the box on (migration 036). An invoice can
+  still be stamped by hand from its page for any client.
+
+- **Added: the deferred-payment invoices that are not paid.** The CFDI page
+  lists the deferred-payment (PPD) CFDIs still in force whose invoice is
+  unpaid, oldest first, with what is still owed and a cancel button. A PPD
+  CFDI is income only once it is paid, so one that will not be collected
+  should be cancelled.
+
 - **Changed: money paid ahead is invoiced when it arrives.** A payment larger
   than what the client owes used to wait as credit until each month's run
   created an invoice for it. Now the client's coming months are invoiced on

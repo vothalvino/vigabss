@@ -2159,6 +2159,43 @@ describe('Client Sub-Routes — /api/v1/clients', () => {
 
       expect(res.status).toBe(200);
     });
+
+    test('the formal-invoice choice is saved, kept when left out, and never on for the generic RFC', async () => {
+      const profileWrites = () => db.query.mock.calls.filter(([sql]) => /client_mx_profiles/.test(sql));
+      const put = (body) => request(app)
+        .put('/api/v1/clients/1/mx-profile')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ razon_social: 'Empresa SA', regimen_fiscal: '601', codigo_postal_fiscal: '06700', ...body });
+
+      mockAuthUser();
+      Client.getMxProfile.mockResolvedValue({ rfc: 'AAA010101AAA' });
+      db.query.mockResolvedValue([{ affectedRows: 1 }]);
+      expect((await put({ rfc: 'AAA010101AAA', wants_cfdi: true })).status).toBe(200);
+      let [sql, params] = profileWrites().pop();
+      expect(sql).toMatch(/wants_cfdi = COALESCE\(\?, wants_cfdi\)/);
+      expect(params[5]).toBe(1);
+
+      db.query.mockClear();
+      mockAuthUser();
+      db.query.mockResolvedValue([{ affectedRows: 1 }]);
+      expect((await put({ rfc: 'AAA010101AAA' })).status).toBe(200);
+      expect(profileWrites().pop()[1][5]).toBeNull();
+
+      db.query.mockClear();
+      mockAuthUser();
+      db.query.mockResolvedValue([{ affectedRows: 1 }]);
+      expect((await put({ rfc: 'XAXX010101000', wants_cfdi: true })).status).toBe(200);
+      expect(profileWrites().pop()[1][5]).toBe(0);
+
+      db.query.mockClear();
+      mockAuthUser();
+      Client.getMxProfile.mockResolvedValue(null);
+      db.query.mockResolvedValue([{ insertId: 1 }]);
+      expect((await put({ rfc: 'AAA010101AAA', wants_cfdi: true })).status).toBe(200);
+      [sql, params] = profileWrites().pop();
+      expect(sql).toMatch(/INSERT INTO client_mx_profiles/);
+      expect(params[6]).toBe(1);
+    });
   });
 
   describe('GET /api/v1/clients/:id/contracts', () => {

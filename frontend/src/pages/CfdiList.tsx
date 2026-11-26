@@ -15,6 +15,7 @@ import { authedFetch, tokenStore } from '@/api/client';
 import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
 import { formatMoney } from '@/lib/money';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
+import { UnpaidPpdPanel } from '@/components/UnpaidPpdPanel';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -459,6 +460,16 @@ export function CfdiList() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{t('ui.cfdiList.cfdiManagement')}</h1>
       </div>
+
+      <UnpaidPpdPanel
+        onCancel={row => setCancelTarget({
+          id: row.id, uuid: row.uuid ?? null, serie: row.serie ?? null, folio: row.folio == null ? null : String(row.folio),
+          tipo_comprobante: 'I', stamp_date: row.stamp_date ?? null, emisor_rfc: null, emisor_nombre: null,
+          receptor_rfc: row.receptor_rfc ?? null, receptor_nombre: row.receptor_nombre ?? null,
+          subtotal: String(row.total ?? 0), total: String(row.total ?? 0), moneda: row.moneda ?? null,
+          sat_status: 'vigente', cancelled_at: null, pac_provider: null, invoice_id: row.invoice_id ?? null, created_at: '',
+        })}
+      />
 
       {/* Filters row */}
       <div style={{ display: 'flex', gap: 16, marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>

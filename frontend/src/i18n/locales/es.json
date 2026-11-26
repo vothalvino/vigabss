@@ -8312,6 +8312,8 @@
       "cancel": "Cancelar",
       "mxFiscalProfile": "Perfil fiscal MX",
       "mxFiscalProfile2": "Perfil fiscal MX",
+      "wantsCfdi": "Quiere factura (CFDI) con este RFC",
+      "wantsCfdiHint": "Activado: cada factura se timbra a nombre de este cliente. Desactivado: sus facturas pagadas entran en la factura global al Público en General.",
       "loading": "Cargando…",
       "razonSocial": "Razón social *",
       "regimenFiscal": "Régimen fiscal *",
@@ -12021,5 +12023,21 @@
       "verify_token": "Token de verificación",
       "verify_tokenHelp": "Cualquier texto que elijas. Escribe el mismo texto en Meta al configurar el webhook."
     }
+  },
+  "unpaidPpd": {
+    "title": "Facturas de pago diferido sin pagar",
+    "hint": "Un CFDI de pago diferido (PPD) cuenta como ingreso solo cuando se paga. Cancela los que no se van a cobrar.",
+    "none": "Todos los CFDI de pago diferido vigentes están pagados.",
+    "folio": "Folio",
+    "client": "Cliente",
+    "invoice": "Factura",
+    "stamped": "Timbrado",
+    "days": "Días abierto",
+    "total": "Total",
+    "balance": "Por cobrar",
+    "summary": "{{count}} sin pagar, {{balance}} por cobrar",
+    "failed": "No se pudo cargar la lista.",
+    "show": "Mostrar",
+    "hide": "Ocultar"
   }
 }

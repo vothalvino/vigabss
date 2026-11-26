@@ -8312,6 +8312,8 @@
       "cancel": "Cancelar",
       "mxFiscalProfile": "Perfil fiscal MX",
       "mxFiscalProfile2": "Perfil fiscal MX",
+      "wantsCfdi": "Quer fatura formal (CFDI) com este RFC",
+      "wantsCfdiHint": "Ativado: cada fatura é emitida em nome deste cliente. Desativado: as faturas pagas entram na fatura global ao Público em Geral.",
       "loading": "Carregando…",
       "razonSocial": "Razón social *",
       "regimenFiscal": "Régimen fiscal *",
@@ -12021,5 +12023,21 @@
       "verify_token": "Token de verificação",
       "verify_tokenHelp": "Qualquer texto que você escolher. Digite o mesmo texto na Meta ao configurar o webhook."
     }
+  },
+  "unpaidPpd": {
+    "title": "Faturas de pagamento diferido não pagas",
+    "hint": "Um CFDI de pagamento diferido (PPD) conta como receita somente quando é pago. Cancele os que não serão cobrados.",
+    "none": "Todos os CFDI de pagamento diferido vigentes estão pagos.",
+    "folio": "Folio",
+    "client": "Cliente",
+    "invoice": "Fatura",
+    "stamped": "Emitido",
+    "days": "Dias em aberto",
+    "total": "Total",
+    "balance": "A receber",
+    "summary": "{{count}} não pagos, {{balance}} a receber",
+    "failed": "Não foi possível carregar a lista.",
+    "show": "Mostrar",
+    "hide": "Ocultar"
   }
 }

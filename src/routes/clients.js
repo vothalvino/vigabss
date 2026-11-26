@@ -335,19 +335,24 @@ router.put('/:id/mx-profile', requirePermission('clients.update'), validate(upda
     // curp is optional — an absent key destructures to undefined, and mysql2
     // rejects undefined bind params outright (500). Normalize to NULL.
     const { rfc, curp = null, razon_social, regimen_fiscal, codigo_postal_fiscal } = req.body;
+    // The generic RFC is General Public by definition: it cannot ask for
+    // invoices in its own name. Left out of the request, the choice is kept.
+    const generic = rfc === 'XAXX010101000';
+    const wantsCfdi = generic ? 0 : (req.body.wants_cfdi === undefined ? null : (req.body.wants_cfdi ? 1 : 0));
     const existing = await Client.getMxProfile(req.params.id, req.orgId);
 
     if (existing) {
       await db.query(
         `UPDATE client_mx_profiles SET rfc = ?, curp = ?, razon_social = ?,
-         regimen_fiscal = ?, codigo_postal_fiscal = ? WHERE client_id = ? AND deleted_at IS NULL`,
-        [rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal, req.params.id],
+         regimen_fiscal = ?, codigo_postal_fiscal = ?, wants_cfdi = COALESCE(?, wants_cfdi)
+         WHERE client_id = ? AND deleted_at IS NULL`,
+        [rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal, wantsCfdi, req.params.id],
       );
     } else {
       await db.query(
-        `INSERT INTO client_mx_profiles (client_id, rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.params.id, rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal],
+        `INSERT INTO client_mx_profiles (client_id, rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal, wants_cfdi)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [req.params.id, rfc, curp, razon_social, regimen_fiscal, codigo_postal_fiscal, wantsCfdi || 0],
       );
     }
 

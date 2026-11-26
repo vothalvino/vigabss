@@ -16,6 +16,7 @@ const { globalPeriodProblem } = require('../utils/satCatalogs');
 const cfdiService = require('../services/cfdiService');
 const invoiceCfdiService = require('../services/invoiceCfdiService');
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 
 const router = Router();
 // PUT /:id is a DRAFT-only edit (BIL-10). It used to run ctrl.update with no
@@ -111,6 +112,36 @@ router.get('/environment', requirePermission('cfdi_documents.view'), async (req,
     });
   } catch (err) { next(err); }
 });
+// Deferred-payment (PPD) invoice CFDIs that are still in force while their
+// invoice is unpaid, oldest first. A PPD CFDI counts as income only when it is
+// paid, so one that will not be collected should be cancelled. Before '/:id'.
+router.get('/unpaid-ppd', requirePermission('cfdi_documents.view'), async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT cd.id, cd.uuid, cd.serie, cd.folio, cd.stamp_date, cd.total, cd.moneda,
+              cd.receptor_rfc, cd.receptor_nombre, cd.client_id,
+              i.id AS invoice_id, i.invoice_number, i.status AS invoice_status, i.due_date,
+              (SELECT COALESCE(SUM(pa.amount), 0) FROM payment_allocations pa
+                WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL) AS amount_paid,
+              DATEDIFF(?, DATE(cd.stamp_date)) AS days_open
+         FROM cfdi_documents cd
+         JOIN invoices i ON i.id = cd.invoice_id AND i.organization_id = cd.organization_id AND i.deleted_at IS NULL
+        WHERE cd.organization_id = ? AND cd.tipo_comprobante = 'I' AND cd.metodo_pago = 'PPD'
+          AND cd.sat_status = 'vigente' AND i.status <> 'paid'
+        ORDER BY cd.stamp_date, cd.id
+        LIMIT 500`,
+      [businessToday(), req.orgId],
+    );
+    const data = rows.map(r => ({
+      ...r,
+      total: Number(r.total), amount_paid: Number(r.amount_paid),
+      balance: Math.round((Number(r.total) - Number(r.amount_paid)) * 100) / 100,
+      days_open: Number(r.days_open),
+    }));
+    res.json({ data, meta: { total: data.length, balance: Math.round(data.reduce((n, r) => n + r.balance, 0) * 100) / 100 } });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
 router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument, { strip: false }), assertGlobalPeriod, assertLinkedRecordsOwned, ctrl.create);
 router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);

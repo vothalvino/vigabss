@@ -61,8 +61,9 @@ function makeConn() {
 }
 
 // The invoice already has ORIGINAL (vigente); the fixtures answer like the DB.
-function routeDb({ autoStamp = 0, liveRep = false } = {}) {
+function routeDb({ autoStamp = 0, liveRep = false, wantsCfdi = 1 } = {}) {
   db.query.mockImplementation(async (sql, params) => {
+    if (/SELECT p\.wants_cfdi/.test(sql)) return [wantsCfdi === null ? [] : [{ wants_cfdi: wantsCfdi }]];
     if (/SELECT cfdi_auto_stamp FROM organization_mx_profiles/.test(sql)) return [[{ cfdi_auto_stamp: autoStamp }]];
     if (/SELECT id, invoice_id, tipo_comprobante, sat_status, uuid FROM cfdi_documents WHERE id = \?/.test(sql)) return [[{ ...ORIGINAL }]];
     if (/FROM cfdi_payment_complement_items/.test(sql)) return [liveRep ? [{ uuid: 'REP-1' }] : []];
@@ -133,12 +134,23 @@ describe('automatic stamping of generated invoices', () => {
   test('on: the invoice is stamped', async () => {
     db.query.mockImplementation(async (sql) => {
       if (/SELECT cfdi_auto_stamp/.test(sql)) return [[{ cfdi_auto_stamp: 1 }]];
+      if (/SELECT p\.wants_cfdi/.test(sql)) return [[{ wants_cfdi: 1 }]];
       if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];
       if (/FROM invoice_items/.test(sql)) return [ITEMS.map(i => ({ ...i }))];
       return [[]];
     });
     expect(await invoiceCfdiService.autoStampInvoice(60, 1)).toMatchObject({ attempted: true, stamped: true, cfdi_document_id: 900 });
     expect(cfdiService.stamp).toHaveBeenCalledWith(900, { userId: null });
+  });
+
+  test('on, but the client did not ask for formal invoices: nothing is stamped', async () => {
+    routeDb({ autoStamp: 1, wantsCfdi: 0 });
+    expect(await invoiceCfdiService.autoStampInvoice(60, 1)).toEqual({ attempted: false, reason: 'not_requested' });
+    // A client with no fiscal profile at all is the same case.
+    routeDb({ autoStamp: 1, wantsCfdi: null });
+    expect(await invoiceCfdiService.autoStampInvoice(60, 1)).toEqual({ attempted: false, reason: 'not_requested' });
+    expect(db.getConnection).not.toHaveBeenCalled();
+    expect(cfdiService.stamp).not.toHaveBeenCalled();
   });
 
   test('a rerun does not stamp twice, and a refusal is returned rather than thrown', async () => {

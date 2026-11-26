@@ -8318,6 +8318,8 @@
       "cancel": "Cancel",
       "mxFiscalProfile": "MX fiscal profile",
       "mxFiscalProfile2": "MX Fiscal Profile",
+      "wantsCfdi": "Wants formal invoices (CFDI) in this RFC",
+      "wantsCfdiHint": "When on, each invoice is stamped for this client. When off, the paid invoices go into the General Public invoice.",
       "loading": "Loading…",
       "razonSocial": "Razón social *",
       "regimenFiscal": "Régimen fiscal *",
@@ -12027,5 +12029,21 @@
       "verify_token": "Verify token",
       "verify_tokenHelp": "Any text you choose. Enter the same text in Meta when you set the webhook."
     }
+  },
+  "unpaidPpd": {
+    "title": "Deferred-payment invoices not paid",
+    "hint": "A deferred-payment (PPD) CFDI counts as income only when it is paid. Cancel the ones that will not be collected.",
+    "none": "Every deferred-payment CFDI in force is paid.",
+    "folio": "Folio",
+    "client": "Client",
+    "invoice": "Invoice",
+    "stamped": "Stamped",
+    "days": "Days open",
+    "total": "Total",
+    "balance": "Still owed",
+    "summary": "{{count}} unpaid, {{balance}} still owed",
+    "failed": "The list could not be loaded.",
+    "show": "Show",
+    "hide": "Hide"
   }
 }
