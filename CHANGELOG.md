@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.46 — 2026-11-25
+
 - **Added: a company can upload its logo.** The organization screen has a
   "Company logo" box to upload, replace or remove one image (PNG, JPG or
   WebP, up to 512 KB). The company's customers see it as the browser tab icon
