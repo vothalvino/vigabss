@@ -327,12 +327,12 @@ function groupLabel(user: User, names: Map<number, string>): string {
 
 function roleBg(role: string): { bg: string; color: string } {
   const map: Record<string, { bg: string; color: string }> = {
-    admin:      { bg: '#fee2e2', color: '#991b1b' },
-    billing:    { bg: '#dbeafe', color: '#1e40af' },
-    technician: { bg: '#d1fae5', color: '#065f46' },
+    admin:      { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    billing:    { bg: 'var(--info-soft)', color: 'var(--info)' },
+    technician: { bg: 'var(--success-soft)', color: 'var(--success)' },
     support:    { bg: '#ede9fe', color: '#5b21b6' },
   };
-  return map[role] ?? { bg: '#f3f4f6', color: '#374151' };
+  return map[role] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
 }
 
 // `role` drives the badge color (the kind mirror); `label` is the text shown
@@ -354,8 +354,8 @@ function StatusBadge({ status }: { status: string }) {
   const active = status === 'active';
   return (
     <span style={{
-      background: active ? '#d1fae5' : '#f3f4f6',
-      color: active ? '#065f46' : '#6b7280',
+      background: active ? 'var(--success-soft)' : 'var(--bg-subtle)',
+      color: active ? 'var(--success)' : 'var(--text-muted)',
       padding: '2px 8px', borderRadius: 12,
       fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize',
     }}>
@@ -403,7 +403,7 @@ function OrgCheckboxList({ organizations, selected, onToggle, loading, disabled 
         )}
       </div>
       {!loading && selected.size === 0 && (
-        <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: 4 }}>
+        <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4 }}>
           {t('userList.newUserModal.orgHint')}
         </div>
       )}
@@ -929,7 +929,7 @@ function ArchivedUsersTab({
     <div>
       {notice && (
         <div style={{
-          background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af',
+          background: 'var(--info-soft)', border: '1px solid #bfdbfe', color: 'var(--info)',
           borderRadius: 6, padding: '8px 12px', marginBottom: '1rem',
           fontSize: '0.83rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
         }}>
@@ -937,7 +937,7 @@ function ArchivedUsersTab({
           <button
             type="button"
             aria-label={t('userList.archivedTab.dismissNotice')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: '1rem', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--info)', fontWeight: 700, fontSize: '1rem', lineHeight: 1 }}
             onClick={() => setNotice(null)}
           >
             ×
@@ -946,8 +946,8 @@ function ArchivedUsersTab({
       )}
       {err && <div style={errStyle}>{err}</div>}
 
-      {isLoading && <p style={{ color: '#888' }}>{t('userList.archivedTab.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('userList.archivedTab.error')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('userList.archivedTab.loading')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('userList.archivedTab.error')}</p>}
       {!isLoading && !error && (
         <>
           <div style={{ overflowX: 'auto' }}>
@@ -964,7 +964,7 @@ function ArchivedUsersTab({
               <tbody>
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
+                    <td colSpan={5} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                       {t('userList.archivedTab.empty')}
                     </td>
                   </tr>
@@ -974,7 +974,7 @@ function ArchivedUsersTab({
                     <td style={td}>
                       <span style={{ fontWeight: 600 }}>{u.first_name} {u.last_name}</span>
                     </td>
-                    <td style={{ ...td, color: '#4b5563' }}>{u.email}</td>
+                    <td style={{ ...td, color: 'var(--text-secondary)' }}>{u.email}</td>
                     <td style={td}>{groupLabel(u, groupNames)}</td>
                     <td style={td}>{fmt(u.deleted_at)}</td>
                     <td style={td}>
@@ -1088,7 +1088,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
         {step === 'init' && (
           <>
             <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.enableTwoFactorAuthentication')}</h3>
-            <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>
               {t('ui.userList.twoFactorAuthenticationAddsAn')}
             </p>
             {err && <div style={errStyle}>{err}</div>}
@@ -1104,33 +1104,33 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
         {step === 'scan' && setupData && (
           <>
             <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.scanOrCopyTheSecret')}</h3>
-            <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
               {t('ui.userList.openYourAuthenticatorAppAnd')}
             </p>
 
             <div style={{
-              background: '#f9fafb', border: '1px solid #e5e7eb',
+              background: 'var(--bg-body)', border: '1px solid var(--border)',
               borderRadius: 8, padding: '0.75rem', marginBottom: '0.75rem',
             }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
                 {t('ui.userList.secretKeyManualEntry')}
               </div>
               <div style={{
                 fontFamily: 'monospace', fontSize: '0.95rem', letterSpacing: 1,
-                wordBreak: 'break-all', color: '#1f2937',
+                wordBreak: 'break-all', color: 'var(--text-primary)',
               }}>
                 {setupData.secret}
               </div>
             </div>
 
             <div style={{
-              background: '#f9fafb', border: '1px solid #e5e7eb',
+              background: 'var(--bg-body)', border: '1px solid var(--border)',
               borderRadius: 8, padding: '0.75rem', marginBottom: '1rem',
             }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
                 {t('ui.userList.otpauthUrlForQrScanning')}
               </div>
-              <div style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: '#374151' }}>
+              <div style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: 'var(--text-secondary)' }}>
                 {setupData.uri}
               </div>
               <button
@@ -1167,16 +1167,16 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
 
         {step === 'done' && (
           <>
-            <h3 style={{ margin: '0 0 0.75rem', color: '#065f46' }}>{t('ui.userList.t2faEnabled')}</h3>
-            <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
+            <h3 style={{ margin: '0 0 0.75rem', color: 'var(--success)' }}>{t('ui.userList.t2faEnabled')}</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>
               {t('ui.userList.twoFactorAuthenticationIsNow')}
             </p>
             {backupCodes.length > 0 && (
               <div style={{
-                background: '#f9fafb', border: '1px solid #e5e7eb',
+                background: 'var(--bg-body)', border: '1px solid var(--border)',
                 borderRadius: 8, padding: '0.75rem', marginBottom: '1rem',
               }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   {t('ui.userList.backupCodesSaveTheseNow')}
                 </div>
                 <div style={{
@@ -1184,7 +1184,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
                   gap: 4, fontFamily: 'monospace', fontSize: '0.88rem',
                 }}>
                   {backupCodes.map((c, i) => (
-                    <span key={i} style={{ background: '#fff', padding: '3px 8px', borderRadius: 4, border: '1px solid #e5e7eb' }}>
+                    <span key={i} style={{ background: 'var(--bg-card)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>
                       {c}
                     </span>
                   ))}
@@ -1230,7 +1230,7 @@ function TwoFADisableModal({ onClose, onDisabled }: TwoFADisableModalProps) {
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 420 }}>
         <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.disableTwoFactorAuthentication')}</h3>
-        <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>
           {t('ui.userList.enterTheCurrent6Digit')}
         </p>
         <label style={labelStyle}>{t('ui.userList.currentTotpCode')}</label>
@@ -1345,11 +1345,11 @@ export function UserList() {
         <h1 style={{ margin: 0, fontSize: '1.4rem' }}>🔑 {t('userList.title')}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           {myTotpEnabled ? (
-            <button style={{ ...btnSecondary, borderColor: '#dc2626', color: '#dc2626' }} onClick={() => setShow2FADisable(true)}>
+            <button style={{ ...btnSecondary, borderColor: '#dc2626', color: 'var(--danger)' }} onClick={() => setShow2FADisable(true)}>
               🔐 {t('userList.disableMyTwoFA')}
             </button>
           ) : (
-            <button style={{ ...btnSecondary, borderColor: '#059669', color: '#059669' }} onClick={() => setShow2FASetup(true)}>
+            <button style={{ ...btnSecondary, borderColor: '#059669', color: 'var(--success)' }} onClick={() => setShow2FASetup(true)}>
               🔐 {t('userList.enableMyTwoFA')}
             </button>
           )}
@@ -1361,9 +1361,9 @@ export function UserList() {
 
       {/* 2FA note */}
       <div style={{
-        background: '#fffbeb', border: '1px solid #fde68a',
+        background: 'var(--warning-soft)', border: '1px solid #fde68a',
         borderRadius: 6, padding: '8px 12px', marginBottom: '1rem',
-        fontSize: '0.8rem', color: '#92400e',
+        fontSize: '0.8rem', color: 'var(--warning)',
       }}>
         💡 <strong>{t('ui.userList.twoFactorAuthentication')}</strong> {t('ui.userList.isSelfServiceEachUser')}
       </div>
@@ -1425,8 +1425,8 @@ export function UserList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>{t('userList.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('userList.error')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('userList.loading')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('userList.error')}</p>}
       {!isLoading && !error && (
         <>
           <div style={{ overflowX: 'auto' }}>
@@ -1446,7 +1446,7 @@ export function UserList() {
               <tbody>
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
+                    <td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                       {t('userList.noUsers')}
                     </td>
                   </tr>
@@ -1454,14 +1454,14 @@ export function UserList() {
                 {users.map(u => (
                   <tr
                     key={u.id}
-                    style={{ background: u.id === currentUser?.id ? '#f0f9ff' : undefined }}
+                    style={{ background: u.id === currentUser?.id ? 'rgba(14, 165, 233, 0.12)' : undefined }}
                   >
                     <td style={td}>
                       <span style={{ fontWeight: 600 }}>
                         {u.first_name} {u.last_name}
                       </span>
                       {u.id === currentUser?.id && (
-                        <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#6b7280' }}>{t('ui.userList.you')}</span>
+                        <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('ui.userList.you')}</span>
                       )}
                       {Boolean(u.has_global_organization_access) && (
                         <span
@@ -1476,13 +1476,13 @@ export function UserList() {
                         </span>
                       )}
                     </td>
-                    <td style={{ ...td, color: '#4b5563' }}>{u.email}</td>
+                    <td style={{ ...td, color: 'var(--text-secondary)' }}>{u.email}</td>
                     <td style={td}><RoleBadge role={u.role} label={groupLabel(u, groupNames)} /></td>
                     <td style={td}><StatusBadge status={u.status} /></td>
                     <td style={td}>
                       <span style={{
-                        background: u.totp_enabled ? '#d1fae5' : '#f3f4f6',
-                        color: u.totp_enabled ? '#065f46' : '#9ca3af',
+                        background: u.totp_enabled ? 'var(--success-soft)' : 'var(--bg-subtle)',
+                        color: u.totp_enabled ? 'var(--success)' : 'var(--text-muted)',
                         padding: '2px 8px', borderRadius: 12,
                         fontSize: '0.72rem', fontWeight: 600,
                       }}>
@@ -1509,7 +1509,7 @@ export function UserList() {
                         <button
                           style={{
                             ...btnSecondary, fontSize: '0.78rem', padding: '4px 10px',
-                            borderColor: '#dc2626', color: '#dc2626',
+                            borderColor: '#dc2626', color: 'var(--danger)',
                             ...((u.id === currentUser?.id || !canManageVisibleRow(u))
                               ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
                           }}
@@ -1646,6 +1646,6 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 6, fontSize: '0.85rem', boxSizing: 'border-box',
 };
 const errStyle: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '8px 12px', borderRadius: 6, fontSize: '0.83rem', marginBottom: 8,
 };

@@ -52,12 +52,12 @@ async function fetchConcessionTitles(page: number): Promise<ConcessionTitleRespo
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    expired: { bg: '#fee2e2', color: '#991b1b' },
-    revoked: { bg: '#fee2e2', color: '#991b1b' },
-    pending_renewal: { bg: '#fef3c7', color: '#92400e' },
+    active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    expired: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    revoked: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    pending_renewal: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{

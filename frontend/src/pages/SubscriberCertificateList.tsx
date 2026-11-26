@@ -77,9 +77,9 @@ async function fetchCerts(page: number): Promise<CertListResponse> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  expired: { bg: '#fee2e2', color: '#991b1b' },
-  revoked: { bg: '#f3f4f6', color: '#6b7280' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  expired: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  revoked: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
 };
 
 function expiryWarning(validUntil: string, status: string): string | null {
@@ -283,7 +283,7 @@ export function SubscriberCertificateList() {
                         </button>
                       )}
                       {cert.status === 'revoked' && cert.revocation_reason && (
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           {cert.revocation_reason}
                         </span>
                       )}
@@ -367,11 +367,11 @@ const s: Record<string, CSSProperties> = {
   empty: { color: 'var(--text-faint)', fontStyle: 'italic', marginTop: '2rem', textAlign: 'center' },
   tableWrap: { overflowX: 'auto', background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '0.65rem 0.9rem', background: '#f0f2f8', borderBottom: '2px solid #e0e3ef', textAlign: 'left', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' },
+  th: { padding: '0.65rem 0.9rem', background: 'var(--bg-subtle)', borderBottom: '2px solid #e0e3ef', textAlign: 'left', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' },
   tr: {},
   td: { padding: '0.6rem 0.9rem', borderBottom: '1px solid #f0f2f8', verticalAlign: 'middle' },
   revokeBtn: {
-    padding: '3px 10px', background: 'transparent', border: '1px solid #dc2626', color: '#dc2626',
+    padding: '3px 10px', background: 'transparent', border: '1px solid #dc2626', color: 'var(--danger)',
     borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem',
   },
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1rem' },
@@ -381,7 +381,7 @@ const s: Record<string, CSSProperties> = {
   dialog: { background: 'var(--bg-card)', borderRadius: 8, padding: '1.5rem 2rem', width: 480, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.2)' },
   dialogTitle: { margin: '0 0 0.75rem', fontSize: '1.1rem' },
   dialogBody: { margin: '0 0 1rem', lineHeight: 1.5 },
-  note: { margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, background: '#f9fafb', padding: '0.6rem 0.8rem', borderRadius: 4, borderLeft: '3px solid var(--accent)' },
+  note: { margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, background: 'var(--bg-body)', padding: '0.6rem 0.8rem', borderRadius: 4, borderLeft: '3px solid var(--accent)' },
   dialogActions: { display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' },
   cancelBtn: { padding: '7px 16px', background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem' },
   confirmBtn: { padding: '7px 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem' },

@@ -415,7 +415,7 @@ function AgingTab() {
                     <td style={styles.td}>{inv.name}</td>
                     <td style={styles.td}>{currency(inv.total, inv.currency)}</td>
                     <td style={styles.td}>{inv.due_date?.slice(0, 10)}</td>
-                    <td style={{ ...styles.td, color: inv.days_overdue > 60 ? '#e74c3c' : '#555' }}>
+                    <td style={{ ...styles.td, color: inv.days_overdue > 60 ? '#e74c3c' : 'var(--text-secondary)' }}>
                       {inv.days_overdue <= 0 ? '—' : `${inv.days_overdue}d`}
                     </td>
                     <td style={styles.td}>
@@ -427,7 +427,7 @@ function AgingTab() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noOverdueInvoices')}</td></tr>
+                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>{t('ui.reports.noOverdueInvoices')}</td></tr>
               )}
             </tbody>
           </table>
@@ -564,7 +564,7 @@ function IftTab() {
         </thead>
         <tbody>
           {rows.map(r => {
-            const st = IFT_STATUSES[r.status] ?? { label: r.status, color: '#999' };
+            const st = IFT_STATUSES[r.status] ?? { label: r.status, color: 'var(--text-muted)' };
             return (
               <tr key={r.id} onClick={() => setSelected(r)} style={{ cursor: 'pointer' }}>
                 <td style={styles.td}>{r.report_period ?? '—'}</td>
@@ -578,7 +578,7 @@ function IftTab() {
             );
           })}
           {rows.length === 0 && !isFetching && (
-            <tr><td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noIftReportsYet')}</td></tr>
+            <tr><td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>{t('ui.reports.noIftReportsYet')}</td></tr>
           )}
         </tbody>
       </table>
@@ -606,7 +606,7 @@ function IftTab() {
               ['Created', selected.created_at?.slice(0, 10)],
             ].map(([k, v]) => (
               <div key={String(k)} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ color: '#999', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}</span>
                 <span style={{ fontWeight: 500 }}>{v}</span>
               </div>
             ))}
@@ -739,7 +739,7 @@ function TechnicianTab() {
                 </tr>
               ))}
               {techs.length === 0 && (
-                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noDataForThisPeriod')}</td></tr>
+                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>{t('ui.reports.noDataForThisPeriod')}</td></tr>
               )}
             </tbody>
           </table>
@@ -757,9 +757,9 @@ function TechnicianTab() {
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
     <div style={{ ...styles.kpiCard, borderTop: `4px solid ${color}` }}>
-      <div style={{ fontSize: '0.75rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: '1.4rem', fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: '0.75rem', color: '#999', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>
     </div>
   );
 }
@@ -789,7 +789,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <label style={{ fontSize: '0.8rem', color: '#555', fontWeight: 600 }}>{label}</label>
+      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</label>
       {children}
     </div>
   );
@@ -1023,7 +1023,7 @@ function ComplianceTab() {
             <div style={{ ...styles.kpiCard, maxWidth: 560, marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 4 }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                     {t('reports.connectionLogging.activeNas')}
                   </div>
                   <span style={{
@@ -1034,7 +1034,7 @@ function ComplianceTab() {
                   </span>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 4 }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                     {t('reports.connectionLogging.sessionAccountingConfigured')}
                   </div>
                   <span style={{
@@ -1045,7 +1045,7 @@ function ComplianceTab() {
                   </span>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: 4 }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                     {t('reports.connectionLogging.operationalStatus')}
                   </div>
                   <span style={{
@@ -1198,7 +1198,7 @@ function ScheduledTab() {
           ))}
           {rows.length === 0 && !isFetching && (
             <tr>
-              <td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
+              <td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>
                 {t('ui.reports.noScheduledReports')}
               </td>
             </tr>
@@ -1393,7 +1393,7 @@ function CustomTab() {
           ))}
           {rows.length === 0 && !isFetching && (
             <tr>
-              <td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
+              <td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>
                 {t('ui.reports.noCustomReports')}
               </td>
             </tr>
@@ -1425,7 +1425,7 @@ function CustomTab() {
                 ))}
                 {execResult.rows.length === 0 && (
                   <tr>
-                    <td colSpan={execResult.fields.length} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
+                    <td colSpan={execResult.fields.length} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>
                       {t('ui.reports.noRowsReturned')}
                     </td>
                   </tr>
@@ -1610,7 +1610,7 @@ function WidgetsTab() {
           ))}
           {rows.length === 0 && !isFetching && (
             <tr>
-              <td colSpan={8} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
+              <td colSpan={8} style={{ ...styles.td, textAlign: 'center', color: 'var(--text-muted)' }}>
                 {t('ui.reports.noWidgetsConfigured')}
               </td>
             </tr>
@@ -1842,7 +1842,7 @@ const styles = {
   } as CSSProperties,
   btn: {
     padding: '6px 14px',
-    background: '#f0f0f0',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border)',
     borderRadius: 4,
     cursor: 'pointer',
@@ -1860,15 +1860,15 @@ const styles = {
   } as CSSProperties,
   btnSm: {
     padding: '5px 12px',
-    background: '#f5f5f5',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border)',
     borderRadius: 4,
     cursor: 'pointer',
     fontSize: '0.85rem',
   } as CSSProperties,
   exportError: {
-    background: '#fee2e2',
-    color: '#991b1b',
+    background: 'var(--danger-soft)',
+    color: 'var(--danger)',
     padding: '8px 12px',
     borderRadius: 6,
     marginBottom: 12,
@@ -1902,7 +1902,7 @@ const styles = {
   th: {
     textAlign: 'left' as const,
     padding: '8px 10px',
-    background: '#f5f5f5',
+    background: 'var(--bg-subtle)',
     borderBottom: '2px solid #e0e0e0',
     fontWeight: 600,
     color: 'var(--text-secondary)',

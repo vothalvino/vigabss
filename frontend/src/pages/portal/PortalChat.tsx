@@ -143,7 +143,7 @@ export function PortalChat() {
       {escalated && ticketId && (
         <div style={styles.escalatedBanner}>
           {t('portalChat.escalated')}
-          {' '}<Link to={`/portal/tickets/${ticketId}`} style={{ color: '#1e40af', fontWeight: 600 }}>
+          {' '}<Link to={`/portal/tickets/${ticketId}`} style={{ color: 'var(--info)', fontWeight: 600 }}>
             {t('portalChat.viewTicket', { id: ticketId })}
           </Link>
         </div>
@@ -201,8 +201,8 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.75rem' },
   startCard: { background: 'var(--bg-card)', borderRadius: 8, padding: '1.5rem', boxShadow: '0 0 0 1px var(--border)', maxWidth: 500 },
   startBtn: { padding: '0.6rem 1.5rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.95rem', fontWeight: 600 },
-  startError: { padding: '0.6rem 0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: 4, fontSize: '0.875rem', marginBottom: '0.75rem' },
-  escalatedBanner: { background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem' },
+  startError: { padding: '0.6rem 0.75rem', background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 4, fontSize: '0.875rem', marginBottom: '0.75rem' },
+  escalatedBanner: { background: 'var(--info-soft)', color: 'var(--info)', borderRadius: 6, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem' },
   chatBox: { background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', display: 'flex', flexDirection: 'column', height: 480 },
   messages: { flex: 1, overflowY: 'auto' as const, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
   bubble: { maxWidth: '75%', borderRadius: 12, padding: '0.5rem 0.75rem' },

@@ -164,13 +164,13 @@ const CATEGORIES = ['technical', 'billing', 'installation', 'general'];
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    open:        { bg: '#dbeafe', color: '#1e40af' },
+    open:        { bg: 'var(--info-soft)', color: 'var(--info)' },
     in_progress: { bg: '#ede9fe', color: '#5b21b6' },
-    waiting:     { bg: '#fef9c3', color: '#854d0e' },
-    resolved:    { bg: '#d1fae5', color: '#065f46' },
-    closed:      { bg: '#f3f4f6', color: '#374151' },
+    waiting:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    resolved:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    closed:      { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -184,12 +184,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function PriorityBadge({ priority }: { priority: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    low:      { bg: '#f0fdf4', color: '#15803d' },
+    low:      { bg: 'var(--success-soft)', color: 'var(--success)' },
     medium:   { bg: '#fff7ed', color: '#c2410c' },
-    high:     { bg: '#fef2f2', color: '#b91c1c' },
-    critical: { bg: '#fee2e2', color: '#7f1d1d' },
+    high:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    critical: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[priority] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[priority] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -447,13 +447,13 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
   return (
     <div
       style={{
-        background: isInternal ? '#fef9c3' : '#f9fafb',
+        background: isInternal ? 'var(--warning-soft)' : 'var(--bg-body)',
         border: `1px solid ${isInternal ? '#fde047' : '#e5e7eb'}`,
         borderRadius: 8, padding: '10px 14px',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#374151' }}>
+        <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
           {/* FE-26: a client's portal or chat reply used to show as "System". */}
           {comment.author_type === 'client'
             ? t('ticketDetail.authorClient', { name: comment.author_name || '' })
@@ -469,7 +469,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
               {t('ui.ticketDetail.internal')}
             </span>
           )}
-          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{fmt(comment.created_at)}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(comment.created_at)}</span>
         </div>
       </div>
 
@@ -500,12 +500,12 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
         </>
       ) : (
         <>
-          <p style={{ margin: 0, fontSize: '0.87rem', color: '#374151', whiteSpace: 'pre-wrap' }}>
+          <p style={{ margin: 0, fontSize: '0.87rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
             {comment.body}
           </p>
           {confirmDelete ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-              <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>{t('ui.ticketDetail.deleteThisComment')}</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{t('ui.ticketDetail.deleteThisComment')}</span>
               <button
                 style={commentDeleteBtn}
                 disabled={deleteMutation.isPending}
@@ -554,7 +554,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
       {/* Existing comments */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
         {comments.length === 0 && (
-          <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>{t('ui.ticketDetail.noCommentsYet')}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ui.ticketDetail.noCommentsYet')}</p>
         )}
         {comments.map(c => (
           <CommentItem key={c.id} ticketId={ticketId} comment={c} onChanged={onAdded} />
@@ -562,7 +562,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
       </div>
 
       {/* Add comment form */}
-      {canComment && <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
+      {canComment && <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
         <label htmlFor={`${commentId}-body`} style={labelStyle}>{t('ui.ticketDetail.addComment')}</label>
         {err && <div style={errStyle}>{err}</div>}
         <textarea
@@ -573,7 +573,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
           placeholder={t('ui.ticketDetail.writeAComment')}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={isInternal}
@@ -772,7 +772,7 @@ function AiSuggestedReplyPanel({ ticket, onReplySent }: AiSuggestedReplyPanelPro
       aria-label={t('aiSuggestedReply.panelLabel', 'AI Suggested Reply')}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <h3 style={{ ...cardTitle, margin: 0, color: '#1e40af' }}>
+        <h3 style={{ ...cardTitle, margin: 0, color: 'var(--info)' }}>
           🤖 {t('aiSuggestedReply.title', 'AI Suggested Reply')}
         </h3>
         {hasDraft && !actionDone && (
@@ -792,7 +792,7 @@ function AiSuggestedReplyPanel({ ticket, onReplySent }: AiSuggestedReplyPanelPro
       {/* ── No draft yet ── */}
       {!hasDraft && !actionDone && (
         <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-          <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 12 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 12 }}>
             {t('aiSuggestedReply.noReply', 'No AI draft for this ticket yet.')}
           </p>
           <button
@@ -811,7 +811,7 @@ function AiSuggestedReplyPanel({ ticket, onReplySent }: AiSuggestedReplyPanelPro
         <>
           {/* Metadata row */}
           {latestLog && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10, fontSize: '0.78rem', color: '#6b7280' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               {latestLog.classification && (
                 <span style={{ background: '#ede9fe', color: '#5b21b6', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
                   {latestLog.classification}
@@ -841,7 +841,7 @@ function AiSuggestedReplyPanel({ ticket, onReplySent }: AiSuggestedReplyPanelPro
           ) : (
             <div style={{
               marginTop: 12, padding: '10px 14px',
-              background: '#eff6ff', border: '1px solid #bfdbfe',
+              background: 'var(--info-soft)', border: '1px solid #bfdbfe',
               borderRadius: 8, fontSize: '0.87rem', color: '#1e3a5f',
               whiteSpace: 'pre-wrap', lineHeight: 1.6,
             }}
@@ -890,7 +890,7 @@ function AiSuggestedReplyPanel({ ticket, onReplySent }: AiSuggestedReplyPanelPro
                   ✏️ {t('aiSuggestedReply.editAndSend', 'Edit & Send')}
                 </button>
                 <button
-                  style={{ ...btnSecondary, color: '#991b1b', borderColor: '#fca5a5' }}
+                  style={{ ...btnSecondary, color: 'var(--danger)', borderColor: '#fca5a5' }}
                   disabled={isFinalizing}
                   onClick={() => finalizeMutation.mutate({ action: 'discarded', text: '' })}
                   aria-label={t('aiSuggestedReply.discard', 'Discard')}
@@ -1159,7 +1159,7 @@ function RelationsPanel({ ticketId }: { ticketId: number }) {
       </div>
 
       {showForm && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.relationsRelatedId')}</label>
           <input id={`${fieldId}-1`}
@@ -1185,14 +1185,14 @@ function RelationsPanel({ ticketId }: { ticketId: number }) {
       )}
 
       {relations.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.relationsNone')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.relationsNone')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {relations.map(rel => {
             const other = rel.ticket_id_a === ticketId ? rel.ticket_id_b : rel.ticket_id_a;
             return (
               <li key={rel.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-                <span style={{ background: '#f3f4f6', color: '#374151', padding: '2px 8px', borderRadius: 10 }}>{typeLabel(rel.relation_type)}</span>
+                <span style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 10 }}>{typeLabel(rel.relation_type)}</span>
                 <span>{t('ui.ticketDetail.ticket')}{other}</span>
                 <button
                   style={{ marginLeft: 'auto', ...commentDeleteBtn, fontSize: '0.75rem', padding: '2px 8px' }}
@@ -1282,7 +1282,7 @@ function TimeLogsPanel({ ticketId }: { ticketId: number }) {
         <h3 style={{ ...cardTitle, margin: 0 }}>
           {t('ticketDetail.timeLogs')}
           {totalMinutes > 0 && (
-            <span style={{ fontSize: '0.8rem', fontWeight: 400, color: '#6b7280', marginLeft: 8 }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
               ({t('ticketDetail.timeLogsTotal')}: {fmtDuration(totalMinutes)})
             </span>
           )}
@@ -1293,7 +1293,7 @@ function TimeLogsPanel({ ticketId }: { ticketId: number }) {
       </div>
 
       {showForm && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.timeLogsMinutes')}</label>
           <input id={`${fieldId}-1`} type="number" min="1" style={inputStyle} value={minutes} onChange={e => setMinutes(e.target.value)} />
@@ -1313,17 +1313,17 @@ function TimeLogsPanel({ ticketId }: { ticketId: number }) {
       )}
 
       {logs.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.timeLogsNone')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.timeLogsNone')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {logs.map(log => (
-            <li key={log.id} style={{ fontSize: '0.85rem', display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-              <span style={{ fontWeight: 600, minWidth: 48, color: '#374151' }}>{fmtDuration(log.minutes)}</span>
-              <span style={{ color: '#6b7280' }}>{log.work_date?.slice(0, 10) ?? '—'}</span>
+            <li key={log.id} style={{ fontSize: '0.85rem', display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, minWidth: 48, color: 'var(--text-secondary)' }}>{fmtDuration(log.minutes)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{log.work_date?.slice(0, 10) ?? '—'}</span>
               {(log.first_name || log.last_name) && (
-                <span style={{ color: '#6b7280' }}>{log.first_name} {log.last_name}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{log.first_name} {log.last_name}</span>
               )}
-              {log.description && <span style={{ flex: 1, color: '#374151' }}>{log.description}</span>}
+              {log.description && <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{log.description}</span>}
             </li>
           ))}
         </ul>
@@ -1439,7 +1439,7 @@ function WorkOrdersPanel({ ticket }: { ticket: Ticket }) {
       </div>
 
       {showForm && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.workOrdersTitle', 'Title')}</label>
           <input id={`${fieldId}-1`} type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('ticketDetail.workOrdersTitlePlaceholder', 'Describe the work needed')} />
@@ -1466,15 +1466,15 @@ function WorkOrdersPanel({ ticket }: { ticket: Ticket }) {
       )}
 
       {workOrders.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.workOrdersNone', 'No work orders linked to this ticket.')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.workOrdersNone', 'No work orders linked to this ticket.')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {workOrders.map(wo => (
-            <li key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <li key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
               <Link to={`/work-orders`} style={{ color: 'var(--link)', textDecoration: 'none', fontWeight: 600, minWidth: 32 }}>#{wo.id}</Link>
-              <span style={{ flex: 1, color: '#374151' }}>{wo.title}</span>
-              <span style={{ textTransform: 'capitalize', color: '#6b7280', fontSize: '0.78rem' }}>{wo.work_type}</span>
-              <span style={{ textTransform: 'capitalize', color: '#6b7280', fontSize: '0.78rem' }}>{wo.status}</span>
+              <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{wo.title}</span>
+              <span style={{ textTransform: 'capitalize', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{wo.work_type}</span>
+              <span style={{ textTransform: 'capitalize', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{wo.status}</span>
             </li>
           ))}
         </ul>
@@ -1520,9 +1520,9 @@ async function createEscalation(ticketId: number, reason: string, escalatedTo: n
 }
 
 const ESC_STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  open:         { bg: '#fee2e2', color: '#991b1b' },
-  acknowledged: { bg: '#fef9c3', color: '#854d0e' },
-  resolved:     { bg: '#d1fae5', color: '#065f46' },
+  open:         { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  acknowledged: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  resolved:     { bg: 'var(--success-soft)', color: 'var(--success)' },
 };
 
 function EscalationsPanel({ ticket, users }: { ticket: Ticket; users: User[] }) {
@@ -1547,14 +1547,14 @@ function EscalationsPanel({ ticket, users }: { ticket: Ticket; users: User[] }) 
   return (
     <div style={{ ...card, marginTop: '1.5rem', border: '1px solid #fee2e2' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <h3 style={{ ...cardTitle, margin: 0, color: '#991b1b' }}>{t('ticketDetail.escalations', 'Escalations')} ({escalations.length})</h3>
+        <h3 style={{ ...cardTitle, margin: 0, color: 'var(--danger)' }}>{t('ticketDetail.escalations', 'Escalations')} ({escalations.length})</h3>
         <button style={{ ...btnPrimary, fontSize: '0.78rem', padding: '4px 12px', background: '#dc2626' }} onClick={() => setShowForm(s => !s)}>
           {t('ticketDetail.escalationsAdd', 'Escalate')}
         </button>
       </div>
 
       {showForm && (
-        <div style={{ background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: '#fff5f5', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.escalationsReason', 'Reason')}</label>
           <textarea id={`${fieldId}-1`}
@@ -1580,21 +1580,21 @@ function EscalationsPanel({ ticket, users }: { ticket: Ticket; users: User[] }) 
       )}
 
       {escalations.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.escalationsNone', 'No escalations for this ticket.')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.escalationsNone', 'No escalations for this ticket.')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {escalations.map(esc => {
-            const s = ESC_STATUS_COLOR[esc.status] ?? { bg: '#f3f4f6', color: '#374151' };
+            const s = ESC_STATUS_COLOR[esc.status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
             return (
-              <li key={esc.id} style={{ fontSize: '0.85rem', padding: '8px 10px', background: '#fff5f5', borderRadius: 6, border: '1px solid #fca5a5' }}>
+              <li key={esc.id} style={{ fontSize: '0.85rem', padding: '8px 10px', background: '#fff5f5', borderRadius: 6, border: '1px solid var(--danger-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: esc.reason ? 4 : 0 }}>
-                  <span style={{ fontWeight: 700, color: '#dc2626' }}>{t('ticketDetail.escalationsLevel', 'Level')} {esc.level}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{t('ticketDetail.escalationsLevel', 'Level')} {esc.level}</span>
                   <span style={{ ...s, padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700, textTransform: 'capitalize' as const }}>
                     {esc.status}
                   </span>
-                  <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: '0.75rem' }}>{fmt(esc.created_at)}</span>
+                  <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{fmt(esc.created_at)}</span>
                 </div>
-                {esc.reason && <p style={{ margin: 0, color: '#374151', lineHeight: 1.5 }}>{esc.reason}</p>}
+                {esc.reason && <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{esc.reason}</p>}
               </li>
             );
           })}
@@ -1672,7 +1672,7 @@ function FollowUpsPanel({ ticket }: { ticket: Ticket }) {
       </div>
 
       {showForm && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.followUpsTitle', 'Title')}</label>
           <input id={`${fieldId}-1`} type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} />
@@ -1690,14 +1690,14 @@ function FollowUpsPanel({ ticket }: { ticket: Ticket }) {
       )}
 
       {followUps.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.followUpsNone', 'No follow-ups for this ticket.')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.followUpsNone', 'No follow-ups for this ticket.')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {followUps.map(f => (
-            <li key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-              <span style={{ fontWeight: 600, color: '#374151' }}>{f.title}</span>
-              <span style={{ color: '#6b7280' }}>{f.due_at ? fmt(f.due_at) : '—'}</span>
-              <span style={{ marginLeft: 'auto', textTransform: 'capitalize', color: '#6b7280' }}>{f.status}</span>
+            <li key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{f.title}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{f.due_at ? fmt(f.due_at) : '—'}</span>
+              <span style={{ marginLeft: 'auto', textTransform: 'capitalize', color: 'var(--text-muted)' }}>{f.status}</span>
             </li>
           ))}
         </ul>
@@ -1801,13 +1801,13 @@ function AttachmentsPanel({ ticketId }: { ticketId: number }) {
       {uploadErr && <div style={errStyle}>{uploadErr}</div>}
 
       {attachments.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.attachmentsNone')}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{t('ticketDetail.attachmentsNone')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {attachments.map(att => (
-            <li key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}>
-              <span style={{ flex: 1, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.original_filename}</span>
-              <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>{fmtSize(att.file_size)}</span>
+            <li key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
+              <span style={{ flex: 1, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.original_filename}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{fmtSize(att.file_size)}</span>
               <a
                 href={`${API_BASE}/tickets/${ticketId}/attachments/${att.id}/download`}
                 style={{ color: 'var(--link)', fontSize: '0.78rem', textDecoration: 'none' }}
@@ -1885,8 +1885,8 @@ export function TicketDetail() {
     queryClient.invalidateQueries({ queryKey: ['tickets'] });
   }
 
-  if (isLoading) return <div style={{ padding: '2rem', color: '#888' }}>{t('ui.ticketDetail.loadingTicket')}</div>;
-  if (error || !ticket) return <div style={{ padding: '2rem', color: '#e00' }}>{t('ui.ticketDetail.ticketNotFound')}</div>;
+  if (isLoading) return <div style={{ padding: '2rem', color: 'var(--text-muted)' }}>{t('ui.ticketDetail.loadingTicket')}</div>;
+  if (error || !ticket) return <div style={{ padding: '2rem', color: 'var(--danger)' }}>{t('ui.ticketDetail.ticketNotFound')}</div>;
 
   const assignedUser = ticket.assigned_to
     ? users.find(u => u.id === ticket.assigned_to)
@@ -1895,7 +1895,7 @@ export function TicketDetail() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1000 }}>
       {/* Breadcrumb */}
-      <div style={{ fontSize: '0.82rem', color: '#888', marginBottom: '0.75rem' }}>
+      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
         <Link to="/tickets" style={{ color: 'var(--link)', textDecoration: 'none' }}>{t('ui.ticketDetail.tickets')}</Link>
         {' › '}
         <span>#{ticket.id}</span>
@@ -1946,8 +1946,8 @@ export function TicketDetail() {
 
             {ticket.description && (
               <>
-                <div style={{ height: 1, background: '#e5e7eb', margin: '1rem 0' }} />
-                <p style={{ margin: 0, fontSize: '0.88rem', color: '#374151', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                <div style={{ height: 1, background: 'var(--bg-subtle)', margin: '1rem 0' }} />
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
                   {ticket.description}
                 </p>
               </>
@@ -2020,10 +2020,10 @@ export function TicketDetail() {
 function MetaRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 2 }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>
         {label}
       </div>
-      <div style={{ fontSize: '0.85rem', color: '#374151' }}>{children}</div>
+      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{children}</div>
     </div>
   );
 }
@@ -2058,14 +2058,14 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 6, fontSize: '0.85rem', boxSizing: 'border-box',
 };
 const errStyle: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '8px 12px', borderRadius: 6, fontSize: '0.83rem', marginBottom: 8,
 };
 const commentActionBtn: React.CSSProperties = {
-  background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
 };
 const commentDeleteBtn: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5',
+  background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger-border)',
   padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
 };

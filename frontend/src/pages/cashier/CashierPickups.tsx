@@ -91,27 +91,27 @@ export function CashierPickupsRow({ session, colSpan, userId, canTake }: Props) 
 
   return (
     <tr>
-      <td colSpan={colSpan} style={{ padding: '8px 20px 4px', background: '#f8faff', fontSize: '0.82rem' }}>
+      <td colSpan={colSpan} style={{ padding: '8px 20px 4px', background: 'var(--bg-subtle)', fontSize: '0.82rem' }}>
         {opening != null && (
           <p style={{ margin: '0 0 6px' }}>
             <strong>{t('cashReconciliation.opening.shown')}</strong> {money(opening)}
             {openedDifferent && (
-              <span style={{ color: '#991b1b', fontWeight: 600 }}> · {t('cashReconciliation.opening.shownDiffers', { amount: money(session.opening_expected) })}</span>
+              <span style={{ color: 'var(--danger)', fontWeight: 600 }}> · {t('cashReconciliation.opening.shownDiffers', { amount: money(session.opening_expected) })}</span>
             )}
           </p>
         )}
-        <p style={{ margin: '0 0 6px', fontWeight: 600, color: '#374151' }}>{t('cashReconciliation.pickups.title')}</p>
-        {pickups.length === 0 && <p style={{ margin: '0 0 6px', color: '#9ca3af' }}>{t('cashReconciliation.pickups.none')}</p>}
+        <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('cashReconciliation.pickups.title')}</p>
+        {pickups.length === 0 && <p style={{ margin: '0 0 6px', color: 'var(--text-muted)' }}>{t('cashReconciliation.pickups.none')}</p>}
         {pickups.length > 0 && (
           <ul style={{ listStyle: 'none', margin: '0 0 6px', padding: 0 }}>
             {pickups.map((p) => (
               <li key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '3px 0' }}>
                 <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{money(p.amount)}</span>
-                <span style={{ color: '#6b7280' }}>{t('cashReconciliation.pickups.takenBy', { name: p.taken_by_name || `#${p.taken_by}` })}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('cashReconciliation.pickups.takenBy', { name: p.taken_by_name || `#${p.taken_by}` })}</span>
                 <span style={{ color: p.status === 'pending' ? '#92400e' : p.status === 'confirmed' ? '#065f46' : '#6b7280', fontWeight: 600 }}>
                   {t(`cashReconciliation.pickups.status.${p.status}`)}
                 </span>
-                {p.note && <span style={{ color: '#6b7280' }}>“{p.note}”</span>}
+                {p.note && <span style={{ color: 'var(--text-muted)' }}>“{p.note}”</span>}
                 {p.status === 'pending' && isOwner && (
                   <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => post(`pickups/${p.id}/confirm`))}>
                     {t('cashReconciliation.pickups.confirm')}
@@ -143,7 +143,7 @@ export function CashierPickupsRow({ session, colSpan, userId, canTake }: Props) 
             <button type="button" className="btn" onClick={() => { setTaking(false); setError(''); }}>{t('common.cancel')}</button>
           </form>
         )}
-        {error && <p role="alert" style={{ margin: '6px 0 0', color: '#991b1b' }}>{error}</p>}
+        {error && <p role="alert" style={{ margin: '6px 0 0', color: 'var(--danger)' }}>{error}</p>}
       </td>
     </tr>
   );

@@ -54,8 +54,8 @@ async function saveSettings(body: Partial<InvoiceSettingsData>): Promise<Invoice
 // ---------------------------------------------------------------------------
 
 const card: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #e5e7eb',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 8,
   padding: '24px',
   maxWidth: 640,
@@ -65,7 +65,7 @@ const labelStyle: React.CSSProperties = { display: 'block', fontWeight: 600, mar
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '8px 10px',
-  border: '1px solid #d1d5db',
+  border: '1px solid var(--border-strong)',
   borderRadius: 6,
   fontSize: 14,
   boxSizing: 'border-box',
@@ -146,7 +146,7 @@ export function InvoiceSettings() {
       {/* Without the stored settings the form only holds defaults; saving
           them would overwrite the real configuration. */}
       {isError && (
-        <p role="alert" style={{ color: '#991b1b' }}>
+        <p role="alert" style={{ color: 'var(--danger)' }}>
           {t('common.loadError')}{' '}
           <button type="button" onClick={() => refetch()}>{t('common.retry')}</button>
         </p>
@@ -185,7 +185,7 @@ export function InvoiceSettings() {
             value={form.header_color || '#1a5276'}
             onChange={e => setForm(f => ({ ...f, header_color: e.target.value }))}
           />
-          <span style={{ marginLeft: 10, fontSize: 13, color: '#6b7280' }}>
+          <span style={{ marginLeft: 10, fontSize: 13, color: 'var(--text-muted)' }}>
             {form.header_color || '#1a5276'}
           </span>
         </div>

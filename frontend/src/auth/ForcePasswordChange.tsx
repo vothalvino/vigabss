@@ -54,7 +54,7 @@ export function ForcePasswordChange({ voluntary = false }: { voluntary?: boolean
     }
   }
 
-  const input: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', marginBottom: 12 };
+  const input: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', marginBottom: 12 };
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 16 }}>
       <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 400, background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 10, padding: 24 }}>
@@ -62,7 +62,7 @@ export function ForcePasswordChange({ voluntary = false }: { voluntary?: boolean
         <p style={{ fontSize: 14, color: 'var(--text-muted, #6b7280)', margin: '0 0 16px' }}>
           {t(voluntary ? 'changePassword.intro' : 'forcePasswordChange.intro', { email: user?.email ?? '' })}
         </p>
-        {error && <div role="alert" style={{ background: '#fee2e2', color: '#991b1b', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14 }}>{error}</div>}
+        {error && <div role="alert" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14 }}>{error}</div>}
         <label htmlFor="fpc-current" style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{t('forcePasswordChange.current')}</label>
         <input id="fpc-current" type="password" autoComplete="current-password" required style={input} value={current} onChange={e => setCurrent(e.target.value)} />
         <label htmlFor="fpc-new" style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{t('forcePasswordChange.new')}</label>

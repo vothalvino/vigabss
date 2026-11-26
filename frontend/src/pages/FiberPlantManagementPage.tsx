@@ -709,7 +709,7 @@ export function FiberPlantManagementPage() {
                         <td style={styles.td}>{fmtDate(test.tested_at)}</td>
                         <td style={styles.tdNum}>{test.total_length_m !== null ? `${test.total_length_m} m` : '—'}</td>
                         <td style={styles.td}>
-                          <span style={{ color: test.fault_detected ? '#dc2626' : '#059669', fontWeight: 600, fontSize: '0.82rem' }}>
+                          <span style={{ color: test.fault_detected ? 'var(--danger)' : 'var(--success)', fontWeight: 600, fontSize: '0.82rem' }}>
                             {test.fault_detected ? t('fiberPlantManagement.otdr.yes') : t('fiberPlantManagement.otdr.no')}
                           </span>
                         </td>

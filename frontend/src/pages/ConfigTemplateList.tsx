@@ -93,7 +93,7 @@ function DeployResultDialog({ result, onClose }: DeployResultDialogProps) {
           <h3 style={modalStyles.title}>{t('config_templates.deploy_result_title')}</h3>
           <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('common.close')}>x</button>
         </div>
-        <p style={{ marginBottom: '0.5rem', padding: '0.6rem 1rem', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontSize: '0.85rem' }}>
+        <p style={{ marginBottom: '0.5rem', padding: '0.6rem 1rem', borderRadius: 6, background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: '0.85rem' }}>
           {pushed ? t('config_templates.deploy_pushed') : t('config_templates.deploy_not_pushed')}
         </p>
         <p style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>

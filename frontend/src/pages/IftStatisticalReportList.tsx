@@ -52,9 +52,9 @@ async function fetchReports(page: number): Promise<IftStatisticalReportResponse>
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft: { bg: '#f3f4f6', color: '#374151' },
-  final: { bg: '#dbeafe', color: '#1e40af' },
-  filed: { bg: '#d1fae5', color: '#065f46' },
+  draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  final: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  filed: { bg: 'var(--success-soft)', color: 'var(--success)' },
 };
 
 // ---------------------------------------------------------------------------

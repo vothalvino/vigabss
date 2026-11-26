@@ -90,13 +90,13 @@ function fmtAmount(amount: string | null | undefined, currency: string): string 
 
 function RefundStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    requested:    { bg: '#dbeafe', color: '#1e40af' },
-    under_review: { bg: '#fef3c7', color: '#92400e' },
-    approved:     { bg: '#d1fae5', color: '#065f46' },
-    rejected:     { bg: '#fee2e2', color: '#991b1b' },
-    processed:    { bg: '#f3f4f6', color: '#374151' },
+    requested:    { bg: 'var(--info-soft)', color: 'var(--info)' },
+    under_review: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    approved:     { bg: 'var(--success-soft)', color: 'var(--success)' },
+    rejected:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    processed:    { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {status.replace('_', ' ')}
@@ -396,13 +396,13 @@ export function RefundRequestList() {
                       <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(req.amount, orgCurrency)}</td>
                       <td style={styles.td}>{t(`refundRequests.reason.${req.reason}`)}</td>
                       <td style={styles.td}><RefundStatusBadge status={req.status} /></td>
-                      <td style={{ ...styles.td, color: '#6b7280' }}>{req.requested_by ?? '—'}</td>
-                      <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(req.created_at)}</td>
+                      <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{req.requested_by ?? '—'}</td>
+                      <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(req.created_at)}</td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {canReview && (req.status === 'requested' || req.status === 'under_review') && (
                           <button
                             type="button"
-                            style={{ padding: '3px 10px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
+                            style={{ padding: '3px 10px', background: 'var(--warning-soft)', color: 'var(--warning)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
                             onClick={() => setReviewingId(req.id)}
                           >
                             {t('refundRequests.review')}
@@ -411,7 +411,7 @@ export function RefundRequestList() {
                         {canProcess && req.status === 'approved' && (
                           <button
                             type="button"
-                            style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                            style={{ padding: '3px 10px', background: 'var(--success-soft)', color: 'var(--success)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
                             onClick={() => setProcessingId(req.id)}
                           >
                             {t('refundRequests.process')}

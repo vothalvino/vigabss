@@ -103,8 +103,8 @@ function ActiveBadge({ active }: { active: boolean }) {
   return (
     <span
       style={{
-        background: active ? '#d1fae5' : '#f3f4f6',
-        color: active ? '#065f46' : '#374151',
+        background: active ? 'var(--success-soft)' : 'var(--bg-subtle)',
+        color: active ? 'var(--success)' : 'var(--text-secondary)',
         padding: '2px 8px',
         borderRadius: 12,
         fontSize: '0.72rem',
@@ -483,7 +483,7 @@ export function PromotionList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.promotionList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -521,7 +521,7 @@ export function PromotionList() {
                           {t('ui.promotionList.edit')}
                         </button>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(p.id)}
                           title={t('ui.promotionList.deleteThisPromotion')}
                         >

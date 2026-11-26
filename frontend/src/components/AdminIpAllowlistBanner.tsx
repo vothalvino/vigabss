@@ -47,14 +47,14 @@ export function AdminIpAllowlistBanner() {
         flexWrap: 'wrap',
         padding: '10px 16px',
         borderBottom: '1px solid #f59e0b',
-        background: '#fffbeb',
-        color: '#78350f',
+        background: 'var(--warning-soft)',
+        color: 'var(--warning)',
       }}
     >
       <span aria-hidden="true">⚠️</span>
       <strong>{t('adminIpAllowlistBanner.title')}</strong>
       <span>{t('adminIpAllowlistBanner.detail')}</span>
-      <Link to="/security-access-control#admin-ip-allowlist" style={{ color: '#92400e', fontWeight: 700 }}>
+      <Link to="/security-access-control#admin-ip-allowlist" style={{ color: 'var(--warning)', fontWeight: 700 }}>
         {t('adminIpAllowlistBanner.action')}
       </Link>
     </div>

@@ -124,7 +124,7 @@ export function PortalPasswordModal({
         <h2 style={modalTitle}>{t('ui.clientDetail.setPortalPassword2')}</h2>
         {error && <div style={errorBox}>{error}</div>}
         {sharedWarning && (
-          <div role="status" style={{ ...errorBox, background: '#fef3c7', color: '#92400e' }}>
+          <div role="status" style={{ ...errorBox, background: 'var(--warning-soft)', color: 'var(--warning)' }}>
             {t('ui.clientDetail.passwordSet')}{sharedWarning}
           </div>
         )}

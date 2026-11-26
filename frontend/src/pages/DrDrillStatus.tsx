@@ -54,11 +54,11 @@ async function fetchRunbook(): Promise<string> {
 
 function ResultBadge({ status }: { status: string | null }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    pass: { bg: '#d1fae5', color: '#065f46', label: 'Pass' },
-    fail: { bg: '#fee2e2', color: '#991b1b', label: 'Fail' },
-    error: { bg: '#fef3c7', color: '#92400e', label: 'Error' },
+    pass: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Pass' },
+    fail: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Fail' },
+    error: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Error' },
   };
-  const s = map[status ?? ''] ?? { bg: '#f3f4f6', color: '#374151', label: status ?? 'Never run' };
+  const s = map[status ?? ''] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', label: status ?? 'Never run' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 600 }}>
       {s.label}
@@ -91,7 +91,7 @@ export function DrDrillStatus() {
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('ui.drDrillStatus.disasterRecoveryDrill')}</h1>
         {status && (
-          <span style={{ ...styles.countBadge, ...(status.overdue ? { background: '#fee2e2', color: '#991b1b' } : { background: '#d1fae5', color: '#065f46' }) }}>
+          <span style={{ ...styles.countBadge, ...(status.overdue ? { background: 'var(--danger-soft)', color: 'var(--danger)' } : { background: 'var(--success-soft)', color: 'var(--success)' }) }}>
             {status.overdue ? 'Overdue' : 'Up to date'}
           </span>
         )}
@@ -132,14 +132,14 @@ export function DrDrillStatus() {
               </tr>
               <tr style={styles.tr}>
                 <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.overdue')}</td>
-                <td style={{ ...styles.td, color: status.overdue ? '#991b1b' : '#065f46', fontWeight: 600 }}>
+                <td style={{ ...styles.td, color: status.overdue ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
                   {status.overdue ? 'Yes' : 'No'}
                 </td>
               </tr>
               {status.last_error && (
                 <tr style={styles.tr}>
                   <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.lastError')}</td>
-                  <td style={{ ...styles.td, color: '#991b1b' }}>{status.last_error}</td>
+                  <td style={{ ...styles.td, color: 'var(--danger)' }}>{status.last_error}</td>
                 </tr>
               )}
             </tbody>

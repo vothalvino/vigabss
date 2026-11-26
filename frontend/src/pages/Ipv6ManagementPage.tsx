@@ -71,8 +71,8 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fef3c7', color: '#92400e' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -418,7 +418,7 @@ function SubnetPlannerTab() {
       </div>
 
       {spError && (
-        <div style={{ padding: '0.6rem 1rem', borderRadius: 6, marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', fontSize: '0.85rem' }}>
+        <div style={{ padding: '0.6rem 1rem', borderRadius: 6, marginBottom: '1rem', background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: '0.85rem' }}>
           {spError}
         </div>
       )}

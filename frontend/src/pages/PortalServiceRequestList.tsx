@@ -99,7 +99,7 @@ function ActionModal({ req, action, onClose, onDone }: { req: ServiceRequest; ac
     <div style={overlay} role="dialog" aria-modal="true" aria-label={title}>
       <div style={{ ...modalBox, width: 480 }}>
         <h3 style={{ margin: '0 0 0.5rem' }}>{title} #{req.id}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#4b5563', fontSize: '0.9rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           {t(`portalServiceRequests.types.${req.request_type}`)} · {req.client_name ?? `#${req.client_id}`}
         </p>
         {action === 'approve' && !MANUAL_TYPES.has(req.request_type) && (
@@ -191,7 +191,7 @@ export function PortalServiceRequestList() {
                       <td style={styles.td}>{t(`portalServiceRequests.types.${req.request_type}`)}</td>
                       <td style={styles.td}><Details req={req} /></td>
                       <td style={styles.td}>{t(`portalServiceRequests.status.${req.status}`)}</td>
-                      <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(req.created_at)}</td>
+                      <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(req.created_at)}</td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {canUpdate && req.status === 'pending' && (
                           <>

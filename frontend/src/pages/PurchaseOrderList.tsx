@@ -109,11 +109,11 @@ async function deletePurchaseOrder(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#374151' },
-  sent:      { bg: '#dbeafe', color: '#1e40af' },
-  partial:   { bg: '#fef3c7', color: '#92400e' },
-  received:  { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  sent:      { bg: 'var(--info-soft)', color: 'var(--info)' },
+  partial:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  received:  { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ export function PurchaseOrderList() {
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {po.status === 'draft' && (
                           <button
-                            style={{ ...styles.actionBtn, color: '#991b1b' }}
+                            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                             onClick={() => setConfirm({ type: 'delete', id: po.id, label: po.po_number })}
                           >
                             {t('purchaseOrders.actions.delete')}

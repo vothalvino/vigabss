@@ -42,7 +42,7 @@ import { localToday } from '@/lib/dates';
 const API_BASE = '/api/v1';
 
 const successBox: React.CSSProperties = {
-  background: '#dcfce7', color: '#166534', padding: '8px 12px',
+  background: 'var(--success-soft)', color: 'var(--success)', padding: '8px 12px',
   borderRadius: 6, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 
@@ -302,7 +302,7 @@ function OrderFormModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           {plansError && (
-            <p style={{ fontSize: '0.74rem', color: '#dc2626', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '0.74rem', color: 'var(--danger)', margin: '2px 0 0' }}>
               {t('serviceOrders.plansLoadError', 'Failed to load plans — you may not have permission to view plans.')}
             </p>
           )}

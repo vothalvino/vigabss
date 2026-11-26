@@ -196,11 +196,11 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  draft:    { bg: '#f3f4f6', color: '#6b7280' },
-  sent:     { bg: '#dbeafe', color: '#1e40af' },
-  accepted: { bg: '#d1fae5', color: '#065f46' },
-  rejected: { bg: '#fee2e2', color: '#991b1b' },
-  expired:  { bg: '#fef3c7', color: '#92400e' },
+  draft:    { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  sent:     { bg: 'var(--info-soft)', color: 'var(--info)' },
+  accepted: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  rejected: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  expired:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -287,7 +287,7 @@ function AddItemForm({ onAdd, pending, error }: AddItemFormProps) {
               <option
                 key={e.value}
                 value={e.value}
-                style={e.quantityOnHand !== null && e.quantityOnHand <= 0 ? { color: '#dc2626' } : undefined}
+                style={e.quantityOnHand !== null && e.quantityOnHand <= 0 ? { color: 'var(--danger)' } : undefined}
               >
                 {e.label} — {e.price}
                 {e.quantityOnHand !== null ? ` (${t('productPicker.onHand', { count: e.quantityOnHand })})` : ''}
@@ -574,12 +574,12 @@ export function QuoteDetail() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 860 }}>
       {/* Breadcrumb */}
-      <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-        <Link to="/quotes" style={{ color: '#6b7280', textDecoration: 'none' }}>🧮 {t('quoteDetail.breadcrumb')}</Link>
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+        <Link to="/quotes" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>🧮 {t('quoteDetail.breadcrumb')}</Link>
         {quote && <> / {quote.quote_number || `#${quote.id}`}</>}
       </div>
 
-      {quoteQ.isLoading && <p style={{ color: '#888' }}>{t('quoteDetail.loading')}</p>}
+      {quoteQ.isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('quoteDetail.loading')}</p>}
       {quoteQ.isError && <p style={{ color: 'var(--accent)' }}>{t('quoteDetail.notFound')}</p>}
 
       {quote && (
@@ -591,12 +591,12 @@ export function QuoteDetail() {
                 {quote.quote_number || `Quote #${quote.id}`}
               </h1>
               {client && (
-                <div style={{ marginTop: 4, fontSize: '0.875rem', color: '#6b7280' }}>
+                <div style={{ marginTop: 4, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                   {t('quoteDetail.clientLabel')}{' '}
                   <Link to={`/clients/${client.id}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
                     {client.name}
                   </Link>
-                  {client.email && <span style={{ marginLeft: 8, color: '#9ca3af' }}>{client.email}</span>}
+                  {client.email && <span style={{ marginLeft: 8, color: 'var(--text-muted)' }}>{client.email}</span>}
                 </div>
               )}
             </div>
@@ -661,19 +661,19 @@ export function QuoteDetail() {
               {quote.contract_id && <MetaRow label={t('quoteDetail.meta.contract')} value={`#${quote.contract_id}`} />}
             </div>
             {quote.notes && (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                 <strong>{t('quoteDetail.notesLabel')}</strong> {quote.notes}
               </p>
             )}
             {quote.converted_invoice_id ? (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: '#059669', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: 'var(--success)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                 {t('quoteDetail.convertedTo')}{' '}
                 <Link to={`/invoices/${quote.converted_invoice_id}`} style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
                   {convertedInvoiceQ.data?.invoice_number || `#${quote.converted_invoice_id}`}
                 </Link>
               </p>
             ) : !canConvert && (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: '#9ca3af', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                 {t('quoteDetail.convertGuard')}
               </p>
             )}
@@ -682,16 +682,16 @@ export function QuoteDetail() {
           {/* Line Items */}
           <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('quoteDetail.lineItems')}</h3>
           <div style={card}>
-            {itemsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('quoteDetail.loadingItems')}</p>}
+            {itemsQ.isLoading && <p style={{ color: 'var(--text-muted)', margin: 0 }}>{t('quoteDetail.loadingItems')}</p>}
             {!itemsQ.isLoading && items.length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('quoteDetail.noItems')}</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('quoteDetail.noItems')}</p>
             )}
             {items.length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                     {[t('quoteDetail.table.description'), t('quoteDetail.table.qty'), t('quoteDetail.table.unitPrice'), t('quoteDetail.table.total')].map(h => (
-                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -743,8 +743,8 @@ export function QuoteDetail() {
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'contents' }}>
-      <dt style={{ color: '#6b7280', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
-      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: '#111827' }}>{value}</dd>
+      <dt style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
+      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{value}</dd>
     </div>
   );
 }
@@ -775,7 +775,7 @@ const submitBtn: React.CSSProperties = {
   fontWeight: 600, fontSize: '0.875rem',
 };
 const errorText: React.CSSProperties = {
-  color: '#dc2626', fontSize: '0.8rem', margin: '4px 0 0',
+  color: 'var(--danger)', fontSize: '0.8rem', margin: '4px 0 0',
 };
 
 function actionBtn(bg: string): React.CSSProperties {

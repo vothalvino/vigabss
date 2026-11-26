@@ -114,8 +114,8 @@ async function deleteWebhook(id: number): Promise<void> {
 
 function EnabledBadge({ enabled }: { enabled: boolean }) {
   const s = enabled
-    ? { bg: '#d1fae5', color: '#065f46', label: 'Enabled' }
-    : { bg: '#fee2e2', color: '#991b1b', label: 'Disabled' };
+    ? { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Enabled' }
+    : { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Disabled' };
   return (
     <span
       style={{
@@ -379,12 +379,12 @@ export function WebhookList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.webhookList.actionFailedPleaseTryAgain')}
         </p>
       )}
       {configurationError && (
-        <p role="alert" style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.webhookList.theEditableDestinationCouldNot')}
         </p>
       )}
@@ -421,7 +421,7 @@ export function WebhookList() {
                           {editingLoadingId === w.id ? 'Loading…' : '✏️ Edit'}
                         </button>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(w.id)}
                           title={t('ui.webhookList.deleteThisWebhook')}
                         >

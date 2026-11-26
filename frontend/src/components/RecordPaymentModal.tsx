@@ -380,7 +380,7 @@ export function RecordPaymentModal({
           </select>
 
           {form.payment_method === 'cash' && !paymentLocked && !myCashier.isLoading && !myCashier.data && (
-            <p role="status" style={{ margin: '6px 0 0', padding: '8px 10px', borderRadius: 6, background: '#fffbeb', color: '#78350f', fontSize: '0.85rem' }}>
+            <p role="status" style={{ margin: '6px 0 0', padding: '8px 10px', borderRadius: 6, background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: '0.85rem' }}>
               {t('recordPayment.needsCashier')}{' '}
               <Link to="/cash-reconciliation" onClick={onClose} style={{ color: 'inherit', fontWeight: 700 }}>{t('recordPayment.openCashier')}</Link>
             </p>

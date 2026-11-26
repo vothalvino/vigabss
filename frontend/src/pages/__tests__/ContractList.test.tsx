@@ -113,7 +113,8 @@ describe('ContractList page', () => {
     const row = contractLink.closest('tr');
     expect(row).not.toBeNull();
     expect(row).toHaveAttribute('data-contract-environment', 'sandbox');
-    expect(row).toHaveStyle({ background: '#fffbeb' });
+    // A translucent amber tint, so the mark reads in light and dark mode.
+    expect(row?.style.background).toBe('rgba(245, 158, 11, 0.12)');
     expect(within(row!).getByText('SANDBOX · TEST')).toBeInTheDocument();
   });
 

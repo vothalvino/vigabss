@@ -139,13 +139,13 @@ function formatTaskResult(result: unknown): string | null {
 function StatusBadge({ status }: { status: string | null }) {
   if (!status) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   const map: Record<string, { bg: string; color: string }> = {
-    success: { bg: '#d1fae5', color: '#065f46' },
-    failed: { bg: '#fee2e2', color: '#991b1b' },
-    running: { bg: '#dbeafe', color: '#1e40af' },
-    skipped: { bg: '#f3f4f6', color: '#374151' },
-    timed_out: { bg: '#fef3c7', color: '#92400e' },
+    success: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    failed: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    running: { bg: 'var(--info-soft)', color: 'var(--info)' },
+    skipped: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+    timed_out: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -481,7 +481,7 @@ export function ScheduledTaskList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.scheduledTaskList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -583,7 +583,7 @@ export function ScheduledTaskList() {
                           )}
                           {canDelete && !task.is_global && (
                             <button
-                              style={{ ...styles.actionBtn, color: '#991b1b' }}
+                              style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                               onClick={() => setDeleteId(task.id)}
                               title={t('ui.scheduledTaskList.deleteThisTask')}
                             >

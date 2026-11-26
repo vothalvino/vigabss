@@ -337,7 +337,7 @@ function TemplateModal({ initial, onClose, onSaved }: {
           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             {t('documentTemplates.activeHint')}
           </p>
-          {err && <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
           <div style={modalStyles.actions}>
             <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('common.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
@@ -457,7 +457,7 @@ export function DocumentTemplates() {
                               <button style={styles.actionBtn} onClick={() => setEditing(tpl)}>{t('common.edit')}</button>
                             )}
                             {mayDeleteTemplates && (
-                              <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => deleteMutation.mutate(tpl.id)}>{t('common.delete')}</button>
+                              <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => deleteMutation.mutate(tpl.id)}>{t('common.delete')}</button>
                             )}
                           </td>
                         </tr>

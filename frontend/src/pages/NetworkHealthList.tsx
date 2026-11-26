@@ -68,8 +68,8 @@ function UptimeBadge({ value }: { value: number | string | null }) {
   if (Number.isNaN(n)) return <span>—</span>;
   const ok = n >= 99.9;
   const warn = n >= 99 && n < 99.9;
-  const bg = ok ? '#d1fae5' : warn ? '#fef3c7' : '#fee2e2';
-  const color = ok ? '#065f46' : warn ? '#92400e' : '#991b1b';
+  const bg = ok ? 'var(--success-soft)' : warn ? 'var(--warning-soft)' : 'var(--danger-soft)';
+  const color = ok ? 'var(--success)' : warn ? 'var(--warning)' : 'var(--danger)';
   return (
     <span
       style={{

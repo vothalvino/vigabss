@@ -176,8 +176,8 @@ function AuditDialog({ onRun, onClose, running, result }: AuditDialogProps) {
           <div>
             <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>{t('ui.configComplianceRuleList.auditComplete')}</p>
             <p>{t('ui.configComplianceRuleList.totalRules')}{result.total}</p>
-            <p style={{ color: '#065f46' }}>{t('ui.configComplianceRuleList.passed')}{result.passed}</p>
-            <p style={{ color: result.failed > 0 ? '#991b1b' : '#374151' }}>{t('ui.configComplianceRuleList.failed')}{result.failed}</p>
+            <p style={{ color: 'var(--success)' }}>{t('ui.configComplianceRuleList.passed')}{result.passed}</p>
+            <p style={{ color: result.failed > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>{t('ui.configComplianceRuleList.failed')}{result.failed}</p>
             <div style={{ ...modalStyles.actions, marginTop: '1rem' }}>
               <button style={styles.btnPrimary} onClick={onClose}>{t('ui.configComplianceRuleList.close')}</button>
             </div>

@@ -63,17 +63,17 @@ const CATEGORY_PREFIX = 'category:';
 
 // Badge colours by category (the server decides the category).
 const CATEGORY_STYLE: Record<string, { bg: string; color: string }> = {
-  records: { bg: '#dbeafe', color: '#1e40af' },
+  records: { bg: 'var(--info-soft)', color: 'var(--info)' },
   sign_in: { bg: '#ede9fe', color: '#5b21b6' },
-  security: { bg: '#fee2e2', color: '#991b1b' },
-  billing: { bg: '#d1fae5', color: '#065f46' },
-  resellers: { bg: '#fef3c7', color: '#92400e' },
-  cash_bags: { bg: '#ffedd5', color: '#9a3412' },
+  security: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  billing: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  resellers: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  cash_bags: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
   service: { bg: '#cffafe', color: '#155e75' },
   network: { bg: '#e0e7ff', color: '#3730a3' },
   compliance: { bg: '#fce7f3', color: '#9d174d' },
-  data: { bg: '#fef9c3', color: '#854d0e' },
-  other: { bg: '#f3f4f6', color: '#374151' },
+  data: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  other: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 // Failures stand out whatever their category.
 const ALERT_ACTIONS = new Set([

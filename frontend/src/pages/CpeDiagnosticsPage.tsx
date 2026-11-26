@@ -68,8 +68,8 @@ const tabStyle = (active: boolean) => ({
   border: 'none',
   cursor: 'pointer',
   fontWeight: active ? 600 : 400,
-  background: active ? '#2563eb' : '#f3f4f6',
-  color: active ? '#fff' : '#374151',
+  background: active ? '#2563eb' : 'var(--bg-subtle)',
+  color: active ? '#fff' : 'var(--text-secondary)',
   marginRight: 8,
 });
 
@@ -170,9 +170,9 @@ function DiagnosticsTab() {
 
   return (
     <div>
-      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
+      {deleteMut.error && <p role="alert" style={{ color: 'var(--danger)' }}>{deleteMut.error.message}</p>}
       {/* Device selector + run form */}
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <label style={styles.label}>{t('common.device') || 'Device'}</label>
@@ -221,7 +221,7 @@ function DiagnosticsTab() {
 
       {/* Results table */}
       {selectedDeviceId ? (
-        diagLoading ? <p style={{ color: '#6b7280' }}>{t('common.loading')}</p> : (
+        diagLoading ? <p style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</p> : (
           <>
             <table style={styles.table}>
               <thead>
@@ -250,7 +250,7 @@ function DiagnosticsTab() {
                           {JSON.stringify(diag.result, null, 2).slice(0, 200)}
                         </pre>
                       ) : diag.error_message ? (
-                        <span style={{ color: '#dc2626', fontSize: 12 }}>{diag.error_message}</span>
+                        <span style={{ color: 'var(--danger)', fontSize: 12 }}>{diag.error_message}</span>
                       ) : '—'}
                     </td>
                     <td style={styles.td}>{diag.completed_at ? new Date(diag.completed_at).toLocaleString() : '—'}</td>
@@ -271,7 +271,7 @@ function DiagnosticsTab() {
                 <button style={styles.pageButton} disabled={diagPage === 1} onClick={() => setDiagPage(p => p - 1)}>
                   {t('common.previous') || 'Prev'}
                 </button>
-                <span style={{ color: '#6b7280' }}>{diagPage} / {totalPages}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{diagPage} / {totalPages}</span>
                 <button style={styles.pageButton} disabled={diagPage >= totalPages} onClick={() => setDiagPage(p => p + 1)}>
                   {t('common.next') || 'Next'}
                 </button>
@@ -280,7 +280,7 @@ function DiagnosticsTab() {
           </>
         )
       ) : (
-        <p style={{ color: '#9ca3af' }}>{t('common.selectDevice') || 'Select a device to view diagnostics.'}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('common.selectDevice') || 'Select a device to view diagnostics.'}</p>
       )}
     </div>
   );
@@ -343,7 +343,7 @@ function SessionLogsTab() {
 
   return (
     <div>
-      {clearMut.error && <p role="alert" style={{ color: '#dc2626' }}>{clearMut.error.message}</p>}
+      {clearMut.error && <p role="alert" style={{ color: 'var(--danger)' }}>{clearMut.error.message}</p>}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
         <div>
           <label style={styles.label}>{t('common.device') || 'Device'}</label>
@@ -378,7 +378,7 @@ function SessionLogsTab() {
       </div>
 
       {selectedDeviceId ? (
-        logsLoading ? <p style={{ color: '#6b7280' }}>{t('common.loading')}</p> : (
+        logsLoading ? <p style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</p> : (
           <>
             <table style={styles.table}>
               <thead>
@@ -405,7 +405,7 @@ function SessionLogsTab() {
                     <td style={styles.td}>{log.task_type || '—'}</td>
                     <td style={styles.td}>
                       {log.fault_code ? (
-                        <span style={{ color: '#dc2626' }}>{log.fault_code}</span>
+                        <span style={{ color: 'var(--danger)' }}>{log.fault_code}</span>
                       ) : '—'}
                     </td>
                     <td style={styles.td}>{log.remote_ip || '—'}</td>
@@ -419,7 +419,7 @@ function SessionLogsTab() {
                 <button style={styles.pageButton} disabled={logPage === 1} onClick={() => setLogPage(p => p - 1)}>
                   {t('common.previous') || 'Prev'}
                 </button>
-                <span style={{ color: '#6b7280' }}>{logPage} / {totalPages}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{logPage} / {totalPages}</span>
                 <button style={styles.pageButton} disabled={logPage >= totalPages} onClick={() => setLogPage(p => p + 1)}>
                   {t('common.next') || 'Next'}
                 </button>
@@ -428,7 +428,7 @@ function SessionLogsTab() {
           </>
         )
       ) : (
-        <p style={{ color: '#9ca3af' }}>{t('common.selectDevice') || 'Select a device to view session logs.'}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('common.selectDevice') || 'Select a device to view session logs.'}</p>
       )}
     </div>
   );

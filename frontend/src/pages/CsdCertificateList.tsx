@@ -72,16 +72,16 @@ function daysLeft(validTo: string | null): number | null {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  expired: { bg: '#fee2e2', color: '#991b1b' },
-  revoked: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  expired: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  revoked: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function expiryNote(validTo: string | null): { label: string; color: string } | null {
   const days = daysLeft(validTo);
   if (days === null) return null;
-  if (days < 0) return { label: 'Expired', color: '#991b1b' };
-  if (days <= EXPIRY_WARN_DAYS) return { label: `${days}d left`, color: days <= 7 ? '#991b1b' : '#92400e' };
+  if (days < 0) return { label: 'Expired', color: 'var(--danger)' };
+  if (days <= EXPIRY_WARN_DAYS) return { label: `${days}d left`, color: days <= 7 ? 'var(--danger)' : 'var(--warning)' };
   return null;
 }
 
@@ -150,11 +150,11 @@ export function CsdCertificateList() {
   const activeDays = active ? daysLeft(active.valid_to) : null;
   const banner = !certsQ.isLoading && certs.length > 0 && (
     !active
-      ? { color: '#991b1b', bg: '#fee2e2', text: 'No active CSD — stamping cannot sign. Upload and activate a certificate.' }
+      ? { color: 'var(--danger)', bg: 'var(--danger-soft)', text: 'No active CSD — stamping cannot sign. Upload and activate a certificate.' }
       : activeDays !== null && activeDays <= EXPIRY_WARN_DAYS
         ? {
-          color: activeDays <= 7 ? '#991b1b' : '#92400e',
-          bg: activeDays <= 7 ? '#fee2e2' : '#fef3c7',
+          color: activeDays <= 7 ? 'var(--danger)' : 'var(--warning)',
+          bg: activeDays <= 7 ? 'var(--danger-soft)' : 'var(--warning-soft)',
           text: `The active CSD expires in ${activeDays} days (${active.valid_to ? fmtDate(active.valid_to) : ''}). `
               + 'Request its replacement from SAT (CertiSAT with your e.firma), upload it here and activate it — the switch has no downtime.',
         }
@@ -205,7 +205,7 @@ export function CsdCertificateList() {
           {t('ui.csdCertificateList.theFilesAreValidatedServer')}
         </p>
         {formError && <p style={{ ...styles.msgError, textAlign: 'left', marginTop: 8 }}>{formError}</p>}
-        {formOk && <p style={{ ...styles.msg, textAlign: 'left', marginTop: 8, color: '#065f46' }}>{formOk}</p>}
+        {formOk && <p style={{ ...styles.msg, textAlign: 'left', marginTop: 8, color: 'var(--success)' }}>{formOk}</p>}
       </div>
 
       <div style={styles.tableCard}>

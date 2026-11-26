@@ -155,7 +155,7 @@ function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
                 <input type="checkbox" disabled={already} checked={already || Boolean(selected[c.id])} onChange={() => toggle(c.id, c.name)} />
                 <span style={{ fontWeight: 600 }}>{c.name}</span>
                 {already && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.alreadyInThisGroup')}</span>}
-                {!already && c.client_group_id != null && <span style={{ fontSize: '0.75rem', color: '#b45309' }}>{t('ui.clientGroupList.inAnotherGroupWillMove')}</span>}
+                {!already && c.client_group_id != null && <span style={{ fontSize: '0.75rem', color: 'var(--warning)' }}>{t('ui.clientGroupList.inAnotherGroupWillMove')}</span>}
               </label>
             );
           })}
@@ -347,7 +347,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                   ? (billingQ.data.group_balances ?? [])
                   : [{ currency: billingQ.data.group_currency ?? '', balance: billingQ.data.group_balance ?? 0 }]
                 ).map((b, i) => (
-                  <strong key={b.currency} style={{ color: b.balance > 0.005 ? '#b91c1c' : '#15803d', marginLeft: i ? 8 : 0 }}>
+                  <strong key={b.currency} style={{ color: b.balance > 0.005 ? 'var(--danger)' : 'var(--success)', marginLeft: i ? 8 : 0 }}>
                     {fmtMoney(b.balance, b.currency)}
                   </strong>
                 ))}
@@ -361,7 +361,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
           )}
         </div>
         {isShared && !group.primary_client_id && (
-          <p style={{ margin: '2px 0 6px', fontSize: '0.8rem', color: '#b45309' }}>
+          <p style={{ margin: '2px 0 6px', fontSize: '0.8rem', color: 'var(--warning)' }}>
             {t('ui.clientGroupList.thisSharedGroupHasNo')}
           </p>
         )}
@@ -400,7 +400,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                     <td style={{ padding: '6px 8px' }}>{m.email || '—'}</td>
                     <td style={{ padding: '6px 8px', textTransform: 'capitalize' }}>{m.status}</td>
                     {isShared && canViewBilling && (
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: bal && (bal.balances ?? []).some(b => b.balance > 0.005) ? '#b91c1c' : 'inherit' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: bal && (bal.balances ?? []).some(b => b.balance > 0.005) ? 'var(--danger)' : 'inherit' }}>
                         {!bal ? '—' : bal.balance === null
                           ? (bal.balances ?? []).map(b => fmtMoney(b.balance, b.currency)).join(' · ')
                           : fmtMoney(bal.balance, bal.currency ?? '')}

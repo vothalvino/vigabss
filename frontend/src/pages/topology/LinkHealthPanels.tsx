@@ -69,7 +69,7 @@ export function UplinkForm({ deviceId, name, onDone }: { deviceId: number; name:
       <button type="submit" disabled={save.isPending} style={{ ...styles.input, cursor: 'pointer', fontWeight: 600 }}>{t('networkTree.save')}</button>
       <button type="button" onClick={onDone} style={{ ...styles.input, cursor: 'pointer' }}>{t('networkTree.cancel')}</button>
       {data.ports.length === 0 && <span>{t('linkHealth.noPorts')}</span>}
-      {save.isError && <span role="alert" style={{ color: '#991b1b' }}>{(save.error as Error).message}</span>}
+      {save.isError && <span role="alert" style={{ color: 'var(--danger)' }}>{(save.error as Error).message}</span>}
     </form>
   );
 }
@@ -133,7 +133,7 @@ export function HealthLimits({ canEdit }: { canEdit: boolean }) {
           {canEdit
             ? <button type="submit" disabled={save.isPending || changed.length === 0} style={{ ...styles.input, cursor: 'pointer', fontWeight: 600, marginTop: 10 }}>{t('linkHealth.limitsSave')}</button>
             : <p style={{ marginBottom: 0, fontSize: '0.85rem' }}>{t('linkHealth.limitsReadOnly')}</p>}
-          {save.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 10 }}>{(save.error as Error).message}</span>}
+          {save.isError && <span role="alert" style={{ color: 'var(--danger)', marginLeft: 10 }}>{(save.error as Error).message}</span>}
         </form>
       )}
     </section>

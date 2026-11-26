@@ -220,13 +220,13 @@ async function removeMaterial(workOrderId: number, materialId: number): Promise<
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
-    pending:     { bg: '#fef3c7', color: '#92400e' },
-    assigned:    { bg: '#dbeafe', color: '#1e40af' },
+    pending:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    assigned:    { bg: 'var(--info-soft)', color: 'var(--info)' },
     in_progress: { bg: '#ede9fe', color: '#5b21b6' },
-    completed:   { bg: '#d1fae5', color: '#065f46' },
-    cancelled:   { bg: '#f3f4f6', color: '#6b7280' },
+    completed:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+    cancelled:   { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
-  const s = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = colors[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg,
@@ -310,7 +310,7 @@ function MaterialsPanel({ workOrderId }: { workOrderId: number }) {
           >
             {addMut.isPending ? t('common.saving') : t('common.save')}
           </button>
-          {addErr && <span style={{ color: '#dc2626', fontSize: '0.8rem' }}>{addErr}</span>}
+          {addErr && <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{addErr}</span>}
         </div>
       )}
 
@@ -438,7 +438,7 @@ function PickupChecklistPanel({ workOrderId }: { workOrderId: number }) {
         </table>
       )}
       {resolveMut.isError && (
-        <p style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: 8 }}>
+        <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: 8 }}>
           {(resolveMut.error as Error)?.message ?? t('common.error', 'Something went wrong')}
         </p>
       )}
@@ -560,7 +560,7 @@ function SignDocumentModal({ docId, onClose, onSigned }: {
           {docQ.isLoading && <p>{t('common.loading')}</p>}
           {docQ.isError && (
             <div>
-              <p role="alert" style={{ color: '#ef4444', fontSize: '0.85rem' }}>
+              <p role="alert" style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>
                 {t('workOrders.documents.loadFailed')}
               </p>
               <div style={modalStyles.actions}>
@@ -606,7 +606,7 @@ function SignDocumentModal({ docId, onClose, onSigned }: {
                       {t('communicationOptIn.alreadyRecorded')}
                     </p>
                   ) : null}
-                  {err && <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
+                  {err && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
                   <div style={modalStyles.actions}>
                     <button type="button" style={styles.btnSecondary} onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
                     <button
@@ -711,7 +711,7 @@ function TestWindowPanel({ workOrderId, contractId }: { workOrderId: number; con
           </>
         ) : shutdownPending ? (
           <>
-            <span style={{ color: '#b45309' }}>{t('workOrders.testWindow.cleanupPending')}</span>
+            <span style={{ color: 'var(--warning)' }}>{t('workOrders.testWindow.cleanupPending')}</span>
             <button style={{ ...styles.btnSecondary, padding: '3px 12px', fontSize: '0.78rem' }}
               disabled={act.isPending} onClick={() => act.mutate('end')}>
               {t('workOrders.testWindow.retryShutdown')}
@@ -726,7 +726,7 @@ function TestWindowPanel({ workOrderId, contractId }: { workOrderId: number; con
             </button>
           </>
         )}
-        {err && <span style={{ color: '#991b1b' }}>{err}</span>}
+        {err && <span style={{ color: 'var(--danger)' }}>{err}</span>}
       </div>
       <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
         {t('workOrders.testWindow.hint')}
@@ -797,7 +797,7 @@ function DocumentsPanel({ workOrderId, serviceOrderId }: { workOrderId: number; 
               </>
             ) : d.status === 'pending' ? (
               <>
-                <span style={{ color: '#b45309' }}>{t('workOrders.documents.pending')}</span>
+                <span style={{ color: 'var(--warning)' }}>{t('workOrders.documents.pending')}</span>
                 {canSignDocuments ? (
                   <button style={{ ...styles.btnPrimary, padding: '3px 12px', fontSize: '0.78rem' }} onClick={() => setSigningId(d.id)}>
                     {t('workOrders.documents.openSign')}
@@ -916,7 +916,7 @@ function AcceptanceModal({ workOrder, onClose, onSubmit }: {
             <input style={modalStyles.input} maxLength={500}
               value={notes} onChange={e => setNotes(e.target.value)} />
           </label>
-          {err && <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{err}</p>}
           <div style={modalStyles.actions}>
             <button style={styles.btnSecondary} onClick={onClose} disabled={busy}>
               {t('common.cancel')}
@@ -1092,7 +1092,7 @@ export function WorkOrders() {
       {workOrdersQ.isLoading ? (
         <p>{t('common.loading')}</p>
       ) : workOrdersQ.error ? (
-        <p style={{ color: '#dc2626' }}>{t('common.loadError')}</p>
+        <p style={{ color: 'var(--danger)' }}>{t('common.loadError')}</p>
       ) : (
         <>
           {(workOrdersQ.data?.data ?? []).length === 0 ? (

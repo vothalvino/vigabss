@@ -227,10 +227,10 @@ async function stampCreditNote(id: number): Promise<StampResult> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#374151' },
-  issued:    { bg: '#dbeafe', color: '#1e40af' },
-  applied:   { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  issued:    { bg: 'var(--info-soft)', color: 'var(--info)' },
+  applied:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -575,11 +575,11 @@ export function CreditNoteList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('creditNoteList.actionFailedPleaseTryAgain')}</p>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('creditNoteList.actionFailedPleaseTryAgain')}</p>
       )}
 
       {stampMsg && (
-        <p style={{ color: stampMsg.ok ? '#065f46' : '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: stampMsg.ok ? 'var(--success)' : 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {stampMsg.text}
           {stampMsg.ok && <> {t('creditNoteList.viewItOnThe')}<Link to="/cfdi" style={{ color: 'var(--link)' }}>{t('creditNoteList.cfdiPage')}</Link>.</>}
         </p>
@@ -637,7 +637,7 @@ export function CreditNoteList() {
                             {t('creditNoteList.stampCfdi')}
                           </button>
                         )}
-                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(n.id)} title={t('creditNoteList.deleteThisCreditNote')}>{t('creditNoteList.delete')}</button>
+                        <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => setDeleteId(n.id)} title={t('creditNoteList.deleteThisCreditNote')}>{t('creditNoteList.delete')}</button>
                       </td>
                     </tr>
                   ))}

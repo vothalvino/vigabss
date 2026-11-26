@@ -83,10 +83,10 @@ async function deleteNode(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active:      { bg: '#d1fae5', color: '#065f46' },
-  draining:    { bg: '#fef9c3', color: '#854d0e' },
-  maintenance: { bg: '#fef3c7', color: '#92400e' },
-  offline:     { bg: '#fee2e2', color: '#991b1b' },
+  active:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+  draining:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  maintenance: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  offline:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------

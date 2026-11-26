@@ -373,7 +373,7 @@ export const modalBox: React.CSSProperties = {
   width: 420, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 export const errorBox: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b', padding: '8px 12px',
+  background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px',
   borderRadius: 6, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 export const labelStyle: React.CSSProperties = {

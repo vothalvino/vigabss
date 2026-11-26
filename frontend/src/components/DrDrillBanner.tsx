@@ -127,7 +127,7 @@ export function DrDrillBanner() {
     detail = last_error
       ? t('drDrill.failed.detailWithReason', { reason: last_error })
       : t('drDrill.failed.detail');
-    accentColor = '#dc2626'; // red
+    accentColor = 'var(--danger)'; // red
   } else {
     const dateStr = new Date(last_run_at).toLocaleDateString(undefined, {
       year: 'numeric', month: 'short', day: 'numeric',

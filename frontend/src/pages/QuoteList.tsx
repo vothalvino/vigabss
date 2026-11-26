@@ -90,11 +90,11 @@ async function deleteQuote(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft:    { bg: '#f3f4f6', color: '#374151' },
-  sent:     { bg: '#dbeafe', color: '#1e40af' },
-  accepted: { bg: '#d1fae5', color: '#065f46' },
-  rejected: { bg: '#fee2e2', color: '#991b1b' },
-  expired:  { bg: '#fef3c7', color: '#92400e' },
+  draft:    { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  sent:     { bg: 'var(--info-soft)', color: 'var(--info)' },
+  accepted: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  rejected: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  expired:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ export function QuoteList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('ui.quoteList.actionFailedPleaseTryAgain')}</p>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('ui.quoteList.actionFailedPleaseTryAgain')}</p>
       )}
 
       <div style={styles.tableCard}>
@@ -225,7 +225,7 @@ export function QuoteList() {
                       <td style={styles.td}>{fmtDate(q.valid_until)}</td>
                       <td style={styles.td}><StatusBadge status={q.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirm({ type: 'delete', id: q.id })} title={t('ui.quoteList.deleteThisQuote')}>{t('ui.quoteList.delete')}</button>
+                        <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => setConfirm({ type: 'delete', id: q.id })} title={t('ui.quoteList.deleteThisQuote')}>{t('ui.quoteList.delete')}</button>
                       </td>
                     </tr>
                   ))}

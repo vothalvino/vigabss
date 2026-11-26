@@ -140,7 +140,7 @@ function Panel({ title, children, loading, error }: {
       {loading ? (
         <span style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</span>
       ) : error ? (
-        <span style={{ color: '#dc2626' }}>{t('common.loadError')}</span>
+        <span style={{ color: 'var(--danger)' }}>{t('common.loadError')}</span>
       ) : children}
     </div>
   );
@@ -152,12 +152,12 @@ function Panel({ title, children, loading, error }: {
 
 function SeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
-    critical: { bg: '#fee2e2', color: '#991b1b' },
-    high:     { bg: '#fef3c7', color: '#92400e' },
-    medium:   { bg: '#dbeafe', color: '#1e40af' },
-    low:      { bg: '#d1fae5', color: '#065f46' },
+    critical: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    high:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    medium:   { bg: 'var(--info-soft)', color: 'var(--info)' },
+    low:      { bg: 'var(--success-soft)', color: 'var(--success)' },
   };
-  const s = colors[severity] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = colors[severity] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg,
@@ -209,13 +209,13 @@ export function NocDashboard() {
           {healthQ.data && (
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#059669' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--success)' }}>
                   {healthQ.data.devices.up}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('noc.devicesUp')}</div>
               </div>
               <div>
-                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#dc2626' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--danger)' }}>
                   {healthQ.data.devices.down}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('noc.devicesDown')}</div>
@@ -268,7 +268,7 @@ export function NocDashboard() {
         >
           {outagesQ.data && (
             outagesQ.data.data.length === 0 ? (
-              <span style={{ color: '#059669' }}>{t('noc.noOutages')}</span>
+              <span style={{ color: 'var(--success)' }}>{t('noc.noOutages')}</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {outagesQ.data.data.slice(0, 5).map(o => (
@@ -339,7 +339,7 @@ export function NocDashboard() {
           {slaQ.data && (
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: '2rem', fontWeight: 700, color: slaQ.data.compliance_pct >= 90 ? '#059669' : '#dc2626' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: slaQ.data.compliance_pct >= 90 ? 'var(--success)' : 'var(--danger)' }}>
                   {`${slaQ.data.compliance_pct.toFixed(1)}%`}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('noc.compliancePct')}</div>
@@ -350,7 +350,7 @@ export function NocDashboard() {
               </div>
               {slaQ.data.non_compliant > 0 && (
                 <div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{slaQ.data.non_compliant}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{slaQ.data.non_compliant}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('ui.nocDashboard.breached')}</div>
                 </div>
               )}

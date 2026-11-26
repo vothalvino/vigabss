@@ -102,8 +102,8 @@ const tabStyle = (active: boolean) => ({
   border: 'none',
   cursor: 'pointer',
   fontWeight: active ? 600 : 400,
-  background: active ? '#2563eb' : '#f3f4f6',
-  color: active ? '#fff' : '#374151',
+  background: active ? '#2563eb' : 'var(--bg-subtle)',
+  color: active ? '#fff' : 'var(--text-secondary)',
   marginRight: 8,
 });
 
@@ -163,18 +163,18 @@ function DevicesTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ color: '#6b7280' }}>{total} {t('cpeManagement.devices.title')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{total} {t('cpeManagement.devices.title')}</span>
         <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           + {t('cpeManagement.devices.newDevice')}
         </button>
       </div>
 
-      {deleteError && <p role="alert" style={{ color: '#dc2626' }}>{deleteError}</p>}
+      {deleteError && <p role="alert" style={{ color: 'var(--danger)' }}>{deleteError}</p>}
       {isLoading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.devices.error')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('cpeManagement.devices.error')}</p>}
 
       {!isLoading && devices.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('cpeManagement.devices.empty')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('cpeManagement.devices.empty')}</p>
       )}
 
       {devices.length > 0 && (
@@ -237,7 +237,7 @@ function DevicesTab() {
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <h3 style={{ marginTop: 0 }}>{t('cpeManagement.devices.createTitle')}</h3>
-            {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--danger)' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeManagement.devices.serialNumber')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.devices.oui')}<RequiredMark /></label>
@@ -313,18 +313,18 @@ function FirmwareTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ color: '#6b7280' }}>{total} {t('cpeManagement.firmware.title')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{total} {t('cpeManagement.firmware.title')}</span>
         <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           + {t('cpeManagement.firmware.newVersion')}
         </button>
       </div>
 
-      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
+      {deleteMut.error && <p role="alert" style={{ color: 'var(--danger)' }}>{deleteMut.error.message}</p>}
       {isLoading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.firmware.error')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('cpeManagement.firmware.error')}</p>}
 
       {!isLoading && versions.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('cpeManagement.firmware.empty')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('cpeManagement.firmware.empty')}</p>
       )}
 
       {versions.length > 0 && (
@@ -376,7 +376,7 @@ function FirmwareTab() {
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <h3 style={{ marginTop: 0 }}>{t('cpeManagement.firmware.createTitle')}</h3>
-            {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--danger)' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeManagement.firmware.manufacturer')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.firmware.model')}<RequiredMark /></label>
@@ -461,18 +461,18 @@ function CampaignsTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ color: '#6b7280' }}>{total} {t('cpeManagement.campaigns.title')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{total} {t('cpeManagement.campaigns.title')}</span>
         <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           + {t('cpeManagement.campaigns.newCampaign')}
         </button>
       </div>
 
       {isLoading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.campaigns.error')}</p>}
-      {actionError && <p role="alert" style={{ color: '#dc2626' }}>{actionError}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('cpeManagement.campaigns.error')}</p>}
+      {actionError && <p role="alert" style={{ color: 'var(--danger)' }}>{actionError}</p>}
 
       {!isLoading && campaigns.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('cpeManagement.campaigns.empty')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('cpeManagement.campaigns.empty')}</p>
       )}
 
       {campaigns.length > 0 && (
@@ -501,7 +501,7 @@ function CampaignsTab() {
                   <td style={styles.td}>{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}</td>
                   <td style={styles.td}>
                     {c.completed_devices}/{c.total_devices}
-                    {c.failed_devices > 0 && <span style={{ color: '#dc2626' }}> ({c.failed_devices} {t('cpeManagement.campaigns.failed')})</span>}
+                    {c.failed_devices > 0 && <span style={{ color: 'var(--danger)' }}> ({c.failed_devices} {t('cpeManagement.campaigns.failed')})</span>}
                   </td>
                   <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                     {c.status === 'scheduled' && (
@@ -542,7 +542,7 @@ function CampaignsTab() {
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <h3 style={{ marginTop: 0 }}>{t('cpeManagement.campaigns.createTitle')}</h3>
-            {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--danger)' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeManagement.campaigns.name')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.campaigns.firmwareVersion')}<RequiredMark /></label>
@@ -579,7 +579,7 @@ export function CpeManagementPage() {
   return (
     <div style={{ padding: 24 }}>
       <h1 style={{ margin: '0 0 4px' }}>{t('cpeManagement.title')}</h1>
-      <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 24 }}>{t('cpeManagement.subtitle')}</p>
+      <p style={{ color: 'var(--text-muted)', marginTop: 0, marginBottom: 24 }}>{t('cpeManagement.subtitle')}</p>
 
       <div style={{ marginBottom: 24 }}>
         {(['devices', 'firmware', 'campaigns'] as TabKey[]).map(k => (

@@ -172,14 +172,14 @@ async function deleteSplitter(splitterId: number): Promise<void> {
 
 function OperStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    up:             { bg: '#d1fae5', color: '#065f46' },
-    down:           { bg: '#fee2e2', color: '#991b1b' },
-    unknown:        { bg: '#f3f4f6', color: '#374151' },
-    testing:        { bg: '#fef3c7', color: '#92400e' },
-    notPresent:     { bg: '#f3f4f6', color: '#6b7280' },
+    up:             { bg: 'var(--success-soft)', color: 'var(--success)' },
+    down:           { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    unknown:        { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+    testing:        { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    notPresent:     { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
     lowerLayerDown: { bg: '#fed7aa', color: '#9a3412' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,

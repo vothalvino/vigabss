@@ -119,11 +119,11 @@ function DndChannelRow({
         <td style={tdStyle}>{CHANNEL_LABELS[channel]}</td>
         <td style={tdStyle}>
           {isOptOut ? (
-            <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
+            <span style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
               {t('clientDnd.optedOut')}
             </span>
           ) : (
-            <span style={{ background: '#f3f4f6', color: '#4b5563', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
+            <span style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
               {pref ? t('clientDnd.notSuppressed') : t('clientDnd.notRecorded')}
             </span>
           )}

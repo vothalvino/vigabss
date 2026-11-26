@@ -192,9 +192,9 @@ function tipoLabel(tipo: string | null): string {
 // stamp/cancel buttons never worked.)
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
   draft:          { label: 'Draft', bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
-  vigente:        { label: 'Vigente', bg: '#d1fae5', color: '#065f46' },
-  cancelado:      { label: 'Cancelado', bg: '#fee2e2', color: '#991b1b' },
-  cancel_pending: { label: 'Cancel pending', bg: '#fef3c7', color: '#92400e' },
+  vigente:        { label: 'Vigente', bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelado:      { label: 'Cancelado', bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  cancel_pending: { label: 'Cancel pending', bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -597,7 +597,7 @@ export function CfdiList() {
                         {doc.sat_status === 'draft' && !doc.uuid && !Number(doc.stamp_ambiguous) && (
                           <button
                             onClick={() => { void handleDiscard(doc); }}
-                            style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
+                            style={{ ...actionBtn, color: 'var(--danger)', borderColor: '#fca5a5' }}
                             title={doc.stamp_error ? `Last stamp attempt: ${doc.stamp_error}` : 'Delete this unstamped draft'}
                           >
                             {t('ui.cfdiList.discard')}
@@ -608,7 +608,7 @@ export function CfdiList() {
                         {(doc.sat_status === 'vigente' || doc.sat_status === 'cancel_pending') && (
                           <button
                             onClick={() => setCancelTarget(doc)}
-                            style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
+                            style={{ ...actionBtn, color: 'var(--danger)', borderColor: '#fca5a5' }}
                             title={t('ui.cfdiList.requestCancellationViaSatPac')}
                           >
                             {doc.sat_status === 'cancel_pending' ? '✕ Retry cancel' : '✕ Cancel'}
@@ -716,7 +716,7 @@ const modalBox: React.CSSProperties = {
   width: 460, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 const errorBox: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b', padding: '8px 12px',
+  background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px',
   borderRadius: 6, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 const labelStyle: React.CSSProperties = {

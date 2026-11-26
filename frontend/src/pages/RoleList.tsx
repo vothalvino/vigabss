@@ -83,11 +83,11 @@ const ASSIGNABLE_KIND_VALUES: RoleKind[] = ['billing', 'support', 'technician', 
 const ALL_KIND_VALUES: RoleKind[] = ['admin', 'billing', 'support', 'technician', 'readonly'];
 
 const KIND_COLORS: Record<string, { bg: string; color: string }> = {
-  admin: { bg: '#fee2e2', color: '#991b1b' },
-  billing: { bg: '#dbeafe', color: '#1e40af' },
-  technician: { bg: '#d1fae5', color: '#065f46' },
+  admin: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  billing: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  technician: { bg: 'var(--success-soft)', color: 'var(--success)' },
   support: { bg: '#ede9fe', color: '#5b21b6' },
-  readonly: { bg: '#f3f4f6', color: '#374151' },
+  readonly: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 const CRUD_ACTIONS = new Set(['view', 'create', 'update', 'delete']);
@@ -153,7 +153,7 @@ async function setRolePermissions(roleId: number, permissionIds: number[], fallb
 
 function KindBadge({ kind }: { kind: string }) {
   const { t } = useTranslation();
-  const c = KIND_COLORS[kind] ?? { bg: '#f3f4f6', color: '#374151' };
+  const c = KIND_COLORS[kind] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   const label = (ALL_KIND_VALUES as string[]).includes(kind) ? t(`userGroups.kind.${kind}`) : kind;
   return (
     <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
@@ -165,7 +165,7 @@ function KindBadge({ kind }: { kind: string }) {
 function SystemBadge() {
   const { t } = useTranslation();
   return (
-    <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
+    <span style={{ background: 'var(--warning-soft)', color: 'var(--warning)', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       🔒 {t('userGroups.table.system')}
     </span>
   );
@@ -712,7 +712,7 @@ export function RoleList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {deleteMutation.error instanceof Error ? deleteMutation.error.message : t('userGroups.deleteFailedGeneric')}
         </p>
       )}
@@ -757,7 +757,7 @@ export function RoleList() {
                         </button>
                         {!r.is_system && (
                           <button
-                            style={{ ...styles.actionBtn, color: '#991b1b' }}
+                            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                             onClick={() => setDeleteId(r.id)}
                             title={t('userGroups.action.deleteTitle')}
                           >

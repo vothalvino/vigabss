@@ -856,13 +856,13 @@ function Field({ id, label, value, onChange, type = 'text', required = false, mi
 
 function StatusBadge({ status, t }: { status: LoggerReadiness['status'] | SessionRow['state']; t: TFunction }) {
   const colors: Record<string, { bg: string; fg: string }> = {
-    ready: { bg: '#dcfce7', fg: '#166534' },
-    active: { bg: '#dcfce7', fg: '#166534' },
-    interim: { bg: '#dbeafe', fg: '#1d4ed8' },
-    ended: { bg: '#f3f4f6', fg: '#4b5563' },
-    waiting: { bg: '#fef3c7', fg: '#92400e' },
-    notConfigured: { bg: '#f3f4f6', fg: '#4b5563' },
-    unknown: { bg: '#f3f4f6', fg: '#4b5563' },
+    ready: { bg: 'var(--success-soft)', fg: 'var(--success)' },
+    active: { bg: 'var(--success-soft)', fg: 'var(--success)' },
+    interim: { bg: 'var(--info-soft)', fg: 'var(--info)' },
+    ended: { bg: 'var(--bg-subtle)', fg: 'var(--text-secondary)' },
+    waiting: { bg: 'var(--warning-soft)', fg: 'var(--warning)' },
+    notConfigured: { bg: 'var(--bg-subtle)', fg: 'var(--text-secondary)' },
+    unknown: { bg: 'var(--bg-subtle)', fg: 'var(--text-secondary)' },
   };
   const color = colors[status] ?? colors.unknown;
   const key = ['active', 'interim', 'ended'].includes(status)

@@ -240,7 +240,7 @@ export function BillingAdjustmentList() {
                 <tbody>
                   {adjustments.map(adj => {
                     const delta = parseFloat(adj.amount_delta);
-                    const deltaColor = Number.isNaN(delta) ? '#374151' : delta < 0 ? '#991b1b' : '#065f46';
+                    const deltaColor = Number.isNaN(delta) ? 'var(--text-secondary)' : delta < 0 ? 'var(--danger)' : 'var(--success)';
                     return (
                       <tr key={adj.id} style={styles.tr}>
                         <td style={styles.td}>#{adj.id}</td>
@@ -251,11 +251,11 @@ export function BillingAdjustmentList() {
                         <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: deltaColor }}>
                           {fmtDelta(adj.amount_delta)}
                         </td>
-                        <td style={{ ...styles.td, maxWidth: 200, color: '#374151' }} title={adj.reason}>
+                        <td style={{ ...styles.td, maxWidth: 200, color: 'var(--text-secondary)' }} title={adj.reason}>
                           {adj.reason.length > 50 ? adj.reason.slice(0, 50) + '…' : adj.reason}
                         </td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{adj.approved_by ?? '—'}</td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(adj.created_at)}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{adj.approved_by ?? '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(adj.created_at)}</td>
                       </tr>
                     );
                   })}

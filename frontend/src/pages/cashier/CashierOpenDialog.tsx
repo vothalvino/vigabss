@@ -64,13 +64,13 @@ export function CashierOpenDialog({ onClose, onOpened }: Props) {
           <p style={{ ...help, margin: '6px 0 0' }}>{t('cashReconciliation.opening.lastClose', { amount: money(expected) })}</p>
         )}
         {differs && (
-          <p role="status" style={{ margin: '6px 0 0', color: '#92400e', fontSize: '0.85rem', fontWeight: 600 }}>
+          <p role="status" style={{ margin: '6px 0 0', color: 'var(--warning)', fontSize: '0.85rem', fontWeight: 600 }}>
             {t('cashReconciliation.opening.differs')}
           </p>
         )}
         <label htmlFor="cashier-opening-notes" style={{ ...label, marginTop: 12 }}>{t('cashReconciliation.notes')}</label>
         <input id="cashier-opening-notes" style={input} type="text" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
-        {error && <p role="alert" style={{ margin: '8px 0 0', color: '#991b1b', fontSize: '0.85rem' }}>{error}</p>}
+        {error && <p role="alert" style={{ margin: '8px 0 0', color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button type="button" className="btn" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? t('common.saving') : title}</button>

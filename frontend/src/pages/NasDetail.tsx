@@ -71,23 +71,23 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:   { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#6b7280' },
-  up:       { bg: '#d1fae5', color: '#065f46' },
-  down:     { bg: '#fee2e2', color: '#991b1b' },
-  unknown:  { bg: '#f3f4f6', color: '#374151' },
+  active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  up:       { bg: 'var(--success-soft)', color: 'var(--success)' },
+  down:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  unknown:  { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function WgStateBadge({ state }: { state: string | null | undefined }) {
   const colorMap: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    manual:   { bg: '#dbeafe', color: '#1e40af' },
-    pending:  { bg: '#fef3c7', color: '#92400e' },
-    degraded: { bg: '#fee2e2', color: '#991b1b' },
-    error:    { bg: '#fee2e2', color: '#991b1b' },
-    disabled: { bg: '#f3f4f6', color: '#6b7280' },
+    active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+    manual:   { bg: 'var(--info-soft)', color: 'var(--info)' },
+    pending:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    degraded: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    error:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    disabled: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
-  const s = colorMap[state ?? ''] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = colorMap[state ?? ''] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {state ?? 'none'}
@@ -382,7 +382,7 @@ export function NasDetail() {
             </button>
           )}
           {canDelete && (
-            <button style={{ ...styles.actionBtn, color: '#991b1b', borderColor: '#fecaca' }} onClick={() => setShowDelete(true)} title={t('ui.nasDetail.deleteThisNas')}>
+            <button style={{ ...styles.actionBtn, color: 'var(--danger)', borderColor: '#fecaca' }} onClick={() => setShowDelete(true)} title={t('ui.nasDetail.deleteThisNas')}>
               {t('ui.nasDetail.delete')}
             </button>
           )}
@@ -586,7 +586,7 @@ export function NasDetail() {
 
                   {/* Last error */}
                   {wgTunnel.last_error && (
-                    <div style={{ padding: '0.65rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#991b1b', fontSize: '0.82rem' }}>
+                    <div style={{ padding: '0.65rem', background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.82rem' }}>
                       <strong>{t('nasDetail.tunnel.lastError')}:</strong> {wgTunnel.last_error}
                     </div>
                   )}
@@ -681,7 +681,7 @@ const styles = {
   tr: { borderBottom: '1px solid var(--border-subtle)' },
   td: { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
   actionBtn: {
     padding: '0.45rem 0.85rem',
     background: 'transparent',
@@ -694,6 +694,6 @@ const styles = {
   } as React.CSSProperties,
   voipMenu: { position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 20, minWidth: 220, display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', padding: 4 } as React.CSSProperties,
   voipMenuItem: { textAlign: 'left', padding: '0.45rem 0.7rem', background: 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' } as React.CSSProperties,
-  feedbackError: { padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#991b1b', fontSize: '0.85rem' } as React.CSSProperties,
+  feedbackError: { padding: '0.65rem 0.85rem', background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.85rem' } as React.CSSProperties,
   feedbackResult: { background: 'var(--bg-subtle, #f9fafb)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap' as const, overflowWrap: 'anywhere' as const },
 };

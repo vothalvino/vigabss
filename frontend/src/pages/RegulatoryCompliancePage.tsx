@@ -197,9 +197,9 @@ export default function RegulatoryCompliancePage() {
             style={{
               fontWeight: renderedTab === tab ? 'bold' : 'normal',
               padding: '6px 12px',
-              border: renderedTab === tab ? '2px solid #4a90e2' : '1px solid #ccc',
+              border: renderedTab === tab ? '2px solid var(--info)' : '1px solid var(--border-strong)',
               borderRadius: 4,
-              background: renderedTab === tab ? '#eaf3ff' : '#fff',
+              background: renderedTab === tab ? 'var(--info-soft)' : 'var(--bg-card)',
               cursor: 'pointer',
             }}
           >
@@ -295,7 +295,7 @@ function ConsentTab() {
   }
 
   const fld: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 };
-  const inp: React.CSSProperties = { padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4 };
+  const inp: React.CSSProperties = { padding: '6px 8px', border: '1px solid var(--border-strong)', borderRadius: 4 };
 
   return (
     <div>
@@ -385,7 +385,7 @@ function ConsentTab() {
             ))}
             {consents.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -460,7 +460,7 @@ function DsarTab() {
   }
 
   const fld: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 };
-  const inp: React.CSSProperties = { padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4 };
+  const inp: React.CSSProperties = { padding: '6px 8px', border: '1px solid var(--border-strong)', borderRadius: 4 };
   // A request already closed one way must not offer either action again.
   const isOpen = (s: string) => s === 'pending' || s === 'in_review' || s === 'legal_hold';
 
@@ -530,7 +530,7 @@ function DsarTab() {
             ))}
             {requests.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -690,7 +690,7 @@ function GovernmentRequestsTab() {
   }
 
   const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, minWidth: 170 };
-  const inputStyle: React.CSSProperties = { padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4 };
+  const inputStyle: React.CSSProperties = { padding: '6px 8px', border: '1px solid var(--border-strong)', borderRadius: 4 };
   const canStart = (status: string) => ['received', 'pending_legal_review'].includes(status);
 
   return (
@@ -699,7 +699,7 @@ function GovernmentRequestsTab() {
       <p style={{ color: '#667085', lineHeight: 1.5, maxWidth: 900 }}>
         {t('regulatoryCompliance.government.help')}
       </p>
-      <p role="note" style={{ color: '#92400e', lineHeight: 1.5, maxWidth: 900, fontWeight: 600 }}>
+      <p role="note" style={{ color: 'var(--warning)', lineHeight: 1.5, maxWidth: 900, fontWeight: 600 }}>
         {t('regulatoryCompliance.government.workflowHelp')}
       </p>
       {canManage && (
@@ -844,7 +844,7 @@ function GovernmentRequestsTab() {
                               observed_at: request.observed_at,
                             },
                           }}
-                          style={{ color: '#1d4ed8', fontWeight: 600 }}
+                          style={{ color: 'var(--info)', fontWeight: 600 }}
                         >
                           {t('regulatoryCompliance.government.openLookup')}
                         </Link>
@@ -879,7 +879,7 @@ function GovernmentRequestsTab() {
                       )}
                       {canManage && ['fulfilled', 'rejected'].includes(request.status) && (
                         releasedCases.has(request.id) ? (
-                          <span style={{ color: '#166534', fontSize: 12 }}>
+                          <span style={{ color: 'var(--success)', fontSize: 12 }}>
                             {t('regulatoryCompliance.government.releaseRecorded')}
                           </span>
                         ) : (
@@ -910,7 +910,7 @@ function GovernmentRequestsTab() {
                 );
               })}
               {requests.length === 0 && (
-                <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>{t('common.noResults')}</td></tr>
+                <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>{t('common.noResults')}</td></tr>
               )}
             </tbody>
           </table>
@@ -971,7 +971,7 @@ function IdentityTab() {
             ))}
             {records.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -1026,7 +1026,7 @@ function NumberingTab() {
             ))}
             {numbers.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -1087,7 +1087,7 @@ function UsoTab() {
             ))}
             {obligations.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -1150,7 +1150,7 @@ function ConsumerTab() {
             ))}
             {notices.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -1446,7 +1446,7 @@ function ContractTemplateMxRegistry({ canView, canCreate, canUpdate, organizatio
         </p>
         {environmentError && (
           <div style={{ marginTop: 8 }}>
-            <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{environmentError}</p>
+            <p role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{environmentError}</p>
             <button type="button" onClick={loadEnvironment} style={{ marginTop: 6 }}>
               {t('common.retry')}
             </button>
@@ -1454,11 +1454,11 @@ function ContractTemplateMxRegistry({ canView, canCreate, canUpdate, organizatio
         )}
       </div>
       <p>{t('regulatoryCompliance.consumer.registry.explanation')}</p>
-      <p style={{ padding: 10, border: '1px solid #d6a700', background: '#fff9db' }}>
+      <p style={{ padding: 10, border: '1px solid #d6a700', background: 'var(--warning-soft)' }}>
         {t('regulatoryCompliance.consumer.registry.externalWarning')}
       </p>
 
-      {loadError && <p role="alert" style={{ color: '#b91c1c' }}>{loadError}</p>}
+      {loadError && <p role="alert" style={{ color: 'var(--danger)' }}>{loadError}</p>}
       {loading ? <p>{t('common.loading')}</p> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -1638,7 +1638,7 @@ function ContractTemplateMxRegistry({ canView, canCreate, canUpdate, organizatio
             </select>
           </label>
           {registeringNow && (
-            <label style={{ padding: 10, border: '1px solid #d6a700', background: '#fff9db' }}>
+            <label style={{ padding: 10, border: '1px solid #d6a700', background: 'var(--warning-soft)' }}>
               <input
                 type="checkbox"
                 checked={externalRegistrationConfirmed}
@@ -1650,7 +1650,7 @@ function ContractTemplateMxRegistry({ canView, canCreate, canUpdate, organizatio
           {sourceFrozen && <p>{t('regulatoryCompliance.consumer.registry.frozenEvidence')}</p>}
           {editing && <p>{t('regulatoryCompliance.consumer.registry.environment.immutable')}</p>}
           {saveMessage && (
-            <p role="alert" style={{ color: saveMessage.ok ? '#166534' : '#b91c1c' }}>{saveMessage.text}</p>
+            <p role="alert" style={{ color: saveMessage.ok ? 'var(--success)' : 'var(--danger)' }}>{saveMessage.text}</p>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</button>
@@ -1661,7 +1661,7 @@ function ContractTemplateMxRegistry({ canView, canCreate, canUpdate, organizatio
         </form>
       )}
       {!showForm && saveMessage && (
-        <p role="status" style={{ color: saveMessage.ok ? '#166534' : '#b91c1c' }}>{saveMessage.text}</p>
+        <p role="status" style={{ color: saveMessage.ok ? 'var(--success)' : 'var(--danger)' }}>{saveMessage.text}</p>
       )}
     </section>
   );
@@ -1820,7 +1820,7 @@ function AuditTab() {
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>
+                <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -1840,7 +1840,7 @@ const thStyle: React.CSSProperties = {
   border: '1px solid #ddd',
   padding: '8px 10px',
   textAlign: 'left',
-  background: '#f5f5f5',
+  background: 'var(--bg-subtle)',
   fontWeight: 600,
   fontSize: '0.875rem',
 };

@@ -332,11 +332,11 @@ async function fetchReadiness(): Promise<ReadinessResponse> {
 function SeverityBadge({ severity }: { severity: string }) {
   const { t } = useTranslation();
   const map: Record<string, { bg: string; color: string }> = {
-    info: { bg: '#dbeafe', color: '#1d4ed8' },
-    warning: { bg: '#fef3c7', color: '#92400e' },
-    error: { bg: '#fee2e2', color: '#991b1b' },
+    info: { bg: 'var(--info-soft)', color: 'var(--info)' },
+    warning: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    error: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const c = map[severity] ?? { bg: '#f3f4f6', color: '#374151' };
+  const c = map[severity] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: c.bg, color: c.color, padding: '2px 6px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {t(`pppoe_diagnostics.severities.${severity}`, severity)}
@@ -351,13 +351,13 @@ function SeverityBadge({ severity }: { severity: string }) {
 function ReasonBadge({ reason }: { reason: string }) {
   const { t } = useTranslation();
   const map: Record<string, { bg: string; color: string }> = {
-    bad_password: { bg: '#fee2e2', color: '#991b1b' },
-    unknown_user: { bg: '#fef3c7', color: '#92400e' },
+    bad_password: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    unknown_user: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
     session_limit: { bg: '#ede9fe', color: '#6d28d9' },
-    no_pool: { bg: '#ffedd5', color: '#9a3412' },
-    other: { bg: '#f3f4f6', color: '#374151' },
+    no_pool: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    other: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const c = map[reason] ?? { bg: '#f3f4f6', color: '#374151' };
+  const c = map[reason] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: c.bg, color: c.color, padding: '2px 6px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600 }}>
       {t(`pppoe_diagnostics.reasons.${reason}`, reason.replace(/_/g, ' '))}
@@ -370,10 +370,10 @@ function ReasonBadge({ reason }: { reason: string }) {
 // ---------------------------------------------------------------------------
 
 const READINESS_STATUS_COLORS: Record<ReadinessStatus, { bg: string; color: string; border: string }> = {
-  ready: { bg: '#ecfdf5', color: '#065f46', border: '#6ee7b7' },
-  waiting: { bg: '#fffbeb', color: '#92400e', border: '#fcd34d' },
-  not_configured: { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' },
-  error: { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5' },
+  ready: { bg: 'var(--success-soft)', color: 'var(--success)', border: '#6ee7b7' },
+  waiting: { bg: 'var(--warning-soft)', color: 'var(--warning)', border: '#fcd34d' },
+  not_configured: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '#d1d5db' },
+  error: { bg: 'var(--danger-soft)', color: 'var(--danger)', border: '#fca5a5' },
 };
 
 function ReadinessStatusBadge({ status }: { status: ReadinessStatus }) {
@@ -438,7 +438,7 @@ function ReadinessBanner() {
       <section
         role="alert"
         aria-label={t('pppoe_diagnostics.readiness.label', 'Diagnostics readiness')}
-        style={{ border: '1px solid #fcd34d', background: '#fffbeb', borderRadius: 8, padding: '0.75rem 0.9rem', marginBottom: '1rem', color: '#78350f' }}
+        style={{ border: '1px solid #fcd34d', background: 'var(--warning-soft)', borderRadius: 8, padding: '0.75rem 0.9rem', marginBottom: '1rem', color: 'var(--warning)' }}
       >
         <strong style={{ display: 'block', fontSize: '0.86rem' }}>{t('pppoe_diagnostics.readiness.load_error_title', 'Readiness unavailable')}</strong>
         <span style={{ fontSize: '0.8rem' }}>{t('pppoe_diagnostics.readiness.load_error_summary', 'Data-source health could not be checked. Empty results may be incomplete.')}</span>
@@ -450,10 +450,10 @@ function ReadinessBanner() {
   const isReady = readiness.overall === 'ready';
   const showSourceCards = !isReady || showReadyDetails;
   const overallStyles = isReady
-    ? { border: '#6ee7b7', bg: '#ecfdf5', color: '#065f46' }
+    ? { border: '#6ee7b7', bg: 'var(--success-soft)', color: 'var(--success)' }
     : readiness.overall === 'not_configured'
-      ? { border: '#d1d5db', bg: '#f9fafb', color: '#374151' }
-      : { border: '#fcd34d', bg: '#fffbeb', color: '#78350f' };
+      ? { border: '#d1d5db', bg: 'var(--bg-body)', color: 'var(--text-secondary)' }
+      : { border: '#fcd34d', bg: 'var(--warning-soft)', color: 'var(--warning)' };
   const overallTitle = t(
     `pppoe_diagnostics.readiness.overall.${readiness.overall}_title`,
     readiness.overall === 'ready'
@@ -493,7 +493,7 @@ function ReadinessBanner() {
             type="button"
             aria-expanded={showReadyDetails}
             onClick={() => setShowReadyDetails(value => !value)}
-            style={{ border: '1px solid #6ee7b7', background: 'rgba(255,255,255,0.55)', color: '#065f46', borderRadius: 6, padding: '0.25rem 0.55rem', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+            style={{ border: '1px solid #6ee7b7', background: 'var(--bg-card)', color: 'var(--success)', borderRadius: 6, padding: '0.25rem 0.55rem', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
           >
             {showReadyDetails
               ? t('pppoe_diagnostics.readiness.hide_details', 'Hide source details')
@@ -503,7 +503,7 @@ function ReadinessBanner() {
       </div>
 
       {isReady && !showReadyDetails && (
-        <div style={{ display: 'flex', gap: '0.35rem 0.9rem', flexWrap: 'wrap', marginTop: '0.35rem', fontSize: '0.72rem', color: '#047857' }}>
+        <div style={{ display: 'flex', gap: '0.35rem 0.9rem', flexWrap: 'wrap', marginTop: '0.35rem', fontSize: '0.72rem', color: 'var(--success)' }}>
           {sourceRows.map(({ key, source }) => (
             <span key={key}>
               {t(`pppoe_diagnostics.readiness.sources.${key}`, key.replace(/_/g, ' '))}: {formatLastReceived(source.lastReceivedAt)}
@@ -528,19 +528,19 @@ function ReadinessBanner() {
       {showSourceCards && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: '0.6rem', marginTop: '0.7rem' }}>
           {sourceRows.map(({ key, source }) => (
-            <div key={key} style={{ border: '1px solid rgba(107,114,128,0.25)', background: 'rgba(255,255,255,0.58)', borderRadius: 7, padding: '0.6rem 0.7rem', color: '#374151' }}>
+            <div key={key} style={{ border: '1px solid rgba(107,114,128,0.25)', background: 'var(--bg-card)', borderRadius: 7, padding: '0.6rem 0.7rem', color: 'var(--text-secondary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center', marginBottom: '0.45rem' }}>
                 <strong style={{ fontSize: '0.79rem' }}>{t(`pppoe_diagnostics.readiness.sources.${key}`, key.replace(/_/g, ' '))}</strong>
                 <ReadinessStatusBadge status={source.status} />
               </div>
               <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.2rem 0.45rem', fontSize: '0.72rem' }}>
-                <dt style={{ color: '#6b7280' }}>{t('pppoe_diagnostics.readiness.last_received', 'Last received')}</dt>
+                <dt style={{ color: 'var(--text-muted)' }}>{t('pppoe_diagnostics.readiness.last_received', 'Last received')}</dt>
                 <dd style={{ margin: 0, textAlign: 'right', overflowWrap: 'anywhere' }}>{formatLastReceived(source.lastReceivedAt)}</dd>
-                <dt style={{ color: '#6b7280' }}>{t('pppoe_diagnostics.readiness.events_24h', 'Events (24h)')}</dt>
+                <dt style={{ color: 'var(--text-muted)' }}>{t('pppoe_diagnostics.readiness.events_24h', 'Events (24h)')}</dt>
                 <dd style={{ margin: 0, textAlign: 'right' }}>{source.events24h}</dd>
                 {key === 'router_events' && (
                   <>
-                    <dt style={{ color: '#6b7280' }}>{t('pppoe_diagnostics.readiness.nas_coverage', 'NAS configured for RouterOS PPPoE polling')}</dt>
+                    <dt style={{ color: 'var(--text-muted)' }}>{t('pppoe_diagnostics.readiness.nas_coverage', 'NAS configured for RouterOS PPPoE polling')}</dt>
                     <dd style={{ margin: 0, textAlign: 'right' }}>
                       {t('pppoe_diagnostics.readiness.coverage_short', '{{covered}} / {{total}}', {
                         covered: (source as RouterEventsReadinessSource).coveredNas,
@@ -549,7 +549,7 @@ function ReadinessBanner() {
                     </dd>
                     {Boolean((source as RouterEventsReadinessSource).maintenanceNas) && (
                       <>
-                        <dt style={{ color: '#6b7280' }}>{t('pppoe_diagnostics.readiness.maintenance_label', 'Maintenance mode')}</dt>
+                        <dt style={{ color: 'var(--text-muted)' }}>{t('pppoe_diagnostics.readiness.maintenance_label', 'Maintenance mode')}</dt>
                         <dd style={{ margin: 0, textAlign: 'right' }}>
                           {t('pppoe_diagnostics.readiness.maintenance_count', 'NAS excluded: {{count}}', {
                             count: (source as RouterEventsReadinessSource).maintenanceNas ?? 0,
@@ -561,11 +561,11 @@ function ReadinessBanner() {
                 )}
               </dl>
               {key === 'router_events' && Boolean((source as RouterEventsReadinessSource).maintenanceNas) && (
-                <p style={{ margin: '0.45rem 0 0', fontSize: '0.7rem', lineHeight: 1.35, color: '#6b7280' }}>
+                <p style={{ margin: '0.45rem 0 0', fontSize: '0.7rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
                   {t('pppoe_diagnostics.readiness.maintenance_excluded', 'NAS in maintenance mode are excluded from automated RouterOS PPPoE diagnostics polling and readiness coverage.')}
                 </p>
               )}
-              {source.detail && <p style={{ margin: '0.45rem 0 0', fontSize: '0.72rem', lineHeight: 1.35, color: '#4b5563' }}>{formatDetail(source)}</p>}
+              {source.detail && <p style={{ margin: '0.45rem 0 0', fontSize: '0.72rem', lineHeight: 1.35, color: 'var(--text-secondary)' }}>{formatDetail(source)}</p>}
             </div>
           ))}
         </div>
@@ -857,7 +857,7 @@ function MtuIssuesTab() {
 
   return (
     <div>
-      <div style={{ padding: '0.6rem 1rem', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, marginBottom: '1rem', fontSize: '0.82rem', color: '#78350f' }}>
+      <div style={{ padding: '0.6rem 1rem', background: 'var(--warning-soft)', border: '1px solid #fcd34d', borderRadius: 6, marginBottom: '1rem', fontSize: '0.82rem', color: 'var(--warning)' }}>
         {t('pppoe_diagnostics.mtu_heuristic_note', 'Note: LCP failure advisories are heuristic. A profile with non-1492 MTU and LCP errors may be unrelated to MTU configuration.')}
       </div>
       <div style={styles.tableCard}>
@@ -883,7 +883,7 @@ function MtuIssuesTab() {
                 {q.data.advisories.map((a, i) => (
                   <tr key={i} style={styles.tr}>
                     <td style={styles.td}>
-                      <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600 }}>
+                      <span style={{ background: 'var(--warning-soft)', color: 'var(--warning)', padding: '2px 6px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600 }}>
                         {t(`pppoe_diagnostics.advisory_types.${a.type}`, a.type.replace(/_/g, ' '))}
                       </span>
                     </td>

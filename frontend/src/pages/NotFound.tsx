@@ -17,7 +17,7 @@ export function NotFound() {
         height: '100vh',
         fontFamily: 'var(--font-sans)',
         gap: 12,
-        color: '#444',
+        color: 'var(--text-secondary)',
       }}
     >
       <h1 style={{ fontSize: '3rem', margin: 0 }}>404</h1>

@@ -66,7 +66,7 @@ export function ContractNetworkPath({ contractId, canKeep = false }: { contractI
         </button>
       </div>
       {!asked && <p style={{ margin: '8px 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>{t('customerPath.intro')}</p>}
-      {isError && <p role="alert" style={{ color: '#991b1b' }}>{t('customerPath.failed')}</p>}
+      {isError && <p role="alert" style={{ color: 'var(--danger)' }}>{t('customerPath.failed')}</p>}
 
       {data && (
         <>
@@ -117,7 +117,7 @@ export function ContractNetworkPath({ contractId, canKeep = false }: { contractI
             <button type="button" disabled={keep.isPending || keep.isSuccess} onClick={() => keep.mutate()} style={{ cursor: 'pointer' }}>
               {keep.isSuccess ? t('customerPath.kept') : t('customerPath.keep')}
             </button>
-            {keep.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 8 }}>{(keep.error as Error).message}</span>}
+            {keep.isError && <span role="alert" style={{ color: 'var(--danger)', marginLeft: 8 }}>{(keep.error as Error).message}</span>}
           </p>}
           {data.gaps.length > 0 && (
             <div style={{ marginTop: 10, fontSize: '0.85rem' }}>

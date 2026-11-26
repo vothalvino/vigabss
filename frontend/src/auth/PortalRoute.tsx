@@ -15,7 +15,7 @@ export function PortalRoute() {
 
   if (loading || !initialized) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif', color: '#555' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif', color: 'var(--text-secondary)' }}>
         {t('ui.portalRoute.loading')}
       </div>
     );

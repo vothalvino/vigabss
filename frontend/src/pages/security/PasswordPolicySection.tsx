@@ -157,7 +157,7 @@ export function PasswordPolicySection() {
             onChange={e => set(key, e.target.value)}
             style={{ width: 110, padding: '6px 8px', borderColor: bad ? '#b91c1c' : undefined }}
           />
-          <small id={`${id}-help`} style={{ display: 'block', color: bad ? '#b91c1c' : '#555' }}>
+          <small id={`${id}-help`} style={{ display: 'block', color: bad ? 'var(--danger)' : 'var(--text-secondary)' }}>
             {t(`securityAccessControl.passwordPolicyHelp.${key}`, { min: spec.min, max: spec.max })}
           </small>
         </span>
@@ -200,13 +200,13 @@ export function PasswordPolicySection() {
             <button type="submit" disabled={save.isPending || invalid.length > 0} style={{ padding: '8px 14px' }}>
               {save.isPending ? t('common.loading') : k('save')}
             </button>
-            {saved && <span role="status" style={{ color: '#15803d' }}>{k('saved')}</span>}
-            <small style={{ color: '#555' }}>{k('appliesNext')}</small>
+            {saved && <span role="status" style={{ color: 'var(--success)' }}>{k('saved')}</span>}
+            <small style={{ color: 'var(--text-secondary)' }}>{k('appliesNext')}</small>
           </div>
         ) : (
           <p role="note">{k('readOnly')}</p>
         )}
-        {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       </form>
     </section>
   );

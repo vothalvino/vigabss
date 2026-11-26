@@ -35,7 +35,7 @@ interface PaymentGateway {
 }
 
 const testBanner = {
-  background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b', borderRadius: 6,
+  background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid #f59e0b', borderRadius: 6,
   padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, margin: '0 0 1rem',
 };
 const okText = { color: '#16a34a', fontSize: '0.85rem', margin: '0 0 0.75rem' };

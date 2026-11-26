@@ -109,8 +109,8 @@ export function PortalInvoiceDetail() {
     },
   });
 
-  if (isLoading) return <p style={{ color: '#6b7280' }}>{t('portalCommon.loading')}</p>;
-  if (error || !invoice) return <p style={{ color: '#b91c1c' }}>{t('portalInvoiceDetail.notFound')}</p>;
+  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>{t('portalCommon.loading')}</p>;
+  if (error || !invoice) return <p style={{ color: 'var(--danger)' }}>{t('portalInvoiceDetail.notFound')}</p>;
 
   const balanceDue = invoice.balance_due ?? Number(invoice.total);
   const canPay = ['issued', 'sent', 'overdue'].includes(invoice.status) && balanceDue > 0.005;
@@ -296,11 +296,11 @@ export function PortalInvoiceDetail() {
 
 function badgeColor(status: string): React.CSSProperties {
   switch (status) {
-    case 'paid': return { background: '#d1fae5', color: '#065f46' };
-    case 'issued': return { background: '#dbeafe', color: '#1e40af' };
-    case 'overdue': return { background: '#fee2e2', color: '#991b1b' };
-    case 'cancelled': return { background: '#f3f4f6', color: '#6b7280' };
-    default: return { background: '#f3f4f6', color: '#374151' };
+    case 'paid': return { background: 'var(--success-soft)', color: 'var(--success)' };
+    case 'issued': return { background: 'var(--info-soft)', color: 'var(--info)' };
+    case 'overdue': return { background: 'var(--danger-soft)', color: 'var(--danger)' };
+    case 'cancelled': return { background: 'var(--bg-subtle)', color: 'var(--text-muted)' };
+    default: return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   }
 }
 
@@ -315,7 +315,7 @@ const styles = {
   badge: { display: 'inline-block', padding: '0.3rem 0.75rem', borderRadius: 12, fontSize: '0.8rem', fontWeight: 700 },
   payBtn: { padding: '0.6rem 1.5rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, fontSize: '1rem', fontWeight: 600, cursor: 'pointer' },
   dlBtn: { padding: '0.4rem 1rem', background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, fontSize: '0.875rem', cursor: 'pointer' },
-  payError: { color: '#b91c1c', fontSize: '0.85rem', margin: '0 0 0.5rem' },
+  payError: { color: 'var(--danger)', fontSize: '0.85rem', margin: '0 0 0.5rem' },
   sectionTitle: { fontSize: '1rem', color: 'var(--text-secondary)', margin: '1.25rem 0 0.5rem' },
   table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.875rem' },
   th: { textAlign: 'left' as const, padding: '0.5rem 0.5rem', color: 'var(--text-muted)', fontWeight: 600, borderBottom: '2px solid var(--border-subtle)' },

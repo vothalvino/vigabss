@@ -30,7 +30,7 @@ export function ConfidenceBadge({ confidence }: { confidence: number | null }) {
   const { t } = useTranslation();
   if (confidence === null) return null;
   const pct = Math.round(confidence * 100);
-  const color = pct >= 80 ? '#065f46' : pct >= 60 ? '#854d0e' : '#991b1b';
+  const color = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
   const bg    = pct >= 80 ? '#d1fae5' : pct >= 60 ? '#fef9c3' : '#fee2e2';
   return (
     <span style={{
@@ -61,7 +61,7 @@ export function TopoBreadcrumb({ topology }: TopoBreadcrumbProps) {
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         {hasOutage && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} aria-label={t('ui.ticketDetail.activeOutage')} />}
         <span style={{
-          background: '#f3f4f6', color: '#374151',
+          background: 'var(--bg-subtle)', color: 'var(--text-secondary)',
           padding: '2px 8px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600,
         }}>
           {role}: {node.name ?? `#${nodeId}`}
@@ -84,20 +84,20 @@ export function TopoBreadcrumb({ topology }: TopoBreadcrumbProps) {
       <NodeChip node={topology.cpe} role="CPE" />
       {topology.accessDevice && (
         <>
-          <span style={{ color: '#9ca3af' }}>→</span>
+          <span style={{ color: 'var(--text-muted)' }}>→</span>
           <NodeChip node={topology.accessDevice} role="Access" />
         </>
       )}
       {topology.backhauls.map((bh, i) => (
         <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#9ca3af' }}>→</span>
+          <span style={{ color: 'var(--text-muted)' }}>→</span>
           <MediumIcon medium={bh.medium} />
           <NodeChip node={bh.device} role="Backhaul" />
         </span>
       ))}
       {topology.coreDevice && (
         <>
-          <span style={{ color: '#9ca3af' }}>→</span>
+          <span style={{ color: 'var(--text-muted)' }}>→</span>
           <NodeChip node={topology.coreDevice} role="Core" />
         </>
       )}

@@ -112,9 +112,9 @@ async function deleteExpense(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  pending:  { bg: '#fef3c7', color: '#92400e' },
-  approved: { bg: '#d1fae5', color: '#065f46' },
-  rejected: { bg: '#fee2e2', color: '#991b1b' },
+  pending:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  approved: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  rejected: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -328,7 +328,7 @@ export function ExpenseList() {
       </div>
 
       {(deleteMutation.isError || decideMutation.isError) && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('ui.expenseList.actionFailedPleaseTryAgain')}</p>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('ui.expenseList.actionFailedPleaseTryAgain')}</p>
       )}
 
       <div style={styles.tableCard}>
@@ -363,7 +363,7 @@ export function ExpenseList() {
                           </>
                         )}
                         <button style={styles.actionBtn} onClick={() => setEditExpense(x)} title={t('ui.expenseList.editThisExpense')}>{t('ui.expenseList.edit')}</button>
-                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(x.id)} title={t('ui.expenseList.deleteThisExpense')}>{t('ui.expenseList.delete')}</button>
+                        <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => setDeleteId(x.id)} title={t('ui.expenseList.deleteThisExpense')}>{t('ui.expenseList.delete')}</button>
                       </td>
                     </tr>
                   ))}

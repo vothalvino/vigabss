@@ -101,12 +101,12 @@ function fmtAmount(amount: string | null | undefined): string {
 
 function PlanStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    active:    { bg: '#d1fae5', color: '#065f46' },
-    completed: { bg: '#dbeafe', color: '#1e40af' },
-    defaulted: { bg: '#fee2e2', color: '#991b1b' },
-    cancelled: { bg: '#f3f4f6', color: '#374151' },
+    active:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    completed: { bg: 'var(--info-soft)', color: 'var(--info)' },
+    defaulted: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    cancelled: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {status}
@@ -116,11 +116,11 @@ function PlanStatusBadge({ status }: { status: string }) {
 
 function InstStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    pending: { bg: '#fef3c7', color: '#92400e' },
-    paid:    { bg: '#d1fae5', color: '#065f46' },
-    overdue: { bg: '#fee2e2', color: '#991b1b' },
+    pending: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    paid:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    overdue: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {status}
@@ -304,38 +304,38 @@ function InstallmentScheduleRow({
   return (
     <>
       <tr>
-        <td colSpan={colSpan} style={{ padding: '8px 20px 12px', background: '#f8faff' }}>
-          {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('common.loading')}</p>}
-          {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>{t('ui.paymentPlanList.failedToLoadSchedule')}</p>}
+        <td colSpan={colSpan} style={{ padding: '8px 20px 12px', background: 'var(--bg-subtle)' }}>
+          {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('common.loading')}</p>}
+          {error && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--danger)' }}>{t('ui.paymentPlanList.failedToLoadSchedule')}</p>}
           {!isLoading && !error && (
             <>
-              <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 {t('paymentPlans.schedule')}
               </p>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                 <thead>
                   <tr>
                     {['#', t('paymentPlans.columns.installments'), 'Due Date', t('paymentPlans.columns.status'), 'Paid At', ''].map((h, i) => (
-                      <th key={i} style={{ textAlign: 'left', padding: '4px 8px', color: '#6b7280', fontWeight: 600 }}>{h}</th>
+                      <th key={i} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {installments.length === 0 && (
-                    <tr><td colSpan={6} style={{ padding: '8px', color: '#9ca3af' }}>{t('ui.paymentPlanList.noInstallments')}</td></tr>
+                    <tr><td colSpan={6} style={{ padding: '8px', color: 'var(--text-muted)' }}>{t('ui.paymentPlanList.noInstallments')}</td></tr>
                   )}
                   {installments.map(inst => (
-                    <tr key={inst.sequence_number} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <tr key={inst.sequence_number} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '4px 8px' }}>{inst.sequence_number}</td>
                       <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(inst.amount)}</td>
                       <td style={{ padding: '4px 8px' }}>{fmt(inst.due_date)}</td>
                       <td style={{ padding: '4px 8px' }}><InstStatusBadge status={inst.status} /></td>
-                      <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{fmt(inst.paid_at)}</td>
+                      <td style={{ padding: '4px 8px', color: 'var(--text-muted)' }}>{fmt(inst.paid_at)}</td>
                       <td style={{ padding: '4px 8px' }}>
                         {(inst.status === 'pending' || inst.status === 'overdue') && (
                           <button
                             type="button"
-                            style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                            style={{ padding: '3px 10px', background: 'var(--success-soft)', color: 'var(--success)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
                             onClick={() => setPaySeq(inst.sequence_number)}
                           >
                             {t('paymentPlans.pay')}
@@ -446,9 +446,9 @@ export function PaymentPlanList() {
                         <td style={styles.td}>{plan.installment_count}</td>
                         <td style={{ ...styles.td, textTransform: 'capitalize' }}>{plan.frequency}</td>
                         <td style={styles.td}><PlanStatusBadge status={plan.status} /></td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(plan.created_at)}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(plan.created_at)}</td>
                         <td style={styles.td}>
-                          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {expandedId === plan.id ? '▲' : '▼'}
                           </span>
                         </td>

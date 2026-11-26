@@ -1404,13 +1404,13 @@ export function QosBandwidthPage() {
                     {psrQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
                         <td style={styles.tdNum}>{item.id}</td>
-                        <td style={styles.td}><strong>{item.name}</strong>{item.preset ? <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#6b7280' }}>[{item.preset}]</span> : null}</td>
+                        <td style={styles.td}><strong>{item.name}</strong>{item.preset ? <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text-muted)' }}>[{item.preset}]</span> : null}</td>
                         <td style={styles.tdMono}>{item.protocol}</td>
                         <td style={styles.td}>{item.direction}</td>
                         <td style={styles.td}>{item.action}</td>
                         <td style={styles.tdMono}>{item.dst_port_range ?? '—'}</td>
                         <td style={styles.td}>
-                          <span style={{ color: item.enabled ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
+                          <span style={{ color: item.enabled ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600, fontSize: '0.82rem' }}>
                             {item.enabled ? t('qosBandwidth.shapingRules.on') : t('qosBandwidth.shapingRules.off')}
                           </span>
                         </td>
@@ -1850,7 +1850,7 @@ export function QosBandwidthPage() {
                         <td style={styles.tdNum}>{item.contract_id}</td>
                         <td style={styles.td}>{item.billing_month}</td>
                         <td style={styles.tdNum}>
-                          <span style={{ color: item.threshold_pct >= 100 ? '#dc2626' : item.threshold_pct >= 90 ? '#d97706' : '#2563eb', fontWeight: 700 }}>
+                          <span style={{ color: item.threshold_pct >= 100 ? 'var(--danger)' : item.threshold_pct >= 90 ? '#d97706' : '#2563eb', fontWeight: 700 }}>
                             {item.threshold_pct}%
                           </span>
                         </td>
@@ -2120,7 +2120,7 @@ export function QosBandwidthPage() {
                         <td style={styles.tdNum}>{item.set_mpls_exp ?? '—'}</td>
                         <td style={styles.tdNum}>{item.set_dot1p ?? '—'}</td>
                         <td style={styles.td}>
-                          <span style={{ color: item.enabled ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
+                          <span style={{ color: item.enabled ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600, fontSize: '0.82rem' }}>
                             {item.enabled ? 'on' : 'off'}
                           </span>
                         </td>
@@ -2192,7 +2192,7 @@ export function QosBandwidthPage() {
                         <td style={styles.td}>{item.protocol}</td>
                         <td style={styles.td}>{item.region ?? '—'}</td>
                         <td style={styles.td}>
-                          <span style={{ color: item.is_active ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
+                          <span style={{ color: item.is_active ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600, fontSize: '0.82rem' }}>
                             {item.is_active ? 'active' : 'inactive'}
                           </span>
                         </td>

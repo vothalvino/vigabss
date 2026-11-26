@@ -94,7 +94,7 @@ function ActionButton({ onClick, label, variant = 'primary', disabled = false }:
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: disabled ? '#9ca3af' : bg, color: '#fff', border: 'none',
+        background: disabled ? '#9ca3af' : bg, color: 'var(--bg-card)', border: 'none',
         borderRadius: 4, padding: '4px 10px', cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: 12, marginRight: 4,
       }}
@@ -144,11 +144,11 @@ function ProvidersTab() {
         </select>
         <ActionButton onClick={load} label={t('integration.refresh')} variant="secondary" />
       </div>
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
       {loading ? <div>{t('integration.loading')}</div> : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ background: '#f3f4f6' }}>
+            <tr style={{ background: 'var(--bg-subtle)' }}>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.providerName')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.category')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.capabilities')}</th>
@@ -157,13 +157,13 @@ function ProvidersTab() {
           </thead>
           <tbody>
             {providers.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '8px', fontWeight: 600 }}>{p.name}</td>
                 <td style={{ padding: '8px' }}><StatusBadge status={p.category} /></td>
                 <td style={{ padding: '8px', fontSize: 12 }}>
                   {(p.capabilities ?? []).join(', ')}
                 </td>
-                <td style={{ padding: '8px', color: '#6b7280' }}>{p.description}</td>
+                <td style={{ padding: '8px', color: 'var(--text-muted)' }}>{p.description}</td>
               </tr>
             ))}
             {providers.length === 0 && (
@@ -257,12 +257,12 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
         <ActionButton onClick={() => setShowCreate(!showCreate)} label={t('integration.newConnection')} />
         <ActionButton onClick={load} label={t('integration.refresh')} variant="secondary" />
       </div>
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
       {/* POST /connections/:id/test and /sync are 501 for every provider (ASY-36). */}
-      <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>{t('integration.liveNotImplemented')}</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>{t('integration.liveNotImplemented')}</p>
 
       {showCreate && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
           <h4 style={{ marginTop: 0 }}>{t('integration.newConnection')}</h4>
           <div style={{ display: 'grid', gap: 8 }}>
             <div>
@@ -279,7 +279,7 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
             <div>
               <label style={{ fontSize: 13 }}>{t('integration.credentials')} ({t('integration.jsonFormat')})</label>
               <textarea value={form.credentials} onChange={e => setForm(f => ({ ...f, credentials: e.target.value }))} rows={3} placeholder={t('ui.integrationsPage.apiKey')} style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2, fontFamily: 'monospace', fontSize: 12 }} />
-              <small style={{ color: '#6b7280' }}>{t('integration.credentialsHint')}</small>
+              <small style={{ color: 'var(--text-muted)' }}>{t('integration.credentialsHint')}</small>
             </div>
             <div>
               <label style={{ fontSize: 13 }}>{t('integration.configJson')}</label>
@@ -296,7 +296,7 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
       {loading ? <div>{t('integration.loading')}</div> : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ background: '#f3f4f6' }}>
+            <tr style={{ background: 'var(--bg-subtle)' }}>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.connectionName')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.provider')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('integration.category')}</th>
@@ -307,12 +307,12 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
           </thead>
           <tbody>
             {connections.map(c => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '8px', fontWeight: 600 }}>{c.name}</td>
                 <td style={{ padding: '8px' }}>{c.provider_name}</td>
                 <td style={{ padding: '8px' }}><StatusBadge status={c.category} /></td>
                 <td style={{ padding: '8px' }}><StatusBadge status={c.status} /></td>
-                <td style={{ padding: '8px', fontSize: 12, color: '#6b7280' }}>
+                <td style={{ padding: '8px', fontSize: 12, color: 'var(--text-muted)' }}>
                   {c.last_synced_at ? new Date(c.last_synced_at).toLocaleString() : '—'}
                 </td>
                 <td style={{ padding: '8px' }}>
@@ -360,22 +360,22 @@ function LogsTab({ connection }: { connection: IntegrationConnection | null }) {
   useEffect(() => { load(); }, [load]);
 
   if (!connection) {
-    return <div style={{ color: '#6b7280', padding: 16 }}>{t('integration.selectConnectionForLogs')}</div>;
+    return <div style={{ color: 'var(--text-muted)', padding: 16 }}>{t('integration.selectConnectionForLogs')}</div>;
   }
 
   return (
     <div>
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
         <strong>{connection.name}</strong>
-        <span style={{ color: '#6b7280', fontSize: 13 }}>({connection.provider_name})</span>
-        <span style={{ color: '#6b7280', fontSize: 13 }}>— {total} {t('integration.logsTotal')}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>({connection.provider_name})</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>— {total} {t('integration.logsTotal')}</span>
         <ActionButton onClick={load} label={t('integration.refresh')} variant="secondary" />
       </div>
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
       {loading ? <div>{t('integration.loading')}</div> : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#f3f4f6' }}>
+            <tr style={{ background: 'var(--bg-subtle)' }}>
               <th style={{ padding: '6px 8px', textAlign: 'left' }}>{t('integration.logTime')}</th>
               <th style={{ padding: '6px 8px', textAlign: 'left' }}>{t('integration.direction')}</th>
               <th style={{ padding: '6px 8px', textAlign: 'left' }}>{t('integration.logStatus')}</th>
@@ -387,14 +387,14 @@ function LogsTab({ connection }: { connection: IntegrationConnection | null }) {
           </thead>
           <tbody>
             {logs.map(l => (
-              <tr key={l.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: '6px 8px', color: '#6b7280' }}>{new Date(l.created_at).toLocaleString()}</td>
+              <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{new Date(l.created_at).toLocaleString()}</td>
                 <td style={{ padding: '6px 8px' }}>{l.direction}</td>
                 <td style={{ padding: '6px 8px' }}><StatusBadge status={l.status} /></td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{l.records_in}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{l.records_out}</td>
-                <td style={{ padding: '6px 8px', textAlign: 'right', color: l.records_error > 0 ? '#dc2626' : undefined }}>{l.records_error}</td>
-                <td style={{ padding: '6px 8px', color: '#dc2626', fontSize: 12 }}>{l.error_message ?? '—'}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'right', color: l.records_error > 0 ? 'var(--danger)' : undefined }}>{l.records_error}</td>
+                <td style={{ padding: '6px 8px', color: 'var(--danger)', fontSize: 12 }}>{l.error_message ?? '—'}</td>
               </tr>
             ))}
             {logs.length === 0 && (
@@ -437,7 +437,7 @@ export function IntegrationsPage() {
           cross-link them here because operators naturally look for their PAC
           on this page first. */}
       {isMxOrg && (
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280', background: 'var(--bg-card, #f9fafb)', border: '1px solid var(--border-color, #e5e7eb)', borderRadius: 8, padding: '10px 14px' }}>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg-card, #f9fafb)', border: '1px solid var(--border-color, #e5e7eb)', borderRadius: 8, padding: '10px 14px' }}>
           🇲🇽 {t('integration.mxFiscalHint')}{' '}
           <Link to="/pac-providers" style={{ color: 'var(--accent, #2563eb)', fontWeight: 600 }}>{t('integration.mxPacLink')}</Link>
           {' · '}
@@ -457,7 +457,7 @@ export function IntegrationsPage() {
               background: 'transparent',
               cursor: 'pointer',
               fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? '#2563eb' : '#374151',
+              color: activeTab === tab.id ? '#2563eb' : 'var(--text-secondary)',
               fontSize: 14,
               marginBottom: -2,
             }}

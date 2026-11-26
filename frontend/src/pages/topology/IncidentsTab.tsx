@@ -120,7 +120,7 @@ function DraftRow({ incidentId, report, canAct }: { incidentId: number; report: 
               : <button type="button" disabled={send.isPending || draftLoading || text.trim().length < 10} onClick={() => send.mutate()} style={{ cursor: 'pointer', fontWeight: 600 }}>{t('incidentsBoard.sendMessage')}</button>}
             <button type="button" disabled={discard.isPending} onClick={() => discard.mutate()} style={{ cursor: 'pointer' }}>{t('incidentsBoard.dontSend')}</button>
           </div>
-          {(send.isError || discard.isError || preview.isError) && <span role="alert" style={{ color: '#991b1b' }}>{((send.error ?? discard.error ?? preview.error) as Error).message}</span>}
+          {(send.isError || discard.isError || preview.isError) && <span role="alert" style={{ color: 'var(--danger)' }}>{((send.error ?? discard.error ?? preview.error) as Error).message}</span>}
         </div>
       )}
       {!waiting && report.notice_text && report.notice_status === 'sent' && <p style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>{report.notice_text}</p>}
@@ -179,7 +179,7 @@ function IncidentDetail({ id, canAct }: { id: number; canAct: boolean }) {
           <button type="submit" disabled={close.isPending || comment.replace(/\s+/g, '').length < 5} style={{ ...styles.input, cursor: 'pointer', fontWeight: 600 }}>
             {close.isPending ? t('incidentsBoard.closing') : t('incidentsBoard.close')}
           </button>
-          {close.isError && <span role="alert" style={{ color: '#991b1b', marginLeft: 10 }}>{(close.error as Error).message}</span>}
+          {close.isError && <span role="alert" style={{ color: 'var(--danger)', marginLeft: 10 }}>{(close.error as Error).message}</span>}
         </form>
       )}
       {data.status === 'resolved' && (
@@ -226,7 +226,7 @@ export function IncidentsTab() {
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 {t(`incidentsBoard.part.${incident.part}`)}{incident.site_name ? ` · ${incident.site_name}` : ''}
               </span>
-              {incident.drafts > 0 && <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#b45309' }}>{t('incidentsBoard.draftsWaiting', { count: incident.drafts })}</span>}
+              {incident.drafts > 0 && <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--warning)' }}>{t('incidentsBoard.draftsWaiting', { count: incident.drafts })}</span>}
               <button type="button" aria-expanded={openId === incident.id} onClick={() => setOpenId(cur => (cur === incident.id ? null : incident.id))} style={{ marginLeft: 'auto', cursor: 'pointer' }}>
                 {openId === incident.id ? t('incidentsBoard.hide') : t('incidentsBoard.details')}
               </button>

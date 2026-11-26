@@ -48,8 +48,8 @@ const containerStyle: React.CSSProperties = {
 };
 
 const cardStyle: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #e5e7eb',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 8,
   padding: 24,
   marginBottom: 20,
@@ -59,13 +59,13 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 13,
   fontWeight: 600,
-  color: '#374151',
+  color: 'var(--text-secondary)',
   marginBottom: 6,
 };
 
 const hintStyle: React.CSSProperties = {
   fontSize: 12,
-  color: '#6b7280',
+  color: 'var(--text-muted)',
   marginTop: 4,
 };
 
@@ -89,21 +89,21 @@ const primaryBtn: React.CSSProperties = {
 
 const secondaryBtn: React.CSSProperties = {
   ...btnStyle,
-  background: '#f3f4f6',
-  color: '#374151',
-  border: '1px solid #d1d5db',
+  background: 'var(--bg-subtle)',
+  color: 'var(--text-secondary)',
+  border: '1px solid var(--border-strong)',
 };
 
 const resultCardStyle: React.CSSProperties = {
   ...cardStyle,
   borderColor: '#d1fae5',
-  background: '#f0fdf4',
+  background: 'var(--success-soft)',
 };
 
 const errorCardStyle: React.CSSProperties = {
   ...cardStyle,
   borderColor: '#fee2e2',
-  background: '#fef2f2',
+  background: 'var(--danger-soft)',
 };
 
 const tableStyle: React.CSSProperties = {
@@ -115,16 +115,16 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
   textAlign: 'left',
   padding: '8px 12px',
-  background: '#f9fafb',
-  borderBottom: '1px solid #e5e7eb',
+  background: 'var(--bg-body)',
+  borderBottom: '1px solid var(--border)',
   fontWeight: 600,
-  color: '#374151',
+  color: 'var(--text-secondary)',
 };
 
 const tdStyle: React.CSSProperties = {
   padding: '7px 12px',
-  borderBottom: '1px solid #f3f4f6',
-  color: '#374151',
+  borderBottom: '1px solid var(--border)',
+  color: 'var(--text-secondary)',
 };
 
 // ---------------------------------------------------------------------------
@@ -162,10 +162,10 @@ export function DeviceImport() {
 
   return (
     <div style={containerStyle}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
         {t('device_import.title')}
       </h1>
-      <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>
         {t('device_import.description')}
       </p>
 
@@ -182,7 +182,7 @@ export function DeviceImport() {
               type="file"
               accept=".csv,text/csv"
               onChange={handleFileChange}
-              style={{ display: 'block', fontSize: 14, color: '#374151' }}
+              style={{ display: 'block', fontSize: 14, color: 'var(--text-secondary)' }}
             />
             <p style={hintStyle}>{t('device_import.upload_hint')}</p>
             <p style={{ ...hintStyle, marginTop: 6 }}>{t('device_import.columns_hint')}</p>
@@ -190,12 +190,12 @@ export function DeviceImport() {
 
           {/* Validation error */}
           {validationError && (
-            <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{validationError}</p>
+            <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{validationError}</p>
           )}
 
           {/* Mutation error */}
           {mutation.isError && (
-            <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>
+            <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>
               {t('device_import.upload_error')}: {mutation.error.message}
             </p>
           )}
@@ -219,7 +219,7 @@ export function DeviceImport() {
       {/* Results */}
       {result && (
         <div style={hasErrors && result.imported < result.total ? errorCardStyle : resultCardStyle}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#111827' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
             {t('device_import.result_title')}
           </h2>
 
@@ -237,7 +237,7 @@ export function DeviceImport() {
           </div>
 
           {result.errors.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#166534' }}>{t('device_import.no_errors')}</p>
+            <p style={{ fontSize: 13, color: 'var(--success)' }}>{t('device_import.no_errors')}</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={tableStyle}>
@@ -251,7 +251,7 @@ export function DeviceImport() {
                   {result.errors.map((err, idx) => (
                     <tr key={idx}>
                       <td style={{ ...tdStyle, width: 80 }}>{err.row}</td>
-                      <td style={{ ...tdStyle, color: '#dc2626' }}>{err.error}</td>
+                      <td style={{ ...tdStyle, color: 'var(--danger)' }}>{err.error}</td>
                     </tr>
                   ))}
                 </tbody>

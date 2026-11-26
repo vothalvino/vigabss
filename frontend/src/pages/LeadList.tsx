@@ -168,7 +168,7 @@ function FeasibilityModal({ lead, onClose }: { lead: Lead; onClose: () => void }
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('leads.feasibility.title')}</h3>
         <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{lead.name}</p>
         {q.isLoading && <p>{t('common.loading')}</p>}
-        {q.isError && <p style={{ color: '#ef4444' }}>{(q.error as Error).message}</p>}
+        {q.isError && <p style={{ color: 'var(--danger)' }}>{(q.error as Error).message}</p>}
         {q.data && !q.data.has_coordinates && (
           <p style={{ color: 'var(--text-secondary)' }}>{t('leads.feasibility.noCoordinates')}</p>
         )}
@@ -180,7 +180,7 @@ function FeasibilityModal({ lead, onClose }: { lead: Lead; onClose: () => void }
               {q.data.coverage_zones.map((z, i) => (
                 <p key={z.id ?? i} style={{ margin: '2px 0' }}>
                   {z.error
-                    ? <span style={{ color: '#ef4444' }}>{z.error}</span>
+                    ? <span style={{ color: 'var(--danger)' }}>{z.error}</span>
                     : <>✔ {z.name} · {z.zone_type} · {z.status}{z.max_download_mbps ? ` · ≤${z.max_download_mbps}/${z.max_upload_mbps ?? '—'} Mbps` : ''}</>}
                 </p>
               ))}

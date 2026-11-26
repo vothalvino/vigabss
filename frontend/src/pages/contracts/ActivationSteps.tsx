@@ -233,7 +233,7 @@ export function ActivationDocumentRow({ document, canSign, onSign }: {
       <span style={{ flex: 1 }}>{document.title}</span>
       {document.status === 'signed' ? (
         <>
-          <span style={{ color: '#166534' }}>{t('contractActivation.signedBy', { name: document.signer_name ?? '' })}</span>
+          <span style={{ color: 'var(--success)' }}>{t('contractActivation.signedBy', { name: document.signer_name ?? '' })}</span>
           <button type="button" style={stepStyles.actionBtn} onClick={() => setViewing(true)}>
             {t('signedDocument.view')}
           </button>
@@ -241,7 +241,7 @@ export function ActivationDocumentRow({ document, canSign, onSign }: {
         </>
       ) : document.status === 'pending' ? (
         <>
-          <span style={{ color: '#92400e' }}>{t('contractActivation.pendingSignature')}</span>
+          <span style={{ color: 'var(--warning)' }}>{t('contractActivation.pendingSignature')}</span>
           {canSign ? (
             <button type="button" style={stepStyles.actionBtn} onClick={() => onSign(document.id)}>
               {t('contractActivation.readAndSign')}
@@ -263,7 +263,7 @@ const stepStyles = {
   step: { padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' },
   stepTitle: { margin: 0, color: 'var(--text-primary)', fontSize: '1rem' },
   help: { margin: '0.35rem 0 0.6rem', color: 'var(--text-secondary)', fontSize: '0.82rem' },
-  done: { color: '#166534', fontWeight: 600, fontSize: '0.85rem', margin: '0.5rem 0 0' },
+  done: { color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem', margin: '0.5rem 0 0' },
   linkBtn: { background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer', fontSize: '0.8rem' },
   actionBtn: {
     padding: '0.45rem 0.85rem', background: 'transparent', color: 'var(--text-secondary)',
@@ -283,7 +283,7 @@ const stepStyles = {
     fontSize: '0.8rem', fontWeight: 600, border: '1px solid var(--border)',
   },
   stepperStatus: {
-    done: { background: '#dcfce7', color: '#166534', borderColor: '#86efac' },
+    done: { background: 'var(--success-soft)', color: 'var(--success)', borderColor: '#86efac' },
     current: { background: 'var(--bg-card)', color: 'var(--text-primary)' },
     upcoming: { background: 'transparent', color: 'var(--text-secondary)', opacity: 0.7 },
   } as Record<ActivationStepStatus, CSSProperties>,

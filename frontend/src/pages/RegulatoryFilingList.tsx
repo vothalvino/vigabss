@@ -55,11 +55,11 @@ async function fetchFilings(page: number, status: string): Promise<FilingsRespon
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  pending: { bg: '#fef3c7', color: '#92400e' },
-  filed: { bg: '#dbeafe', color: '#1e40af' },
-  accepted: { bg: '#d1fae5', color: '#065f46' },
-  rejected: { bg: '#fee2e2', color: '#991b1b' },
-  overdue: { bg: '#fecaca', color: '#7f1d1d' },
+  pending: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  filed: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  accepted: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  rejected: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  overdue: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 function fmtPeriod(start: string | null, end: string | null): string {

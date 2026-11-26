@@ -56,13 +56,13 @@ function PayAhead() {
       {balance < 0 && (
         <p style={{ margin: '0 0 10px', fontWeight: 600 }}>{t('portalPayments.advance.credit', { amount: `${(-balance).toFixed(2)} ${currency}`.trim() })}</p>
       )}
-      {back === 'success' && <p role="status" style={{ margin: '0 0 10px', color: '#047857' }}>{t('portalPayments.advance.thanks')}</p>}
+      {back === 'success' && <p role="status" style={{ margin: '0 0 10px', color: 'var(--success)' }}>{t('portalPayments.advance.thanks')}</p>}
       {back === 'cancelled' && <p role="status" style={{ ...styles.muted, margin: '0 0 10px' }}>{t('portalPayments.advance.cancelled')}</p>}
       <form onSubmit={submit} noValidate style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.9rem' }}>
           {t('portalPayments.advance.amount')}
           <input inputMode="decimal" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value)}
-            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '1rem', width: 160 }} />
+            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: '1rem', width: 160 }} />
         </label>
         <button type="submit" disabled={start.isPending}
           style={{ padding: '9px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>

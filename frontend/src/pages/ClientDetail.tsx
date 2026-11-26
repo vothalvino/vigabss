@@ -240,19 +240,19 @@ function fmt(dateStr: string | null | undefined): string {
 
 function StatusBadge({ status, colorMap }: { status: string; colorMap?: Record<string, { bg: string; color: string }> }) {
   const defaultMap: Record<string, { bg: string; color: string }> = {
-    active:    { bg: '#d1fae5', color: '#065f46' },
-    paid:      { bg: '#d1fae5', color: '#065f46' },
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    suspended: { bg: '#fef3c7', color: '#92400e' },
-    overdue:   { bg: '#fee2e2', color: '#991b1b' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
+    active:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    paid:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+    completed: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    suspended: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    overdue:   { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    failed:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
     pending:   { bg: '#ede9fe', color: '#5b21b6' },
-    inactive:  { bg: '#f3f4f6', color: '#6b7280' },
-    draft:     { bg: '#f3f4f6', color: '#6b7280' },
+    inactive:  { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+    draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
   const map = colorMap ?? defaultMap;
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -457,10 +457,10 @@ function PaymentsTab({ payments }: { payments: Payment[] }) {
 }
 
 const CREDIT_NOTE_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:     { bg: '#f3f4f6', color: '#374151' },
-  issued:    { bg: '#dbeafe', color: '#1e40af' },
-  applied:   { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  issued:    { bg: 'var(--info-soft)', color: 'var(--info)' },
+  applied:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note: CreditNote) => void) | null }) {
@@ -710,7 +710,7 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
           {downloading ? 'Generating…' : '⬇ PDF'}
         </button>
       </div>
-      {err && <p role="alert" style={{ color: '#991b1b', textAlign: 'right', padding: '4px 0.75rem 0', fontSize: '0.8rem', margin: 0 }}>{err}</p>}
+      {err && <p role="alert" style={{ color: 'var(--danger)', textAlign: 'right', padding: '4px 0.75rem 0', fontSize: '0.8rem', margin: 0 }}>{err}</p>}
       {!ledger.length ? (
         <p style={styles.msg}>{t('ui.clientDetail.noLedgerEntriesFound')}</p>
       ) : (
@@ -734,7 +734,7 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
                   style={{
                     ...styles.td,
                     fontVariantNumeric: 'tabular-nums',
-                    color: isCredit ? '#065f46' : '#991b1b',
+                    color: isCredit ? 'var(--success)' : 'var(--danger)',
                     fontWeight: 600,
                   }}
                 >
@@ -743,7 +743,7 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
                 <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
                   {formatMoney(e.balanceAfter, e.currency)}
                 </td>
-                <td style={{ ...styles.td, color: '#6b7280' }}>{e.notes || '—'}</td>
+                <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{e.notes || '—'}</td>
               </tr>
             );
           })}
@@ -803,7 +803,7 @@ function ContactsTab({
                       <button
                         type="button"
                         onClick={() => onDelete(c.id)}
-                        style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontSize: '0.82rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.82rem' }}
                         title={t('ui.clientDetail.deleteContact')}
                       >
                         {t('ui.clientDetail.delete')}
@@ -1151,9 +1151,9 @@ export function ClientDetail() {
           display: 'flex', alignItems: 'center', gap: '0.75rem',
           padding: '0.75rem 1rem', margin: '0.75rem 0', borderRadius: 8,
           border: '1px solid',
-          background: owes ? '#fef2f2' : inCredit ? '#f0fdf4' : '#f9fafb',
+          background: owes ? 'var(--danger-soft)' : inCredit ? '#f0fdf4' : 'var(--bg-body)',
           borderColor: owes ? '#fecaca' : inCredit ? '#bbf7d0' : '#e5e7eb',
-          color: owes ? '#991b1b' : inCredit ? '#166534' : '#374151',
+          color: owes ? 'var(--danger)' : inCredit ? '#166534' : 'var(--text-secondary)',
         }}
       >
         <span style={{ fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.85 }}>
@@ -1455,5 +1455,5 @@ const styles = {
   tr: { borderBottom: '1px solid var(--border-subtle)' },
   td: { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
 };

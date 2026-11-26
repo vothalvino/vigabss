@@ -60,9 +60,9 @@ async function fetchDashboard(hours: number): Promise<DashboardResponse> {
 
 function StatCard({ label, value }: { label: string; value: string | number | null }) {
   return (
-    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem 1.25rem', minWidth: 140 }}>
-      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827' }}>{value ?? '—'}</div>
+    <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: '1rem 1.25rem', minWidth: 140 }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{value ?? '—'}</div>
     </div>
   );
 }
@@ -89,9 +89,9 @@ export function PollerPerformanceDashboard() {
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('poller_performance.title', 'Poller Performance')}</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: '0.85rem', color: '#6b7280' }}>{t('ui.pollerPerformanceDashboard.lookback')}</label>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('ui.pollerPerformanceDashboard.lookback')}</label>
           <select
-            style={{ padding: '0.35rem 0.6rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
+            style={{ padding: '0.35rem 0.6rem', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: '0.85rem' }}
             value={hours}
             onChange={e => setHours(parseInt(e.target.value, 10))}
           >
@@ -140,7 +140,7 @@ export function PollerPerformanceDashboard() {
                         <td style={styles.td}>{new Date(s.snapshot_at).toLocaleString()}</td>
                         <td style={styles.td}>{s.node_name ?? `#${s.poller_node_id}`}</td>
                         <td style={styles.td}>{s.devices_polled}</td>
-                        <td style={{ ...styles.td, color: s.devices_failed > 0 ? '#dc2626' : undefined }}>{s.devices_failed}</td>
+                        <td style={{ ...styles.td, color: s.devices_failed > 0 ? 'var(--danger)' : undefined }}>{s.devices_failed}</td>
                         <td style={styles.td}>{s.avg_poll_duration_ms ?? '—'}</td>
                         <td style={styles.td}>{s.queue_depth}</td>
                         <td style={styles.td}>{s.timeout_rate_pct ?? '—'}</td>

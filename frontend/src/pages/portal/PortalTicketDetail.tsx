@@ -56,11 +56,11 @@ async function addComment(ticketId: number, body: string): Promise<Comment> {
 }
 
 const STATUS_COLORS: Record<string, React.CSSProperties> = {
-  open: { background: '#d1fae5', color: '#065f46' },
-  in_progress: { background: '#dbeafe', color: '#1e40af' },
-  waiting: { background: '#fef3c7', color: '#92400e' },
-  resolved: { background: '#f3f4f6', color: '#374151' },
-  closed: { background: '#f3f4f6', color: '#9ca3af' },
+  open: { background: 'var(--success-soft)', color: 'var(--success)' },
+  in_progress: { background: 'var(--info-soft)', color: 'var(--info)' },
+  waiting: { background: 'var(--warning-soft)', color: 'var(--warning)' },
+  resolved: { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  closed: { background: 'var(--bg-subtle)', color: 'var(--text-muted)' },
 };
 
 export function PortalTicketDetail() {
@@ -87,8 +87,8 @@ export function PortalTicketDetail() {
     onError: (err: Error) => setCommentError(err.message || t('portalTicketDetail.replyFailed')),
   });
 
-  if (isLoading) return <p style={{ color: '#6b7280' }}>{t('portalCommon.loading')}</p>;
-  if (error || !ticket) return <p style={{ color: '#b91c1c' }}>{t('portalTicketDetail.notFound')}</p>;
+  if (isLoading) return <p style={{ color: 'var(--text-muted)' }}>{t('portalCommon.loading')}</p>;
+  if (error || !ticket) return <p style={{ color: 'var(--danger)' }}>{t('portalTicketDetail.notFound')}</p>;
 
   const isClosed = ticket.status === 'closed' || ticket.status === 'resolved';
 
@@ -198,7 +198,7 @@ const styles = {
   commentBody: { margin: 0, color: '#1e3a5f', fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' as const },
   replyForm: { marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', display: 'flex', flexDirection: 'column' as const, gap: '0.5rem' },
   replyTitle: { margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' },
-  errorTxt: { color: '#b91c1c', fontSize: '0.875rem', margin: 0 },
+  errorTxt: { color: 'var(--danger)', fontSize: '0.875rem', margin: 0 },
   textarea: { padding: '0.6rem 0.75rem', border: '1px solid var(--input-border)', borderRadius: 4, fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' as const, width: '100%', boxSizing: 'border-box' as const },
   replyBtn: { alignSelf: 'flex-start', padding: '0.5rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' },
   closedNote: { marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' as const },

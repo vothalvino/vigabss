@@ -128,15 +128,15 @@ function KpiCard({ label, value, sub, icon, accent, to, loading, error }: KpiCar
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
-    pending: { bg: '#fef3c7', color: '#92400e' },
-    assigned: { bg: '#dbeafe', color: '#1e40af' },
+    pending: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    assigned: { bg: 'var(--info-soft)', color: 'var(--info)' },
     in_progress: { bg: '#ede9fe', color: '#5b21b6' },
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#f3f4f6', color: '#6b7280' },
-    active: { bg: '#fee2e2', color: '#991b1b' },
-    resolved: { bg: '#d1fae5', color: '#065f46' },
+    completed: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    cancelled: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+    active: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    resolved: { bg: 'var(--success-soft)', color: 'var(--success)' },
   };
-  const s = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = colors[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {String(status).replace(/_/g, ' ')}
@@ -345,7 +345,7 @@ const styles = {
   cardValue: { color: 'var(--text-primary)', fontSize: '1.6rem', fontWeight: 700, lineHeight: '1.1', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' as const },
   cardSub: { color: 'var(--text-dimmed)', fontSize: '0.78rem', marginTop: '0.25rem' },
   cardLoading: { color: 'var(--text-dimmed)', fontSize: '0.85rem' },
-  cardError: { color: '#ef4444', fontSize: '0.85rem' },
+  cardError: { color: 'var(--danger)', fontSize: '0.85rem' },
   section: { background: 'var(--bg-card)', borderRadius: 8, padding: '1.25rem', boxShadow: '0 0 0 1px var(--border)', marginBottom: '1.5rem' },
   sectionHeader: { display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: '1rem' },
   sectionTitle: { margin: '0 0 1rem', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600 },
@@ -356,5 +356,5 @@ const styles = {
   tr: { borderBottom: '1px solid var(--border-subtle)' },
   td: { padding: '0.55rem 0.75rem', color: 'var(--text-secondary)' },
   tableEmpty: { color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  tableError: { color: '#ef4444', margin: 0 },
+  tableError: { color: 'var(--danger)', margin: 0 },
 };

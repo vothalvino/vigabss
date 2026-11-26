@@ -164,11 +164,11 @@ function fmtRawSnmpValue(key: string, value: unknown, t: (key: string) => string
 }
 
 const STATUS_COLORS: StatusColors = {
-  online:      { bg: '#d1fae5', color: '#065f46' },
-  offline:     { bg: '#fee2e2', color: '#991b1b' },
-  maintenance: { bg: '#fef9c3', color: '#854d0e' },
-  active:      { bg: '#d1fae5', color: '#065f46' },
-  inactive:    { bg: '#f3f4f6', color: '#6b7280' },
+  online:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+  offline:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  maintenance: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  active:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive:    { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
 };
 
 // snmp_enabled is a MySQL BOOLEAN and arrives as 0/1, so comparing with
@@ -1086,7 +1086,7 @@ const styles = {
   infoLabel: { color: 'var(--text-dimmed)', fontSize: '0.75rem', textTransform: 'uppercase' as const, letterSpacing: '0.04em', minWidth: 80 },
   infoValue: { color: 'var(--text-secondary)' },
   changeLinkStyle: { background: 'transparent', color: 'var(--accent)', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', padding: 0 },
-  clientErrorText: { color: '#ef4444', fontSize: '0.78rem', margin: '0.35rem 0' },
+  clientErrorText: { color: 'var(--danger)', fontSize: '0.78rem', margin: '0.35rem 0' },
   notesRow: { marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' },
   noteLabel: { fontWeight: 600, color: 'var(--text-secondary)' },
   tabBar: { display: 'flex', gap: '0.25rem', borderBottom: '2px solid var(--border)', marginBottom: '0' },
@@ -1098,7 +1098,7 @@ const styles = {
   tr: { borderBottom: '1px solid var(--border-subtle)' },
   td: { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
   snmpHistoryLink: { color: 'var(--accent)', fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none' as const },
   snmpSummaryGrid: { display: 'grid' as const, gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.5rem 1.5rem', marginTop: '0.5rem' },
   snmpExpandToggle: {
@@ -1113,12 +1113,12 @@ const styles = {
   rfThresholdsSaved: { fontSize: '0.8rem', color: '#16a34a', margin: '0.25rem 0' },
   rfThresholdsSaveBtn: { marginTop: '0.75rem', alignSelf: 'flex-start' as const, padding: '0.5rem 1.2rem', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' },
   overviewPanel: { padding: '1.25rem' },
-  overviewError: { marginTop: '1rem', padding: '0.6rem 0.8rem', background: 'var(--warning-soft, #fef3c7)', color: '#92400e', borderRadius: 6, fontSize: '0.82rem' },
+  overviewError: { marginTop: '1rem', padding: '0.6rem 0.8rem', background: 'var(--warning-soft, #fef3c7)', color: 'var(--warning)', borderRadius: 6, fontSize: '0.82rem' },
   woFormPanel: { background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: 8, padding: '0.85rem 1rem', marginTop: '0.6rem', display: 'flex' as const, flexDirection: 'column' as const, gap: '0.55rem', maxWidth: 420 },
   woFormLabel: { display: 'flex' as const, flexDirection: 'column' as const, gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' },
   woFormInput: { padding: '0.5rem 0.6rem', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'var(--font-sans)' },
   woFormActions: { display: 'flex' as const, gap: 8, marginTop: '0.25rem' },
-  woFormError: { color: '#ef4444', fontSize: '0.8rem', margin: 0 },
+  woFormError: { color: 'var(--danger)', fontSize: '0.8rem', margin: 0 },
   woBtnPrimary: { padding: '0.45rem 1.1rem', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' },
   woBtnSecondary: { padding: '0.45rem 1.1rem', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' },
 };

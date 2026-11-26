@@ -238,7 +238,7 @@ const sty = {
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   btnPrimary: { padding: '0.4rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
   btnGhost: { padding: '0.4rem 1rem', background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' },
-  error: { color: '#dc2626', fontSize: '0.85rem', margin: 0 },
-  failure: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.6rem 0.8rem', fontSize: '0.875rem', lineHeight: 1.5 },
+  error: { color: 'var(--danger)', fontSize: '0.85rem', margin: 0 },
+  failure: { background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '0.6rem 0.8rem', fontSize: '0.875rem', lineHeight: 1.5 },
   success: { color: '#16a34a', fontSize: '0.85rem', margin: 0 },
 };

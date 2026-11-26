@@ -174,11 +174,11 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#6b7280' },
-  sent:      { bg: '#dbeafe', color: '#1e40af' },
-  partial:   { bg: '#fef3c7', color: '#92400e' },
-  received:  { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  sent:      { bg: 'var(--info-soft)', color: 'var(--info)' },
+  partial:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  received:  { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -370,7 +370,7 @@ function ReceiveModal({ po, items, onClose, onReceived }: ReceiveModalProps) {
                             value={serialText[item.id] ?? ''}
                             onChange={e => setSerialText(s => ({ ...s, [item.id]: e.target.value }))}
                           />
-                          <div style={{ fontSize: '0.72rem', color: mismatch ? '#dc2626' : 'var(--text-muted)' }}>
+                          <div style={{ fontSize: '0.72rem', color: mismatch ? 'var(--danger)' : 'var(--text-muted)' }}>
                             {t('purchaseOrderDetail.receiveModal.serialsCount', { entered: serialCount, needed: receiveNow })}
                           </div>
                         </div>
@@ -385,7 +385,7 @@ function ReceiveModal({ po, items, onClose, onReceived }: ReceiveModalProps) {
             {t('purchaseOrderDetail.receiveModal.hint')}
           </p>
           {!canSubmit && (
-            <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#dc2626' }}>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--danger)' }}>
               {t('purchaseOrderDetail.receiveModal.serialsMismatchError')}
             </p>
           )}
@@ -461,12 +461,12 @@ export function PurchaseOrderDetail() {
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 900 }}>
-      <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-        <Link to="/purchase-orders" style={{ color: '#6b7280', textDecoration: 'none' }}>📑 {t('purchaseOrderDetail.breadcrumb')}</Link>
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+        <Link to="/purchase-orders" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>📑 {t('purchaseOrderDetail.breadcrumb')}</Link>
         {po && <> / {po.po_number}</>}
       </div>
 
-      {poQ.isLoading && <p style={{ color: '#888' }}>{t('purchaseOrderDetail.loading')}</p>}
+      {poQ.isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('purchaseOrderDetail.loading')}</p>}
       {poQ.isError && <p style={{ color: 'var(--accent)' }}>{t('purchaseOrderDetail.notFound')}</p>}
 
       {po && (
@@ -475,7 +475,7 @@ export function PurchaseOrderDetail() {
             <div>
               <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{po.po_number}</h1>
               {vendorQ.data && (
-                <div style={{ marginTop: 4, fontSize: '0.875rem', color: '#6b7280' }}>
+                <div style={{ marginTop: 4, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                   {t('purchaseOrderDetail.vendorLabel')} <strong>{vendorQ.data.name}</strong>
                 </div>
               )}
@@ -508,7 +508,7 @@ export function PurchaseOrderDetail() {
               {po.reference && <MetaRow label={t('purchaseOrderDetail.meta.reference')} value={po.reference} />}
             </div>
             {po.notes && (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                 <strong>{t('purchaseOrderDetail.notesLabel')}</strong> {po.notes}
               </p>
             )}
@@ -516,9 +516,9 @@ export function PurchaseOrderDetail() {
 
           <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('purchaseOrderDetail.lineItems')}</h3>
           <div style={card}>
-            {itemsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('purchaseOrderDetail.loadingItems')}</p>}
+            {itemsQ.isLoading && <p style={{ color: 'var(--text-muted)', margin: 0 }}>{t('purchaseOrderDetail.loadingItems')}</p>}
             {!itemsQ.isLoading && items.length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('purchaseOrderDetail.noItems')}</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('purchaseOrderDetail.noItems')}</p>
             )}
             {items.length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -528,7 +528,7 @@ export function PurchaseOrderDetail() {
                       t('purchaseOrderDetail.table.description'), t('purchaseOrderDetail.table.quantityOrdered'),
                       t('purchaseOrderDetail.table.quantityReceived'), t('purchaseOrderDetail.table.unitCost'),
                       t('purchaseOrderDetail.table.totalCost'),
-                    ].map(h => <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>)}
+                    ].map(h => <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -536,11 +536,11 @@ export function PurchaseOrderDetail() {
                     <tr key={item.id} style={{ borderBottom: '1px solid #f9fafb' }}>
                       <td style={{ padding: '8px 10px' }}>
                         {item.description}
-                        {item.sku && <span style={{ marginLeft: 6, color: '#9ca3af', fontSize: '0.75rem' }}>({item.sku})</span>}
+                        {item.sku && <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.75rem' }}>({item.sku})</span>}
                       </td>
                       <td style={{ padding: '8px 10px' }}>{item.quantity_ordered}</td>
                       <td style={{ padding: '8px 10px' }}>
-                        <span style={{ color: item.quantity_received >= item.quantity_ordered ? '#059669' : item.quantity_received > 0 ? '#d97706' : 'inherit', fontWeight: 600 }}>
+                        <span style={{ color: item.quantity_received >= item.quantity_ordered ? 'var(--success)' : item.quantity_received > 0 ? '#d97706' : 'inherit', fontWeight: 600 }}>
                           {item.quantity_received}
                         </span>
                       </td>
@@ -591,8 +591,8 @@ export function PurchaseOrderDetail() {
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'contents' }}>
-      <dt style={{ color: '#6b7280', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
-      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: '#111827' }}>{value}</dd>
+      <dt style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
+      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{value}</dd>
     </div>
   );
 }
@@ -615,7 +615,7 @@ const submitBtn: React.CSSProperties = {
   background: 'var(--accent)', color: '#fff', border: 'none',
   padding: '7px 18px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem',
 };
-const errorText: React.CSSProperties = { color: '#dc2626', fontSize: '0.8rem', margin: '4px 0 0' };
+const errorText: React.CSSProperties = { color: 'var(--danger)', fontSize: '0.8rem', margin: '4px 0 0' };
 
 function actionBtn(bg: string): React.CSSProperties {
   return {

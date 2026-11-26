@@ -69,9 +69,9 @@ export function SecurityAccessControlPage() {
             style={{
               fontWeight: activeTab === tab ? 'bold' : 'normal',
               padding: '6px 12px',
-              border: activeTab === tab ? '2px solid #4a90e2' : '1px solid #ccc',
+              border: activeTab === tab ? '2px solid var(--info)' : '1px solid var(--border-strong)',
               borderRadius: 4,
-              background: activeTab === tab ? '#eaf3ff' : '#fff',
+              background: activeTab === tab ? 'var(--info-soft)' : 'var(--bg-card)',
               cursor: 'pointer',
             }}
           >
@@ -194,8 +194,8 @@ function UserSecurityTab() {
           borderRadius: 6,
           padding: '12px 14px',
           marginBottom: 16,
-          background: ipStatus?.enabled ? '#f0fdf4' : '#fffbeb',
-          color: '#1f2937',
+          background: ipStatus?.enabled ? 'var(--success-soft)' : 'var(--warning-soft)',
+          color: 'var(--text-primary)',
         }}
       >
         <strong>
@@ -216,7 +216,7 @@ function UserSecurityTab() {
           </div>
         )}
         {ipStatus && !ipStatus.configurationValid && (
-          <div style={{ marginTop: 6, color: '#b91c1c' }}>
+          <div style={{ marginTop: 6, color: 'var(--danger)' }}>
             {t('securityAccessControl.userSecurity.invalidActiveEntries', { count: ipStatus.invalidEntries })}
           </div>
         )}
@@ -263,17 +263,17 @@ function UserSecurityTab() {
         </form>
       )}
 
-      {ipError && <p role="alert" style={{ color: '#b91c1c' }}>{ipError}</p>}
+      {ipError && <p role="alert" style={{ color: 'var(--danger)' }}>{ipError}</p>}
       {ipList.length === 0
         ? <p>{t('securityAccessControl.userSecurity.noIpEntries')}</p>
         : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('securityAccessControl.userSecurity.ipAddress')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('common.description')}</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('common.status')}</th>
-                {!environmentManaged && <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' }}>{t('common.actions')}</th>}
+                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' }}>{t('securityAccessControl.userSecurity.ipAddress')}</th>
+                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' }}>{t('common.description')}</th>
+                <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' }}>{t('common.status')}</th>
+                {!environmentManaged && <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' }}>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>

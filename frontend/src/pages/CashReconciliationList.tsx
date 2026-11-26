@@ -103,12 +103,12 @@ function fmtAmount(amount: string | null | undefined): string {
 function SessionStatusBadge({ status, automatic = false }: { status: string; automatic?: boolean }) {
   const { t } = useTranslation();
   const map: Record<string, { bg: string; color: string }> = {
-    open:     { bg: '#dbeafe', color: '#1e40af' },
-    closed:   { bg: '#fef3c7', color: '#92400e' },
-    approved: { bg: '#d1fae5', color: '#065f46' },
-    disputed: { bg: '#fee2e2', color: '#991b1b' },
+    open:     { bg: 'var(--info-soft)', color: 'var(--info)' },
+    closed:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    approved: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    disputed: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {automatic ? t('cashReconciliation.status.approvedAuto') : t(`cashReconciliation.status.${status}`, status)}
@@ -197,33 +197,33 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
 
   return (
     <tr>
-      <td colSpan={colSpan} style={{ padding: '8px 20px 12px', background: '#f8faff' }}>
-        {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('common.loading')}</p>}
-        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>{t('ui.cashReconciliationList.failedToLoadPayments')}</p>}
+      <td colSpan={colSpan} style={{ padding: '8px 20px 12px', background: 'var(--bg-subtle)' }}>
+        {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('common.loading')}</p>}
+        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--danger)' }}>{t('ui.cashReconciliationList.failedToLoadPayments')}</p>}
         {!isLoading && !error && (
           <>
-            <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>
+            <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
               {t('cashReconciliation.cashPayments')}
             </p>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr>
                   {['ID', 'Client ID', 'Amount', 'Date', 'Reference'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: '#6b7280', fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {payments.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: '8px', color: '#9ca3af' }}>{t('ui.cashReconciliationList.noCashPaymentsInThis')}</td></tr>
+                  <tr><td colSpan={5} style={{ padding: '8px', color: 'var(--text-muted)' }}>{t('ui.cashReconciliationList.noCashPaymentsInThis')}</td></tr>
                 )}
                 {payments.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '4px 8px' }}>#{p.id}</td>
                     <td style={{ padding: '4px 8px' }}>{p.client_id}</td>
                     <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(p.amount)}</td>
-                    <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{fmt(p.payment_date)}</td>
-                    <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{p.reference_number || '—'}</td>
+                    <td style={{ padding: '4px 8px', color: 'var(--text-muted)' }}>{fmt(p.payment_date)}</td>
+                    <td style={{ padding: '4px 8px', color: 'var(--text-muted)' }}>{p.reference_number || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -321,7 +321,7 @@ export function CashReconciliationList() {
                 <tbody>
                   {sessions.map(session => {
                     const variance = session.variance != null ? parseFloat(session.variance) : null;
-                    const varianceColor = variance == null ? '#374151' : variance < 0 ? '#991b1b' : '#065f46';
+                    const varianceColor = variance == null ? 'var(--text-secondary)' : variance < 0 ? 'var(--danger)' : 'var(--success)';
 
                     return (
                       <React.Fragment key={session.id}>
@@ -332,14 +332,14 @@ export function CashReconciliationList() {
                           <td style={styles.td}>#{session.id}</td>
                           <td style={styles.td}>
                             {session.agent_name
-                              ? <>{session.agent_name} <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>#{session.agent_user_id}</span></>
+                              ? <>{session.agent_name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>#{session.agent_user_id}</span></>
                               : <>#{session.agent_user_id}</>}
                           </td>
                           <td style={styles.td}>
                             <SessionStatusBadge status={session.status} automatic={session.status === 'approved' && (session.approved_by === null || session.approved_by === undefined)} />
                           </td>
-                          <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(session.opened_at)}</td>
-                          <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(session.closed_at)}</td>
+                          <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(session.opened_at)}</td>
+                          <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(session.closed_at)}</td>
                           <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(session.expected_total)}</td>
                           <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(session.counted_total)}</td>
                           <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: varianceColor }}>
@@ -349,7 +349,7 @@ export function CashReconciliationList() {
                             {canUpdate && session.status === 'open' && (
                               <button
                                 type="button"
-                                style={{ padding: '3px 10px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
+                                style={{ padding: '3px 10px', background: 'var(--warning-soft)', color: 'var(--warning)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
                                 onClick={() => setClosingId(session.id)}
                               >
                                 {t('cashReconciliation.close')}
@@ -358,12 +358,12 @@ export function CashReconciliationList() {
                             {canApprove && ['closed', 'disputed'].includes(session.status) && (
                               // Nobody reviews their own cashier, except the company's admin (the owner).
                               Number(session.agent_user_id) === Number(user?.id) && user?.role !== 'admin' ? (
-                                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{t('cashReconciliation.review.ownCashier')}</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('cashReconciliation.review.ownCashier')}</span>
                               ) : (
                                 <>
                                   <button
                                     type="button"
-                                    style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
+                                    style={{ padding: '3px 10px', background: 'var(--success-soft)', color: 'var(--success)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
                                     onClick={() => setReview({ id: session.id, decision: 'approve', variance: session.variance })}
                                   >
                                     {t('cashReconciliation.approve')}
@@ -371,7 +371,7 @@ export function CashReconciliationList() {
                                   {session.status === 'closed' && (
                                     <button
                                       type="button"
-                                      style={{ padding: '3px 10px', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                                      style={{ padding: '3px 10px', background: 'var(--danger-soft)', color: 'var(--danger)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
                                       onClick={() => setReview({ id: session.id, decision: 'dispute', variance: session.variance })}
                                     >
                                       {t('cashReconciliation.dispute')}
@@ -384,11 +384,11 @@ export function CashReconciliationList() {
                         </tr>
                         {expandedId === session.id && session.review_note && (
                           <tr>
-                            <td colSpan={COLS.length} style={{ padding: '8px 20px 0', background: '#f8faff', fontSize: '0.82rem' }}>
+                            <td colSpan={COLS.length} style={{ padding: '8px 20px 0', background: 'var(--bg-subtle)', fontSize: '0.82rem' }}>
                               <strong>{t('cashReconciliation.review.noteShown')}</strong> {session.review_note}
-                              {session.approved_by_name && <span style={{ color: '#6b7280' }}> — {session.approved_by_name}</span>}
+                              {session.approved_by_name && <span style={{ color: 'var(--text-muted)' }}> — {session.approved_by_name}</span>}
                               {session.approved_by != null && Number(session.approved_by) === Number(session.agent_user_id) && (
-                                <span style={{ color: '#92400e', fontWeight: 600 }}> · {t('cashReconciliation.review.selfReviewed')}</span>
+                                <span style={{ color: 'var(--warning)', fontWeight: 600 }}> · {t('cashReconciliation.review.selfReviewed')}</span>
                               )}
                             </td>
                           </tr>

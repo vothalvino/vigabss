@@ -192,8 +192,8 @@ function capitalize(s: string): string {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active:        { bg: '#d1fae5', color: '#065f46' },
-  discontinued:  { bg: '#fee2e2', color: '#991b1b' },
+  active:        { bg: 'var(--success-soft)', color: 'var(--success)' },
+  discontinued:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -403,15 +403,15 @@ function StockModal({ item, onClose, onRecord }: StockModalProps) {
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 580 }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.inventoryList.stockLevels')}{item.name}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {t('ui.inventoryList.sku2')}{item.sku ?? '—'} {t('ui.inventoryList.totalInStock')}<strong>{totalQty}</strong>
         </p>
 
-        {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.inventoryList.loading')}</p>}
-        {isError && <p style={{ color: '#dc2626' }}>{t('ui.inventoryList.failedToLoadStockData')}</p>}
+        {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.inventoryList.loading')}</p>}
+        {isError && <p style={{ color: 'var(--danger)' }}>{t('ui.inventoryList.failedToLoadStockData')}</p>}
 
         {data && data.data.length === 0 && (
-          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>{t('ui.inventoryList.noStockRecordsFound')}</p>
+          <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('ui.inventoryList.noStockRecordsFound')}</p>
         )}
 
         {data && data.data.length > 0 && (
@@ -558,7 +558,7 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 480 }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.inventoryList.recordTransaction')}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {t('ui.inventoryList.item')}<strong>{item.name}</strong>
         </p>
         {error && <div style={errorBox}>{error}</div>}
@@ -577,7 +577,7 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
                 ))}
               </select>
               {warehouseId && !stockId && (
-                <p style={{ margin: '-0.5rem 0 0.75rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                <p style={{ margin: '-0.5rem 0 0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {t('ui.inventoryList.thisItemHasNoStock')}
                 </p>
               )}
@@ -699,7 +699,7 @@ export function InventoryList() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.inventoryList.category2')}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('ui.inventoryList.category2')}</span>
         {(['', ...CATEGORIES]).map(c => (
           <button
             key={c}
@@ -712,7 +712,7 @@ export function InventoryList() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.inventoryList.status2')}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('ui.inventoryList.status2')}</span>
         {[['', 'All'], ['active', 'Active'], ['discontinued', 'Discontinued']].map(([v, l]) => (
           <button
             key={v}
@@ -725,8 +725,8 @@ export function InventoryList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.inventoryList.loadingInventory')}</p>}
-      {isError && <p style={{ color: '#dc2626' }}>{t('ui.inventoryList.failedToLoadInventoryPlease')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.inventoryList.loadingInventory')}</p>}
+      {isError && <p style={{ color: 'var(--danger)' }}>{t('ui.inventoryList.failedToLoadInventoryPlease')}</p>}
 
       {data && (
         <>
@@ -742,26 +742,26 @@ export function InventoryList() {
               <tbody>
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ ...td, color: '#6b7280', fontStyle: 'italic', textAlign: 'center' }}>
+                    <td colSpan={8} style={{ ...td, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
                       {t('ui.inventoryList.noItemsFound')}
                     </td>
                   </tr>
                 )}
                 {data.data.map(item => (
                   <tr key={item.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ ...td, color: '#6b7280', fontSize: '0.8rem' }}>{item.sku ?? '—'}</td>
+                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{item.sku ?? '—'}</td>
                     <td style={{ ...td, fontWeight: 600, maxWidth: 220 }}>
                       {item.name}
                       {!!item.serial_required && (
                         <span style={{
-                          marginLeft: 6, fontWeight: 600, fontSize: '0.65rem', color: '#1e40af',
-                          background: '#dbeafe', padding: '1px 6px', borderRadius: 8, verticalAlign: 'middle',
+                          marginLeft: 6, fontWeight: 600, fontSize: '0.65rem', color: 'var(--info)',
+                          background: 'var(--info-soft)', padding: '1px 6px', borderRadius: 8, verticalAlign: 'middle',
                         }} title={t('inventoryManagement.serialRequired.hint')}>
                           {t('inventoryManagement.serialRequired.badge')}
                         </span>
                       )}
                       {item.manufacturer && (
-                        <div style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                           {item.manufacturer}{item.model ? ` · ${item.model}` : ''}
                         </div>
                       )}
@@ -850,20 +850,20 @@ const overlay: CSSProperties = {
 };
 
 const modalBox: CSSProperties = {
-  background: '#fff', borderRadius: 8, padding: '1.5rem',
+  background: 'var(--bg-card)', borderRadius: 8, padding: '1.5rem',
   width: '92vw', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto',
   boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
 };
 
 const inputStyle: CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '0.45rem 0.6rem',
-  border: '1px solid #d1d5db', borderRadius: 4, fontSize: '0.85rem',
+  border: '1px solid var(--border-strong)', borderRadius: 4, fontSize: '0.85rem',
   fontFamily: 'var(--font-sans)', marginBottom: '0.75rem',
 };
 
 const labelStyle: CSSProperties = {
   display: 'block', marginBottom: 3, fontSize: '0.8rem',
-  color: '#374151', fontWeight: 600,
+  color: 'var(--text-secondary)', fontWeight: 600,
 };
 
 const formGrid: CSSProperties = {
@@ -871,7 +871,7 @@ const formGrid: CSSProperties = {
 };
 
 const errorBox: CSSProperties = {
-  background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626',
+  background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', color: 'var(--danger)',
   padding: '0.5rem 0.75rem', borderRadius: 4, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 
@@ -881,7 +881,7 @@ const submitBtn: CSSProperties = {
 };
 
 const cancelBtn: CSSProperties = {
-  background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   borderRadius: 4, padding: '0.45rem 1rem', cursor: 'pointer', fontSize: '0.85rem',
 };
 
@@ -891,7 +891,7 @@ const primaryBtn: CSSProperties = {
 };
 
 const filterBtn: CSSProperties = {
-  background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb',
+  background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border)',
   borderRadius: 4, padding: '3px 10px', cursor: 'pointer', fontSize: '0.78rem',
 };
 
@@ -900,28 +900,28 @@ const filterBtnActive: CSSProperties = {
 };
 
 const actionBtn: CSSProperties = {
-  background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb',
+  background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border)',
   borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '0.78rem',
 };
 
 const deleteBtn: CSSProperties = {
-  background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5',
+  background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger-border)',
   borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '0.78rem',
 };
 
 
 const tbl: CSSProperties = {
   width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem',
-  background: '#fff', borderRadius: 6, overflow: 'hidden',
+  background: 'var(--bg-card)', borderRadius: 6, overflow: 'hidden',
   boxShadow: '0 0 0 1px var(--border)',
 };
 
 const th: CSSProperties = {
   textAlign: 'left', padding: '0.6rem 0.75rem',
-  background: '#f9fafb', color: '#374151', fontWeight: 600,
+  background: 'var(--bg-body)', color: 'var(--text-secondary)', fontWeight: 600,
   borderBottom: '2px solid #e5e7eb', whiteSpace: 'nowrap', fontSize: '0.8rem',
 };
 
 const td: CSSProperties = {
-  padding: '0.55rem 0.75rem', color: '#374151', verticalAlign: 'middle',
+  padding: '0.55rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle',
 };

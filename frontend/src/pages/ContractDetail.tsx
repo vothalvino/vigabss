@@ -187,17 +187,17 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:     { bg: '#d1fae5', color: '#065f46' },
-  paid:       { bg: '#d1fae5', color: '#065f46' },
+  active:     { bg: 'var(--success-soft)', color: 'var(--success)' },
+  paid:       { bg: 'var(--success-soft)', color: 'var(--success)' },
   pending:    { bg: '#ede9fe', color: '#5b21b6' },
-  suspended:  { bg: '#fef3c7', color: '#92400e' },
-  overdue:    { bg: '#fee2e2', color: '#991b1b' },
-  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-  terminated: { bg: '#f3f4f6', color: '#6b7280' },
-  expired:    { bg: '#fde68a', color: '#78350f' },
-  failed:     { bg: '#fee2e2', color: '#991b1b' },
-  draft:      { bg: '#f3f4f6', color: '#6b7280' },
-  inactive:   { bg: '#f3f4f6', color: '#6b7280' },
+  suspended:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  overdue:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  cancelled:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  terminated: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  expired:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  failed:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  draft:      { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  inactive:   { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
             <label><input type="radio" checked={ownership === 'rented'} onChange={() => setOwnership('rented')} /> {t('ui.contractDetail.rentedNoInvoice')}</label>
             <label><input type="radio" checked={ownership === 'sold'} onChange={() => setOwnership('sold')} /> {t('ui.contractDetail.soldRaisesAnInvoice')}</label>
           </div>
-          {err && <p style={{ color: '#991b1b', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
             <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>{t('ui.contractDetail.cancel')}</button>
             <button type="submit" disabled={busy}
@@ -473,7 +473,7 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
           {field('Serial number', 'serial_number')}
           {field('MAC address', 'mac_address', 'AA:BB:CC:DD:EE:FF')}
           {field('IP address', 'ip_address')}
-          {err && <p style={{ color: '#991b1b', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
             <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>{t('ui.contractDetail.cancel')}</button>
             <button type="submit" disabled={busy}
@@ -628,7 +628,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
           >
             {busy ? 'Saving…' : '+ Assign device'}
           </button>
-          {err && <span style={{ color: '#991b1b', fontSize: '0.8rem' }}>{err}</span>}
+          {err && <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{err}</span>}
         </div>
       )}
 
@@ -661,7 +661,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
                         type="button"
                         disabled={busy}
                         onClick={() => setContract(Number(d.id), null)}
-                        style={{ padding: '3px 10px', border: '1px solid #fca5a5', borderRadius: 6, background: 'transparent', color: '#991b1b', fontSize: '0.78rem', cursor: busy ? 'not-allowed' : 'pointer' }}
+                        style={{ padding: '3px 10px', border: '1px solid var(--danger-border)', borderRadius: 6, background: 'transparent', color: 'var(--danger)', fontSize: '0.78rem', cursor: busy ? 'not-allowed' : 'pointer' }}
                         title={t('ui.contractDetail.unlinkThisDeviceFromThe')}
                       >
                         {t('ui.contractDetail.unassign')}
@@ -1162,7 +1162,7 @@ function ActivationSignModal({ documentId, onClose, onSigned }: {
           <button type="button" style={cancelBtn} onClick={onClose} aria-label={t('common.close', 'Close')}>✕</button>
         </div>
         {documentQ.isLoading && <p>{t('common.loading')}</p>}
-        {documentQ.isError && <p style={{ color: '#991b1b' }}>{t('contractActivation.documentLoadFailed')}</p>}
+        {documentQ.isError && <p style={{ color: 'var(--danger)' }}>{t('contractActivation.documentLoadFailed')}</p>}
         {documentQ.data && (
           <>
             <MxSandboxDocumentBanner environment={documentQ.data.mx_contract_environment} />
@@ -1196,7 +1196,7 @@ function ActivationSignModal({ documentId, onClose, onSigned }: {
                     {t('communicationOptIn.alreadyRecorded')}
                   </p>
                 ) : null}
-                {error && <p style={{ color: '#991b1b', fontSize: '0.84rem' }}>{error}</p>}
+                {error && <p style={{ color: 'var(--danger)', fontSize: '0.84rem' }}>{error}</p>}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1rem' }}>
                   <button type="button" style={cancelBtn} onClick={onClose}>{t('common.cancel')}</button>
                   <button
@@ -1443,7 +1443,7 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
     return (
       <section style={activationStyles.card}>
         <h2 style={activationStyles.title}>{t('contractActivation.title')}</h2>
-        <p style={{ color: '#991b1b' }}>{activationQ.error instanceof Error ? activationQ.error.message : t('contractActivation.loadFailed')}</p>
+        <p style={{ color: 'var(--danger)' }}>{activationQ.error instanceof Error ? activationQ.error.message : t('contractActivation.loadFailed')}</p>
         <button type="button" style={styles.actionBtn} onClick={() => void activationQ.refetch()}>{t('contractActivation.retry')}</button>
       </section>
     );
@@ -1678,7 +1678,7 @@ function ActivationCard({ contractId, isMxOrg, canEdit, canStartInstallation, ca
               ? t('contractActivation.speedSummary', { download: state.speed_test.download_mbps, upload: state.speed_test.upload_mbps })
               : t('contractActivation.speedRecorded')}
             {/* A static line is never switched off by the system: keep the reminder visible. */}
-            {!systemControlledLine && <span style={{ display: 'block', color: '#92400e' }}>{t('contractActivation.recordManualOff')}</span>}
+            {!systemControlledLine && <span style={{ display: 'block', color: 'var(--warning)' }}>{t('contractActivation.recordManualOff')}</span>}
           </>
         )}
       >
@@ -2157,7 +2157,7 @@ export function ContractDetail() {
             {canSuspend && (
               <button
                 type="button"
-                style={{ ...styles.actionBtn, color: '#92400e' }}
+                style={{ ...styles.actionBtn, color: 'var(--warning)' }}
                 onClick={() => handleAction('suspend')}
               >
                 {t('ui.contractDetail.suspend')}
@@ -2175,7 +2175,7 @@ export function ContractDetail() {
             {canTerminate && (
               <button
                 type="button"
-                style={{ ...styles.actionBtn, color: '#991b1b' }}
+                style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                 onClick={() => handleAction('terminate')}
               >
                 {t('ui.contractDetail.terminate')}
@@ -2340,13 +2340,13 @@ const styles = {
   },
 
   errorBanner: {
-    background: '#fee2e2',
-    color: '#991b1b',
+    background: 'var(--danger-soft)',
+    color: 'var(--danger)',
     borderRadius: 6,
     padding: '0.6rem 1rem',
     fontSize: '0.85rem',
     marginBottom: '1rem',
-    border: '1px solid #fecaca',
+    border: '1px solid var(--danger-border)',
   },
 
   infoCard: {
@@ -2415,7 +2415,7 @@ const styles = {
   tr:       { borderBottom: '1px solid var(--border-subtle)' },
   td:       { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
 };
 
 const activationStyles = {
@@ -2445,8 +2445,8 @@ const activationStyles = {
     fontWeight: 700,
     whiteSpace: 'nowrap' as const,
   },
-  lineOn: { background: '#dcfce7', color: '#166534', border: '1px solid #86efac' },
-  lineOff: { background: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' },
+  lineOn: { background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid #86efac' },
+  lineOff: { background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' },
   help: { margin: '0.35rem 0 0.6rem', color: 'var(--text-secondary)', fontSize: '0.82rem' },
   summary: { margin: '0.25rem 0', color: 'var(--text-secondary)', fontSize: '0.84rem' },
   row: { display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' as const, margin: '0.75rem 0' },
@@ -2460,31 +2460,31 @@ const activationStyles = {
     marginTop: '0.75rem',
     padding: '0.65rem 0.8rem',
     borderRadius: 7,
-    background: '#dcfce7',
-    color: '#166534',
+    background: 'var(--success-soft)',
+    color: 'var(--success)',
     fontSize: '0.83rem',
   },
   autoOffWarning: {
     margin: '0 0 0.5rem',
     padding: '0.55rem 0.7rem',
     borderRadius: 7,
-    background: '#fef3c7',
-    color: '#92400e',
+    background: 'var(--warning-soft)',
+    color: 'var(--warning)',
     fontSize: '0.8rem',
   },
-  done: { color: '#166534', fontWeight: 600, fontSize: '0.85rem', margin: '0.5rem 0 0' },
+  done: { color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem', margin: '0.5rem 0 0' },
   blockers: {
     padding: '0.65rem 0.8rem',
     margin: '0.75rem 0',
     borderRadius: 7,
     background: '#fff7ed',
-    color: '#9a3412',
+    color: 'var(--warning)',
     fontSize: '0.82rem',
   },
   radioLabel: { display: 'flex', alignItems: 'center', gap: 7, marginTop: '0.55rem', fontSize: '0.85rem', cursor: 'pointer' },
   successBanner: {
-    background: '#dcfce7',
-    color: '#166534',
+    background: 'var(--success-soft)',
+    color: 'var(--success)',
     border: '1px solid #86efac',
     borderRadius: 7,
     padding: '0.65rem 0.9rem',

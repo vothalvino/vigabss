@@ -317,7 +317,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
             <tr>
               <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.suspensionExemption')}</td>
               <td style={cell}>
-                <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
+                <span style={{ background: 'var(--success-soft)', color: 'var(--success)', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
                   {t('ui.clientProfileTabs.exemptVip')}
                 </span>
                 {client.suspension_exempt_reason && (

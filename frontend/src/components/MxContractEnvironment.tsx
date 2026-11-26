@@ -64,8 +64,8 @@ export function MxContractEnvironmentBadge({ environment }: {
     padding: '2px 7px',
     borderRadius: 4,
     border: `1px solid ${sandbox ? '#f59e0b' : '#15803d'}`,
-    background: sandbox ? '#fffbeb' : '#f0fdf4',
-    color: sandbox ? '#92400e' : '#166534',
+    background: sandbox ? 'var(--warning-soft)' : 'var(--success-soft)',
+    color: sandbox ? 'var(--warning)' : 'var(--success)',
     fontSize: '0.72rem',
     fontWeight: 700,
     letterSpacing: '0.02em',
@@ -91,8 +91,8 @@ export function MxSandboxDocumentBanner({ environment }: {
       data-testid="mx-contract-sandbox-banner"
       style={{
         border: '2px solid #b45309',
-        background: '#fffbeb',
-        color: '#78350f',
+        background: 'var(--warning-soft)',
+        color: 'var(--warning)',
         padding: '10px 12px',
         marginBottom: 12,
         borderRadius: 6,

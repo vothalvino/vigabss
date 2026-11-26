@@ -384,7 +384,7 @@ export function SessionAccounting() {
               )}
               {topRows.map((r, i) => (
                 <tr key={`${r.client_id}-${r.contract_id}`} style={s.tr}>
-                  <td style={{ ...s.td, color: i < 3 ? 'var(--accent)' : '#555', fontWeight: i < 3 ? 700 : 400 }}>
+                  <td style={{ ...s.td, color: i < 3 ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: i < 3 ? 700 : 400 }}>
                     {i + 1}
                   </td>
                   <td style={{ ...s.td, fontFamily: 'monospace' }}>{r.username}</td>
@@ -516,7 +516,7 @@ const s: Record<string, CSSProperties> = {
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    padding: '0.6rem 0.85rem', background: '#f0f2f8', borderBottom: '2px solid #e0e3ef',
+    padding: '0.6rem 0.85rem', background: 'var(--bg-subtle)', borderBottom: '2px solid #e0e3ef',
     textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap',
   },
   tr: {},

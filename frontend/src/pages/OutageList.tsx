@@ -57,11 +57,11 @@ async function fetchOutages(page: number, statusFilter: string): Promise<OutageR
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    ongoing: { bg: '#fee2e2', color: '#991b1b' },
-    resolved: { bg: '#d1fae5', color: '#065f46' },
-    post_mortem: { bg: '#dbeafe', color: '#1e40af' },
+    ongoing: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    resolved: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    post_mortem: { bg: 'var(--info-soft)', color: 'var(--info)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -81,11 +81,11 @@ function StatusBadge({ status }: { status: string }) {
 
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    minor: { bg: '#f3f4f6', color: '#374151' },
-    major: { bg: '#fef3c7', color: '#92400e' },
-    critical: { bg: '#fee2e2', color: '#991b1b' },
+    minor: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+    major: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    critical: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[severity] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[severity] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{

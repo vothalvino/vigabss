@@ -35,8 +35,8 @@ export function VoiceNotesStatus({ refreshKey = '' }: { refreshKey?: string }) {
     <p role="status" data-testid="voice-notes-status" style={{
       margin: 0, fontSize: '0.85rem', padding: '0.5rem 0.75rem', borderRadius: 6,
       border: `1px solid ${status.ready ? '#86efac' : '#fcd34d'}`,
-      background: status.ready ? '#f0fdf4' : '#fffbeb',
-      color: status.ready ? '#166534' : '#92400e',
+      background: status.ready ? 'var(--success-soft)' : 'var(--warning-soft)',
+      color: status.ready ? 'var(--success)' : 'var(--warning)',
     }}>
       <strong>{t('voiceNotes.label')}</strong>{' '}
       {status.ready

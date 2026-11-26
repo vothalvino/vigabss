@@ -89,13 +89,13 @@ function truncate(str: string, max: number): string {
 
 function DisputeStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    open:                     { bg: '#dbeafe', color: '#1e40af' },
-    investigating:            { bg: '#fef3c7', color: '#92400e' },
-    resolved_favor_client:    { bg: '#d1fae5', color: '#065f46' },
+    open:                     { bg: 'var(--info-soft)', color: 'var(--info)' },
+    investigating:            { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    resolved_favor_client:    { bg: 'var(--success-soft)', color: 'var(--success)' },
     resolved_favor_company:   { bg: '#ede9fe', color: '#5b21b6' },
-    escalated:                { bg: '#fee2e2', color: '#991b1b' },
+    escalated:                { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {status.replace(/_/g, ' ')}
@@ -297,34 +297,34 @@ function EvidencePanel({ disputeId, colSpan }: { disputeId: number; colSpan: num
 
   return (
     <tr>
-      <td colSpan={colSpan} style={{ padding: '8px 20px 14px', background: '#f8faff' }}>
-        {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('common.loading')}</p>}
-        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>{t('ui.billingDisputeList.failedToLoadEvidence')}</p>}
+      <td colSpan={colSpan} style={{ padding: '8px 20px 14px', background: 'var(--bg-subtle)' }}>
+        {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('common.loading')}</p>}
+        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--danger)' }}>{t('ui.billingDisputeList.failedToLoadEvidence')}</p>}
         {!isLoading && !error && (
           <>
-            <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>
+            <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
               {t('billingDisputes.evidencePanel.title')}
             </p>
 
             {/* File list */}
             {files.length === 0 ? (
-              <p style={{ margin: '0 0 10px', fontSize: '0.8rem', color: '#9ca3af' }}>{t('billingDisputes.evidencePanel.noFiles')}</p>
+              <p style={{ margin: '0 0 10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('billingDisputes.evidencePanel.noFiles')}</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', marginBottom: 10 }}>
                 <thead>
                   <tr>
                     {['ID', 'Filename', 'Note', 'Uploaded At', ''].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '3px 8px', color: '#6b7280', fontWeight: 600 }}>{h}</th>
+                      <th key={h} style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {files.map(f => (
-                    <tr key={f.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <tr key={f.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '3px 8px' }}>#{f.id}</td>
                       <td style={{ padding: '3px 8px' }}>{f.filename}</td>
-                      <td style={{ padding: '3px 8px', color: '#6b7280' }}>{f.note || '—'}</td>
-                      <td style={{ padding: '3px 8px', color: '#9ca3af' }}>{fmt(f.created_at)}</td>
+                      <td style={{ padding: '3px 8px', color: 'var(--text-muted)' }}>{f.note || '—'}</td>
+                      <td style={{ padding: '3px 8px', color: 'var(--text-muted)' }}>{fmt(f.created_at)}</td>
                       <td style={{ padding: '3px 8px' }}>
                         <a
                           href={`/api/v1/billing-disputes/${disputeId}/evidence/${f.id}/download`}
@@ -367,7 +367,7 @@ function EvidencePanel({ disputeId, colSpan }: { disputeId: number; colSpan: num
                 {uploading ? t('common.saving') : t('billingDisputes.evidencePanel.upload')}
               </button>
             </div>
-            {uploadError && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#991b1b' }}>{uploadError}</p>}
+            {uploadError && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--danger)' }}>{uploadError}</p>}
           </>
         )}
       </td>
@@ -466,16 +466,16 @@ export function BillingDisputeList() {
                         <td style={styles.td}>{dispute.client_id}</td>
                         <td style={styles.td}>{t(`billingDisputes.type.${dispute.type}`)}</td>
                         <td style={styles.td}><DisputeStatusBadge status={dispute.status} /></td>
-                        <td style={{ ...styles.td, maxWidth: 240, color: '#374151' }} title={dispute.description}>
+                        <td style={{ ...styles.td, maxWidth: 240, color: 'var(--text-secondary)' }} title={dispute.description}>
                           {truncate(dispute.description, 60)}
                         </td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{dispute.opened_by ?? '—'}</td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(dispute.created_at)}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{dispute.opened_by ?? '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmt(dispute.created_at)}</td>
                         <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                           {canUpdate && (
                             <button
                               type="button"
-                              style={{ padding: '3px 10px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
+                              style={{ padding: '3px 10px', background: 'var(--warning-soft)', color: 'var(--warning)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
                               onClick={() => setTransitioningId(dispute.id)}
                             >
                               {t('billingDisputes.transition')}

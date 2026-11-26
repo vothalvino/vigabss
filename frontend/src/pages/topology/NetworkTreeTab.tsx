@@ -195,7 +195,7 @@ export function NetworkTreeTab() {
       </div>
       <HealthLegend />
       <HealthLimits canEdit={can(user, 'settings.update')} />
-      {failure && <p role="alert" style={{ color: '#991b1b' }}>{failure.message}</p>}
+      {failure && <p role="alert" style={{ color: 'var(--danger)' }}>{failure.message}</p>}
 
       {data.trees.length > 1 && (
         <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>

@@ -81,12 +81,12 @@ async function fetchRules(page: number): Promise<SuspensionRuleResponse> {
 
 function ActionBadge({ action }: { action: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    auto_suspend:     { bg: '#fef3c7', color: '#92400e' },
-    auto_disconnect:  { bg: '#fee2e2', color: '#991b1b' },
-    notify_only:      { bg: '#dbeafe', color: '#1e40af' },
+    auto_suspend:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    auto_disconnect:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    notify_only:      { bg: 'var(--info-soft)', color: 'var(--info)' },
     soft_suspend:     { bg: '#ede9fe', color: '#5b21b6' },
   };
-  const s = map[action] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[action] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {action.replace(/_/g, ' ')}
@@ -96,7 +96,7 @@ function ActionBadge({ action }: { action: string }) {
 
 function EnabledBadge({ enabled }: { enabled: boolean }) {
   return (
-    <span style={{ background: enabled ? '#d1fae5' : '#f3f4f6', color: enabled ? '#065f46' : '#374151', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
+    <span style={{ background: enabled ? 'var(--success-soft)' : '#f3f4f6', color: enabled ? '#065f46' : '#374151', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {enabled ? 'Enabled' : 'Disabled'}
     </span>
   );

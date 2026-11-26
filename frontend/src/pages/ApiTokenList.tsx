@@ -62,11 +62,11 @@ function scopesToString(scopes: string[] | string | null): string {
 }
 
 function tokenStatus(t: ApiTokenItem): { label: string; bg: string; color: string } {
-  if (t.revoked_at) return { label: 'Revoked', bg: '#fee2e2', color: '#991b1b' };
+  if (t.revoked_at) return { label: 'Revoked', bg: 'var(--danger-soft)', color: 'var(--danger)' };
   if (t.expires_at && new Date(t.expires_at).getTime() < Date.now()) {
-    return { label: 'Expired', bg: '#fef3c7', color: '#92400e' };
+    return { label: 'Expired', bg: 'var(--warning-soft)', color: 'var(--warning)' };
   }
-  return { label: 'Active', bg: '#d1fae5', color: '#065f46' };
+  return { label: 'Active', bg: 'var(--success-soft)', color: 'var(--success)' };
 }
 
 async function fetchTokens(page: number): Promise<TokensResponse> {
@@ -358,7 +358,7 @@ export function ApiTokenList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.apiTokenList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -392,7 +392,7 @@ export function ApiTokenList() {
                       <td style={styles.td}><StatusBadge token={tok} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(tok.id)}
                           title={t('ui.apiTokenList.revokeThisToken')}
                         >

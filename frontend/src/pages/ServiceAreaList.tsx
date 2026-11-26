@@ -53,9 +53,9 @@ async function fetchServiceAreas(page: number, statusFilter: string): Promise<Se
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  planned: { bg: '#dbeafe', color: '#1e40af' },
-  retired: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  planned: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  retired: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function ColorSwatch({ color }: { color: string | null }) {

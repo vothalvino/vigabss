@@ -69,7 +69,7 @@ export function SignedDocumentBody({ document }: { document: SignedDocumentData 
         <img
           src={document.signature_image}
           alt={t('signedDocument.signatureAlt', { name: document.signer_name ?? '' })}
-          style={{ maxWidth: 320, maxHeight: 120, background: '#fff', border: '1px solid var(--border)', borderRadius: 6 }}
+          style={{ maxWidth: 320, maxHeight: 120, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6 }}
         />
       )}
       <div style={{ marginTop: '0.5rem' }}>
@@ -89,7 +89,7 @@ export function SignedDocumentBody({ document }: { document: SignedDocumentData 
           </Row>
         )}
         <Row label={t('signedDocument.evidence')}>
-          <span style={{ color: evidence === true ? '#166534' : evidence === false ? '#991b1b' : 'var(--text-secondary)', fontWeight: 600 }}>
+          <span style={{ color: evidence === true ? 'var(--success)' : evidence === false ? '#991b1b' : 'var(--text-secondary)', fontWeight: 600 }}>
             {evidence === true ? t('signedDocument.evidenceVerified') : evidence === false ? t('signedDocument.evidenceBroken') : t('signedDocument.evidenceUnavailable')}
           </span>
         </Row>
@@ -140,7 +140,7 @@ export function SignedDocumentViewer({ documentId, onClose }: { documentId: numb
             <button type="button" style={cancelBtn} onClick={onClose}>{t('signedDocument.close')}</button>
           </div>
         </div>
-        {error && <p role="alert" style={{ color: '#991b1b' }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
         {!document && !error && <p>{t('signedDocument.loading')}</p>}
         {document && <SignedDocumentBody document={document} />}
       </div>
@@ -185,7 +185,7 @@ export function SignedDocumentsList({ contractId, clientId }: { contractId?: str
     }
   }
 
-  if (error) return <p role="alert" style={{ color: '#991b1b' }}>{error}</p>;
+  if (error) return <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>;
   if (!documents) return <p>{t('signedDocument.loading')}</p>;
   if (!documents.length) return <p style={{ color: 'var(--text-secondary)' }}>{t('signedDocument.none')}</p>;
   return (
@@ -193,7 +193,7 @@ export function SignedDocumentsList({ contractId, clientId }: { contractId?: str
       {documents.map(d => (
         <div key={d.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '0.55rem 0.7rem', borderRadius: 7, background: 'var(--bg-subtle)', fontSize: '0.84rem' }}>
           <span style={{ flex: 1, fontWeight: 600 }}>{d.title ?? `#${d.id}`}</span>
-          <span style={{ color: '#166534' }}>
+          <span style={{ color: 'var(--success)' }}>
             {t('signedDocument.signedByOn', { name: d.signer_name ?? '', date: d.signed_at ? new Date(d.signed_at).toLocaleDateString() : '—' })}
           </span>
           <button type="button" style={cancelBtn} onClick={() => setViewingId(d.id)}>{t('signedDocument.view')}</button>
