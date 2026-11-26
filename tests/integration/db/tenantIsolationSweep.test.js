@@ -24,12 +24,28 @@
 // both: as global, a route whose parameter names a Mexican table has no B
 // row to aim at and is listed as MX-only instead.
 //
+// The write half is slow: one request at a time, each followed by a check of
+// every B row. DB_SWEEP_SHARD="2/4" runs only the second quarter of the write
+// routes, so scripts/run-db-integration.js can run the parts side by side,
+// each against its own database. Every part still seeds and checks its own
+// data; the read half runs in the first part only.
+//
 // Runs only in CI's db-integration job (DB_INTEGRATION=1).
 // =============================================================================
 
 const fs = require('fs');
 const path = require('path');
 const { describeDb, SWEEP_LOCALE, ORG_A, ORG_B, LEAK_RE, setup, teardown, relaxLimits } = require('./realDb');
+
+// "part/parts" of the write routes this process sweeps; all of them by default.
+const SHARD = (() => {
+  const m = /^(\d+)\/(\d+)$/.exec(process.env.DB_SWEEP_SHARD || '');
+  if (!m) return { part: 1, parts: 1 };
+  const part = Number(m[1]);
+  const parts = Number(m[2]);
+  if (parts < 1 || part < 1 || part > parts) throw new Error(`DB_SWEEP_SHARD "${process.env.DB_SWEEP_SHARD}" is not a part of its parts`);
+  return { part, parts };
+})();
 
 // Routes that are not a single request/response.
 const NOT_SWEPT = [
@@ -318,7 +334,10 @@ describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
     expect(theirs.status).toBe(404);
   });
 
-  test('no GET route returns organization B\'s rows to organization A', async () => {
+  // The read half does not depend on the part: one process runs it.
+  const readTest = SHARD.part === 1 ? test : test.skip;
+
+  readTest('no GET route returns organization B\'s rows to organization A', async () => {
     const routes = inventory.list(app)
       .filter(r => r.method === 'GET' && r.path.startsWith('/api/v1/'))
       .filter(r => !NOT_SWEPT.some(re => re.test(r.path)));
@@ -496,6 +515,12 @@ describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
     // Deletes last, so the other writes still find B's rows.
     const order = { POST: 0, PUT: 1, PATCH: 1, DELETE: 2 };
     routes.sort((a, b) => order[a.method] - order[b.method]);
+    // This process's share: every parts-th route, so each part gets the same
+    // mix of creates, updates and deletes.
+    const total = routes.length;
+    const mine = routes.filter((_, i) => i % SHARD.parts === SHARD.part - 1);
+    routes.length = 0;
+    routes.push(...mine);
 
     // One at a time: each change is attributed to the request that made it.
     for (const route of routes) {
@@ -521,6 +546,9 @@ describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
 
     const report = {
       locale: SWEEP_LOCALE,
+      shard: `${SHARD.part}/${SHARD.parts}`,
+      routes: routes.length,
+      routesInAllParts: total,
       requests: routes.length - unresolved.length - installWide.length - mxOnlyRoutes.length,
       byStatus, changed, linked, accepted, unresolved, installWide, mxOnly: mxOnlyRoutes, initialLinks,
     };
