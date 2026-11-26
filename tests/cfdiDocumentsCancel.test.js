@@ -135,3 +135,39 @@ describe('POST /api/v1/cfdi-documents/:id/cancel', () => {
     expect(res.body.data).toBeUndefined();
   });
 });
+
+describe('GET /api/v1/cfdi-documents/unpaid-ppd', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    User.findById.mockResolvedValue({
+      id: 1, email: 'admin@test.com', status: 'active', role: 'admin', organization_id: 1,
+    });
+  });
+
+  test('lists the deferred-payment CFDIs in force whose invoice is unpaid, with what is still owed', async () => {
+    let listSql = null;
+    let listParams = null;
+    db.query.mockImplementation((sql, params) => {
+      if (/SELECT locale FROM organizations/i.test(sql)) return [[{ locale: 'MX' }]];
+      if (/metodo_pago = 'PPD'/.test(sql)) {
+        listSql = sql;
+        listParams = params;
+        return [[
+          { id: 5, uuid: 'U-5', serie: 'A', folio: 12, total: '928.00', amount_paid: '300.00', days_open: 40, invoice_id: 60, invoice_number: 'INV-60' },
+          { id: 6, uuid: 'U-6', serie: 'A', folio: 13, total: '100.10', amount_paid: '0.00', days_open: 3, invoice_id: 61, invoice_number: 'INV-61' },
+        ]];
+      }
+      return [[]];
+    });
+    const res = await request(app).get('/api/v1/cfdi-documents/unpaid-ppd').set('Authorization', AUTH);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map(r => [r.id, r.balance, r.days_open])).toEqual([[5, 628, 40], [6, 100.1, 3]]);
+    expect(res.body.meta).toEqual({ total: 2, balance: 728.1 });
+    // Only this organization's invoice CFDIs that are in force and unpaid.
+    expect(listParams).toEqual([expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), 1]);
+    expect(listSql).toMatch(/cd\.organization_id = \?/);
+    expect(listSql).toMatch(/cd\.tipo_comprobante = 'I'/);
+    expect(listSql).toMatch(/cd\.sat_status = 'vigente'/);
+    expect(listSql).toMatch(/i\.status <> 'paid'/);
+  });
+});

@@ -883,12 +883,15 @@ function InfoRow({
 // MX Profile modal
 // ---------------------------------------------------------------------------
 
+const GENERIC_RFC = 'XAXX010101000';
+
 interface MxProfile {
   rfc?: string | null;
   curp?: string | null;
   razon_social?: string | null;
   regimen_fiscal?: string | null;
   codigo_postal_fiscal?: string | null;
+  wants_cfdi?: number | boolean | null;
 }
 
 function MxProfileModal({
@@ -904,6 +907,7 @@ function MxProfileModal({
   const [form, setForm] = useState({
     rfc: '', curp: '', razon_social: '', regimen_fiscal: '', codigo_postal_fiscal: '',
   });
+  const [wantsCfdi, setWantsCfdi] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -923,6 +927,7 @@ function MxProfileModal({
           regimen_fiscal: profile.regimen_fiscal ?? '',
           codigo_postal_fiscal: profile.codigo_postal_fiscal ?? '',
         });
+        setWantsCfdi(Boolean(Number(profile.wants_cfdi ?? 0)));
       }
       return profile ?? null;
     },
@@ -940,7 +945,8 @@ function MxProfileModal({
     }
     setSaving(true);
     setError(null);
-    const body: Record<string, string> = {
+    const body: Record<string, string | boolean> = {
+      wants_cfdi: wantsCfdi && form.rfc.trim().toUpperCase() !== GENERIC_RFC,
       rfc: form.rfc.trim(),
       razon_social: form.razon_social.trim(),
       regimen_fiscal: form.regimen_fiscal.trim(),
@@ -981,6 +987,18 @@ function MxProfileModal({
             </div>
             <label style={labelStyle}>CURP</label>
             <input style={inputStyle} value={form.curp} onChange={set('curp')} maxLength={18} />
+            <label style={{ ...labelStyle, display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={wantsCfdi && form.rfc.trim().toUpperCase() !== GENERIC_RFC}
+                disabled={form.rfc.trim().toUpperCase() === GENERIC_RFC}
+                onChange={e => setWantsCfdi(e.target.checked)}
+              />
+              <span>
+                {t('ui.clientDetail.wantsCfdi')}
+                <span style={{ display: 'block', fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{t('ui.clientDetail.wantsCfdiHint')}</span>
+              </span>
+            </label>
           </>
         )}
         <div style={modalActions}>

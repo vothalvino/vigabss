@@ -11346,6 +11346,112 @@
         }
       }
     },
+    "/cfdi-documents/unpaid-ppd": {
+      "get": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "Deferred-payment (PPD) invoice CFDIs still in force whose invoice is not paid, oldest first (at most 500). One that will not be collected should be cancelled",
+        "operationId": "listUnpaidPpdCfdis",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unpaid PPD CFDIs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "serie": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "folio": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "stamp_date": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "total": {
+                            "type": "number"
+                          },
+                          "moneda": {
+                            "type": "string"
+                          },
+                          "receptor_rfc": {
+                            "type": "string"
+                          },
+                          "receptor_nombre": {
+                            "type": "string"
+                          },
+                          "client_id": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "invoice_id": {
+                            "type": "integer"
+                          },
+                          "invoice_number": {
+                            "type": "string"
+                          },
+                          "invoice_status": {
+                            "type": "string"
+                          },
+                          "due_date": {
+                            "type": "string",
+                            "format": "date",
+                            "nullable": true
+                          },
+                          "amount_paid": {
+                            "type": "number"
+                          },
+                          "balance": {
+                            "type": "number"
+                          },
+                          "days_open": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "balance": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cfdi-documents/environment": {
       "get": {
         "tags": [
@@ -86852,6 +86958,9 @@
             "type": "string",
             "minimum": 18,
             "maximum": 18
+          },
+          "wants_cfdi": {
+            "type": "boolean"
           }
         },
         "required": [

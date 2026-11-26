@@ -66,6 +66,8 @@ const updateMxProfile = {
   regimen_fiscal: { type: 'string', required: true, min: 3, max: 3 },
   codigo_postal_fiscal: { type: 'string', required: true, min: 5, max: 5 },
   curp: { type: 'string', min: 18, max: 18 },
+  // The client asked for CFDIs in its own RFC (migration 036).
+  wants_cfdi: { type: 'boolean' },
 };
 
 const setCustomField = {

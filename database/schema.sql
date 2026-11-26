@@ -5037,6 +5037,8 @@ CREATE TABLE IF NOT EXISTS client_mx_profiles (
                                 COMMENT 'Fiscal ZIP code as registered with SAT — required on CFDI 4.0 receptor node',
     uso_cfdi_default        VARCHAR(4)      NULL
                                 COMMENT 'Default CFDI use code from c_UsoCFDI (e.g. G03, S01) — pre-filled on new invoices',
+    wants_cfdi              TINYINT(1)      NOT NULL DEFAULT 0
+                                COMMENT '1 = the client asked for formal invoices (CFDI) in its own RFC; 0 = its paid invoices go into the General Public invoice (migration 036)',
     colonia                 VARCHAR(150)    NULL
                                 COMMENT 'Neighborhood — required for Mexican addresses on CFDI',
     municipio               VARCHAR(150)    NULL

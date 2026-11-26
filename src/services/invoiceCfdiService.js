@@ -530,6 +530,17 @@ async function autoStampInvoice(invoiceId, orgId) {
     [orgId],
   );
   if (!rows[0] || !Number(rows[0].cfdi_auto_stamp)) return { attempted: false };
+  // Only a client that asked for formal invoices gets a CFDI in its own RFC
+  // (client_mx_profiles.wants_cfdi). Everyone else's invoice waits, and once
+  // paid goes into the period's General Public invoice.
+  const [wants] = await db.query(
+    `SELECT p.wants_cfdi
+       FROM invoices i
+       JOIN client_mx_profiles p ON p.client_id = i.client_id AND p.deleted_at IS NULL
+      WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL`,
+    [invoiceId, orgId],
+  );
+  if (!wants[0] || !Number(wants[0].wants_cfdi)) return { attempted: false, reason: 'not_requested' };
   try {
     const result = await stampInvoice(invoiceId, orgId, { userId: null });
     return {
