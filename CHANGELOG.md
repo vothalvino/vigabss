@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.49 — 2026-11-26
+
 - **Added: a payment names the bank account it reached.** When the
   organization has bank accounts, recording a payment by transfer, card or
   check asks which account it reached (it can be left unstated). Money
