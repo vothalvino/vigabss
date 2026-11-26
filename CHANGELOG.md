@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.50 — 2026-11-26
+
 - **Added: filter lists by date and by client.** Invoices, Payments, CFDI,
   Credit Notes and Cashier have a filter bar: a from date and a to date (both
   days included) and, where the list has clients, a client search. Each list
