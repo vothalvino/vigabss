@@ -351,6 +351,14 @@ export function InvoiceList() {
                       >
                         {inv.invoice_number || `#${inv.id}`}
                       </Link>
+                      {Number((inv as { billed_ahead?: number | boolean }).billed_ahead) === 1 && (
+                        <span
+                          title={t('invoiceList.billedAhead')}
+                          style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 600, background: 'var(--info-soft)', color: 'var(--info)', whiteSpace: 'nowrap' }}
+                        >
+                          {t('invoiceList.billedAhead')}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '10px 14px' }}>
                       {inv.client_id ? (

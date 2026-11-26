@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: money paid ahead is invoiced when it arrives.** A payment larger
+  than what the client owes used to wait as credit until each month's run
+  created an invoice for it. Now the client's coming months are invoiced on
+  the spot, at today's price, and the money pays each one until none is left.
+  The last month may be paid in part, and shows what is still owed. When
+  those months arrive, the monthly run leaves them alone. The record-payment
+  form lists the months that were invoiced, and the invoice list marks them
+  "Billed ahead". It happens when staff record a payment, when a reseller or
+  collector takes one, and once a day for any credit that arrived another
+  way. Contracts in a trial and plans that charge data overage are not billed
+  ahead: their credit waits and pays the invoices as they come, as before.
+
 - **Fixed: many screens stayed light in dark mode.** Payments, Invoices and
   about a hundred other staff screens used fixed white and grey colours for
   their tables, panels, borders and text, and fixed pastel colours for status

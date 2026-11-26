@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 398 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 034)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 035)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -759,6 +759,8 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 035 — Invoices billed ahead:** `invoices.billed_ahead` marks an invoice created before its billing period was due because the client paid ahead; the money is invoiced when it arrives (`services/billAheadService.js`).
 
 > **Migration 034 — Retire point cash sessions:** retires the reseller-app cash sessions that had been closed (032 retired the open ones), so none waits for a review on the staff Cashier page.
 

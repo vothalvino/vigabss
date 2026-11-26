@@ -385,6 +385,20 @@ router.get('/:id/invoices', requirePermission('invoices.view'), async (req, res,
 // FIFO order preview). Shared query with POST /payments/:id/allocate-auto
 // (src/services/paymentAllocationService.js) so what the checklist shows is
 // exactly what gets paid first.
+// Invoice the client's coming months with the credit it holds: a payment
+// recorded with nothing to pay it against is money paid ahead
+// (services/billAheadService.js). The same runs on its own after a payment is
+// applied; this is for the payment that had no invoice to apply to.
+router.post('/:id/bill-ahead', requirePermission('payments.create'), async (req, res, next) => {
+  try {
+    await Client.findByIdOrFail(req.params.id, req.orgId);
+    const result = await require('../services/billAheadService').billAhead({
+      orgId: req.orgId, clientId: Number(req.params.id), actorUserId: req.user?.id ?? null,
+    });
+    res.json({ data: { invoices: result.invoices, applied: result.applied } });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id/open-invoices', requirePermission('invoices.view'), async (req, res, next) => {
   try {
     const rows = await paymentAllocationService.getInvoicesWithBalance(

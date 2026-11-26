@@ -314,6 +314,48 @@ describe('RecordPaymentModal', () => {
     expect(allocAttempts).toBe(2);       // allocation retried
   });
 
+  it('with nothing to pay, the money is billed ahead and the months are listed', async () => {
+    setupApi([]);
+    const base = (authedFetch as unknown as ReturnType<typeof vi.fn>).getMockImplementation() as (url: string, init?: RequestInit) => unknown;
+    (authedFetch as unknown as ReturnType<typeof vi.fn>).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith('/clients/5/bill-ahead')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ data: { applied: 250, invoices: [
+            { id: 71, invoice_number: 'INV-71', period_start: '2026-12-01', period_end: '2026-12-31', total: 116, paid: true },
+            { id: 72, invoice_number: 'INV-72', period_start: '2027-01-01', period_end: '2027-01-31', total: 116, paid: false },
+          ] } }),
+        });
+      }
+      return base(url, init);
+    });
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText(/no open invoices/i);
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '250' } });
+    await user.click(screen.getByRole('button', { name: 'Record Payment' }));
+
+    expect(await screen.findByText('Paid ahead: these coming months were invoiced now')).toBeInTheDocument();
+    expect(screen.getByText(/INV-71/)).toBeInTheDocument();
+    expect(screen.getByText(/INV-72/)).toBeInTheDocument();
+    expect(screen.queryByText(/unallocated credit/i)).not.toBeInTheDocument();
+    const call = (authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) => String(c[0]).endsWith('/clients/5/bill-ahead'));
+    expect((call?.[1] as RequestInit).method).toBe('POST');
+  });
+
+  it('a pending payment is not billed ahead', async () => {
+    setupApi([]);
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText(/no open invoices/i);
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '250' } });
+    fireEvent.change(screen.getByDisplayValue('Completed'), { target: { value: 'pending' } });
+    await user.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(authedFetch).toHaveBeenCalled());
+    await screen.findByRole('button', { name: /done/i });
+    expect((authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some((c) => String(c[0]).includes('/bill-ahead'))).toBe(false);
+  });
+
   it('with no cashier open, cash shows a notice with a way to open one; other methods do not', async () => {
     cashier.open = false;
     const { onClose } = renderModal();

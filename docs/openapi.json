@@ -3352,6 +3352,86 @@
         }
       }
     },
+    "/clients/{id}/bill-ahead": {
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Invoice the coming months of the client with the credit it holds (money paid ahead): each next billing period is invoiced at the current price and paid by the credit until none is left; the last invoice may be partly paid. Skips contracts in trial and plans that charge data overage. Needs payments.create",
+        "operationId": "billClientAhead",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invoices created and the credit applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "applied": {
+                          "type": "number"
+                        },
+                        "invoices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "invoice_number": {
+                                "type": "string"
+                              },
+                              "contract_id": {
+                                "type": "integer"
+                              },
+                              "period_start": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "period_end": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "total": {
+                                "type": "number"
+                              },
+                              "paid": {
+                                "type": "boolean"
+                              },
+                              "billed_ahead": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/clients/{id}/open-invoices": {
       "get": {
         "tags": [
@@ -105830,6 +105910,9 @@
           "apply_client_credit": {
             "type": "integer"
           },
+          "billed_ahead": {
+            "type": "integer"
+          },
           "version": {
             "type": "integer"
           },
@@ -105895,6 +105978,7 @@
           "status",
           "paid_at",
           "apply_client_credit",
+          "billed_ahead",
           "version",
           "created_by",
           "created_at",

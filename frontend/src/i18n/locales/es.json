@@ -1611,6 +1611,7 @@
     }
   },
   "invoiceList": {
+    "billedAhead": "Facturado por adelantado",
     "title": "Facturas",
     "generateInvoice": "+ Generar factura",
     "table": {
@@ -1734,6 +1735,7 @@
     "clearResellerFilter": "Ver todos los pagos"
   },
   "recordPayment": {
+    "billedAheadTitle": "Pago adelantado: estos meses se facturaron ahora",
     "needsCashier": "El efectivo necesita tu caja abierta, y no tienes ninguna abierta.",
     "openCashier": "Abrir tu caja",
     "title": "Registrar Pago",
