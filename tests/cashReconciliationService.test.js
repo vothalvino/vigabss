@@ -216,6 +216,19 @@ describe('cashReconciliationService', () => {
       expect(q.calls.indexOf(freeze)).toBeLessThan(q.calls.indexOf(sum));
     });
 
+    test('a payment an earlier close already counted is never counted again', async () => {
+      const { q } = await close({ collected: '200.00' }, 700);
+      const freeze = q.find(/^INSERT INTO cash_reconciliation_session_payments/)[0];
+      expect(freeze).toMatch(/AND NOT EXISTS \( SELECT 1 FROM cash_reconciliation_session_payments counted WHERE counted\.payment_id = payments\.id AND counted\.organization_id = payments\.organization_id \)/);
+      // The drawer of an open cashier and the supervisor's view leave it out too.
+      const live = database({ session: { ...openSession, minutes_open: 5 } });
+      await cashReconciliationService.myOpenSession(1, 10);
+      expect(live.find(/AS collected FROM payments/)[0]).toMatch(/NOT EXISTS \( SELECT 1 FROM cash_reconciliation_session_payments counted/);
+      const all = database();
+      await cashReconciliationService.attention(1);
+      expect(all.find(/FROM cash_reconciliation_sessions s WHERE/)[0]).toMatch(/counted\.payment_id = p\.id AND counted\.organization_id = p\.organization_id/);
+    });
+
     test('reads the four cashier settings of the organization', async () => {
       const { q } = await close({ collected: '0.00' }, 500);
       const [sql, params] = q.find(/FROM organization_settings/);

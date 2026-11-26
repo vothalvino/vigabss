@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a cash payment could be counted by two cashiers in a row.** Times
+  are kept to the second, so when a person closed a cashier and opened the
+  next one within the same second a payment was recorded, that payment was
+  expected in both. A payment a close has already counted is now left out of
+  every later cashier.
+
 ## 0.1.0-alpha.48 — 2026-11-26
 
 - **Changed: closing a cashier is a count, not a hand-in.** The cash stays in

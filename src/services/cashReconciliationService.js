@@ -118,11 +118,19 @@ function matches(variance, tolerance) {
 // recorded. The window is matched on created_at, a DATETIME like opened_at;
 // payment_date is a DATE, which compares as midnight, so every payment taken
 // on the opening day fell before the session began.
+//
+// A payment an earlier close already counted is left out. Times are kept to
+// the second, so a cashier closed and opened again within the second a
+// payment was recorded would otherwise count that payment in both.
 const SESSION_PAYMENTS = `organization_id = ?
        AND payment_method = 'cash'
        AND recorded_by = ?
        AND status = 'completed'
-       AND deleted_at IS NULL`;
+       AND deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM cash_reconciliation_session_payments counted
+          WHERE counted.payment_id = payments.id AND counted.organization_id = payments.organization_id
+       )`;
 
 /**
  * Open a new reconciliation session for an agent, with the cash they counted
@@ -402,7 +410,11 @@ async function attention(orgId) {
             (SELECT COALESCE(SUM(p.amount), 0) FROM payments p
               WHERE p.organization_id = s.organization_id AND p.payment_method = 'cash'
                 AND p.recorded_by = s.agent_user_id AND p.status = 'completed' AND p.deleted_at IS NULL
-                AND p.created_at >= s.opened_at) AS collected,
+                AND p.created_at >= s.opened_at
+                AND NOT EXISTS (
+                  SELECT 1 FROM cash_reconciliation_session_payments counted
+                   WHERE counted.payment_id = p.id AND counted.organization_id = p.organization_id
+                )) AS collected,
             (SELECT COALESCE(SUM(k.amount), 0) FROM cash_reconciliation_pickups k
               WHERE k.organization_id = s.organization_id AND k.session_id = s.id AND k.status = 'confirmed') AS handed_in
        FROM cash_reconciliation_sessions s
