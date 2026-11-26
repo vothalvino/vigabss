@@ -751,6 +751,7 @@
   "nav": {
     "tabNames": {
       "cash": "Corte",
+      "tieOut": "Cuadre",
       "transactions": "Transacciones",
       "recurring": "Tarjetas",
       "problems": "Problemas",
@@ -893,6 +894,7 @@
     "transitionMechanisms": "Transiciones IPv6",
     "paymentPlans": "Planes de Pago",
     "cashReconciliation": "Corte de caja",
+    "moneyTieOut": "Cuadre de dinero",
     "refundRequests": "Solicitudes de Reembolso",
     "billingDisputes": "Disputas de Facturación",
     "chargebacks": "Contracargos",
@@ -12039,5 +12041,132 @@
     "failed": "No se pudo cargar la lista.",
     "show": "Mostrar",
     "hide": "Ocultar"
+  },
+  "tieOut": {
+    "title": "Cuadre de dinero",
+    "loading": "Cargando…",
+    "failed": "No se pudo hacer. Inténtalo de nuevo.",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "closedMonth": "Mes terminado: las cifras son las del cierre del mes.",
+    "openMonth": "Mes en curso: las cifras son las de este momento.",
+    "attention": {
+      "title": "Requiere atención",
+      "bag": "La bolsa {{serial}} de {{point}} con {{amount}} lleva {{days}} días sin recibirse.",
+      "pickup": "Un retiro de {{amount}} lleva {{days}} días sin que el dueño de la caja lo confirme.",
+      "safe": "La caja fuerte tiene {{amount}} y no se ha depositado nada en {{days}} días.",
+      "notCounted": "La caja fuerte no se ha contado. Cuéntala para empezar a seguir el efectivo hasta el banco."
+    },
+    "collected": {
+      "title": "Cobrado",
+      "hint": "{{count}} pagos con fecha en el mes.",
+      "cashStaff": "Efectivo cobrado por el personal",
+      "cashPoints": "Efectivo cobrado por revendedores y cobradores",
+      "nonCash": "No en efectivo (llega directo al banco)",
+      "total": "Total cobrado"
+    },
+    "methods": {
+      "transfer": "Transferencia",
+      "card": "Tarjeta",
+      "check": "Cheque",
+      "online": "En línea",
+      "other": "Otro"
+    },
+    "fiscal": {
+      "title": "Cómo está facturado",
+      "hint": "El dinero con RFC del cliente ya está facturado. Todo lo demás termina en una factura global al Público en General.",
+      "clientCfdi": "Facturado con RFC del cliente",
+      "generalPublic": "Público en General",
+      "stamped": "Ya en una factura global timbrada",
+      "pending": "Facturas pagadas por incluir en una factura global",
+      "partPayments": "Pagos parciales de facturas aún sin pagar",
+      "credit": "Saldo a favor sin factura",
+      "goToGlobal": "Ir a facturas globales"
+    },
+    "transit": {
+      "title": "Efectivo en camino al banco",
+      "hintClosed": "Dónde estaba al cierre del mes el efectivo que aún no llegaba al banco.",
+      "hintOpen": "Dónde está el efectivo en este momento.",
+      "atPoints": "Con revendedores y cobradores",
+      "inBags": "En bolsas selladas",
+      "inDrawers": "En las cajas del personal",
+      "inSafe": "En la caja fuerte",
+      "total": "Aún no está en el banco",
+      "owedToPoints": "Se debe a revendedores (comisiones mayores que su efectivo)"
+    },
+    "sum": {
+      "title": "¿Cuadra el mes?",
+      "hint": "Efectivo registrado en el mes, menos lo que llegó al banco, lo retenido como comisión y lo que sigue en camino. Lo que queda son las diferencias que se registraron.",
+      "notTracked": "Cuenta la caja fuerte una vez para empezar. Desde entonces aquí se ve si el efectivo del mes cuadra.",
+      "recorded": "Efectivo registrado en el mes",
+      "deposited": "Depositado en el banco",
+      "commissions": "Comisiones y cuotas retenidas por revendedores y cobradores",
+      "otherOut": "Otras salidas de la caja fuerte",
+      "otherIn": "Otras entradas a la caja fuerte",
+      "transitChange": "Más efectivo en camino que al inicio del mes",
+      "differences": "Diferencias",
+      "cashierCounts": "Conteos de caja (apertura y cierre)",
+      "bagCounts": "Bolsas contadas distinto a lo declarado",
+      "safeCounts": "Conteos de la caja fuerte",
+      "pointAdjustments": "Correcciones en cuentas de revendedores",
+      "pointPayouts": "Pagos a revendedores",
+      "unexplained": "Sin explicación en ningún registro",
+      "addsUp": "Cada peso está contabilizado.",
+      "doesNotAddUp": "Hay efectivo que ningún conteo o corrección explica. Revisa si se registró efectivo sin caja abierta o si una bolsa se marcó como perdida."
+    },
+    "resico": {
+      "title": "Límite anual de RESICO",
+      "hint": "Ingresos cobrados en {{year}}, sin IVA, contra el tope para personas físicas en RESICO.",
+      "line": "{{income}} de {{limit}} ({{percent}}%)"
+    },
+    "safe": {
+      "title": "Caja fuerte",
+      "hint": "Aquí llega el efectivo de los retiros de caja confirmados, de las bolsas recibidas y de lo que entregan los revendedores. Registra cada depósito al banco y cuenta la caja fuerte cuando quieras verificarla.",
+      "notCounted": "Cuenta el efectivo de la caja fuerte para empezar. Pon 0 si está vacía.",
+      "holds": "La caja fuerte debe tener",
+      "kind": "Movimiento",
+      "kinds": {
+        "count": "Conteo",
+        "deposit": "Depósito al banco",
+        "other_out": "Otra salida de efectivo",
+        "other_in": "Otra entrada de efectivo"
+      },
+      "amount": "Monto",
+      "account": "Cuenta bancaria",
+      "reference": "Ficha de depósito",
+      "note": "Nota",
+      "record": "Registrar",
+      "invalidAmount": "Escribe un monto válido.",
+      "chooseAccount": "Elige la cuenta bancaria.",
+      "noAccounts": "Primero agrega una cuenta bancaria abajo.",
+      "when": "Cuándo",
+      "detail": "Detalle",
+      "by": "Por",
+      "remove": "Quitar",
+      "confirmRemove": "¿Quitar este movimiento? Úsalo solo para un error.",
+      "countDifference": "Se esperaba {{expected}}, diferencia {{difference}}"
+    },
+    "bank": {
+      "title": "Cuentas bancarias",
+      "hint": "Deposita el efectivo de facturas de clientes y el de Público en General como se muestra aquí, para que cada cuenta coincida con lo facturado.",
+      "cashForClients": "Efectivo del mes facturado a clientes",
+      "cashForPublic": "Efectivo del mes para Público en General",
+      "deposited": "Depositado en el mes",
+      "none": "Aún no hay cuentas bancarias.",
+      "account": "Cuenta",
+      "purpose": "Se usa para",
+      "depositsInMonth": "Depositado en el mes",
+      "purposes": {
+        "client_invoices": "Facturas de clientes",
+        "general_public": "Público en General",
+        "any": "Cualquiera"
+      },
+      "deactivate": "Desactivar",
+      "activate": "Activar",
+      "name": "Nombre de la cuenta",
+      "bankName": "Banco",
+      "accountHint": "Últimos dígitos",
+      "add": "Agregar cuenta"
+    }
   }
 }

@@ -230,6 +230,11 @@ API token is another system, which has no drawer. Someone who may record
 payments (`payments.create`) but not open a cashier
 (`cash_reconciliation.create`) cannot record cash.
 
+The money tie-out (`/money-tieout`: the month's report, the bank accounts and
+the safe's movements) is for whoever supervises the cash: every route needs
+`cash_reconciliation.approve`. It shows the whole organization's collections
+and where its cash is, so opening or viewing a cashier does not reach it.
+
 `reseller_admin` holds no `cash_reconciliation.*` permission: a point never
 opens or closes a cashier. Its cash is accounted for by its cash bags, and
 the staff cashier routes are behind the fence.

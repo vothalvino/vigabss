@@ -124,7 +124,7 @@ describe('billing', () => {
       // Invoices
       '/invoices', '/credit-notes', '/cfdi', '/billing-adjustments',
       // Payments
-      '/payments', '/cash-reconciliation', '/payment-transactions', '/recurring-payment-profiles', '/payment-problems',
+      '/payments', '/cash-reconciliation', '/money-tieout', '/payment-transactions', '/recurring-payment-profiles', '/payment-problems',
       // Collections
       '/payment-plans', '/billing-disputes', '/refund-requests', '/chargebacks',
       // Plans
@@ -136,7 +136,7 @@ describe('billing', () => {
       '/tax-rules', '/tax-rates', '/invoice-settings', '/payment-gateways', '/late-fee-rules', '/payment-reminder-settings', '/data-import',
     ]);
     expect(nav.billing.hub).toBe(true);
-    expect(nav.billing.count).toBe(25);
+    expect(nav.billing.count).toBe(26);
   });
   it('gets retention + quotes in Clients', () => {
     expect(nav.clients.items).toContain('/quotes');

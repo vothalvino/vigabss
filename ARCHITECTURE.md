@@ -489,6 +489,32 @@ to bound callers. A staff deletion or edit of a reseller-collected payment
 does not touch the reseller ledger: the cash the reseller took is still owed
 until a deposit or an adjustment says otherwise.
 
+The money tie-out (`src/services/moneyTieOutService.js`, `/money-tieout`,
+migration 037) follows that cash to the bank and ties a month together. It
+owns two tables, `bank_accounts` (each with a purpose: client invoices,
+General Public or any) and `cash_safe_movements` (a count, a bank deposit,
+other cash in or out), and only reads the rest. Cash on its way to the bank at
+a moment is the sum of four places, each read from the table that already
+holds it: points (`reseller_ledger_entries` balances), sealed bags
+(`cash_bags` not yet received), cashier drawers (the latest
+`cash_reconciliation_sessions` row of each staff member: its count once
+closed, since closing is a count and not a hand-in; opening plus cash taken
+less confirmed pickups while open) and the safe. The safe is tracked from its
+first count: confirmed pickups, received bags (their counted amount), ledger
+`deposit` entries and other cash in, less bank deposits and other cash out,
+plus each count's correction (counted less expected, stored on the count). A
+count is a correction and not a new starting point because timestamps are
+stored to the second, so the order of a count and another movement of the
+same second cannot be known. The month's check is: cash recorded = bank
+deposits + commissions kept + other cash out - other cash in + the change of
+cash on its way - differences. The differences are the ones other tables
+recorded (cashier opening and closing counts, bag counts, safe counts, ledger
+adjustments and payouts); whatever they do not explain is reported as
+`unexplained` and never absorbed. Collections are dated by `payment_date`
+(income counts when the customer pays, not when the cash is deposited) and
+split by how they are invoiced: a CFDI in the client's RFC, a stamped General
+Public invoice, paid invoices still to enter one, part payments, and credit.
+
 Phase 3 (migration 005) moves the cash in numbered money bags
 (`src/services/cashBagService.js`, the only writer of `cash_bags` and the
 append-only `cash_bag_events`). The bag's status is a state machine checked

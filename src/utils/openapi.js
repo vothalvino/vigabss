@@ -11,6 +11,7 @@ const product = require('../product');
 const { tableRowSchema } = require('./tableRowSchema');
 const { cashBagPaths } = require('./openapiCashBags');
 const { settlementPaths } = require('./openapiSettlements');
+const { moneyTieOutPaths } = require('./openapiMoneyTieOut');
 const { supportPaths } = require('./openapiSupport');
 
 /**
@@ -134,6 +135,7 @@ function generateSpec() {
       { name: 'Payment Reminders', description: 'Automated payment reminder schedule settings — §2.2B' },
       { name: 'Payment Plans', description: 'Payment plan / installment management for overdue invoices — §2.3' },
       { name: 'Cash Reconciliation', description: 'Field agent cash collection reconciliation sessions — §2.3' },
+      { name: 'Money Tie-out', description: "A month's collections tied to the bank: bank accounts, the safe and the cash still on its way" },
       { name: 'Refund Requests', description: 'Refund request workflow — create, review, and process refunds — §2.5.1' },
       { name: 'Billing Disputes', description: 'Dispute tracking with evidence attachment — §2.5.2' },
       { name: 'Chargebacks', description: 'Chargeback management with gateway webhook integration — §2.5.3' },
@@ -3590,6 +3592,7 @@ function generateSpec() {
 
       // ---- Reseller program, phase 5: statements and settlement ----
       ...settlementPaths({ ledgerEntrySchema: resellerLedgerEntrySchema, ledgerSummarySchema: resellerLedgerSummarySchema }),
+      ...moneyTieOutPaths(),
 
       // ---- Reseller program, phase 5b: "Reportar falla" and the remote signing link ----
       ...supportPaths(),

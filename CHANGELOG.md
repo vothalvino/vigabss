@@ -5,6 +5,39 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Added: Money Tie-out, a month's collections tied to the bank.** A new
+  page under Billing, Payments, for whoever supervises the cash
+  (`cash_reconciliation.approve`). For any month it shows:
+  - **Collected:** cash taken by staff, cash taken by resellers and
+    collectors, and what was paid by transfer, card or online. Money is dated
+    by the customer's payment, not by the deposit.
+  - **How it is invoiced:** what is in a client's RFC, and what belongs to
+    General Public: already in a stamped General Public invoice, paid invoices
+    still to put in one, part payments, and credit.
+  - **Cash on its way to the bank:** with resellers and collectors, in sealed
+    bags, in cashiers' drawers and in the safe, as of now or as of the end of
+    a finished month.
+  - **Does the month add up:** cash recorded, less bank deposits, commissions
+    kept and cash still on its way. The differences are listed by where they
+    were recorded (cashier counts, bag counts, safe counts, corrections and
+    payouts on resellers' accounts), and anything none of them explains is
+    shown as its own line.
+  - **Needs attention:** a sealed bag not received after 3 days, a pickup not
+    confirmed after a day, and cash in the safe with no deposit for 3 days.
+  - **RESICO yearly limit:** for an organization in régimen 626, the income
+    collected in the year without IVA against the 3,500,000 ceiling.
+
+- **Added: bank accounts and the safe.** On the same page, the organization's
+  bank accounts are listed with what each is for (client invoices, General
+  Public or any) and what was deposited into each in the month, next to how
+  much of the month's cash belongs to each kind. The safe receives the
+  confirmed cashier pickups, the received bags and the cash handed in by
+  resellers; staff record each bank deposit with its account and slip, other
+  cash in or out, and a count whenever they want to check it. The safe is
+  tracked from its first count, a count keeps the difference with what it
+  should have held, and nothing but a count can take out more than the safe
+  holds (migration 037).
+
 - **Added: a client chooses to receive formal invoices.** The Mexican fiscal
   profile of a client has a new box, "Wants formal invoices (CFDI) in this
   RFC". Automatic stamping now stamps only the invoices of clients with the

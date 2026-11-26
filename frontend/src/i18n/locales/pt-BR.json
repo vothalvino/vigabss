@@ -751,6 +751,7 @@
   "nav": {
     "tabNames": {
       "cash": "Fechamento",
+      "tieOut": "Conferência",
       "transactions": "Transações",
       "recurring": "Cartões",
       "problems": "Problemas",
@@ -893,6 +894,7 @@
     "transitionMechanisms": "Transições IPv6",
     "paymentPlans": "Planos de Pagamento",
     "cashReconciliation": "Fechamento de caixa",
+    "moneyTieOut": "Conferência do dinheiro",
     "refundRequests": "Solicitações de Reembolso",
     "billingDisputes": "Disputas de Faturamento",
     "chargebacks": "Estornos",
@@ -12039,5 +12041,132 @@
     "failed": "Não foi possível carregar a lista.",
     "show": "Mostrar",
     "hide": "Ocultar"
+  },
+  "tieOut": {
+    "title": "Conferência do dinheiro",
+    "loading": "Carregando…",
+    "failed": "Não foi possível fazer isso. Tente novamente.",
+    "previousMonth": "Mês anterior",
+    "nextMonth": "Próximo mês",
+    "closedMonth": "Mês encerrado: os valores são os do fim do mês.",
+    "openMonth": "Mês em andamento: os valores são os de agora.",
+    "attention": {
+      "title": "Requer atenção",
+      "bag": "O malote {{serial}} de {{point}} com {{amount}} espera há {{days}} dias para ser recebido.",
+      "pickup": "Uma retirada de {{amount}} espera há {{days}} dias a confirmação do dono do caixa.",
+      "safe": "O cofre tem {{amount}} e nada foi depositado há {{days}} dias.",
+      "notCounted": "O cofre não foi contado. Conte-o para começar a acompanhar o dinheiro até o banco."
+    },
+    "collected": {
+      "title": "Recebido",
+      "hint": "{{count}} pagamentos com data no mês.",
+      "cashStaff": "Dinheiro recebido pela equipe",
+      "cashPoints": "Dinheiro recebido por revendedores e cobradores",
+      "nonCash": "Não em dinheiro (vai direto ao banco)",
+      "total": "Total recebido"
+    },
+    "methods": {
+      "transfer": "Transferência",
+      "card": "Cartão",
+      "check": "Cheque",
+      "online": "Online",
+      "other": "Outro"
+    },
+    "fiscal": {
+      "title": "Como está faturado",
+      "hint": "O dinheiro com RFC do cliente já está faturado. Todo o resto termina em uma fatura global ao Público em Geral.",
+      "clientCfdi": "Faturado com RFC do cliente",
+      "generalPublic": "Público em Geral",
+      "stamped": "Já em uma fatura global emitida",
+      "pending": "Faturas pagas a incluir em uma fatura global",
+      "partPayments": "Pagamentos parciais de faturas ainda não pagas",
+      "credit": "Crédito sem fatura",
+      "goToGlobal": "Ir para faturas globais"
+    },
+    "transit": {
+      "title": "Dinheiro a caminho do banco",
+      "hintClosed": "Onde estava, no fim do mês, o dinheiro que ainda não tinha chegado ao banco.",
+      "hintOpen": "Onde o dinheiro está agora.",
+      "atPoints": "Com revendedores e cobradores",
+      "inBags": "Em malotes lacrados",
+      "inDrawers": "Nos caixas da equipe",
+      "inSafe": "No cofre",
+      "total": "Ainda não está no banco",
+      "owedToPoints": "Devido a revendedores (comissões maiores que o dinheiro deles)"
+    },
+    "sum": {
+      "title": "O mês fecha?",
+      "hint": "Dinheiro registrado no mês, menos o que chegou ao banco, o retido como comissão e o que ainda está a caminho. O que sobra são as diferenças registradas.",
+      "notTracked": "Conte o cofre uma vez para começar. A partir daí, aqui se vê se o dinheiro do mês fecha.",
+      "recorded": "Dinheiro registrado no mês",
+      "deposited": "Depositado no banco",
+      "commissions": "Comissões e taxas retidas por revendedores e cobradores",
+      "otherOut": "Outras saídas do cofre",
+      "otherIn": "Outras entradas no cofre",
+      "transitChange": "Mais dinheiro a caminho do que no início do mês",
+      "differences": "Diferenças",
+      "cashierCounts": "Contagens de caixa (abertura e fechamento)",
+      "bagCounts": "Malotes contados diferente do declarado",
+      "safeCounts": "Contagens do cofre",
+      "pointAdjustments": "Correções nas contas de revendedores",
+      "pointPayouts": "Pagamentos a revendedores",
+      "unexplained": "Sem explicação em nenhum registro",
+      "addsUp": "Cada centavo está contabilizado.",
+      "doesNotAddUp": "Há dinheiro que nenhuma contagem ou correção explica. Verifique se houve dinheiro registrado sem caixa aberto ou um malote marcado como perdido."
+    },
+    "resico": {
+      "title": "Limite anual do RESICO",
+      "hint": "Receita recebida em {{year}}, sem IVA, contra o teto para pessoas físicas no RESICO.",
+      "line": "{{income}} de {{limit}} ({{percent}}%)"
+    },
+    "safe": {
+      "title": "Cofre",
+      "hint": "Aqui chega o dinheiro das retiradas de caixa confirmadas, dos malotes recebidos e do que os revendedores entregam. Registre cada depósito no banco e conte o cofre quando quiser conferi-lo.",
+      "notCounted": "Conte o dinheiro do cofre para começar. Informe 0 se estiver vazio.",
+      "holds": "O cofre deve ter",
+      "kind": "Movimento",
+      "kinds": {
+        "count": "Contagem",
+        "deposit": "Depósito no banco",
+        "other_out": "Outra saída de dinheiro",
+        "other_in": "Outra entrada de dinheiro"
+      },
+      "amount": "Valor",
+      "account": "Conta bancária",
+      "reference": "Comprovante de depósito",
+      "note": "Nota",
+      "record": "Registrar",
+      "invalidAmount": "Informe um valor válido.",
+      "chooseAccount": "Escolha a conta bancária.",
+      "noAccounts": "Primeiro adicione uma conta bancária abaixo.",
+      "when": "Quando",
+      "detail": "Detalhe",
+      "by": "Por",
+      "remove": "Remover",
+      "confirmRemove": "Remover este movimento? Use apenas para um erro.",
+      "countDifference": "Esperado {{expected}}, diferença {{difference}}"
+    },
+    "bank": {
+      "title": "Contas bancárias",
+      "hint": "Deposite o dinheiro das faturas de clientes e o do Público em Geral como mostrado aqui, para que cada conta coincida com o faturado.",
+      "cashForClients": "Dinheiro do mês faturado a clientes",
+      "cashForPublic": "Dinheiro do mês para Público em Geral",
+      "deposited": "Depositado no mês",
+      "none": "Ainda não há contas bancárias.",
+      "account": "Conta",
+      "purpose": "Usada para",
+      "depositsInMonth": "Depositado no mês",
+      "purposes": {
+        "client_invoices": "Faturas de clientes",
+        "general_public": "Público em Geral",
+        "any": "Qualquer"
+      },
+      "deactivate": "Desativar",
+      "activate": "Ativar",
+      "name": "Nome da conta",
+      "bankName": "Banco",
+      "accountHint": "Últimos dígitos",
+      "add": "Adicionar conta"
+    }
   }
 }

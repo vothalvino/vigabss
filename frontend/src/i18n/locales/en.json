@@ -751,6 +751,7 @@
   "nav": {
     "tabNames": {
       "cash": "Cashier",
+      "tieOut": "Tie-out",
       "transactions": "Transactions",
       "recurring": "Cards",
       "problems": "Problems",
@@ -893,6 +894,7 @@
     "transitionMechanisms": "IPv6 Transitions",
     "paymentPlans": "Payment Plans",
     "cashReconciliation": "Cashier",
+    "moneyTieOut": "Money Tie-out",
     "refundRequests": "Refund Requests",
     "billingDisputes": "Billing Disputes",
     "chargebacks": "Chargebacks",
@@ -12045,5 +12047,132 @@
     "failed": "The list could not be loaded.",
     "show": "Show",
     "hide": "Hide"
+  },
+  "tieOut": {
+    "title": "Money Tie-out",
+    "loading": "Loading…",
+    "failed": "That could not be done. Try again.",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "closedMonth": "A finished month: the figures are as they stood at its end.",
+    "openMonth": "The month in progress: the figures are as of now.",
+    "attention": {
+      "title": "Needs attention",
+      "bag": "Bag {{serial}} of {{point}} with {{amount}} has waited {{days}} days to be received.",
+      "pickup": "A pickup of {{amount}} has waited {{days}} days for the cashier's owner to confirm it.",
+      "safe": "The safe holds {{amount}} and nothing has been deposited for {{days}} days.",
+      "notCounted": "The safe has not been counted. Count it to start following cash to the bank."
+    },
+    "collected": {
+      "title": "Collected",
+      "hint": "{{count}} payments dated in the month.",
+      "cashStaff": "Cash taken by staff",
+      "cashPoints": "Cash taken by resellers and collectors",
+      "nonCash": "Not in cash (goes straight to the bank)",
+      "total": "Total collected"
+    },
+    "methods": {
+      "transfer": "Transfer",
+      "card": "Card",
+      "check": "Check",
+      "online": "Online",
+      "other": "Other"
+    },
+    "fiscal": {
+      "title": "How it is invoiced",
+      "hint": "Money in a client's RFC is already invoiced. Everything else ends in a General Public invoice.",
+      "clientCfdi": "Invoiced to a client's RFC",
+      "generalPublic": "General Public",
+      "stamped": "Already in a stamped General Public invoice",
+      "pending": "Paid invoices still to put in a General Public invoice",
+      "partPayments": "Part payments on invoices not yet paid",
+      "credit": "Credit not on any invoice",
+      "goToGlobal": "Go to General Public invoices"
+    },
+    "transit": {
+      "title": "Cash on its way to the bank",
+      "hintClosed": "Where the cash that had not reached the bank was at the end of the month.",
+      "hintOpen": "Where the cash is right now.",
+      "atPoints": "With resellers and collectors",
+      "inBags": "In sealed bags",
+      "inDrawers": "In cashiers' drawers",
+      "inSafe": "In the safe",
+      "total": "Not yet in the bank",
+      "owedToPoints": "Owed to resellers (commissions above their cash)"
+    },
+    "sum": {
+      "title": "Does the month add up",
+      "hint": "Cash recorded in the month, less what reached the bank, what was kept as commission and what is still on its way. What is left is the differences that were recorded.",
+      "notTracked": "Count the safe once to start. From then on this shows whether the month's cash adds up.",
+      "recorded": "Cash recorded in the month",
+      "deposited": "Deposited in the bank",
+      "commissions": "Commissions and fees kept by resellers and collectors",
+      "otherOut": "Other cash out of the safe",
+      "otherIn": "Other cash into the safe",
+      "transitChange": "More cash on its way than at the start of the month",
+      "differences": "Differences",
+      "cashierCounts": "Cashier counts (opening and closing)",
+      "bagCounts": "Bags counted differently than declared",
+      "safeCounts": "Safe counts",
+      "pointAdjustments": "Corrections on resellers' accounts",
+      "pointPayouts": "Payouts to resellers",
+      "unexplained": "Not explained by any record",
+      "addsUp": "Every peso is accounted for.",
+      "doesNotAddUp": "Some cash is not explained by a count or a correction. Check for cash recorded without an open cashier, or a bag marked as lost."
+    },
+    "resico": {
+      "title": "RESICO yearly limit",
+      "hint": "Income collected in {{year}}, without IVA, against the ceiling for individuals in RESICO.",
+      "line": "{{income}} of {{limit}} ({{percent}}%)"
+    },
+    "safe": {
+      "title": "Safe",
+      "hint": "Cash arrives here from confirmed cashier pickups, received bags and cash handed in by resellers. Record each bank deposit, and count the safe when you want to check it.",
+      "notCounted": "Count the cash in the safe to start. Enter 0 if it is empty.",
+      "holds": "The safe should hold",
+      "kind": "Movement",
+      "kinds": {
+        "count": "Count",
+        "deposit": "Bank deposit",
+        "other_out": "Other cash out",
+        "other_in": "Other cash in"
+      },
+      "amount": "Amount",
+      "account": "Bank account",
+      "reference": "Deposit slip",
+      "note": "Note",
+      "record": "Record",
+      "invalidAmount": "Enter a valid amount.",
+      "chooseAccount": "Choose the bank account.",
+      "noAccounts": "Add a bank account below first.",
+      "when": "When",
+      "detail": "Detail",
+      "by": "By",
+      "remove": "Remove",
+      "confirmRemove": "Remove this movement? Use this only for a mistake.",
+      "countDifference": "Expected {{expected}}, difference {{difference}}"
+    },
+    "bank": {
+      "title": "Bank accounts",
+      "hint": "Deposit the cash that belongs to client invoices and the cash that belongs to General Public as shown here, so each account matches what is invoiced.",
+      "cashForClients": "Cash of the month invoiced to clients",
+      "cashForPublic": "Cash of the month for General Public",
+      "deposited": "Deposited in the month",
+      "none": "No bank accounts yet.",
+      "account": "Account",
+      "purpose": "Used for",
+      "depositsInMonth": "Deposited in the month",
+      "purposes": {
+        "client_invoices": "Client invoices",
+        "general_public": "General Public",
+        "any": "Any"
+      },
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "name": "Account name",
+      "bankName": "Bank",
+      "accountHint": "Last digits",
+      "add": "Add account"
+    }
   }
 }
