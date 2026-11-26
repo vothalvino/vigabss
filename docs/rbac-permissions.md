@@ -211,7 +211,8 @@ reviewer's own session, except by the organization's admin) and reads the superv
 count within the organization's `cashier_match_tolerance` is approved when the
 session is closed, with no approver. Recording a cash payment
 (`POST /payments`) answers 409 `CASHIER_NOT_CLOSED` while the caller has a
-session open longer than `cashier_max_open_hours`, and 409 `CASHIER_OVER_LIMIT`
+session open longer than `cashier_max_open_hours`, 409 `CASHIER_NOT_OPEN`
+while the caller has no open session at all, and 409 `CASHIER_OVER_LIMIT`
 while the organization's `cashier_pickup_strict` is on and that session holds
 `cashier_pickup_threshold` or more.
 
@@ -222,6 +223,12 @@ from the caller's own session (`POST /pickups/:id/confirm`); the owner or the
 supervisor who recorded it cancels it while it waits
 (`POST /pickups/:id/cancel`). `GET /rules` and `GET /opening` are read by
 anyone who uses the cashier.
+
+The cash checks also apply to `POST /client-groups/:id/pay` with
+`payment_method: cash`. They apply to a person only: a request made with an
+API token is another system, which has no drawer. Someone who may record
+payments (`payments.create`) but not open a cashier
+(`cash_reconciliation.create`) cannot record cash.
 
 `reseller_admin` holds no `cash_reconciliation.*` permission: a point never
 opens or closes a cashier. Its cash is accounted for by its cash bags, and
