@@ -55,7 +55,7 @@ test('every cash route of the reseller app accepts reseller_app.cash; client, le
   const app = src('resellerApp.js');
   const collect = src('resellerAppCollect.js');
   expect(app).toMatch(/router\.get\('\/me', requirePermission\('reseller_app\.use', 'reseller_app\.cash'\)/);
-  for (const route of ["'/payments'", "'/payments/:id/receipt'", "'/cash-session'", "'/ledger'"]) {
+  for (const route of ["'/payments'", "'/payments/:id/receipt'", "'/ledger'"]) {
     expect([route, new RegExp(`router\\.get\\(${route.replace(/[/:]/g, (c) => `\\${c}`)}, requirePermission\\('reseller_app\\.use', 'reseller_app\\.cash'\\)`).test(collect)]).toEqual([route, true]);
   }
   for (const route of ["'/clients'", "'/clients/:id'", "'/plans'", "'/leads'"]) {

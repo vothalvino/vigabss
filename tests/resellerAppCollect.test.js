@@ -544,7 +544,7 @@ describe('lookup', () => {
 });
 
 describe('a collection', () => {
-  test('posts the payment, allocates it oldest first, opens the cash box and books the ledger together', async () => {
+  test('posts the payment, allocates it oldest first and books the ledger together, without opening a cash session', async () => {
     const res = await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 450, note: 'pago en tienda' }, { 'Idempotency-Key': 'attempt-0001' });
     expect(res.status).toBe(201);
     expect(res.body.data).toEqual({
@@ -559,8 +559,9 @@ describe('a collection', () => {
     })]);
     expect(state.invoices[801].status).toBe('paid');
     expect(state.invoices[802].status).toBe('issued');
-    expect(state.sessions).toEqual([expect.objectContaining({ id: 41, agent_user_id: USER, status: 'open' })]);
-    expect(state.ledger.filter((e) => e.reseller_id === 1)).toEqual([expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '450.00', payment_id: 501, cash_session_id: 41 })]);
+    // A point never opens a cashier: its cash is accounted for by its bags.
+    expect(state.sessions).toEqual([]);
+    expect(state.ledger.filter((e) => e.reseller_id === 1)).toEqual([expect.objectContaining({ reseller_id: 1, entry_type: 'collection', amount: '450.00', payment_id: 501, cash_session_id: null })]);
     // Phase 4: the invoice it paid off earns the commission of the client's
     // owner (R2, 5% of the 258.62 subtotal), whoever collected, in the same
     // transaction. The half-paid F-802 earns nothing yet.
@@ -964,7 +965,7 @@ describe('collector accounts (migration 011)', () => {
 
   test('its cash routes work with reseller_app.cash alone', async () => {
     const token = asCollector();
-    for (const path of ['/reseller-app/payments', '/reseller-app/cash-session', '/reseller-app/ledger']) {
+    for (const path of ['/reseller-app/payments', '/reseller-app/ledger']) {
       expect([path, (await get(path, token)).status]).toEqual([path, 200]);
     }
   });
@@ -997,7 +998,7 @@ describe('void', () => {
     expect(state.invoices[801].status).toBe('issued');
     const own = state.ledger.filter((e) => e.reseller_id === 1);
     expect(own.map((e) => [e.entry_type, e.amount])).toEqual([['collection', '300.00'], ['collection_void', '-300.00']]);
-    expect(own[1]).toMatchObject({ payment_id: id, cash_session_id: 41, note: 'monto equivocado' });
+    expect(own[1]).toMatchObject({ payment_id: id, cash_session_id: null, note: 'monto equivocado' });
     // The invoice is no longer paid: the owner's commission is reversed in the
     // void's transaction (phase 4).
     expect(state.ledger.filter((e) => e.reseller_id === 2).map((e) => [e.entry_type, e.amount, e.invoice_id])).toEqual([
@@ -1106,12 +1107,16 @@ describe('void', () => {
     expect(res.body.error.code).toBe('VOID_WINDOW_CLOSED');
   });
 
-  test('a collection whose cash box is closed is 409', async () => {
+  test('a collection taken before points stopped having cash sessions is still voided by who took it', async () => {
     const id = await collected();
-    state.sessions[0].status = 'closed';
-    const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'caja cerrada' });
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('CASH_SESSION_CLOSED');
+    // An old row: its ledger entry names a session, and that session is closed.
+    state.sessions.push({ id: 41, organization_id: ORG, agent_user_id: USER, status: 'closed' });
+    state.ledger.find((e) => e.payment_id === id && e.entry_type === 'collection').cash_session_id = 41;
+    const res = await post(`/reseller-app/payments/${id}/void`, asBoundReseller(), { reason: 'cobro repetido' });
+    expect(res.status).toBe(200);
+    expect(state.ledger.filter((e) => e.payment_id === id).map((e) => [e.entry_type, e.cash_session_id])).toEqual([
+      ['collection', 41], ['collection_void', 41],
+    ]);
   });
 
   test('a collection reported to SAT with a REP is 409', async () => {
@@ -1138,7 +1143,7 @@ describe('collections list, receipt and cash box', () => {
     const res = await get('/reseller-app/payments', asBoundReseller());
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([
-      expect.objectContaining({ id: 502, client_number: 31, client_name: 'Ana Ruiz', own: true, amount: 50, status: 'completed', voidable: true, cash_session_id: 41 }),
+      expect.objectContaining({ id: 502, client_number: 31, client_name: 'Ana Ruiz', own: true, amount: 50, status: 'completed', voidable: true, cash_session_id: null }),
       expect.objectContaining({ id: 501, client_number: 21, client_name: 'Ma*** Ló***', own: false, amount: 300, invoice_numbers: ['F-801'], status: 'completed' }),
     ]);
     expect(res.body.meta).toMatchObject({ total: 2, date: businessToday() });
@@ -1169,29 +1174,20 @@ describe('collections list, receipt and cash box', () => {
     expect((await get('/reseller-app/payments/501/receipt', asBoundReseller(COLLECTOR, 2))).status).toBe(404);
   });
 
-  test('the cash box shows the open session net of voids, and closing it computes the variance', async () => {
+  test('a point has no cash box to open or close: those routes are gone', async () => {
     await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 300 });
+    expect((await get('/reseller-app/cash-session', asBoundReseller())).status).toBe(404);
+    expect((await post('/reseller-app/cash-session/close', asBoundReseller(), { counted_total: 300 })).status).toBe(404);
+    expect(state.sessions).toEqual([]);
+  });
+
+  test('only the person who took the cash sees a collection as voidable', async () => {
     await collect(asBoundReseller(), { collect_token: tokenForClient(31), amount: 50 });
-    await post('/reseller-app/payments/502/void', asBoundReseller(), { reason: 'error de captura' });
-    const open = await get('/reseller-app/cash-session', asBoundReseller());
-    expect(open.body.data.current).toMatchObject({ id: 41, expected_total: 300, collections_count: 1 });
-    expect(open.body.data.recent).toEqual([]);
-
-    const closed = await post('/reseller-app/cash-session/close', asBoundReseller(), { counted_total: 290, notes: 'faltaron 10' });
-    expect(closed.status).toBe(200);
-    expect(closed.body.data).toMatchObject({ id: 41, expected_total: 300, counted_total: 290, variance: -10, status: 'closed' });
-    // Closing does not touch the ledger: the cash is still to be handed in.
-    expect(ledgerSum(1)).toBe(30000);
-    // R2 keeps the commission on F-801, which client 21 paid through R1.
-    expect(ledgerSum(2)).toBe(-1293);
-
-    const after = await get('/reseller-app/cash-session', asBoundReseller());
-    expect(after.body.data.current).toBeNull();
-    expect(after.body.data.recent).toEqual([expect.objectContaining({ id: 41, variance: -10 })]);
-    expect((await post('/reseller-app/cash-session/close', asBoundReseller(), { counted_total: 0 })).status).toBe(409);
-    // The next collection opens a new session.
-    await collect(asBoundReseller(), { collect_token: tokenForClient(21), amount: 10 });
-    expect(state.sessions.map((x) => x.status)).toEqual(['closed', 'open']);
+    const mine = await get('/reseller-app/payments', asBoundReseller());
+    expect(mine.body.data[0]).toMatchObject({ id: 501, voidable: true });
+    state.payments[0].recorded_by = USER + 1;
+    const theirs = await get('/reseller-app/payments', asBoundReseller());
+    expect(theirs.body.data[0]).toMatchObject({ id: 501, voidable: false });
   });
 
   test('the ledger lists entries newest first with the summary', async () => {
