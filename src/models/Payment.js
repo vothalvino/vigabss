@@ -4,6 +4,7 @@
 
 const BaseModel = require('./BaseModel');
 const { requireOrgId } = require('../utils/requireOrgId');
+const { ValidationError } = require('../utils/errors');
 
 class Payment extends BaseModel {
   static get tableName() { return 'payments'; }
@@ -27,6 +28,31 @@ class Payment extends BaseModel {
   // (services/resellerCollectionService.js), so it is not fillable; staff
   // lists may filter on it.
   static get filterableColumns() { return ['reseller_id']; }
+
+  /**
+   * ?collected_by= on the list: who took the money.
+   *   staff:<user id>     recorded by that staff member (not a point's login)
+   *   reseller:<id>       collected by that reseller or collector
+   *   system              recorded by no one: a gateway, an import, a task
+   * Anything else is refused.
+   */
+  static applyListFilters(where, conditions, params) {
+    super.applyListFilters(where, conditions, params);
+    const by = where && where.collected_by;
+    if (by === undefined || by === null || by === '') return;
+    const match = typeof by === 'string' ? by.match(/^(staff|reseller):(\d{1,18})$/) : null;
+    if (by === 'system') {
+      conditions.push('`recorded_by` IS NULL AND `reseller_id` IS NULL');
+    } else if (match && match[1] === 'staff') {
+      conditions.push('`recorded_by` = ? AND `reseller_id` IS NULL');
+      params.push(Number(match[2]));
+    } else if (match) {
+      conditions.push('`reseller_id` = ?');
+      params.push(Number(match[2]));
+    } else {
+      throw new ValidationError("collected_by must be 'staff:<id>', 'reseller:<id>' or 'system'");
+    }
+  }
 
   static get hasOrgScope() { return true; }
 

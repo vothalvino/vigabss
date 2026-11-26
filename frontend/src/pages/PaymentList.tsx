@@ -29,9 +29,6 @@ import { useClientNames } from '@/api/clientNames';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
-import { useAuth } from '@/auth/AuthContext';
-import { can } from '@/auth/permissions';
-import { useResellerOptions } from '@/pages/resellers/resellerOptions';
 import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
@@ -69,10 +66,11 @@ interface GatewayTransaction {
 
 const API_BASE = '/api/v1';
 
-async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string, resellerId: number | null, filters: ListFilterValue): Promise<PaymentsResponse> {
+async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string, resellerId: number | null, filters: ListFilterValue, collectedBy = ''): Promise<PaymentsResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order, ...listFilterQuery(filters) };
   if (statusFilter) query.status = statusFilter;
   if (resellerId) query.reseller_id = resellerId;
+  if (!resellerId && collectedBy) query.collected_by = collectedBy;
   const res = await api.GET('/payments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payments');
   return res.data;
@@ -375,18 +373,31 @@ export function PaymentList() {
   const resellerId = Number.isInteger(resellerParam) && resellerParam > 0 ? resellerParam : null;
   // Who collected it: a reseller or a collector. Kept in the address, so a
   // link from a reseller's page lands on its payments.
-  const { user: filterUser } = useAuth();
-  const resellers = useResellerOptions({ topLevel: true, enabled: can(filterUser, 'resellers.view') });
-  const setReseller = (id: string) => {
+  // Staff, or "system" for payments nobody recorded (a gateway, an import).
+  const [collectedBy, setCollectedBy] = useState('');
+  const collectors = useQuery({
+    queryKey: ['payment-collectors'],
+    queryFn: async () => {
+      const { data: body, error } = await api.GET('/payments/collectors');
+      if (error) throw new Error('collectors');
+      return body?.data ?? null;
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+  // One choice: a point goes in the address (reseller_id), anyone else in state.
+  const collectedValue = resellerId ? `reseller:${resellerId}` : collectedBy;
+  const chooseCollector = (value: string) => {
     const next = new URLSearchParams(params);
-    if (id) next.set('reseller_id', id); else next.delete('reseller_id');
+    if (value.startsWith('reseller:')) { next.set('reseller_id', value.slice(9)); setCollectedBy(''); }
+    else { next.delete('reseller_id'); setCollectedBy(value); }
     setParams(next, { replace: true });
     setPage(1);
   };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, resellerId, listFilterKey(filters)],
-    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order, resellerId, filters),
+    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, resellerId, listFilterKey(filters), collectedBy],
+    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order, resellerId, filters, collectedBy),
     placeholderData: prev => prev,
   });
 
@@ -430,18 +441,39 @@ export function PaymentList() {
         ))}
       </div>
 
-      <ListFilters value={filters} dateLabel={t('listFilters.paymentDate')} onChange={(next) => { setFilters(next); setPage(1); }}>
-        {(resellers.data?.rows.length ?? 0) > 0 && (
+      <ListFilters
+        value={filters}
+        dateLabel={t('listFilters.paymentDate')}
+        extraActive={Boolean(collectedValue)}
+        onChange={(next) => { setFilters(next); setPage(1); if (next === EMPTY_LIST_FILTERS && collectedValue) chooseCollector(''); }}
+      >
+        {collectors.data && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <label htmlFor="payment-collected-by" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('listFilters.collectedBy')}</label>
             <select
               id="payment-collected-by"
-              value={resellerId ?? ''}
-              onChange={e => setReseller(e.target.value)}
+              value={collectedValue}
+              onChange={e => chooseCollector(e.target.value)}
               style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-strong)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
             >
               <option value="">{t('listFilters.anyone')}</option>
-              {resellers.data?.rows.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {(collectors.data.staff ?? []).length > 0 && (
+                <optgroup label={t('listFilters.staff')}>
+                  {collectors.data.staff?.map(u => <option key={u.id} value={`staff:${u.id}`}>{u.name}</option>)}
+                </optgroup>
+              )}
+              {(collectors.data.points ?? []).some(p => p.kind !== 'collector') && (
+                <optgroup label={t('listFilters.resellers')}>
+                  {collectors.data.points?.filter(p => p.kind !== 'collector').map(p => <option key={p.id} value={`reseller:${p.id}`}>{p.name}</option>)}
+                </optgroup>
+              )}
+              {(collectors.data.points ?? []).some(p => p.kind === 'collector') && (
+                <optgroup label={t('listFilters.collectors')}>
+                  {collectors.data.points?.filter(p => p.kind === 'collector').map(p => <option key={p.id} value={`reseller:${p.id}`}>{p.name}</option>)}
+                </optgroup>
+              )}
+              {collectors.data.system && <option value="system">{t('listFilters.system')}</option>}
+              {resellerId && !(collectors.data.points ?? []).some(p => p.id === resellerId) && <option value={`reseller:${resellerId}`}>{`#${resellerId}`}</option>}
             </select>
           </div>
         )}

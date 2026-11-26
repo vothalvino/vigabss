@@ -12174,6 +12174,10 @@
     }
   },
   "listFilters": {
+    "staff": "Personal",
+    "resellers": "Revendedores",
+    "collectors": "Cobradores",
+    "system": "En línea y automáticos",
     "collectedBy": "Cobrado por",
     "anyone": "Cualquiera",
     "title": "Filtros",

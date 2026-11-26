@@ -12180,6 +12180,10 @@
     }
   },
   "listFilters": {
+    "staff": "Staff",
+    "resellers": "Resellers",
+    "collectors": "Collectors",
+    "system": "Online and automatic",
     "collectedBy": "Collected by",
     "anyone": "Anyone",
     "title": "Filters",

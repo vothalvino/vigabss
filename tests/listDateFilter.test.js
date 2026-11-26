@@ -71,3 +71,21 @@ test('a list with no date column ignores the range, and it is never treated as a
   const [sql] = lastCall();
   expect(sql).not.toMatch(/date_from|date_to|>= \?/);
 });
+
+test('payments filter by who collected: a staff member, a point, or no one', async () => {
+  await Payment.findAll({ where: { collected_by: 'staff:3' }, orgId: 1 });
+  expect(lastCall()[0]).toMatch(/`recorded_by` = \? AND `reseller_id` IS NULL/);
+  expect(lastCall()[1]).toEqual([1, 3]);
+  await Payment.count({ where: { collected_by: 'reseller:8', date_from: '2026-11-01' }, orgId: 1 });
+  expect(lastCall()[0]).toMatch(/`payment_date` >= \? AND `reseller_id` = \?/);
+  expect(lastCall()[1]).toEqual([1, '2026-11-01', 8]);
+  await Payment.findAll({ where: { collected_by: 'system' }, orgId: 1 });
+  expect(lastCall()[0]).toMatch(/`recorded_by` IS NULL AND `reseller_id` IS NULL/);
+  for (const bad of ['staff:', 'staff:1 OR 1=1', 'everyone', ['staff:1']]) {
+    await expect(Payment.findAll({ where: { collected_by: bad }, orgId: 1 })).rejects.toMatchObject({ statusCode: 422 });
+  }
+  // collected_by is never treated as a column, on payments or any other list.
+  await Invoice.findAll({ where: { collected_by: 'staff:3' }, orgId: 1 });
+  expect(lastCall()[0]).not.toMatch(/collected_by|recorded_by/);
+});
+

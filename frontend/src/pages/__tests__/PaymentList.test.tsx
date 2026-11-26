@@ -115,6 +115,33 @@ describe('PaymentList page', () => {
     clickSpy.mockRestore();
   });
 
+  it('filters by who collected: staff, a reseller, a collector, or automatic payments', async () => {
+    const base = mockApiGet.getMockImplementation()!;
+    mockApiGet.mockImplementation((path: string, ...rest: unknown[]) => (path === '/payments/collectors'
+      ? Promise.resolve({ data: { data: { staff: [{ id: 3, name: 'Ana Cashier' }], points: [{ id: 8, name: 'Corner Store', kind: 'collector' }, { id: 9, name: 'North Reseller', kind: 'reseller' }], system: true } }, error: undefined })
+      : base(path, ...rest)));
+    const lastQuery = () => { const all = mockApiGet.mock.calls.filter(c => c[0] === '/payments'); return (all[all.length - 1][1] as { params: { query: Record<string, unknown> } }).params.query; };
+    renderPaymentList();
+    const select = await screen.findByLabelText('Collected by');
+    await screen.findByRole('option', { name: 'Ana Cashier' });
+    expect(screen.getByRole('group', { name: 'Staff' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Resellers' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Collectors' })).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: 'staff:3' } });
+    await waitFor(() => expect(lastQuery()).toMatchObject({ collected_by: 'staff:3' }));
+    fireEvent.change(select, { target: { value: 'system' } });
+    await waitFor(() => expect(lastQuery()).toMatchObject({ collected_by: 'system' }));
+    // A point is sent the way links from its page send it.
+    fireEvent.change(select, { target: { value: 'reseller:8' } });
+    await waitFor(() => expect(lastQuery()).toMatchObject({ reseller_id: 8 }));
+    expect(lastQuery()).not.toHaveProperty('collected_by');
+    // Clear filters takes the collector off too.
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(lastQuery()).not.toHaveProperty('reseller_id'));
+    expect(select).toHaveValue('');
+  });
+
   it('marks a reseller collection and filters by the collecting reseller from the URL', async () => {
     mockApiGet.mockImplementation((path: string) => {
       if (path === '/payments') {
