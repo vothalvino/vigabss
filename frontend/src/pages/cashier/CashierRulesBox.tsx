@@ -79,7 +79,7 @@ export function CashierRulesBox({ canEdit }: { canEdit: boolean }) {
       <p style={{ margin: '8px 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
         {off ? t('cashReconciliation.rules.offHint') : strict ? t('cashReconciliation.rules.strictHint') : t('cashReconciliation.rules.remindHint')}
       </p>
-      {msg && <p role={msg.ok ? 'status' : 'alert'} style={{ margin: '8px 0 0', fontSize: '0.85rem', color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.text}</p>}
+      {msg && <p role={msg.ok ? 'status' : 'alert'} style={{ margin: '8px 0 0', fontSize: '0.85rem', color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </form>
   );
 }

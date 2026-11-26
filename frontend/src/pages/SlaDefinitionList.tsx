@@ -107,8 +107,8 @@ async function deleteSla(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -442,7 +442,7 @@ export function SlaDefinitionList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.slaDefinitionList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -479,7 +479,7 @@ export function SlaDefinitionList() {
                           {t('ui.slaDefinitionList.edit')}
                         </button>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(s.id)}
                           title={t('ui.slaDefinitionList.deleteThisSla')}
                         >

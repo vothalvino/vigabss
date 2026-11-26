@@ -5,9 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-- **Fixed: the Payments page stayed light in dark mode.** Its table, rows,
-  filters and the payment action dialogs used fixed white and grey colours.
-  They now follow the theme.
+- **Fixed: many screens stayed light in dark mode.** Payments, Invoices and
+  about a hundred other staff screens used fixed white and grey colours for
+  their tables, panels, borders and text, and fixed pastel colours for status
+  badges. They now use the theme's colours, so they turn dark with the rest of
+  the app, and status badges and red or amber action labels stay readable on
+  a dark background. Highlighted rows (test contracts, your own user) use a
+  tint that works in both themes. Maps, signature pads, printed receipts and
+  the reseller and carrier apps are unchanged.
 
 - **Changed: taking cash needs an open cashier.** A person who records a cash
   payment, or pays a client group in cash, must have their cashier open;

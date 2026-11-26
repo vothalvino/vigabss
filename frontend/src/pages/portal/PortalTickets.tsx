@@ -51,9 +51,9 @@ async function createTicket(body: { subject: string; description?: string; prior
 }
 
 const PRIORITY_COLORS: Record<string, React.CSSProperties> = {
-  low: { background: '#f3f4f6', color: '#6b7280' },
-  medium: { background: '#fef3c7', color: '#92400e' },
-  high: { background: '#fee2e2', color: '#991b1b' },
+  low: { background: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  medium: { background: 'var(--warning-soft)', color: 'var(--warning)' },
+  high: { background: 'var(--danger-soft)', color: 'var(--danger)' },
   critical: { background: '#4b0082', color: '#fff' },
 };
 
@@ -237,7 +237,7 @@ const styles = {
   select: { padding: '0.4rem 0.6rem', border: '1px solid var(--input-border)', borderRadius: 4, fontSize: '0.9rem' },
   newBtn: { padding: '0.45rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' },
   info: { color: 'var(--text-muted)' },
-  errorTxt: { color: '#b91c1c', fontSize: '0.875rem', margin: '0.5rem 0' },
+  errorTxt: { color: 'var(--danger)', fontSize: '0.875rem', margin: '0.5rem 0' },
   inlineBtn: { background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600, fontSize: 'inherit', padding: 0 },
   card: { background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.875rem' },

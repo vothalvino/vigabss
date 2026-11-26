@@ -122,7 +122,7 @@ export function CommunicationOptInFields({
           </div>
         </div>
       ) : (
-        <p role="alert" style={{ margin: '0.75rem 0', color: '#991b1b', fontSize: '0.82rem' }}>
+        <p role="alert" style={{ margin: '0.75rem 0', color: 'var(--danger)', fontSize: '0.82rem' }}>
           {t('communicationOptIn.privacyUnavailable')}
         </p>
       )}

@@ -97,13 +97,13 @@ function fmt(dateStr: string | null | undefined): string {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    open:        { bg: '#dbeafe', color: '#1e40af' },
+    open:        { bg: 'var(--info-soft)', color: 'var(--info)' },
     in_progress: { bg: '#ede9fe', color: '#5b21b6' },
-    waiting:     { bg: '#fef9c3', color: '#854d0e' },
-    resolved:    { bg: '#d1fae5', color: '#065f46' },
-    closed:      { bg: '#f3f4f6', color: '#374151' },
+    waiting:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    resolved:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    closed:      { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -117,12 +117,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function PriorityBadge({ priority }: { priority: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    low:      { bg: '#f0fdf4', color: '#15803d' },
+    low:      { bg: 'var(--success-soft)', color: 'var(--success)' },
     medium:   { bg: '#fff7ed', color: '#c2410c' },
-    high:     { bg: '#fef2f2', color: '#b91c1c' },
-    critical: { bg: '#fee2e2', color: '#7f1d1d' },
+    high:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    critical: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[priority] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[priority] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -337,8 +337,8 @@ export function TicketList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>{t('ticketList.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('ticketList.error')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ticketList.loading')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('ticketList.error')}</p>}
       {!isLoading && !error && (
         <>
           <div style={{ overflowX: 'auto' }}>
@@ -358,7 +358,7 @@ export function TicketList() {
               </thead>
               <tbody>
                 {tickets.length === 0 && (
-                  <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>{t('ticketList.noTickets')}</td></tr>
+                  <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>{t('ticketList.noTickets')}</td></tr>
                 )}
                 {tickets.map(t => (
                   <tr
@@ -379,7 +379,7 @@ export function TicketList() {
                     </td>
                     <td style={{ ...td, maxWidth: 300 }}>
                       <span style={{ fontWeight: 500 }}>{t.subject}</span>
-                      {t.category && <span style={{ color: '#888', fontSize: '0.78rem', marginLeft: 6 }}>[{categoryLabels[t.category] ?? t.category}]</span>}
+                      {t.category && <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginLeft: 6 }}>[{categoryLabels[t.category] ?? t.category}]</span>}
                     </td>
                     <td style={td}>{t.client_id ? (clientNames.get(t.client_id) ?? `#${t.client_id}`) : '—'}</td>
                     <td style={td}><PriorityBadge priority={t.priority} /></td>
@@ -464,6 +464,6 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 6, fontSize: '0.85rem', boxSizing: 'border-box',
 };
 const errStyle: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '8px 12px', borderRadius: 6, fontSize: '0.83rem', marginBottom: 8,
 };

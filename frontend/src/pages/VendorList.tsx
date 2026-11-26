@@ -100,8 +100,8 @@ async function deleteVendor(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active:   { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fee2e2', color: '#991b1b' },
+  active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -391,7 +391,7 @@ export function VendorList() {
                       <td style={styles.td}><StatusBadge status={v.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditVendor(v)}>{t('vendors.actions.edit')}</button>
-                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirmDelete(v)}>{t('vendors.actions.delete')}</button>
+                        <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => setConfirmDelete(v)}>{t('vendors.actions.delete')}</button>
                       </td>
                     </tr>
                   ))}

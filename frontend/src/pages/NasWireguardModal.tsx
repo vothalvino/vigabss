@@ -68,21 +68,21 @@ export function isValidCidr(s: string): boolean {
 // ---------------------------------------------------------------------------
 
 const WG_STEP_COLORS: Record<string, { bg: string; color: string }> = {
-  created:   { bg: '#d1fae5', color: '#065f46' },
-  updated:   { bg: '#dbeafe', color: '#1e40af' },
-  unchanged: { bg: '#f3f4f6', color: '#374151' },
-  skipped:   { bg: '#f3f4f6', color: '#374151' },
-  ok:        { bg: '#d1fae5', color: '#065f46' },
-  error:     { bg: '#fee2e2', color: '#991b1b' },
+  created:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  updated:   { bg: 'var(--info-soft)', color: 'var(--info)' },
+  unchanged: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  skipped:   { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  ok:        { bg: 'var(--success-soft)', color: 'var(--success)' },
+  error:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 const STATE_COLORS: Record<string, { bg: string; color: string }> = {
-  active:   { bg: '#d1fae5', color: '#065f46' },
-  manual:   { bg: '#dbeafe', color: '#1e40af' },
-  pending:  { bg: '#fef3c7', color: '#92400e' },
-  degraded: { bg: '#fee2e2', color: '#991b1b' },
-  error:    { bg: '#fee2e2', color: '#991b1b' },
-  disabled: { bg: '#f3f4f6', color: '#6b7280' },
+  active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  manual:   { bg: 'var(--info-soft)', color: 'var(--info)' },
+  pending:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  degraded: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  error:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  disabled: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -442,7 +442,7 @@ export function NasWireguardModal({ nas, onClose }: NasWireguardModalProps) {
                 </button>
               </div>
               {manualError && (
-                <span style={{ fontSize: '0.75rem', color: '#991b1b' }}>{manualError}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>{manualError}</span>
               )}
             </div>
 
@@ -478,7 +478,7 @@ export function NasWireguardModal({ nas, onClose }: NasWireguardModalProps) {
             {/* State badge + summary */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
               {result.state && (() => {
-                const c = STATE_COLORS[result.state!] ?? { bg: '#f3f4f6', color: '#374151' };
+                const c = STATE_COLORS[result.state!] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
                 return (
                   <span
                     style={{
@@ -493,7 +493,7 @@ export function NasWireguardModal({ nas, onClose }: NasWireguardModalProps) {
                 );
               })()}
               <span
-                style={{ fontSize: '0.9rem', fontWeight: 600, color: result.ok ? '#065f46' : '#92400e' }}
+                style={{ fontSize: '0.9rem', fontWeight: 600, color: result.ok ? 'var(--success)' : 'var(--warning)' }}
               >
                 {result.ok ? t('nasWireguard.successApi') : t('nasWireguard.successSnippet')}
               </span>

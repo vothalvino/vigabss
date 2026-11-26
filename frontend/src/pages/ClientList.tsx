@@ -127,12 +127,12 @@ async function restoreClient(id: number): Promise<void> {
 
 function statusBadge(status: string) {
   const map: Record<string, { bg: string; color: string }> = {
-    active:    { bg: '#d1fae5', color: '#065f46' },
-    suspended: { bg: '#fef3c7', color: '#92400e' },
-    inactive:  { bg: '#f3f4f6', color: '#6b7280' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
+    active:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    suspended: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    inactive:  { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+    cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const style = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const style = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -533,8 +533,8 @@ const styles = {
   },
   archivedBadge: {
     marginLeft: 8,
-    background: '#fee2e2',
-    color: '#991b1b',
+    background: 'var(--danger-soft)',
+    color: 'var(--danger)',
     padding: '1px 7px',
     borderRadius: 10,
     fontSize: '0.68rem',
@@ -558,11 +558,11 @@ const styles = {
     color: 'var(--text-secondary)',
   },
   actionBtnDanger: {
-    color: '#b91c1c',
+    color: 'var(--danger)',
     borderColor: '#fca5a5',
   },
   msg: { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
   pagination: {
     display: 'flex',
     alignItems: 'center',

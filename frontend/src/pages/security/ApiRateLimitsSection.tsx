@@ -50,7 +50,7 @@ interface Draft {
 const EMPTY: Draft = { tokenId: '', values: { burst_size: '', requests_per_minute: '', requests_per_hour: '', requests_per_day: '' }, active: true };
 
 const cell = { padding: '6px 8px', borderBottom: '1px solid #eee' } as const;
-const head = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' } as const;
+const head = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' } as const;
 
 export function ApiRateLimitsSection() {
   const { t } = useTranslation();
@@ -135,7 +135,7 @@ export function ApiRateLimitsSection() {
       <p role="note">{k('explain')}</p>
 
       {limitsQ.isLoading ? <p>{t('common.loading')}</p>
-        : limitsQ.error ? <p role="alert" style={{ color: '#b91c1c' }}>{t('common.error')}: {(limitsQ.error as Error).message}</p>
+        : limitsQ.error ? <p role="alert" style={{ color: 'var(--danger)' }}>{t('common.error')}: {(limitsQ.error as Error).message}</p>
           : rows.length === 0 ? <p>{t('securityAccessControl.apiSecurity.noRateLimits')}</p>
             : (
               <div style={{ overflowX: 'auto', marginBottom: 16 }}>
@@ -217,7 +217,7 @@ export function ApiRateLimitsSection() {
                   onChange={e => setDraft({ ...draft, values: { ...draft.values, [f.key]: e.target.value } })}
                   style={{ width: 160, padding: '6px 8px', borderColor: bad ? '#b91c1c' : undefined }}
                 />
-                <small id={`${id}-help`} style={{ display: 'block', color: bad ? '#b91c1c' : '#555' }}>{k('fieldHelp', { value: f.fallback })}</small>
+                <small id={`${id}-help`} style={{ display: 'block', color: bad ? 'var(--danger)' : 'var(--text-secondary)' }}>{k('fieldHelp', { value: f.fallback })}</small>
               </div>
             );
           })}
@@ -231,7 +231,7 @@ export function ApiRateLimitsSection() {
             </button>
             <button type="button" onClick={() => setDraft(null)}>{t('common.cancel')}</button>
           </div>
-          {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
+          {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
         </form>
       )}
     </section>

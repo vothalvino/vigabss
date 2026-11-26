@@ -168,7 +168,7 @@ function ActionButton({ label, onClick, disabled, variant = 'primary' }:
       disabled={disabled}
       style={{
         padding: '4px 10px', fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer',
-        background: disabled ? '#ccc' : bg, color: '#fff', border: 'none', borderRadius: 4,
+        background: disabled ? '#ccc' : bg, color: 'var(--bg-card)', border: 'none', borderRadius: 4,
       }}
     >
       {label}
@@ -231,7 +231,7 @@ function AutomationRulesTab() {
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('automation.triggerEvent')}</th>
@@ -317,7 +317,7 @@ function BatchJobsTab() {
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('automation.operation')}</th>
@@ -391,7 +391,7 @@ function PipelinesTab() {
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('common.status')}</th>
@@ -481,7 +481,7 @@ function RemediationTab() {
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('automation.condition')}</th>
@@ -562,13 +562,13 @@ function ScriptsTab() {
     <div>
       <h3>{t('automation.scripts')}</h3>
       {/* POST /automation-scripts/:id/execute is 501: nothing runs scripts (ASY-36). */}
-      <p style={{ fontSize: 12, color: '#888' }}>{t('automation.scriptsNotRunnable')}</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('automation.scriptsNotRunnable')}</p>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {loading ? <p>{t('common.loading')}</p> : (
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('automation.language')}</th>
@@ -656,7 +656,7 @@ function RouterDriversTab() {
         <>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('automation.vendor')}</th>
                 <th style={th}>{t('automation.protocol')}</th>
@@ -766,7 +766,7 @@ function AnalyticsAITab() {
           <h4>{t('automation.anomalies')} ({anomaliesMeta?.total ?? 0})</h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 24 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>ID</th>
                 <th style={th}>{t('automation.metric')}</th>
                 <th style={th}>{t('automation.severity')}</th>
@@ -791,7 +791,7 @@ function AnalyticsAITab() {
                 </tr>
               ))}
               {anomalies.length === 0 && (
-                <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#888' }}>{t('automation.noAnomalies')}</td></tr>
+                <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>{t('automation.noAnomalies')}</td></tr>
               )}
             </tbody>
           </table>
@@ -799,7 +799,7 @@ function AnalyticsAITab() {
           <h4>{t('automation.churnScores')} ({churnMeta?.total ?? 0})</h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: 'var(--bg-subtle)' }}>
                 <th style={th}>{t('automation.clientId')}</th>
                 <th style={th}>{t('common.name')}</th>
                 <th style={th}>{t('automation.score')}</th>
@@ -818,7 +818,7 @@ function AnalyticsAITab() {
                 </tr>
               ))}
               {churnScores.length === 0 && (
-                <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#888' }}>{t('automation.noChurnScores')}</td></tr>
+                <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>{t('automation.noChurnScores')}</td></tr>
               )}
             </tbody>
           </table>
@@ -867,7 +867,7 @@ export default function AutomationPage() {
               padding: '8px 16px', border: 'none', background: 'none',
               cursor: 'pointer', fontSize: 13, fontWeight: tab === key ? 700 : 400,
               borderBottom: tab === key ? '2px solid #3498db' : '2px solid transparent',
-              color: tab === key ? '#3498db' : '#555', marginBottom: -2,
+              color: tab === key ? '#3498db' : 'var(--text-secondary)', marginBottom: -2,
             }}
           >
             {label}

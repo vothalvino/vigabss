@@ -71,7 +71,7 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
           justifyContent: 'center',
           height: '100vh',
           fontFamily: 'sans-serif',
-          color: '#555',
+          color: 'var(--text-secondary)',
         }}
       >
         {t('ui.privateRoute.loading')}

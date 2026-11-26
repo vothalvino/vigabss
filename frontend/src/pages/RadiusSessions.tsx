@@ -187,7 +187,7 @@ function NasSummarySection({ refreshInterval }: { refreshInterval: number | fals
                         <td style={s.td}>{entry.session_count}</td>
                       </tr>
                       {isExpanded && entry.ports.map((port, pi) => (
-                        <tr key={`nas-${idx}-port-${pi}`} style={{ ...s.tr, background: '#f8fafc' }}>
+                        <tr key={`nas-${idx}-port-${pi}`} style={{ ...s.tr, background: 'var(--bg-body)' }}>
                           <td style={s.td} />
                           <td style={{ ...s.td, paddingLeft: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }} colSpan={2}>
                             {t('ui.radiusSessions.port')}{port.nas_port_id ?? '—'}
@@ -741,35 +741,35 @@ const s: Record<string, CSSProperties> = {
   batchToolbar: {
     display: 'flex', alignItems: 'center', gap: '0.75rem',
     marginBottom: '0.75rem', padding: '0.5rem 0.75rem',
-    background: '#eff6ff', borderRadius: 6, border: '1px solid #bfdbfe',
+    background: 'var(--info-soft)', borderRadius: 6, border: '1px solid #bfdbfe',
   },
   batchBtn: {
     padding: '6px 14px', background: '#1d4ed8', color: '#fff',
     border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem',
   },
-  batchResult: { color: '#1d4ed8', fontSize: '0.85rem' },
+  batchResult: { color: 'var(--info)', fontSize: '0.85rem' },
   batchResultBar: {
     display: 'flex', flexDirection: 'column', gap: '0.25rem',
     marginBottom: '0.75rem', padding: '0.5rem 0.75rem',
-    background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0',
-    color: '#15803d', fontSize: '0.85rem',
+    background: 'var(--success-soft)', borderRadius: 6, border: '1px solid #bbf7d0',
+    color: 'var(--success)', fontSize: '0.85rem',
   },
   batchResultHead: {
     display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between',
   },
   batchErrorList: {
     margin: '0.25rem 0 0', paddingLeft: '1.2rem',
-    color: '#b45309', fontSize: '0.8rem',
+    color: 'var(--warning)', fontSize: '0.8rem',
   },
   batchDismissBtn: {
     background: 'transparent', border: 'none', cursor: 'pointer',
-    color: '#15803d', fontSize: '0.9rem', padding: '0 4px',
+    color: 'var(--success)', fontSize: '0.9rem', padding: '0 4px',
   },
 
   tableWrap: { overflowX: 'auto', background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    padding: '0.65rem 0.9rem', background: '#f0f2f8', borderBottom: '2px solid #e0e3ef',
+    padding: '0.65rem 0.9rem', background: 'var(--bg-subtle)', borderBottom: '2px solid #e0e3ef',
     textAlign: 'left', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap',
   },
   tr: {},

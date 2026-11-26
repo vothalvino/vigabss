@@ -54,9 +54,9 @@ async function fetchProfiles(page: number): Promise<RecurringPaymentProfileRespo
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  expired: { bg: '#fef3c7', color: '#92400e' },
-  revoked: { bg: '#fee2e2', color: '#991b1b' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  expired: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  revoked: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 function formatCard(p: RecurringPaymentProfile): string {

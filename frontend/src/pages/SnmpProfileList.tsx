@@ -56,8 +56,8 @@ async function fetchSnmpProfiles(page: number, statusFilter: string): Promise<Sn
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function deviceTypeLabel(type: string | null): string {

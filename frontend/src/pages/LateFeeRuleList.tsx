@@ -154,7 +154,7 @@ export function LateFeeRuleList() {
       {isLoading && <p>{t('common.loading')}</p>}
 
       {!isLoading && rules.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('lateFeeRules.noRules')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('lateFeeRules.noRules')}</p>
       )}
 
       {rules.length > 0 && (
@@ -213,20 +213,20 @@ export function LateFeeRuleList() {
       {/* Create / Edit Form Modal */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: 28, width: 420, maxWidth: '95vw' }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 10, padding: 28, width: 420, maxWidth: '95vw' }}>
             <h2 style={{ marginTop: 0, marginBottom: 20, fontSize: 18, fontWeight: 700 }}>
               {editing ? t('common.edit') : t('lateFeeRules.newRule')}
             </h2>
-            {formError && <div style={{ background: '#fee2e2', color: '#991b1b', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{formError}</div>}
+            {formError && <div style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{formError}</div>}
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{t('lateFeeRules.name')}</label>
-                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
+                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
                   required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{t('lateFeeRules.feeType')}</label>
-                <select style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }}
+                <select style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13 }}
                   value={form.fee_type} onChange={e => setForm(f => ({ ...f, fee_type: e.target.value as 'flat' | 'percent' }))}>
                   <option value="flat">{t('lateFeeRules.feeTypeFlat')}</option>
                   <option value="percent">{t('lateFeeRules.feeTypePercent')}</option>
@@ -234,19 +234,19 @@ export function LateFeeRuleList() {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{t('lateFeeRules.feeAmount')}</label>
-                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
+                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
                   type="number" step="0.01" min="0" value={form.fee_amount}
                   onChange={e => setForm(f => ({ ...f, fee_amount: e.target.value }))} />
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{t('lateFeeRules.gracePeriodDays')}</label>
-                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
+                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
                   type="number" min="0" value={form.grace_period_days}
                   onChange={e => setForm(f => ({ ...f, grace_period_days: e.target.value }))} />
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{t('lateFeeRules.maxApplications')}</label>
-                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
+                <input style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' as const }}
                   type="number" min="1" placeholder={t('lateFeeRules.maxApplicationsUnlimited')}
                   value={form.max_applications}
                   onChange={e => setForm(f => ({ ...f, max_applications: e.target.value }))} />
@@ -261,7 +261,7 @@ export function LateFeeRuleList() {
                   disabled={isPending}>
                   {isPending ? t('common.saving') : t('common.save')}
                 </button>
-                <button type="button" style={{ padding: '8px 18px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
+                <button type="button" style={{ padding: '8px 18px', background: 'var(--bg-subtle)', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
                   onClick={() => { setShowForm(false); setEditing(null); setForm(EMPTY_FORM); }}>
                   {t('common.cancel')}
                 </button>
@@ -274,7 +274,7 @@ export function LateFeeRuleList() {
       {/* Delete Confirmation */}
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: 28, width: 360 }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 10, padding: 28, width: 360 }}>
             <p style={{ marginTop: 0 }}>{t('lateFeeRules.deleteConfirm')}</p>
             <p style={{ fontWeight: 700 }}>{deleteTarget.name}</p>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -282,7 +282,7 @@ export function LateFeeRuleList() {
                 onClick={() => deleteMutation.mutate(deleteTarget.id)}>
                 {t('common.delete')}
               </button>
-              <button style={{ padding: '8px 18px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
+              <button style={{ padding: '8px 18px', background: 'var(--bg-subtle)', border: '1px solid var(--border-strong)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
                 onClick={() => setDeleteTarget(null)}>
                 {t('common.cancel')}
               </button>

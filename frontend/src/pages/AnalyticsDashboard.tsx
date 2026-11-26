@@ -301,7 +301,7 @@ const widgetStyles = {
   } as CSSProperties,
   kpiLabel: {
     fontSize: '0.75rem',
-    color: '#888',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
     marginBottom: 4,
@@ -337,7 +337,7 @@ const widgetStyles = {
   th: {
     textAlign: 'left' as const,
     padding: '5px 8px',
-    background: '#f5f5f5',
+    background: 'var(--bg-subtle)',
     borderBottom: '1px solid #e0e0e0',
     fontWeight: 600,
     color: 'var(--text-secondary)',

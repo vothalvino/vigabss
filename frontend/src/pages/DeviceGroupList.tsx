@@ -80,8 +80,8 @@ async function deleteGroup(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fef3c7', color: '#92400e' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@ export function DeviceGroupList() {
                     <td style={styles.td}>
                       {g.color ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: g.color, border: '1px solid #d1d5db' }} />
+                          <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: g.color, border: '1px solid var(--border-strong)' }} />
                           {g.color}
                         </span>
                       ) : '—'}

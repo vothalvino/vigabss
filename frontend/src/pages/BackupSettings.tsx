@@ -151,13 +151,13 @@ function fmtBytes(n: number | null): string {
 
 function StatusBadge({ value }: { value: string | null }) {
   const map: Record<string, { bg: string; color: string }> = {
-    success: { bg: '#d1fae5', color: '#065f46' },
-    uploaded: { bg: '#d1fae5', color: '#065f46' },
-    running: { bg: '#dbeafe', color: '#1e40af' },
-    failed: { bg: '#fee2e2', color: '#991b1b' },
-    disabled: { bg: '#f3f4f6', color: '#374151' },
+    success: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    uploaded: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    running: { bg: 'var(--info-soft)', color: 'var(--info)' },
+    failed: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    disabled: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[value ?? ''] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[value ?? ''] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 600 }}>
       {value ?? '—'}
@@ -352,9 +352,9 @@ export function BackupSettings() {
               <tr style={styles.tr}>
                 <td style={{ ...styles.td, fontWeight: 500 }}>{t('backups.offsiteSource')}</td>
                 <td style={styles.td}>
-                  {settings?.effective_source === 'settings' && <span style={{ color: '#065f46', fontWeight: 600 }}>{t('backups.sourceSettings')}</span>}
-                  {settings?.effective_source === 'env' && <span style={{ color: '#92400e', fontWeight: 600 }}>{t('backups.sourceEnv')}</span>}
-                  {settings?.effective_source === 'none' && <span style={{ color: '#991b1b', fontWeight: 600 }}>{t('backups.sourceNone')}</span>}
+                  {settings?.effective_source === 'settings' && <span style={{ color: 'var(--success)', fontWeight: 600 }}>{t('backups.sourceSettings')}</span>}
+                  {settings?.effective_source === 'env' && <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{t('backups.sourceEnv')}</span>}
+                  {settings?.effective_source === 'none' && <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{t('backups.sourceNone')}</span>}
                 </td>
               </tr>
             </tbody>
@@ -426,9 +426,9 @@ export function BackupSettings() {
 
         {saveError && <p style={styles.msgError}>{saveError}</p>}
         {testMut.isError && <p style={styles.msgError}>{(testMut.error as Error).message}</p>}
-        {saveMut.isSuccess && !saveError && <p style={{ ...styles.msg, color: '#065f46' }}>{t('backups.saved')}</p>}
+        {saveMut.isSuccess && !saveError && <p style={{ ...styles.msg, color: 'var(--success)' }}>{t('backups.saved')}</p>}
         {testMut.data && (
-          <p style={{ ...styles.msg, color: testMut.data.success ? '#065f46' : '#991b1b' }}>
+          <p style={{ ...styles.msg, color: testMut.data.success ? 'var(--success)' : 'var(--danger)' }}>
             {testMut.data.success
               ? t('backups.testOk', { source: testMut.data.source })
               : t('backups.testFail', { error: testMut.data.error ?? 'unknown' })}

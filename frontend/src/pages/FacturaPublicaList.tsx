@@ -36,9 +36,9 @@ const MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'
 const BIMESTERS = ['13', '14', '15', '16', '17', '18'];
 
 const STATUS_COLORS: StatusColors = {
-  draft: { bg: '#f3f4f6', color: '#374151' },
-  stamped: { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  stamped: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 async function fetchFacturas(page: number): Promise<FacturaPublicaPage> {

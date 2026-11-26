@@ -165,7 +165,7 @@ function EditTab({ org }: { org: Organization }) {
           {save.isPending ? t('common.saving') : t('common.save')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }
@@ -232,7 +232,7 @@ function SettingsTab({ id }: { id: number }) {
           {save.isPending ? t('common.saving') : t('common.save')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }
@@ -290,7 +290,7 @@ function PrivacyTab({ org }: { org: Organization }) {
           {save.isPending ? t('common.saving') : t('common.save')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }
@@ -371,7 +371,7 @@ function QuotaTab({ id }: { id: number }) {
           {save.isPending ? t('common.saving') : t('common.save')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }
@@ -381,7 +381,7 @@ function QuotaTab({ id }: { id: number }) {
 // ---------------------------------------------------------------------------
 
 function StatusPill({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-  return <span style={{ background: ok ? '#d1fae5' : '#f3f4f6', color: ok ? '#065f46' : '#374151', padding: '1px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600 }}>{children}</span>;
+  return <span style={{ background: ok ? 'var(--success-soft)' : '#f3f4f6', color: ok ? '#065f46' : '#374151', padding: '1px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600 }}>{children}</span>;
 }
 
 function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity }) {
@@ -484,9 +484,9 @@ function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity 
           {t('orgDetail.clearStoredPassword')}
         </label>
       )}
-      {clearStoredPassword && <p style={{ ...styles.msg, color: '#92400e' }}>{t('orgDetail.clearStoredPasswordHint')}</p>}
+      {clearStoredPassword && <p style={{ ...styles.msg, color: 'var(--warning)' }}>{t('orgDetail.clearStoredPasswordHint')}</p>}
       {connectionChangeNeedsPasswordAction && (
-        <p role="alert" style={{ ...styles.msg, color: '#991b1b' }}>{t('orgDetail.connectionChangeRequiresPassword')}</p>
+        <p role="alert" style={{ ...styles.msg, color: 'var(--danger)' }}>{t('orgDetail.connectionChangeRequiresPassword')}</p>
       )}
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: '0.8rem', flexWrap: 'wrap' }}>
@@ -498,7 +498,7 @@ function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity 
           {test.isPending ? t('orgDetail.testing') : t('orgDetail.sendTest')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }
@@ -752,7 +752,7 @@ function FiscalTab({ id }: { id: number }) {
           {save.isPending ? t('common.saving') : t('common.save')}
         </button>
       </div>
-      {msg && <p style={{ ...styles.msg, color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.text}</p>}
+      {msg && <p style={{ ...styles.msg, color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>{msg.text}</p>}
     </div>
   );
 }

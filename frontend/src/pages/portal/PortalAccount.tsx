@@ -433,12 +433,12 @@ export function PortalAccount() {
 
 function badgeColor(status: string): React.CSSProperties {
   switch (status) {
-    case 'pending': return { background: '#fef3c7', color: '#92400e' };
-    case 'approved': return { background: '#d1fae5', color: '#065f46' };
-    case 'rejected': return { background: '#fee2e2', color: '#991b1b' };
-    case 'completed': return { background: '#dbeafe', color: '#1e40af' };
-    case 'cancelled': return { background: '#f3f4f6', color: '#6b7280' };
-    default: return { background: '#f3f4f6', color: '#374151' };
+    case 'pending': return { background: 'var(--warning-soft)', color: 'var(--warning)' };
+    case 'approved': return { background: 'var(--success-soft)', color: 'var(--success)' };
+    case 'rejected': return { background: 'var(--danger-soft)', color: 'var(--danger)' };
+    case 'completed': return { background: 'var(--info-soft)', color: 'var(--info)' };
+    case 'cancelled': return { background: 'var(--bg-subtle)', color: 'var(--text-muted)' };
+    default: return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   }
 }
 
@@ -462,7 +462,7 @@ const styles: Record<string, React.CSSProperties> = {
   th: { textAlign: 'left' as const, padding: '0.5rem', color: 'var(--text-muted)', fontWeight: 600, borderBottom: '2px solid var(--border-subtle)' },
   td: { padding: '0.5rem', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' },
   badge: { display: 'inline-block', padding: '0.15rem 0.4rem', borderRadius: 10, fontSize: '0.78rem', fontWeight: 600 },
-  cancelBtn: { padding: '0.2rem 0.5rem', fontSize: '0.78rem', border: '1px solid #dc2626', color: '#dc2626', borderRadius: 4, cursor: 'pointer', background: 'transparent' },
+  cancelBtn: { padding: '0.2rem 0.5rem', fontSize: '0.78rem', border: '1px solid #dc2626', color: 'var(--danger)', borderRadius: 4, cursor: 'pointer', background: 'transparent' },
   formGroup: { marginBottom: '0.875rem' },
   label: { display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', color: 'var(--text-muted)' },
   input: { width: '100%', boxSizing: 'border-box' as const, padding: '0.45rem 0.6rem', border: '1px solid var(--input-border)', borderRadius: 4, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)' },
@@ -470,7 +470,7 @@ const styles: Record<string, React.CSSProperties> = {
   textarea: { width: '100%', boxSizing: 'border-box' as const, padding: '0.45rem 0.6rem', border: '1px solid var(--input-border)', borderRadius: 4, fontSize: '0.9rem', minHeight: 80, background: 'var(--bg-input)', color: 'var(--text-primary)' },
   submitBtn: { padding: '0.5rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 },
   success: { color: '#16a34a', fontSize: '0.875rem', marginBottom: '0.5rem' },
-  error: { color: '#dc2626', fontSize: '0.875rem', marginBottom: '0.5rem' },
+  error: { color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '0.5rem' },
   waCodeBox: { marginTop: '1rem', padding: '1rem', border: '1px dashed var(--border-strong)', borderRadius: 8, textAlign: 'center' as const },
   waCode: { fontSize: '1.8rem', fontWeight: 700, letterSpacing: 6, color: 'var(--text-primary)', margin: '0.5rem 0' },
   waLink: { display: 'inline-block', padding: '0.5rem 1.25rem', background: '#25D366', color: '#fff', borderRadius: 4, textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 },

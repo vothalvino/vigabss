@@ -161,10 +161,10 @@ function UtilizationBar({ percent }: { percent: number | null | undefined }) {
   if (percent == null) {
     return <span style={{ color: 'var(--text-faint)', fontSize: '0.75rem' }}>—</span>;
   }
-  const color = percent >= 90 ? '#dc2626' : percent >= 75 ? '#f59e0b' : '#16a34a';
+  const color = percent >= 90 ? 'var(--danger)' : percent >= 75 ? '#f59e0b' : '#16a34a';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 80, height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ width: 80, height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ width: `${Math.min(100, percent)}%`, height: '100%', background: color, borderRadius: 4 }} />
       </div>
       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{percent}%</span>
@@ -177,8 +177,8 @@ function UtilizationBar({ percent }: { percent: number | null | undefined }) {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fef3c7', color: '#92400e' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -696,7 +696,7 @@ export function IpPoolList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.ipPoolList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -739,7 +739,7 @@ export function IpPoolList() {
                             {t('ui.ipPoolList.edit')}
                           </button>
                           <button
-                            style={{ ...styles.actionBtn, color: '#991b1b' }}
+                            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                             onClick={() => setDeleteId(p.id)}
                             title={t('ui.ipPoolList.deleteThisPool')}
                           >

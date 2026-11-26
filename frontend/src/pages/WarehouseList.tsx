@@ -125,8 +125,8 @@ function capitalize(s: string): string {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active:   { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fee2e2', color: '#991b1b' },
+  active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -296,10 +296,10 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 640, maxHeight: '85vh' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.warehouseList.stock')}{warehouse.name}</h3>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {warehouse.city ? `${warehouse.city}, ` : ''}{warehouse.state ?? ''}
           {t('ui.warehouseList.text')}{totalItems} {t('ui.warehouseList.skus')}
-          <span style={{ color: lowStockCount > 0 ? '#dc2626' : '#065f46' }}>
+          <span style={{ color: lowStockCount > 0 ? 'var(--danger)' : 'var(--success)' }}>
             {lowStockCount} {t('ui.warehouseList.outOfStock')}
           </span>
         </p>
@@ -311,11 +311,11 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
           onChange={e => setSearch(e.target.value)}
         />
 
-        {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.warehouseList.loading')}</p>}
-        {isError && <p style={{ color: '#dc2626' }}>{t('ui.warehouseList.failedToLoadStockData')}</p>}
+        {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.warehouseList.loading')}</p>}
+        {isError && <p style={{ color: 'var(--danger)' }}>{t('ui.warehouseList.failedToLoadStockData')}</p>}
 
         {data && filtered.length === 0 && (
-          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>{t('ui.warehouseList.noStockRecordsFound')}</p>
+          <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('ui.warehouseList.noStockRecordsFound')}</p>
         )}
 
         {filtered.length > 0 && (
@@ -331,7 +331,7 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
               <tbody>
                 {filtered.map(row => (
                   <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ ...td, color: '#9ca3af', fontSize: '0.78rem' }}>{row.sku ?? '—'}</td>
+                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{row.sku ?? '—'}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{row.item_name}</td>
                     <td style={td}>{row.category ? capitalize(row.category) : '—'}</td>
                     <td style={td}>
@@ -339,7 +339,7 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
                     </td>
                     <td style={{ ...td, fontWeight: 700 }}>
                       {/* Use qty<=0 as red; qty<=5 as amber warning (reorder_level not in this response) */}
-                      <span style={{ color: row.quantity <= 0 ? '#dc2626' : row.quantity <= 5 ? '#d97706' : '#065f46' }}>
+                      <span style={{ color: row.quantity <= 0 ? 'var(--danger)' : row.quantity <= 5 ? '#d97706' : '#065f46' }}>
                         {row.quantity}
                       </span>
                     </td>
@@ -406,7 +406,7 @@ export function WarehouseList() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.warehouseList.status2')}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('ui.warehouseList.status2')}</span>
         {[['', 'All'], ['active', 'Active'], ['inactive', 'Inactive']].map(([v, l]) => (
           <button
             key={v}
@@ -419,8 +419,8 @@ export function WarehouseList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.warehouseList.loadingWarehouses')}</p>}
-      {isError && <p style={{ color: '#dc2626' }}>{t('ui.warehouseList.failedToLoadWarehousesPlease')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.warehouseList.loadingWarehouses')}</p>}
+      {isError && <p style={{ color: 'var(--danger)' }}>{t('ui.warehouseList.failedToLoadWarehousesPlease')}</p>}
 
       {data && (
         <>
@@ -436,7 +436,7 @@ export function WarehouseList() {
               <tbody>
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ ...td, color: '#6b7280', fontStyle: 'italic', textAlign: 'center' }}>
+                    <td colSpan={7} style={{ ...td, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
                       {t('ui.warehouseList.noWarehousesFound')}
                     </td>
                   </tr>
@@ -446,7 +446,7 @@ export function WarehouseList() {
                     <td style={{ ...td, fontWeight: 600 }}>
                       {wh.name}
                       {wh.address && (
-                        <div style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                           {wh.address}
                         </div>
                       )}
@@ -476,7 +476,7 @@ export function WarehouseList() {
           </div>
 
           {/* Pagination */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             <button style={pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>{t('ui.warehouseList.prev')}</button>
             <span>{t('ui.warehouseList.page')}{page} {t('ui.warehouseList.of')}{totalPages} ({data.meta.total} {t('ui.warehouseList.warehouses2')}</span>
             <button style={pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.warehouseList.next')}</button>
@@ -537,7 +537,7 @@ const labelStyle: CSSProperties = {
 };
 
 const errorBox: CSSProperties = {
-  background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626',
+  background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', color: 'var(--danger)',
   padding: '0.5rem 0.75rem', borderRadius: 4, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 
@@ -571,7 +571,7 @@ const actionBtn: CSSProperties = {
 };
 
 const deleteBtn: CSSProperties = {
-  background: 'var(--bg-subtle)', color: '#dc2626', border: '1px solid #fca5a5',
+  background: 'var(--bg-subtle)', color: 'var(--danger)', border: '1px solid var(--danger-border)',
   borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '0.78rem',
 };
 

@@ -117,10 +117,10 @@ async function deleteScan(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  pending:   { bg: '#fef9c3', color: '#854d0e' },
-  running:   { bg: '#dbeafe', color: '#1e40af' },
-  completed: { bg: '#d1fae5', color: '#065f46' },
-  failed:    { bg: '#fee2e2', color: '#991b1b' },
+  pending:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  running:   { bg: 'var(--info-soft)', color: 'var(--info)' },
+  completed: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  failed:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------

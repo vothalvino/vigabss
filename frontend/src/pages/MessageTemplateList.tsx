@@ -83,12 +83,12 @@ async function deleteTemplate(id: number): Promise<void> {
 
 function ChannelBadge({ channel }: { channel: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    email: { bg: '#dbeafe', color: '#1e40af' },
-    sms: { bg: '#d1fae5', color: '#065f46' },
-    whatsapp: { bg: '#dcfce7', color: '#166534' },
+    email: { bg: 'var(--info-soft)', color: 'var(--info)' },
+    sms: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    whatsapp: { bg: 'var(--success-soft)', color: 'var(--success)' },
     push: { bg: '#f3e8ff', color: '#6b21a8' },
   };
-  const s = map[channel] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[channel] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -347,7 +347,7 @@ export function MessageTemplateList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.messageTemplateList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -384,7 +384,7 @@ export function MessageTemplateList() {
                           {t('ui.messageTemplateList.edit')}
                         </button>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(tpl.id)}
                           title={t('ui.messageTemplateList.deleteThisTemplate')}
                         >

@@ -147,11 +147,11 @@ export function PortalInvoices() {
 
 function badgeColor(status: string): React.CSSProperties {
   switch (status) {
-    case 'paid': return { background: '#d1fae5', color: '#065f46' };
-    case 'issued': return { background: '#dbeafe', color: '#1e40af' };
-    case 'overdue': return { background: '#fee2e2', color: '#991b1b' };
-    case 'cancelled': return { background: '#f3f4f6', color: '#6b7280' };
-    default: return { background: '#f3f4f6', color: '#374151' };
+    case 'paid': return { background: 'var(--success-soft)', color: 'var(--success)' };
+    case 'issued': return { background: 'var(--info-soft)', color: 'var(--info)' };
+    case 'overdue': return { background: 'var(--danger-soft)', color: 'var(--danger)' };
+    case 'cancelled': return { background: 'var(--bg-subtle)', color: 'var(--text-muted)' };
+    default: return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   }
 }
 
@@ -160,7 +160,7 @@ const styles = {
   heading: { margin: 0, fontSize: '1.4rem', color: 'var(--text-primary)' },
   select: { padding: '0.4rem 0.6rem', border: '1px solid var(--input-border)', borderRadius: 4, fontSize: '0.9rem' },
   info: { color: 'var(--text-muted)' },
-  error: { color: '#b91c1c' },
+  error: { color: 'var(--danger)' },
   card: { background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.875rem' },
   th: { textAlign: 'left' as const, padding: '0.6rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600, borderBottom: '2px solid var(--border-subtle)' },

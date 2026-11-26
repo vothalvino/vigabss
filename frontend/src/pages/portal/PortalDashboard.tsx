@@ -153,7 +153,7 @@ export function PortalDashboard() {
             ).map(b => (
               <div key={b.currency} style={{
                 fontSize: '2rem', fontWeight: 700,
-                color: b.balance > 0 ? '#dc2626' : '#16a34a',
+                color: b.balance > 0 ? 'var(--danger)' : '#16a34a',
               }}>
                 {b.currency} {b.balance.toFixed(2)}
               </div>

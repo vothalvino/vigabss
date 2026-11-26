@@ -64,7 +64,7 @@ export function CashierReviewDialog({ sessionId, decision, variance, onClose, on
           style={{ width: '100%', boxSizing: 'border-box', padding: 8, borderRadius: 6, border: '1px solid var(--border, #d1d5db)', font: 'inherit' }}
           autoFocus
         />
-        {error && <p role="alert" style={{ margin: '8px 0 0', color: '#991b1b', fontSize: '0.85rem' }}>{error}</p>}
+        {error && <p role="alert" style={{ margin: '8px 0 0', color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
           <button type="button" className="btn" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>

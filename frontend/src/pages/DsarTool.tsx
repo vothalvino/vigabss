@@ -196,7 +196,7 @@ export function DsarTool() {
       </form>
 
       {mutation.isError && (
-        <p role="alert" style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p role="alert" style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('dsarTool.error')}
         </p>
       )}

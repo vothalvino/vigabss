@@ -52,8 +52,8 @@ async function fetchGateways(page: number): Promise<PaymentGatewayResponse> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function EnvBadge({ env }: { env: string }) {
@@ -61,8 +61,8 @@ function EnvBadge({ env }: { env: string }) {
   return (
     <span
       style={{
-        background: isProd ? '#fee2e2' : '#dbeafe',
-        color: isProd ? '#991b1b' : '#1e40af',
+        background: isProd ? 'var(--danger-soft)' : 'var(--info-soft)',
+        color: isProd ? 'var(--danger)' : 'var(--info)',
         padding: '2px 8px',
         borderRadius: 12,
         fontSize: '0.72rem',

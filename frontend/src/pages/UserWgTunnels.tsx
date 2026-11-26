@@ -145,7 +145,7 @@ function AddPeerModal({ onClose, onCreated }: AddPeerModalProps) {
           maxLength={100}
           autoFocus
         />
-        <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '6px 0 0' }}>
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '6px 0 0' }}>
           {t('wgTunnels.peerNameHint')}
         </p>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: '1rem' }}>
@@ -163,7 +163,7 @@ function AddPeerModal({ onClose, onCreated }: AddPeerModalProps) {
             >
               {t('wgTunnels.fullTunnelLabel')}
             </label>
-            <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
               {t('wgTunnels.fullTunnelHint')}
             </p>
           </div>
@@ -203,8 +203,8 @@ function NewPeerResultModal({ result, onClose }: NewPeerResultModalProps) {
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 540 }}>
-        <h3 style={{ margin: '0 0 0.5rem', color: '#065f46' }}>{t('wgTunnels.modal.configTitle')}</h3>
-        <p style={{ fontSize: '0.83rem', color: '#555', margin: '0 0 1rem', lineHeight: 1.5 }}>
+        <h3 style={{ margin: '0 0 0.5rem', color: 'var(--success)' }}>{t('wgTunnels.modal.configTitle')}</h3>
+        <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: '0 0 1rem', lineHeight: 1.5 }}>
           {t('wgTunnels.modal.configHint')}
         </p>
 
@@ -219,9 +219,9 @@ function NewPeerResultModal({ result, onClose }: NewPeerResultModalProps) {
         )}
 
         <div style={{
-          background: '#f9fafb', border: '1px solid #e5e7eb',
+          background: 'var(--bg-body)', border: '1px solid var(--border)',
           borderRadius: 6, padding: '6px 10px', marginBottom: '1rem',
-          fontSize: '0.78rem', color: '#374151',
+          fontSize: '0.78rem', color: 'var(--text-secondary)',
         }}>
           <strong>{t('wgTunnels.table.tunnelIp')}:</strong>{' '}
           <code>{result.data.tunnel_address}</code>
@@ -269,12 +269,12 @@ function QrModal({ peer, onClose }: QrModalProps) {
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 340, textAlign: 'center' }}>
         <h3 style={{ margin: '0 0 0.75rem' }}>{peer.name}</h3>
-        <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0 0 0.75rem' }}>
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
           {peer.tunnel_address}
         </p>
-        {isLoading && <p style={{ color: '#888' }}>{t('wgTunnels.loadingQr')}</p>}
+        {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('wgTunnels.loadingQr')}</p>}
         {error && (
-          <p role="alert" style={{ color: '#e00' }}>
+          <p role="alert" style={{ color: 'var(--danger)' }}>
             {error instanceof Error && error.message !== 'Failed to fetch config' ? error.message : t('wgTunnels.error.showQr')}
           </p>
         )}
@@ -307,11 +307,11 @@ function ConfirmRevoke({ peer, onClose, onConfirm, isPending }: ConfirmRevokePro
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 420 }}>
-        <h3 style={{ margin: '0 0 0.75rem', color: '#991b1b' }}>{t('wgTunnels.confirm.revokeTitle')}</h3>
-        <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5 }}>
+        <h3 style={{ margin: '0 0 0.75rem', color: 'var(--danger)' }}>{t('wgTunnels.confirm.revokeTitle')}</h3>
+        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
           {t('wgTunnels.confirm.revokeBody', { name: peer.name })}
         </p>
-        <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '6px 0 0' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0' }}>
           {t('wgTunnels.revokeNote')}
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
@@ -440,26 +440,26 @@ export function UserWgTunnels() {
 
       {/* Info banner */}
       <div style={{
-        background: '#eff6ff', border: '1px solid #bfdbfe',
+        background: 'var(--info-soft)', border: '1px solid #bfdbfe',
         borderRadius: 6, padding: '8px 12px', marginBottom: '1rem',
-        fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.5,
+        fontSize: '0.8rem', color: 'var(--info)', lineHeight: 1.5,
       }}>
         {t('wgTunnels.banner')}
       </div>
 
       {hubProblem && (
         <div role="alert" style={{
-          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6,
-          padding: '8px 12px', marginBottom: '1rem', fontSize: '0.85rem', color: '#991b1b', lineHeight: 1.5,
+          background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 6,
+          padding: '8px 12px', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--danger)', lineHeight: 1.5,
         }}>
           <strong>{t(hubProblem.code === 'WIREGUARD_HUB_OFF' ? 'wgTunnels.hubOff.title' : 'wgTunnels.hubNotReady.title')}</strong>
           <div>{t(hubProblem.code === 'WIREGUARD_HUB_OFF' ? 'wgTunnels.hubOff.detail' : 'wgTunnels.hubNotReady.detail')}</div>
         </div>
       )}
-      {downloadError && <p role="alert" style={{ color: '#e00' }}>{downloadError}</p>}
+      {downloadError && <p role="alert" style={{ color: 'var(--danger)' }}>{downloadError}</p>}
 
-      {isLoading && <p style={{ color: '#888' }}>{t('wgTunnels.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('wgTunnels.errorLoad')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('wgTunnels.loading')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('wgTunnels.errorLoad')}</p>}
 
       {!isLoading && !error && (
         <div style={{ overflowX: 'auto' }}>
@@ -477,7 +477,7 @@ export function UserWgTunnels() {
             <tbody>
               {peers.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
+                  <td colSpan={6} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                     {t('wgTunnels.empty')}
                   </td>
                 </tr>
@@ -520,7 +520,7 @@ export function UserWgTunnels() {
                           <IconQr />
                         </button>
                         <button
-                          style={{ ...btnIcon, borderColor: '#dc2626', color: '#dc2626' }}
+                          style={{ ...btnIcon, borderColor: '#dc2626', color: 'var(--danger)' }}
                           onClick={() => setRevokeTarget(peer)}
                           title={t('wgTunnels.action.revoke')}
                           aria-label={t('wgTunnels.action.revoke')}
@@ -623,18 +623,18 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 6, fontSize: '0.85rem', boxSizing: 'border-box',
 };
 const errStyle: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '8px 12px', borderRadius: 6, fontSize: '0.83rem', marginBottom: 8,
 };
 const badgeGreen: React.CSSProperties = {
-  background: '#d1fae5', color: '#065f46',
+  background: 'var(--success-soft)', color: 'var(--success)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };
 const badgeGray: React.CSSProperties = {
-  background: '#f3f4f6', color: '#6b7280',
+  background: 'var(--bg-subtle)', color: 'var(--text-muted)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };
 const badgeRed: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };

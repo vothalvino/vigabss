@@ -82,10 +82,10 @@ async function deleteWindow(id: number): Promise<void> {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:    { bg: '#d1fae5', color: '#065f46' },
-  scheduled: { bg: '#dbeafe', color: '#1e40af' },
-  completed: { bg: '#f3f4f6', color: '#374151' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  active:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+  scheduled: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  completed: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 interface WindowFormProps {

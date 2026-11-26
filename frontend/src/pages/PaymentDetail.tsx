@@ -125,19 +125,19 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:     { bg: '#d1fae5', color: '#065f46' },
-  paid:       { bg: '#d1fae5', color: '#065f46' },
+  active:     { bg: 'var(--success-soft)', color: 'var(--success)' },
+  paid:       { bg: 'var(--success-soft)', color: 'var(--success)' },
   pending:    { bg: '#ede9fe', color: '#5b21b6' },
-  suspended:  { bg: '#fef3c7', color: '#92400e' },
-  overdue:    { bg: '#fee2e2', color: '#991b1b' },
-  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-  terminated: { bg: '#f3f4f6', color: '#6b7280' },
-  expired:    { bg: '#fde68a', color: '#78350f' },
-  failed:     { bg: '#fee2e2', color: '#991b1b' },
-  draft:      { bg: '#f3f4f6', color: '#6b7280' },
-  inactive:   { bg: '#f3f4f6', color: '#6b7280' },
-  completed:  { bg: '#d1fae5', color: '#065f46' },
-  refunded:   { bg: '#fef3c7', color: '#92400e' },
+  suspended:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  overdue:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  cancelled:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  terminated: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  expired:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  failed:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  draft:      { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  inactive:   { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  completed:  { bg: 'var(--success-soft)', color: 'var(--success)' },
+  refunded:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
   partial:    { bg: '#ede9fe', color: '#5b21b6' },
 };
 
@@ -273,7 +273,7 @@ function AllocationsSection({ allocations, currency, paymentId, isMxOrg }: { all
                     {t('ui.paymentDetail.generateRep')}
                   </button>
                   {repMsgs[alloc.invoiceId] && (
-                    <div style={{ fontSize: '0.72rem', marginTop: 4, color: repMsgs[alloc.invoiceId].ok ? '#065f46' : '#991b1b', maxWidth: 220 }}>
+                    <div style={{ fontSize: '0.72rem', marginTop: 4, color: repMsgs[alloc.invoiceId].ok ? 'var(--success)' : 'var(--danger)', maxWidth: 220 }}>
                       {repMsgs[alloc.invoiceId].text}
                     </div>
                   )}
@@ -503,5 +503,5 @@ const styles = {
   tr:       { borderBottom: '1px solid var(--border-subtle)' },
   td:       { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
 };

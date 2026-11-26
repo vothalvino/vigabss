@@ -47,8 +47,8 @@ async function fetchTaxReport(
 // ---------------------------------------------------------------------------
 
 const card: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #e5e7eb',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 8,
   padding: '24px',
   maxWidth: 560,
@@ -59,7 +59,7 @@ const labelStyle: React.CSSProperties = { display: 'block', fontWeight: 600, mar
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '8px 10px',
-  border: '1px solid #d1d5db',
+  border: '1px solid var(--border-strong)',
   borderRadius: 6,
   fontSize: 14,
   boxSizing: 'border-box' as const,
@@ -120,7 +120,7 @@ export function TaxReports() {
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
         {t('taxReports.title')}
       </h1>
-      <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 24 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
         {t('taxReports.description')}
       </p>
 
@@ -130,8 +130,8 @@ export function TaxReports() {
             padding: '10px 14px',
             borderRadius: 6,
             marginBottom: 16,
-            background: '#fee2e2',
-            color: '#991b1b',
+            background: 'var(--danger-soft)',
+            color: 'var(--danger)',
             fontSize: 14,
           }}>
             {error}

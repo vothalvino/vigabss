@@ -30,7 +30,7 @@ export function SandboxCfdiBadge({ doc }: { doc: SandboxCandidate | null | undef
       title={t('sandboxFiscal.badgeTitle')}
       style={{
         marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700,
-        background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b', whiteSpace: 'nowrap',
+        background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid #f59e0b', whiteSpace: 'nowrap',
       }}
     >
       {t('sandboxFiscal.badge')}
@@ -48,13 +48,13 @@ export function SandboxEnvironmentBanner() {
       role="status"
       style={{
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12,
-        padding: '10px 16px', border: '1px solid #f59e0b', borderRadius: 6, background: '#fffbeb', color: '#78350f',
+        padding: '10px 16px', border: '1px solid #f59e0b', borderRadius: 6, background: 'var(--warning-soft)', color: 'var(--warning)',
       }}
     >
       <span aria-hidden="true">⚠️</span>
       <strong>{t('sandboxFiscal.bannerTitle')}</strong>
       <span>{t('sandboxFiscal.bannerDetail')}</span>
-      <Link to="/pac-providers" style={{ color: '#92400e', fontWeight: 700 }}>{t('sandboxFiscal.bannerAction')}</Link>
+      <Link to="/pac-providers" style={{ color: 'var(--warning)', fontWeight: 700 }}>{t('sandboxFiscal.bannerAction')}</Link>
     </div>
   );
 }

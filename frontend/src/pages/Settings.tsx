@@ -217,7 +217,7 @@ function OrgConfigTab() {
                   </>
                 )}
               </td>
-              <td style={{ ...sty.td, color: '#888', fontSize: '0.82rem' }}>{setting.description ?? ''}</td>
+              <td style={{ ...sty.td, color: 'var(--text-muted)', fontSize: '0.82rem' }}>{setting.description ?? ''}</td>
               <td style={sty.td}>
                 {!setting.editable ? (
                   // Why it is not editable differs by scope: an install row
@@ -371,7 +371,7 @@ function AlertRulesTab() {
               <tr key={r.id}>
                 <td style={sty.td}>
                   <div style={{ fontWeight: 500 }}>{r.name}</div>
-                  {r.description && <div style={{ fontSize: '0.8rem', color: '#888' }}>{r.description}</div>}
+                  {r.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{r.description}</div>}
                 </td>
                 <td style={sty.td}><code style={sty.code}>{r.metric}</code></td>
                 <td style={sty.td}>{r.operator} {r.threshold} {t('ui.settings.for')}{r.duration_minutes}m</td>
@@ -445,7 +445,7 @@ function AlertRulesTab() {
                 <option value="">{t('alertRulesTab.noEscalation')}</option>
                 {chains.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
               </select>
-              <span style={{ fontSize: '0.8rem', color: '#888' }}>{t('alertRulesTab.escalationHint')}</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('alertRulesTab.escalationHint')}</span>
             </label>
             <div style={sty.checkRow}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -492,7 +492,7 @@ function severityBadge(level: string) {
   };
   return {
     padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
-    background: colours[level] ?? '#888', color: '#fff',
+    background: colours[level] ?? '#888', color: 'var(--bg-card)',
   };
 }
 
@@ -544,7 +544,7 @@ function QuotasTab() {
   });
 
   if (isLoading) return <p style={sty.muted}>{t('ui.settings.loadingQuota')}</p>;
-  if (error || !data) return <p style={{ color: '#dc2626', fontSize: '0.875rem' }}>{t('ui.settings.failedToLoadQuota')}</p>;
+  if (error || !data) return <p style={{ color: 'var(--danger)', fontSize: '0.875rem' }}>{t('ui.settings.failedToLoadQuota')}</p>;
 
   const { limits, usage } = data.data;
 
@@ -578,7 +578,7 @@ function QuotasTab() {
 
       {!editing ? (
         <>
-          <p style={{ fontSize: '0.85rem', color: '#555', marginTop: 0, marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 0, marginBottom: '1.5rem' }}>
             {t('ui.settings.currentUsageVersusConfiguredLimits')}<strong>∞</strong> {t('ui.settings.meansUnlimited')}
           </p>
           <QuotaBar label={t('ui.settings.clients')}         used={usage.clients}         limit={limits.max_clients} />
@@ -588,7 +588,7 @@ function QuotasTab() {
         </>
       ) : (
         <form onSubmit={handleSave} style={sty.form}>
-          <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 0.75rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>
             {t('ui.settings.leaveAFieldBlankTo')}<strong>{t('ui.settings.unlimited')}</strong>.
           </p>
           {(
@@ -757,7 +757,7 @@ function EmailSettingsTab({ userId, organizationId }: { userId: number | null; o
       {isLoading && <p style={sty.muted}>{t('common.loading')}</p>}
       {error && <p style={sty.errorText}>{t('emailSettings.loadError')}</p>}
 
-      <p style={{ fontSize: '0.85rem', color: configured ? '#16a34a' : '#888', marginTop: 0 }}>
+      <p style={{ fontSize: '0.85rem', color: configured ? '#16a34a' : 'var(--text-muted)', marginTop: 0 }}>
         {configured ? `✓ ${t('emailSettings.configuredLabel')}` : t('emailSettings.notConfigured')}
         {lastTestAt && (
           <span style={{ marginLeft: 10, color: 'var(--text-faint)' }}>
@@ -832,12 +832,12 @@ function EmailSettingsTab({ userId, organizationId }: { userId: number | null; o
           </label>
         )}
         {clearStoredPassword && (
-          <p style={{ fontSize: '0.78rem', color: '#92400e', margin: '-6px 0 0' }}>
+          <p style={{ fontSize: '0.78rem', color: 'var(--warning)', margin: '-6px 0 0' }}>
             {t('emailSettings.clearStoredPasswordHint')}
           </p>
         )}
         {connectionChangeNeedsPasswordAction && (
-          <p role="alert" style={{ fontSize: '0.8rem', color: '#991b1b', margin: '-6px 0 0' }}>
+          <p role="alert" style={{ fontSize: '0.8rem', color: 'var(--danger)', margin: '-6px 0 0' }}>
             {t('emailSettings.connectionChangeRequiresPassword')}
           </p>
         )}

@@ -98,24 +98,24 @@ function fmt(dateStr: string | null | undefined): string {
 
 const STATUS_COLORS: StatusColors = {
   pending:   { bg: '#ede9fe', color: '#5b21b6' },
-  completed: { bg: '#d1fae5', color: '#065f46' },
-  failed:    { bg: '#fee2e2', color: '#991b1b' },
-  refunded:  { bg: '#dbeafe', color: '#1e40af' },
-  cancelled: { bg: '#fef3c7', color: '#92400e' },
+  completed: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  failed:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  refunded:  { bg: 'var(--info-soft)', color: 'var(--info)' },
+  cancelled: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 function GatewayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    pending:    { bg: '#fef9c3', color: '#854d0e' },
-    succeeded:  { bg: '#d1fae5', color: '#065f46' },
-    disputed:   { bg: '#fee2e2', color: '#991b1b' },
+    pending:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    succeeded:  { bg: 'var(--success-soft)', color: 'var(--success)' },
+    disputed:   { bg: 'var(--danger-soft)', color: 'var(--danger)' },
     cancelled:  { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
-    authorized: { bg: '#d1fae5', color: '#065f46' },
-    captured:   { bg: '#d1fae5', color: '#065f46' },
-    settled:    { bg: '#d1fae5', color: '#065f46' },
-    failed:     { bg: '#fee2e2', color: '#991b1b' },
-    declined:   { bg: '#fee2e2', color: '#991b1b' },
-    refunded:   { bg: '#dbeafe', color: '#1e40af' },
+    authorized: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    captured:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+    settled:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+    failed:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    declined:   { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    refunded:   { bg: 'var(--info-soft)', color: 'var(--info)' },
     voided:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
   const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
@@ -298,7 +298,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
           {payment.id}
         </td>
         {/* Amount */}
-        <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#111827' }}>
+        <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-primary)' }}>
           {formatMoney(payment.amount, payment.currency)}
         </td>
         {/* Method */}
@@ -404,7 +404,7 @@ export function PaymentList() {
             key={s || 'all'}
             onClick={() => handleFilterChange(s)}
             style={{
-              padding: '4px 12px', borderRadius: 20, border: '1px solid #d1d5db',
+              padding: '4px 12px', borderRadius: 20, border: '1px solid var(--border-strong)',
               background: statusFilter === s ? 'var(--accent)' : 'var(--bg-card)',
               color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
@@ -428,7 +428,7 @@ export function PaymentList() {
       )}
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>{t('paymentList.loading')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('paymentList.loading')}</p>}
       {isError && <p style={{ color: 'var(--accent)' }}>{t('paymentList.error')}</p>}
       {data && (
         <>

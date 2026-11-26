@@ -173,8 +173,8 @@ export function ProfecoComplaints() {
     td:          { padding: '12px 16px', borderTop: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '14px' } as const,
     badge:       (status: string) => ({
       display: 'inline-block', padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', fontWeight: 500,
-      background: status === 'resuelta' ? '#d1fae5' : status === 'en_tramite' ? '#fef9c3' : status === 'archivada' ? '#f3f4f6' : '#dbeafe',
-      color:      status === 'resuelta' ? '#065f46' : status === 'en_tramite' ? '#854d0e' : status === 'archivada' ? '#6b7280' : '#1e40af',
+      background: status === 'resuelta' ? '#d1fae5' : status === 'en_tramite' ? '#fef9c3' : status === 'archivada' ? 'var(--bg-subtle)' : '#dbeafe',
+      color:      status === 'resuelta' ? '#065f46' : status === 'en_tramite' ? '#854d0e' : status === 'archivada' ? 'var(--text-muted)' : '#1e40af',
     }),
     modal:       { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
     modalBox:    { background: 'var(--bg-card)', borderRadius: '12px', padding: '28px', width: '560px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' as const },
@@ -182,7 +182,7 @@ export function ProfecoComplaints() {
     input:       { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '14px', boxSizing: 'border-box' as const },
     textarea:    { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '14px', resize: 'vertical' as const, minHeight: '80px', boxSizing: 'border-box' as const },
     fieldGroup:  { marginBottom: '16px' } as const,
-    errorMsg:    { color: '#ef4444', fontSize: '13px', marginTop: '8px' } as const,
+    errorMsg:    { color: 'var(--danger)', fontSize: '13px', marginTop: '8px' } as const,
     modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' } as const,
     pagination:  { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' } as const,
   };
@@ -236,7 +236,7 @@ export function ProfecoComplaints() {
 
       {/* Table */}
       {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('profecoComplaints.loading')}</p>}
-      {isError   && <p style={{ color: '#ef4444' }}>{t('profecoComplaints.error')}</p>}
+      {isError   && <p style={{ color: 'var(--danger)' }}>{t('profecoComplaints.error')}</p>}
 
       {!isLoading && !isError && (
         <table style={styles.table}>

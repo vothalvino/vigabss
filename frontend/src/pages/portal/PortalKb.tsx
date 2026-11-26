@@ -209,5 +209,5 @@ const styles: Record<string, React.CSSProperties> = {
   helpful: { marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' },
   helpfulLabel: { fontSize: '0.875rem', color: 'var(--text-muted)' },
   helpBtn: { padding: '0.3rem 0.75rem', border: '1px solid var(--border-strong)', borderRadius: 4, cursor: 'pointer', fontSize: '0.85rem', background: 'var(--bg-card)', color: 'var(--text-secondary)' },
-  rateError: { color: '#991b1b', fontSize: '0.8rem' },
+  rateError: { color: 'var(--danger)', fontSize: '0.8rem' },
 };

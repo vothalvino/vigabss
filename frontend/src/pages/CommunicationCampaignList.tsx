@@ -130,20 +130,20 @@ async function fetchMessages(campaignId: number, page: number, status?: string):
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#374151' },
-  sending:   { bg: '#fef3c7', color: '#92400e' },
-  sent:      { bg: '#d1fae5', color: '#065f46' },
-  cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  failed:    { bg: '#fee2e2', color: '#991b1b' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  sending:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  sent:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+  cancelled: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  failed:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 function ChannelBadge({ channel }: { channel: string }) {
   const map: Record<string, { bg: string; color: string; icon: string }> = {
-    email:     { bg: '#dbeafe', color: '#1e40af', icon: '✉️' },
+    email:     { bg: 'var(--info-soft)', color: 'var(--info)', icon: '✉️' },
     sms:       { bg: '#f3e8ff', color: '#6b21a8', icon: '💬' },
-    whatsapp:  { bg: '#dcfce7', color: '#166534', icon: '📱' },
+    whatsapp:  { bg: 'var(--success-soft)', color: 'var(--success)', icon: '📱' },
   };
-  const s = map[channel] ?? { bg: '#f3f4f6', color: '#374151', icon: '📨' };
+  const s = map[channel] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', icon: '📨' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {s.icon} {channel}
@@ -153,14 +153,14 @@ function ChannelBadge({ channel }: { channel: string }) {
 
 function MsgStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    queued:    { bg: '#f3f4f6', color: '#374151' },
-    sent:      { bg: '#fef3c7', color: '#92400e' },
-    delivered: { bg: '#d1fae5', color: '#065f46' },
-    opened:    { bg: '#dbeafe', color: '#1e40af' },
-    bounced:   { bg: '#fee2e2', color: '#991b1b' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
+    queued:    { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+    sent:      { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    delivered: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    opened:    { bg: 'var(--info-soft)', color: 'var(--info)' },
+    bounced:   { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    failed:    { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 6px', borderRadius: 10, fontSize: '0.7rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {status}
@@ -473,7 +473,7 @@ function MessagesPanel({
                     <td style={{ ...styles.td, fontSize: '0.78rem' }}>{fmt(m.sent_at)}</td>
                     <td style={{ ...styles.td, fontSize: '0.78rem' }}>{fmt(m.delivered_at)}</td>
                     <td style={{ ...styles.td, fontSize: '0.78rem' }}>{fmt(m.opened_at)}</td>
-                    <td style={{ ...styles.td, fontSize: '0.75rem', color: '#991b1b' }}>
+                    <td style={{ ...styles.td, fontSize: '0.75rem', color: 'var(--danger)' }}>
                       {m.error_message ?? '—'}
                     </td>
                   </tr>
@@ -588,7 +588,7 @@ export function CommunicationCampaignList() {
                       {' · '}
                       <span title={t('communicationCampaigns.stats.opened')}>👁 {c.opened_count}</span>
                       {' · '}
-                      <span title={t('communicationCampaigns.stats.bounced')} style={{ color: c.bounced_count > 0 ? '#991b1b' : undefined }}>
+                      <span title={t('communicationCampaigns.stats.bounced')} style={{ color: c.bounced_count > 0 ? 'var(--danger)' : undefined }}>
                         ✗ {c.bounced_count}
                       </span>
                     </td>
@@ -598,7 +598,7 @@ export function CommunicationCampaignList() {
                         {t('communicationCampaigns.actions.details')}
                       </button>
                       {canUpdate && canDispatch(c) && (
-                        <button type="button" style={{ ...styles.actionBtn, color: '#065f46' }}
+                        <button type="button" style={{ ...styles.actionBtn, color: 'var(--success)' }}
                           onClick={() => setDispatchCampaign(c)}>
                           {t('communicationCampaigns.actions.dispatch')}
                         </button>
@@ -610,7 +610,7 @@ export function CommunicationCampaignList() {
                         </button>
                       )}
                       {canDelete && (
-                        <button type="button" style={{ ...styles.actionBtn, color: '#991b1b' }}
+                        <button type="button" style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteCampaign(c)}>
                           {t('common.delete')}
                         </button>

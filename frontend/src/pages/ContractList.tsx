@@ -269,12 +269,12 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:     { bg: '#d1fae5', color: '#065f46' },
+  active:     { bg: 'var(--success-soft)', color: 'var(--success)' },
   pending:    { bg: '#ede9fe', color: '#5b21b6' },
-  suspended:  { bg: '#fef3c7', color: '#92400e' },
-  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-  terminated: { bg: '#f3f4f6', color: '#6b7280' },
-  expired:    { bg: '#fde68a', color: '#78350f' },
+  suspended:  { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  cancelled:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  terminated: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  expired:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -384,7 +384,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Plan */}
           <label style={modalStyles.label}>
-            {t('ui.contractList.plan')}<span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.plan')}<span style={{ color: 'var(--danger)' }}>*</span>
             <select
               style={modalStyles.select}
               value={form.plan_id}
@@ -416,7 +416,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
           {/* Technology: asked only for a plan offered over both (migration 018) */}
           {planOfferedOverBoth && (
             <label style={modalStyles.label}>
-              {t('accessTechnology.contractLabel')}<span style={{ color: '#ef4444' }}>*</span>
+              {t('accessTechnology.contractLabel')}<span style={{ color: 'var(--danger)' }}>*</span>
               <select
                 style={modalStyles.select}
                 value={form.access_technology}
@@ -433,7 +433,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Start date */}
           <label style={modalStyles.label}>
-            {t('ui.contractList.startDate')}<span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.startDate')}<span style={{ color: 'var(--danger)' }}>*</span>
             <input
               style={modalStyles.input}
               type="date"
@@ -550,7 +550,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
         onClick={e => e.stopPropagation()}
         role="alertdialog"
       >
-        <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: '#111827' }}>
+        <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
           {message}
         </p>
         <div style={modalStyles.actions}>
@@ -975,12 +975,12 @@ export function ContractList() {
 
       {/* Mutation error banner */}
       {(suspendMutation.isError || cancelMutation.isError || terminateMutation.isError || deleteMutation.isError) && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('contractList.actionFailed')}
         </p>
       )}
       {renewNetworkWarning && (
-        <p style={{ color: '#92400e', marginBottom: '0.75rem', fontSize: '0.85rem' }} role="alert">
+        <p style={{ color: 'var(--warning)', marginBottom: '0.75rem', fontSize: '0.85rem' }} role="alert">
           {t('contractList.renewNetworkWarning', { warning: renewNetworkWarning.message })}{' '}
           <Link to={`/contracts/${renewNetworkWarning.contractId}`}>{t('contractList.openContractRetry')}</Link>
         </p>
@@ -1149,7 +1149,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
 
   return (
     <tr
-      style={{ ...styles.tr, ...(isSandbox ? { background: '#fffbeb' } : {}) }}
+      style={{ ...styles.tr, ...(isSandbox ? { background: 'rgba(245, 158, 11, 0.12)' } : {}) }}
       data-contract-environment={c.mx_contract_environment ?? undefined}
     >
       <td style={styles.td}>
@@ -1219,7 +1219,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         )}
         {canSuspend && (
           <button
-            style={{ ...styles.actionBtn, color: '#92400e' }}
+            style={{ ...styles.actionBtn, color: 'var(--warning)' }}
             onClick={onSuspend}
             title={t('ui.contractList.suspendThisContract')}
           >
@@ -1228,7 +1228,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         )}
         {canTerminate && (
           <button
-            style={{ ...styles.actionBtn, color: '#991b1b' }}
+            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
             onClick={onTerminate}
             title={t('ui.contractList.permanentlyTerminateThisContract')}
           >
@@ -1237,7 +1237,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         )}
         {canCancel && (
           <button
-            style={{ ...styles.actionBtn, color: '#991b1b' }}
+            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
             onClick={onCancel}
             title={t('ui.contractList.cancelThisContract')}
           >
@@ -1246,7 +1246,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         )}
         {canDelete && (
           <button
-            style={{ ...styles.actionBtn, color: '#991b1b' }}
+            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
             onClick={onDelete}
             title={t('ui.contractList.deleteThisContract')}
           >

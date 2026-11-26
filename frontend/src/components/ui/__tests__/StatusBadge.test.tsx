@@ -15,7 +15,8 @@ describe('StatusBadge', () => {
 
   it('greys a status missing from the map', () => {
     render(<StatusBadge status="weird" colors={COLORS} />);
-    expect(screen.getByText('weird').style.color).toBe('rgb(55, 65, 81)');
+    // A theme colour, so the grey badge reads in dark mode too.
+    expect(screen.getByText('weird').style.color).toBe('var(--text-secondary)');
   });
 
   it('md is the larger header pill', () => {

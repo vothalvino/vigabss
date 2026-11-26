@@ -54,7 +54,7 @@ export function channelBadge(label: string) {
 export function statusBadge(st: string) {
   return {
     padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
-    background: st === 'active' ? '#16a34a' : '#888', color: '#fff',
+    background: st === 'active' ? '#16a34a' : '#888', color: 'var(--bg-card)',
   };
 }
 
@@ -79,7 +79,7 @@ export const sty = {
   valueCap: { display: 'block', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
   badge: { padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600, color: '#fff' },
   rowActions: { display: 'flex', gap: 6 },
-  errorText: { color: '#dc2626', fontSize: '0.85rem', margin: '0.5rem 0 0' },
+  errorText: { color: 'var(--danger)', fontSize: '0.85rem', margin: '0.5rem 0 0' },
   hint: { fontWeight: 400, color: 'var(--text-faint)', fontSize: '0.8rem' },
   // modal
   overlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 80, zIndex: 1000 },

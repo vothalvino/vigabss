@@ -221,12 +221,12 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
     <div style={modalOverlay}>
       <div style={{ ...modalBox, width: 580, maxHeight: '85vh' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('adminWgTunnels.assignTitle')}</h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.83rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.83rem', color: 'var(--text-muted)' }}>
           {userName}
         </p>
 
-        {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.assignments.loading')}</p>}
-        {aError && <p style={{ color: '#e00' }}>{t('adminWgTunnels.assignments.errorLoad')}</p>}
+        {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('adminWgTunnels.assignments.loading')}</p>}
+        {aError && <p style={{ color: 'var(--danger)' }}>{t('adminWgTunnels.assignments.errorLoad')}</p>}
         {err && <div style={errStyle}>{err}</div>}
 
         {!isLoading && (
@@ -234,7 +234,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
             {/* Sites */}
             <div style={sectionHeader}>{t('adminWgTunnels.sitesSection')}</div>
             {sites.length === 0 && (
-              <p style={{ fontSize: '0.83rem', color: '#9ca3af', margin: '4px 0 12px' }}>
+              <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
                 {t('adminWgTunnels.noSites')}
               </p>
             )}
@@ -251,7 +251,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
                       style={{ marginRight: 6 }}
                     />
                     <span style={{ fontSize: '0.83rem' }}>{site.name}</span>
-                    <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 4 }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 4 }}>
                       #{site.id}
                     </span>
                   </label>
@@ -262,7 +262,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
             {/* NAS */}
             <div style={{ ...sectionHeader, marginTop: 12 }}>{t('adminWgTunnels.nasSection')}</div>
             {nasList.length === 0 && (
-              <p style={{ fontSize: '0.83rem', color: '#9ca3af', margin: '4px 0 12px' }}>
+              <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
                 {t('adminWgTunnels.noNas')}
               </p>
             )}
@@ -279,7 +279,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
                       style={{ marginRight: 6 }}
                     />
                     <span style={{ fontSize: '0.83rem' }}>{nas.name}</span>
-                    <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 4 }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 4 }}>
                       #{nas.id}
                     </span>
                   </label>
@@ -287,7 +287,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
               })}
             </div>
 
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 10 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 10 }}>
               {t('adminWgTunnels.assignNote')}
             </p>
           </>
@@ -332,11 +332,11 @@ function ConfirmAction({ peer, kind, onClose, onConfirm, isPending }: ConfirmAct
       <div style={{ ...modalBox, maxWidth: 420 }}>
         <h3 style={{
           margin: '0 0 0.75rem',
-          color: isRevoke ? '#991b1b' : '#1e40af',
+          color: isRevoke ? 'var(--danger)' : 'var(--info)',
         }}>
           {isRevoke ? t('adminWgTunnels.peers.confirm.revokeTitle') : t('adminWgTunnels.peers.confirm.rotateTitle')}
         </h3>
-        <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
           {isRevoke
             ? t('adminWgTunnels.peers.confirm.revokeBody', { name: peer.name, user: peer.email ?? String(peer.user_id) })
             : t('adminWgTunnels.peers.confirm.rotateBody', { name: peer.name })
@@ -460,21 +460,21 @@ export function AdminWgTunnels() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('adminWgTunnels.title')}</h1>
-        <span style={{ fontSize: '0.83rem', color: '#6b7280' }}>
+        <span style={{ fontSize: '0.83rem', color: 'var(--text-muted)' }}>
           {meta && t('adminWgTunnels.totalPeers', { count: meta.total })}
         </span>
       </div>
 
       <div style={{
-        background: '#fefce8', border: '1px solid #fde68a',
+        background: 'var(--warning-soft)', border: '1px solid #fde68a',
         borderRadius: 6, padding: '8px 12px', marginBottom: '1rem',
-        fontSize: '0.8rem', color: '#92400e', lineHeight: 1.5,
+        fontSize: '0.8rem', color: 'var(--warning)', lineHeight: 1.5,
       }}>
         {t('adminWgTunnels.banner')}
       </div>
 
-      {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.peers.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('adminWgTunnels.peers.errorLoad')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('adminWgTunnels.peers.loading')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('adminWgTunnels.peers.errorLoad')}</p>}
 
       {!isLoading && !error && (
         <>
@@ -494,7 +494,7 @@ export function AdminWgTunnels() {
               <tbody>
                 {peers.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
+                    <td colSpan={7} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                       {t('adminWgTunnels.peers.empty')}
                     </td>
                   </tr>
@@ -504,14 +504,14 @@ export function AdminWgTunnels() {
                     <td style={td}>
                       <div style={{ fontWeight: 600, fontSize: '0.83rem' }}>{userLabel(peer)}</div>
                       {peer.email && (peer.first_name || peer.last_name) && (
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{peer.email}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{peer.email}</div>
                       )}
                     </td>
                     <td style={{ ...td, fontWeight: 500 }}>{peer.name}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.81rem' }}>
                       {peer.tunnel_address}
                     </td>
-                    <td style={{ ...td, fontSize: '0.81rem', color: '#6b7280' }}>
+                    <td style={{ ...td, fontSize: '0.81rem', color: 'var(--text-muted)' }}>
                       {peer.endpoint_host || '—'}
                     </td>
                     <td style={td}>{fmt(peer.last_handshake_at)}</td>
@@ -529,7 +529,7 @@ export function AdminWgTunnels() {
                         {!peer.revoked_at && (
                           <>
                             <button
-                              style={{ ...btnIcon, borderColor: '#dc2626', color: '#dc2626' }}
+                              style={{ ...btnIcon, borderColor: '#dc2626', color: 'var(--danger)' }}
                               onClick={() => setActionPeer({ peer, kind: 'revoke' })}
                               title={t('adminWgTunnels.peers.action.revoke')}
                               aria-label={t('adminWgTunnels.peers.action.revoke')}
@@ -575,7 +575,7 @@ export function AdminWgTunnels() {
               >
                 {t('clientList.prevPage')}
               </button>
-              <span style={{ fontSize: '0.85rem', color: '#555' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {t('clientList.pageInfo', { page, total: totalPages })}
                 {meta && ` (${meta.total} ${t('adminWgTunnels.peers')})`}
               </span>
@@ -655,25 +655,25 @@ const modalBox: React.CSSProperties = {
   boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 const errStyle: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '8px 12px', borderRadius: 6, fontSize: '0.83rem', marginBottom: 8,
 };
 const badgeGreen: React.CSSProperties = {
-  background: '#d1fae5', color: '#065f46',
+  background: 'var(--success-soft)', color: 'var(--success)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };
 const badgeGray: React.CSSProperties = {
-  background: '#f3f4f6', color: '#6b7280',
+  background: 'var(--bg-subtle)', color: 'var(--text-muted)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };
 const badgeRed: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b',
+  background: 'var(--danger-soft)', color: 'var(--danger)',
   padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600,
 };
 const sectionHeader: React.CSSProperties = {
-  fontSize: '0.75rem', fontWeight: 700, color: '#6b7280',
+  fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)',
   textTransform: 'uppercase', letterSpacing: '0.05em',
-  borderBottom: '1px solid #e5e7eb', paddingBottom: 4, marginBottom: 8,
+  borderBottom: '1px solid var(--border)', paddingBottom: 4, marginBottom: 8,
 };
 const checkGrid: React.CSSProperties = {
   display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: 8,

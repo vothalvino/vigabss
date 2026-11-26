@@ -121,7 +121,7 @@ export function SuspensionConsole() {
         {canRun && (
           confirming ? (
             <>
-              <span style={{ fontSize: 13, color: '#b45309' }}>
+              <span style={{ fontSize: 13, color: 'var(--warning)' }}>
                 {t('suspensionConsole.confirmRun', { count: wouldAct.length })}
               </span>
               <button style={{ ...styles.btnPrimary, background: '#b91c1c' }} onClick={() => { setConfirming(false); runMut.mutate(); }} disabled={runMut.isPending}>
@@ -135,7 +135,7 @@ export function SuspensionConsole() {
             </button>
           )
         )}
-        {msg && <span style={{ color: msg.ok ? '#065f46' : '#991b1b', fontSize: 13 }}>{msg.text}</span>}
+        {msg && <span style={{ color: msg.ok ? 'var(--success)' : 'var(--danger)', fontSize: 13 }}>{msg.text}</span>}
       </div>
 
       {/* ---- Preview ---- */}
@@ -189,7 +189,7 @@ export function SuspensionConsole() {
         {logsQ.isLoading ? (
           <p>{t('common.loading')}</p>
         ) : logsQ.isError ? (
-          <p style={{ color: '#991b1b', fontSize: 13 }}>{t('suspensionConsole.historyError')}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 13 }}>{t('suspensionConsole.historyError')}</p>
         ) : (logsQ.data ?? []).length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('suspensionConsole.historyEmpty')}</p>
         ) : (

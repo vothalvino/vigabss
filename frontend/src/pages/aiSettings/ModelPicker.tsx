@@ -280,6 +280,6 @@ const sty: Record<string, React.CSSProperties> = {
   rowName: { fontWeight: 600 },
   rowMeta: { fontWeight: 400, fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' },
   hint: { fontWeight: 400, color: 'var(--text-faint)', fontSize: '0.8rem', display: 'block' },
-  errorText: { color: '#dc2626', fontSize: '0.85rem', display: 'block' },
+  errorText: { color: 'var(--danger)', fontSize: '0.85rem', display: 'block' },
   btnTiny: { padding: '0 6px', background: 'var(--bg-body)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem', lineHeight: '1.6' },
 };

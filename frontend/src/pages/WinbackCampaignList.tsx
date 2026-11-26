@@ -100,10 +100,10 @@ async function fetchCampaigns(page: number): Promise<WinbackResponse> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#374151' },
-  active:    { bg: '#d1fae5', color: '#065f46' },
-  paused:    { bg: '#fef3c7', color: '#92400e' },
-  completed: { bg: '#dbeafe', color: '#1e40af' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  active:    { bg: 'var(--success-soft)', color: 'var(--success)' },
+  paused:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  completed: { bg: 'var(--info-soft)', color: 'var(--info)' },
 };
 
 // ---------------------------------------------------------------------------

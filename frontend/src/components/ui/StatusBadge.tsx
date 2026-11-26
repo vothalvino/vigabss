@@ -10,7 +10,7 @@ import type { CSSProperties } from 'react';
 
 export type StatusColors = Record<string, { bg: string; color: string }>;
 
-const FALLBACK = { bg: '#f3f4f6', color: '#374151' };
+const FALLBACK = { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
 
 const SIZES: Record<'sm' | 'md', CSSProperties> = {
   sm: { padding: '2px 8px', fontSize: '0.72rem' },

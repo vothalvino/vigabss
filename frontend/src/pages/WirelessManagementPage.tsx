@@ -1181,7 +1181,7 @@ export function WirelessManagementPage() {
                   {COMMAND_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
                 </select>
               </label>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b7280' }}>{t('wirelessManagement.apCommands.driverHint')}</p>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('wirelessManagement.apCommands.driverHint')}</p>
               <label style={modalStyles.label}>
                 {t('wirelessManagement.apCommands.notes')}
                 <input

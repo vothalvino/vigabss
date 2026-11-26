@@ -137,8 +137,8 @@ describe('NasList page', () => {
     const badge = screen.getByText('up');
     expect(badge).toBeInTheDocument();
     // Green background used for "up"
-    expect(badge).toHaveStyle({ background: '#d1fae5' });
-    expect(badge).toHaveStyle({ color: '#065f46' });
+    expect(badge.style.background).toBe('var(--success-soft)');
+    expect(badge.style.color).toBe('var(--success)');
   });
 
   // -------------------------------------------------------------------------
@@ -163,8 +163,8 @@ describe('NasList page', () => {
 
     const badge = screen.getByText('down');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveStyle({ background: '#fee2e2' });
-    expect(badge).toHaveStyle({ color: '#991b1b' });
+    expect(badge.style.background).toBe('var(--danger-soft)');
+    expect(badge.style.color).toBe('var(--danger)');
   });
 
   // -------------------------------------------------------------------------

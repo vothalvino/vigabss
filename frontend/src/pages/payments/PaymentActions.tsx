@@ -261,7 +261,7 @@ const modalBox: React.CSSProperties = {
   width: 460, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 const errorBox: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b', padding: '8px 12px',
+  background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px',
   borderRadius: 6, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 const labelStyle: React.CSSProperties = {
@@ -473,8 +473,8 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
 
         {!loadingAllocs && (
           <div style={{
-            background: isFullyAllocated ? '#fef3c7' : '#d1fae5',
-            color: isFullyAllocated ? '#92400e' : '#065f46',
+            background: isFullyAllocated ? 'var(--warning-soft)' : 'var(--success-soft)',
+            color: isFullyAllocated ? 'var(--warning)' : 'var(--success)',
             padding: '8px 12px', borderRadius: 6, marginBottom: '1rem', fontSize: '0.85rem',
           }}>
             {isFullyAllocated
@@ -710,7 +710,7 @@ function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
         )}
 
         {!loadingAllocs && isBlocked && (
-          <div style={{ background: '#fef3c7', color: '#92400e', padding: '10px 12px', borderRadius: 6, marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div style={{ background: 'var(--warning-soft)', color: 'var(--warning)', padding: '10px 12px', borderRadius: 6, marginBottom: '1rem', fontSize: '0.85rem' }}>
             {t('paymentActions.appliedToInvoices', { count: allocs.length })}
           </div>
         )}
@@ -805,7 +805,7 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
                   </td>
                   <td style={{ padding: '6px 8px' }}>
                     <button
-                      style={{ ...actionBtnBase, background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem' }}
+                      style={{ ...actionBtnBase, background: 'var(--danger-soft)', color: 'var(--danger)', fontSize: '0.8rem' }}
                       onClick={() => mutation.mutate(a.invoice_id)}
                       disabled={mutation.isPending && mutation.variables === a.invoice_id}
                     >
@@ -901,7 +901,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
       {/* ── Action buttons (icon-only; hover for label) ── */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
-          style={{ ...iconBtn, background: '#dbeafe', color: '#1e40af' }}
+          style={{ ...iconBtn, background: 'var(--info-soft)', color: 'var(--info)' }}
           onClick={handleDownloadReceipt}
           title={t('paymentActions.downloadReceiptPdf')}
           aria-label={t('paymentActions.downloadReceiptPdf')}
@@ -910,7 +910,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         </button>
         {canUpdate && (
           <button
-            style={{ ...iconBtn, background: '#fef3c7', color: '#92400e' }}
+            style={{ ...iconBtn, background: 'var(--warning-soft)', color: 'var(--warning)' }}
             onClick={() => sendReceiptMut.mutate()}
             disabled={sendingReceipt}
             title={t('paymentActions.sendReceiptEmailToClient')}
@@ -921,7 +921,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         )}
         {canCreate && (
           <button
-            style={{ ...iconBtn, background: '#e0f2fe', color: '#075985' }}
+            style={{ ...iconBtn, background: 'var(--info-soft)', color: 'var(--info)' }}
             onClick={() => setAllocateOpen(true)}
             title={t('paymentActions.allocatePaymentToAnInvoice')}
             aria-label={t('paymentActions.allocatePaymentToAnInvoice')}
@@ -941,7 +941,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         )}
         {canUpdate && (
           <button
-            style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
+            style={{ ...iconBtn, background: 'var(--danger-soft)', color: 'var(--danger)' }}
             onClick={() => setUnapplyOpen(true)}
             title={t('paymentActions.removeThisPaymentFromAn')}
             aria-label={t('paymentActions.unApplyPaymentFromAn')}
@@ -951,7 +951,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         )}
         {canUpdate && (
           <button
-            style={{ ...iconBtn, background: '#fef9c3', color: '#854d0e' }}
+            style={{ ...iconBtn, background: 'var(--warning-soft)', color: 'var(--warning)' }}
             onClick={() => setReassignOpen(true)}
             title={t('paymentActions.reassignPaymentToADifferent')}
             aria-label={t('paymentActions.reassignPaymentToADifferent2')}
@@ -971,7 +971,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         )}
         {canDelete && (
           <button
-            style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
+            style={{ ...iconBtn, background: 'var(--danger-soft)', color: 'var(--danger)' }}
             onClick={() => setDeleteOpen(true)}
             title={t('paymentActions.deletePayment')}
             aria-label={t('paymentActions.deletePayment')}

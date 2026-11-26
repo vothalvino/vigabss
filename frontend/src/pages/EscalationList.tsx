@@ -225,8 +225,8 @@ export function EscalationList() {
                 <td style={{ padding: '8px' }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem', fontWeight: 700,
-                    background: e.level >= 3 ? '#fee2e2' : e.level === 2 ? '#fef3c7' : 'var(--surface-2, #f1f5f9)',
-                    color: '#1f2937',
+                    background: e.level >= 3 ? 'var(--danger-soft)' : e.level === 2 ? '#fef3c7' : 'var(--surface-2, #f1f5f9)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border)',
                   }}>L{e.level}</span>
                 </td>

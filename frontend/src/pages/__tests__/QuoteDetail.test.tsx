@@ -279,7 +279,7 @@ describe('QuoteDetail page', () => {
     const negativeOption = Array.from(picker.querySelectorAll('option'))
       .find(o => o.textContent?.includes('Out of Stock Router'));
     expect(negativeOption).toBeDefined();
-    expect(negativeOption?.style.color).toBe('rgb(220, 38, 38)');
+    expect(negativeOption?.style.color).toBe('var(--danger)');
   });
 
   // Inventory follow-up: raw inventory items sell directly in the picker

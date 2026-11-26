@@ -21,7 +21,7 @@ type Block = ListResponse['data'][number];
 const QUERY_KEY = ['login-ip-blocks'];
 
 const cell = { padding: '6px 8px', borderBottom: '1px solid #eee' } as const;
-const head = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #ccc' } as const;
+const head = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border-strong)' } as const;
 
 function fmt(value: string | null | undefined): string {
   if (!value) return '—';
@@ -115,9 +115,9 @@ export function LoginIpBlocksSection() {
         {k('showHistory')}
       </label>
 
-      {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       {listQ.isLoading ? <p>{t('common.loading')}</p>
-        : listQ.error ? <p role="alert" style={{ color: '#b91c1c' }}>{k('loadFailed')}</p>
+        : listQ.error ? <p role="alert" style={{ color: 'var(--danger)' }}>{k('loadFailed')}</p>
           : rows.length === 0 ? <p>{showAll ? k('noneEver') : k('none')}</p>
             : (
               <div style={{ overflowX: 'auto' }}>

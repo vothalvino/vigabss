@@ -284,7 +284,7 @@ export function InventoryManagement() {
   // Render helpers
   // ---------------------------------------------------------------------------
 
-  function statusBadge(status: string, activeColor = '#059669') {
+  function statusBadge(status: string, activeColor = 'var(--success)') {
     return (
       <span style={{ color: status === 'active' ? activeColor : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
         {status}
@@ -363,7 +363,7 @@ export function InventoryManagement() {
               i => i.reorder_level !== null && i.quantity_on_hand != null && i.quantity_on_hand <= i.reorder_level,
             );
             return lowItems.length > 0 ? (
-              <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 6, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#92400e' }}>
+              <div style={{ background: 'var(--warning-soft)', border: '1px solid #fbbf24', borderRadius: 6, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--warning)' }}>
                 <strong>{t('inventoryManagement.stock.lowStock')}:</strong>{' '}
                 {lowItems.map(i => i.name).join(', ')}
               </div>

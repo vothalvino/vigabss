@@ -55,6 +55,8 @@
   --danger-border:  #fecaca;
   --warning:        #b45309;
   --warning-soft:   #fef3c7;
+  --info:           #1d4ed8;
+  --info-soft:      #dbeafe;
 
   /* -- Neutral badge (replaces hardcoded indigo/purple) ---------------- */
   --badge-bg:       #f1f1f4;
@@ -244,6 +246,8 @@
   --danger-border:  #5b2526;
   --warning:        #fbbf24;
   --warning-soft:   #2a2010;
+  --info:           #93c5fd;
+  --info-soft:      #14213d;
 
   --badge-bg:       #27272a;
   --badge-fg:       #d4d4d8;

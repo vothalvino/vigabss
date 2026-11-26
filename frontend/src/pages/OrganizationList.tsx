@@ -103,10 +103,10 @@ async function deleteOrganization(id: number): Promise<void> {
 
 function StatusBadge({ status }: { status: string | null }) {
   const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fee2e2', color: '#991b1b' },
+    active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    inactive: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
   };
-  const s = map[status ?? ''] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status ?? ''] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
       {status ?? '—'}
@@ -365,7 +365,7 @@ export function OrganizationList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.organizationList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -397,7 +397,7 @@ export function OrganizationList() {
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <Link to={`/organizations/${o.id}`} style={{ ...styles.actionBtn, textDecoration: 'none' }} title={t('ui.organizationList.manageOrganizationEditSettingsQuota')}>{t('ui.organizationList.manage')}</Link>
                         {isOperator && (
-                          <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(o.id)} title={t('ui.organizationList.deleteThisOrganization')}>{t('ui.organizationList.delete')}</button>
+                          <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => setDeleteId(o.id)} title={t('ui.organizationList.deleteThisOrganization')}>{t('ui.organizationList.delete')}</button>
                         )}
                       </td>
                     </tr>

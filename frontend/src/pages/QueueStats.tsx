@@ -33,10 +33,10 @@ interface QueueStatsResponse {
 }
 
 const COUNT_COLUMNS: { key: keyof QueueCounts; label: string; color: string }[] = [
-  { key: 'waiting', label: 'Waiting', color: '#92400e' },
-  { key: 'active', label: 'Active', color: '#1e40af' },
-  { key: 'completed', label: 'Completed', color: '#065f46' },
-  { key: 'failed', label: 'Failed', color: '#991b1b' },
+  { key: 'waiting', label: 'Waiting', color: 'var(--warning)' },
+  { key: 'active', label: 'Active', color: 'var(--info)' },
+  { key: 'completed', label: 'Completed', color: 'var(--success)' },
+  { key: 'failed', label: 'Failed', color: 'var(--danger)' },
   { key: 'delayed', label: 'Delayed', color: '#5b21b6' },
 ];
 
@@ -79,7 +79,7 @@ export function QueueStats() {
       </div>
 
       {stats?.error && (
-        <p style={{ color: '#92400e', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--warning)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {stats.error}
         </p>
       )}

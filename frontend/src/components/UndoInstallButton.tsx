@@ -74,7 +74,7 @@ export function UndoInstallButton({ deviceId, serialNumber, itemName, lifecycleS
 
             {warnings ? (
               <>
-                <div style={{ ...errorBox, background: '#fef3c7', color: '#92400e', borderColor: '#fbbf24' }}>
+                <div style={{ ...errorBox, background: 'var(--warning-soft)', color: 'var(--warning)', borderColor: '#fbbf24' }}>
                   {warnings.map((w, i) => <p key={i} style={{ margin: i === 0 ? 0 : '4px 0 0' }}>{w}</p>)}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>

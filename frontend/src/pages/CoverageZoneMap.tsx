@@ -189,10 +189,10 @@ async function fetchZones(serviceAreaId: number): Promise<CoverageZone[]> {
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   planned:            { bg: 'var(--accent-soft)', text: 'var(--accent)' },
-  under_construction: { bg: '#fef9c3', text: '#854d0e' },
-  active:             { bg: '#d1fae5', text: '#065f46' },
-  degraded:           { bg: '#fee2e2', text: '#991b1b' },
-  retired:            { bg: '#f3f4f6', text: '#6b7280' },
+  under_construction: { bg: 'var(--warning-soft)', text: 'var(--warning)' },
+  active:             { bg: 'var(--success-soft)', text: 'var(--success)' },
+  degraded:           { bg: 'var(--danger-soft)', text: 'var(--danger)' },
+  retired:            { bg: 'var(--bg-subtle)', text: 'var(--text-muted)' },
 };
 
 const ZONE_TYPE_ICONS: Record<string, string> = {
@@ -207,7 +207,7 @@ const ZONE_TYPE_ICONS: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_COLORS[status] ?? { bg: '#f3f4f6', text: '#374151' };
+  const s = STATUS_COLORS[status] ?? { bg: 'var(--bg-subtle)', text: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.text,
@@ -254,7 +254,7 @@ function ZoneModal({
         </h3>
 
         {error && (
-          <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
+          <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: '0 0 0.75rem' }}>
             {error}
           </p>
         )}
@@ -296,7 +296,7 @@ function ZoneModal({
           <label style={label}>{t('ui.coverageZoneMap.color')}</label>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input type="color" value={form.color} onChange={e => field('color', e.target.value)}
-              style={{ width: 36, height: 28, padding: 1, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer' }} />
+              style={{ width: 36, height: 28, padding: 1, borderRadius: 4, border: '1px solid var(--border-strong)', cursor: 'pointer' }} />
             <input style={{ ...input, flex: 1 }} value={form.color} onChange={e => field('color', e.target.value)} />
           </div>
 
@@ -307,12 +307,12 @@ function ZoneModal({
           <label style={label}>{t('ui.coverageZoneMap.boundary')}</label>
           <div>
             {drawingBoundary ? (
-              <div style={{ fontSize: '0.8rem', color: '#059669', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--success)', display: 'flex', gap: 8, alignItems: 'center' }}>
                 {t('ui.coverageZoneMap.polygonDrawn')}{drawingBoundary.coordinates[0].length - 1} {t('ui.coverageZoneMap.vertices')}
                 <button style={btnDanger} onClick={onDrawingClear}>{t('ui.coverageZoneMap.clear')}</button>
               </div>
             ) : (
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#9ca3af', fontStyle: 'italic' }}>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 {t('ui.coverageZoneMap.closeThisModalAndDraw')}
               </p>
             )}
@@ -656,9 +656,9 @@ export function CoverageZoneMap() {
 
         {/* Service area selector */}
         <div>
-          <label style={{ fontSize: '0.78rem', color: '#555', fontWeight: 600 }}>{t('ui.coverageZoneMap.serviceArea')}</label>
+          <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('ui.coverageZoneMap.serviceArea')}</label>
           {serviceAreasQuery.isLoading ? (
-            <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#888' }}>{t('ui.coverageZoneMap.loading')}</p>
+            <p style={{ margin: '4px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('ui.coverageZoneMap.loading')}</p>
           ) : (
             <select
               style={filterSelect}
@@ -680,7 +680,7 @@ export function CoverageZoneMap() {
         {selectedSaId && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                 {t('ui.coverageZoneMap.zones')}{zones.length})
               </span>
               <button style={btnPrimary} onClick={() => { setCreateModalOpen(true); setModalError(null); setDraftBoundary(null); }}>
@@ -688,8 +688,8 @@ export function CoverageZoneMap() {
               </button>
             </div>
 
-            {zonesQuery.isLoading && <p style={{ fontSize: '0.8rem', color: '#888' }}>{t('ui.coverageZoneMap.loadingZones')}</p>}
-            {zonesQuery.error && <p style={{ fontSize: '0.8rem', color: '#e00' }}>{t('ui.coverageZoneMap.failedToLoadZones')}</p>}
+            {zonesQuery.isLoading && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('ui.coverageZoneMap.loadingZones')}</p>}
+            {zonesQuery.error && <p style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>{t('ui.coverageZoneMap.failedToLoadZones')}</p>}
 
             {zones.map(zone => (
               <div
@@ -698,7 +698,7 @@ export function CoverageZoneMap() {
                   border: `2px solid ${selectedZoneId === zone.id ? zone.color ?? '#3B82F6' : '#e5e7eb'}`,
                   borderRadius: 8,
                   padding: '8px 10px',
-                  background: selectedZoneId === zone.id ? '#f0f4ff' : '#fff',
+                  background: selectedZoneId === zone.id ? '#f0f4ff' : 'var(--bg-card)',
                   cursor: 'pointer',
                 }}
                 onClick={() => setSelectedZoneId(id => id === zone.id ? null : zone.id)}
@@ -713,7 +713,7 @@ export function CoverageZoneMap() {
                   <StatusBadge status={zone.status} />
                 </div>
                 {(zone.max_download_mbps || zone.max_upload_mbps) && (
-                  <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
                     ↓ {zone.max_download_mbps ?? '?'} Mbps &nbsp;↑ {zone.max_upload_mbps ?? '?'} Mbps
                   </div>
                 )}
@@ -729,7 +729,7 @@ export function CoverageZoneMap() {
         )}
 
         {!selectedSaId && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
             {t('ui.coverageZoneMap.selectAServiceAreaTo')}
           </p>
         )}
@@ -765,7 +765,7 @@ export function CoverageZoneMap() {
             </>
           )}
           {draftBoundary && !drawingMode && (
-            <span style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 600 }}>
               {t('ui.coverageZoneMap.polygonReadyOpenAZone')}
             </span>
           )}
@@ -777,9 +777,9 @@ export function CoverageZoneMap() {
         </div>
 
         {/* Canvas */}
-        <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', minHeight: 400 }}>
+        <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', minHeight: 400 }}>
           {!selectedSaId ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
               {t('ui.coverageZoneMap.selectAServiceAreaTo2')}
             </div>
           ) : (
@@ -799,7 +799,7 @@ export function CoverageZoneMap() {
 
         {/* Coordinate info bar */}
         {selectedSaId && (
-          <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             {t('ui.coverageZoneMap.viewport')}{viewport.minLat.toFixed(4)}°–{viewport.maxLat.toFixed(4)}°N,{' '}
             {viewport.minLng.toFixed(4)}°–{viewport.maxLng.toFixed(4)}{t('ui.coverageZoneMap.w')}
             {zones.length} {t('ui.coverageZoneMap.zone')}{zones.length !== 1 ? 's' : ''} {t('ui.coverageZoneMap.loaded')}
@@ -874,8 +874,8 @@ export function CoverageZoneMap() {
 
 const filterSelect: React.CSSProperties = {
   display: 'block', width: '100%', marginTop: 4,
-  padding: '6px 8px', borderRadius: 6, border: '1px solid #d1d5db',
-  fontSize: '0.85rem', background: '#fff',
+  padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-strong)',
+  fontSize: '0.85rem', background: 'var(--bg-card)',
 };
 
 const btnPrimary: React.CSSProperties = {
@@ -884,12 +884,12 @@ const btnPrimary: React.CSSProperties = {
 };
 
 const btnSecondary: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '0.82rem',
 };
 
 const btnDanger: React.CSSProperties = {
-  background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5',
+  background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid #fca5a5',
   padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: '0.82rem',
 };
 
@@ -908,7 +908,7 @@ const overlay: React.CSSProperties = {
 };
 
 const modal: React.CSSProperties = {
-  background: '#fff', borderRadius: 10, padding: '1.5rem',
+  background: 'var(--bg-card)', borderRadius: 10, padding: '1.5rem',
   maxWidth: 480, width: '100%', boxShadow: '0 8px 30px rgba(0,0,0,.2)',
   maxHeight: '90vh', overflowY: 'auto',
 };
@@ -919,10 +919,10 @@ const fieldGrid: React.CSSProperties = {
 };
 
 const label: React.CSSProperties = {
-  fontSize: '0.78rem', color: '#555', fontWeight: 600,
+  fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600,
 };
 
 const input: React.CSSProperties = {
-  padding: '5px 8px', borderRadius: 5, border: '1px solid #d1d5db',
-  fontSize: '0.82rem', background: '#fff', width: '100%', boxSizing: 'border-box',
+  padding: '5px 8px', borderRadius: 5, border: '1px solid var(--border-strong)',
+  fontSize: '0.82rem', background: 'var(--bg-card)', width: '100%', boxSizing: 'border-box',
 };

@@ -87,8 +87,8 @@ const tabStyle = (active: boolean) => ({
   border: 'none',
   cursor: 'pointer',
   fontWeight: active ? 600 : 400,
-  background: active ? '#2563eb' : '#f3f4f6',
-  color: active ? '#fff' : '#374151',
+  background: active ? '#2563eb' : 'var(--bg-subtle)',
+  color: active ? '#fff' : 'var(--text-secondary)',
   marginRight: 8,
 });
 
@@ -212,7 +212,7 @@ function LifecycleTab() {
       <DeviceSelector value={selectedDeviceId} onChange={(id) => { setSelectedDeviceId(id); setPage(1); }} />
 
       {device && (
-        <div style={{ marginBottom: 20, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+        <div style={{ marginBottom: 20, padding: 12, background: 'var(--info-soft)', borderRadius: 8, border: '1px solid #bae6fd' }}>
           <strong>{t('cpeInventory.lifecycle.currentState')}:</strong>{' '}
           <span style={{ color: lifecycleStateColor(device.lifecycle_state), fontWeight: 700 }}>
             {t(`cpeInventory.lifecycle.states.${device.lifecycle_state}`)}
@@ -221,7 +221,7 @@ function LifecycleTab() {
       )}
 
       {selectedDeviceId && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>{t('cpeInventory.lifecycle.transition')}</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
@@ -256,7 +256,7 @@ function LifecycleTab() {
       {selectedDeviceId && (
         <>
           <h3 style={{ fontSize: 15, marginBottom: 8 }}>{t('cpeInventory.lifecycle.history')}</h3>
-          {historyLoading ? <p style={{ color: '#6b7280' }}>{t('common.loading')}</p> : (
+          {historyLoading ? <p style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</p> : (
             <>
               <table style={styles.table}>
                 <thead>
@@ -299,7 +299,7 @@ function LifecycleTab() {
                   <button style={styles.pageButton} disabled={page === 1} onClick={() => setPage(p => p - 1)}>
                     {t('common.previous') || 'Prev'}
                   </button>
-                  <span style={{ color: '#6b7280' }}>{page} / {totalPages}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{page} / {totalPages}</span>
                   <button style={styles.pageButton} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                     {t('common.next') || 'Next'}
                   </button>
@@ -361,13 +361,13 @@ function SubscriberTab() {
       <DeviceSelector value={selectedDeviceId} onChange={setSelectedDeviceId} />
 
       {device && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, maxWidth: 480 }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, maxWidth: 480 }}>
           <div style={{ marginBottom: 12 }}>
             <strong>{t('cpeInventory.subscribers.current')}:</strong>{' '}
             {device.subscriber_id ? (
               <span>#{device.subscriber_id} {t('ui.cpeInventoryPage.linked')}{device.subscriber_linked_at ? new Date(device.subscriber_linked_at).toLocaleDateString() : ''})</span>
             ) : (
-              <span style={{ color: '#9ca3af' }}>{t('cpeInventory.subscribers.notLinked')}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('cpeInventory.subscribers.notLinked')}</span>
             )}
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
@@ -460,8 +460,8 @@ function SwapTab() {
 
   return (
     <div>
-      <p style={{ color: '#6b7280', marginBottom: 16 }}>{t('cpeInventory.swap.description')}</p>
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, maxWidth: 560 }}>
+      <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>{t('cpeInventory.swap.description')}</p>
+      <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, maxWidth: 560 }}>
         <div style={{ marginBottom: 12 }}>
           <label style={styles.label}>{t('cpeInventory.swap.oldDevice')} <RequiredMark /></label>
           <select
@@ -540,7 +540,7 @@ function DepreciationTab() {
 
   const fieldRow = (label: string, value: React.ReactNode) => (
     <tr key={label}>
-      <td style={{ ...styles.td, fontWeight: 500, width: 220, background: '#f9fafb' }}>{label}</td>
+      <td style={{ ...styles.td, fontWeight: 500, width: 220, background: 'var(--bg-body)' }}>{label}</td>
       <td style={styles.td}>{value}</td>
     </tr>
   );
@@ -550,9 +550,9 @@ function DepreciationTab() {
       <DeviceSelector value={selectedDeviceId} onChange={setSelectedDeviceId} />
 
       {selectedDeviceId && (
-        isLoading ? <p style={{ color: '#6b7280' }}>{t('common.loading')}</p> : (
+        isLoading ? <p style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</p> : (
           dep?.method === 'none' || dep?.currentValue === null ? (
-            <p style={{ color: '#9ca3af' }}>{t('cpeInventory.depreciation.notConfigured')}</p>
+            <p style={{ color: 'var(--text-muted)' }}>{t('cpeInventory.depreciation.notConfigured')}</p>
           ) : (
             <table style={{ ...styles.table, maxWidth: 520 }}>
               <tbody>
@@ -669,7 +669,7 @@ function RegisterTab() {
 
   return (
     <div>
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 20, maxWidth: 640 }}>
+      <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20, maxWidth: 640 }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>{t('cpeInventory.register.formTitle')}</h3>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <div>
@@ -701,11 +701,11 @@ function RegisterTab() {
             <input style={styles.input} value={modelName} onChange={e => setModelName(e.target.value)} />
           </div>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: '0.85rem', color: '#6b7280' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           <input type="checkbox" checked={incrementStock} onChange={e => setIncrementStock(e.target.checked)} />
           {t('cpeInventory.register.incrementStock')}
         </label>
-        <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 12px' }}>
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
           {t('cpeInventory.register.incrementStockHint')}
         </p>
         <button
@@ -736,7 +736,7 @@ function RegisterTab() {
         </div>
       </div>
 
-      {listLoading ? <p style={{ color: '#6b7280' }}>{t('common.loading')}</p> : (
+      {listLoading ? <p style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</p> : (
         <>
           <table style={styles.table}>
             <thead>
@@ -771,7 +771,7 @@ function RegisterTab() {
               <button style={styles.pageButton} disabled={page === 1} onClick={() => setPage(p => p - 1)}>
                 {t('common.previous') || 'Prev'}
               </button>
-              <span style={{ color: '#6b7280' }}>{page} / {totalPages}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{page} / {totalPages}</span>
               <button style={styles.pageButton} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                 {t('common.next') || 'Next'}
               </button>

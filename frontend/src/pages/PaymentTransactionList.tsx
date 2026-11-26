@@ -56,12 +56,12 @@ async function fetchTransactions(page: number, statusFilter: string): Promise<Pa
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  succeeded: { bg: '#d1fae5', color: '#065f46' },
-  pending: { bg: '#fef3c7', color: '#92400e' },
-  failed: { bg: '#fee2e2', color: '#991b1b' },
-  refunded: { bg: '#dbeafe', color: '#1e40af' },
-  disputed: { bg: '#fde68a', color: '#92400e' },
-  cancelled: { bg: '#f3f4f6', color: '#374151' },
+  succeeded: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  pending: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  failed: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  refunded: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  disputed: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  cancelled: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 // ---------------------------------------------------------------------------

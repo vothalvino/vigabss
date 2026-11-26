@@ -221,13 +221,13 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  draft:     { bg: '#f3f4f6', color: '#6b7280' },
+  draft:     { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   pending:   { bg: '#ede9fe', color: '#5b21b6' },
-  sent:      { bg: '#dbeafe', color: '#1e40af' },
-  paid:      { bg: '#d1fae5', color: '#065f46' },
-  overdue:   { bg: '#fee2e2', color: '#991b1b' },
-  cancelled: { bg: '#fef3c7', color: '#92400e' },
-  void:      { bg: '#f3f4f6', color: '#374151' },
+  sent:      { bg: 'var(--info-soft)', color: 'var(--info)' },
+  paid:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+  overdue:   { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  cancelled: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  void:      { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 // SAT status of the invoice's CFDI: vigente = registered and fiscally valid at
@@ -235,12 +235,12 @@ const STATUS_COLORS: StatusColors = {
 // accepted the cancellation.
 function CfdiSatBadge({ satStatus }: { satStatus: CfdiDoc['sat_status'] }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    vigente:        { bg: '#d1fae5', color: '#065f46', label: 'Vigente' },
-    cancel_pending: { bg: '#fef3c7', color: '#92400e', label: 'Cancel pending' },
-    cancelado:      { bg: '#fee2e2', color: '#991b1b', label: 'Cancelado' },
-    draft:          { bg: '#f3f4f6', color: '#6b7280', label: 'Draft' },
+    vigente:        { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Vigente' },
+    cancel_pending: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Cancel pending' },
+    cancelado:      { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelado' },
+    draft:          { bg: 'var(--bg-subtle)', color: 'var(--text-muted)', label: 'Draft' },
   };
-  const s = map[satStatus ?? ''] ?? { bg: '#f3f4f6', color: '#374151', label: satStatus ?? '—' };
+  const s = map[satStatus ?? ''] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', label: satStatus ?? '—' };
   return (
     <span style={{
       background: s.bg, color: s.color, padding: '3px 10px',
@@ -334,7 +334,7 @@ function AddInvoiceItemForm({ onAdd, pending, error }: AddInvoiceItemFormProps) 
               <option
                 key={e.value}
                 value={e.value}
-                style={e.quantityOnHand !== null && e.quantityOnHand <= 0 ? { color: '#dc2626' } : undefined}
+                style={e.quantityOnHand !== null && e.quantityOnHand <= 0 ? { color: 'var(--danger)' } : undefined}
               >
                 {e.label} — {e.price}
                 {e.quantityOnHand !== null ? ` (${t('productPicker.onHand', { count: e.quantityOnHand })})` : ''}
@@ -559,24 +559,24 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('invoiceDetail.ui.stampInvoiceSat')}>
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('invoiceDetail.ui.stampInvoiceSat')}</h3>
-        <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {invoice.invoice_number || `#${invoice.id}`} — {formatMoney(invoice.total, invoice.currency)}
         </p>
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: '#374151' }}>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {t('invoiceDetail.ui.thisConvertsTheInvoiceInto')}
         </p>
         {!profileQ.isLoading && (profile?.rfc ? (
-          <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#065f46' }}>
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--success)' }}>
             {t('invoiceDetail.ui.receptor')}<span style={{ fontFamily: 'monospace' }}>{profile.rfc}</span> — {profile.razon_social}
           </p>
         ) : (
-          <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#991b1b' }}>
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--danger)' }}>
             {t('invoiceDetail.ui.theClientHasNoMx')}{' '}
             <Link to={`/clients/${invoice.client_id}`} style={{ color: 'var(--accent)' }}>{t('invoiceDetail.ui.completeItOnTheClient')}</Link>{' '}
             {t('invoiceDetail.ui.beforeStamping')}
           </p>
         ))}
-        <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {t('invoiceDetail.ui.metodoDePago')}<strong>{isPaid ? 'PUE (paid in full)' : 'PPD (payment pending — forma 99)'}</strong>
         </p>
         {error && <div style={errorBox}>{error}</div>}
@@ -668,14 +668,14 @@ function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose,
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('invoiceDetail.ui.cancelCfdiAtSat')}>
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('invoiceDetail.ui.cancelCfdiAtSat')}</h3>
-        <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>
+        <p style={{ margin: '0 0 0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {t('invoiceDetail.ui.invoice')}{invoiceNumber} {t('invoiceDetail.ui.uuid')}<span style={{ fontFamily: 'monospace' }}>{cfdi.uuid ?? `#${cfdi.id}`}</span>
         </p>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#374151' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {t('invoiceDetail.ui.thisCfdiIsRegisteredWith')}
         </p>
         {appliedTotal > 0 && (
-          <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#92400e', background: '#fef3c7', padding: '8px 10px', borderRadius: 6 }}>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--warning)', background: 'var(--warning-soft)', padding: '8px 10px', borderRadius: 6 }}>
             {t('invoiceDetail.ui.thisInvoiceHas')}<strong>{formatMoney(String(appliedTotal), currency)}</strong> {t('invoiceDetail.ui.inAppliedPaymentsSatAcceptance')}
           </p>
         )}
@@ -935,12 +935,12 @@ export function InvoiceDetail() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: 860 }}>
       {/* Breadcrumb */}
-      <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-        <Link to="/invoices" style={{ color: '#6b7280', textDecoration: 'none' }}>{t('invoiceDetail.ui.invoices')}</Link>
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+        <Link to="/invoices" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>{t('invoiceDetail.ui.invoices')}</Link>
         {invoice && <> / {invoice.invoice_number || `#${invoice.id}`}</>}
       </div>
 
-      {invoiceQ.isLoading && <p style={{ color: '#888' }}>{t('invoiceDetail.ui.loading')}</p>}
+      {invoiceQ.isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('invoiceDetail.ui.loading')}</p>}
       {invoiceQ.isError && <p style={{ color: 'var(--accent)' }}>{t('invoiceDetail.ui.invoiceNotFound')}</p>}
 
       {invoice && (
@@ -952,12 +952,12 @@ export function InvoiceDetail() {
                 {invoice.invoice_number || `Invoice #${invoice.id}`}
               </h1>
               {client && (
-                <div style={{ marginTop: 4, fontSize: '0.875rem', color: '#6b7280' }}>
+                <div style={{ marginTop: 4, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                   {t('invoiceDetail.ui.client')}{' '}
                   <Link to={`/clients/${client.id}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
                     {client.name}
                   </Link>
-                  {client.email && <span style={{ marginLeft: 8, color: '#9ca3af' }}>{client.email}</span>}
+                  {client.email && <span style={{ marginLeft: 8, color: 'var(--text-muted)' }}>{client.email}</span>}
                 </div>
               )}
             </div>
@@ -1092,7 +1092,7 @@ export function InvoiceDetail() {
                       <CfdiSatBadge satStatus={displayCfdi.sat_status} />
                       <SandboxCfdiBadge doc={displayCfdi} />
                       {displayCfdi.uuid && (
-                        <span style={{ marginLeft: 8, fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
+                        <span style={{ marginLeft: 8, fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                           {displayCfdi.uuid.slice(0, 13)}…
                         </span>
                       )}
@@ -1111,7 +1111,7 @@ export function InvoiceDetail() {
               {invoice.contract_id && <MetaRow label={t('invoiceDetail.ui.contract')} value={`#${invoice.contract_id}`} />}
             </div>
             {invoice.notes && (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
+              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                 <strong>{t('invoiceDetail.ui.notes')}</strong> {invoice.notes}
               </p>
             )}
@@ -1120,16 +1120,16 @@ export function InvoiceDetail() {
           {/* Line Items */}
           <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('invoiceDetail.ui.lineItems')}</h3>
           <div style={card}>
-            {itemsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('invoiceDetail.ui.loadingItems')}</p>}
+            {itemsQ.isLoading && <p style={{ color: 'var(--text-muted)', margin: 0 }}>{t('invoiceDetail.ui.loadingItems')}</p>}
             {!itemsQ.isLoading && (itemsQ.data ?? []).length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noLineItems')}</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noLineItems')}</p>
             )}
             {(itemsQ.data ?? []).length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                     {['Description', 'Qty', 'Unit Price', 'Tax %', 'Amount'].map(h => (
-                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1139,7 +1139,7 @@ export function InvoiceDetail() {
                       <td style={{ padding: '8px 10px' }}>{item.description}</td>
                       <td style={{ padding: '8px 10px' }}>{item.quantity}</td>
                       <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unit_price, invoice.currency)}</td>
-                      <td style={{ padding: '8px 10px', color: '#9ca3af' }}>{taxPercent(item.tax_rate)}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>{taxPercent(item.tax_rate)}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.amount, invoice.currency)}</td>
                     </tr>
                   ))}
@@ -1163,16 +1163,16 @@ export function InvoiceDetail() {
           {/* Applied Payments */}
           <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('invoiceDetail.ui.appliedPayments')}</h3>
           <div style={card}>
-            {paymentsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('invoiceDetail.ui.loadingPayments')}</p>}
+            {paymentsQ.isLoading && <p style={{ color: 'var(--text-muted)', margin: 0 }}>{t('invoiceDetail.ui.loadingPayments')}</p>}
             {!paymentsQ.isLoading && (paymentsQ.data ?? []).length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noPaymentsAppliedYet')}</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noPaymentsAppliedYet')}</p>
             )}
             {(paymentsQ.data ?? []).length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                     {['Payment #', 'Method', 'Amount Applied', 'Payment Date'].map(h => (
-                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1182,7 +1182,7 @@ export function InvoiceDetail() {
                       <td style={{ padding: '8px 10px', color: 'var(--accent)', fontWeight: 600 }}>#{p.payment_id}</td>
                       <td style={{ padding: '8px 10px', textTransform: 'capitalize' }}>{(p.payment_method || '').replace('_', ' ')}</td>
                       <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(p.amount, invoice.currency)}</td>
-                      <td style={{ padding: '8px 10px', color: '#6b7280' }}>{fmt(p.payment_date)}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>{fmt(p.payment_date)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1271,8 +1271,8 @@ export function InvoiceDetail() {
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'contents' }}>
-      <dt style={{ color: '#6b7280', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
-      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: '#111827' }}>{value}</dd>
+      <dt style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.8rem', padding: '5px 0' }}>{label}</dt>
+      <dd style={{ margin: 0, padding: '5px 0', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{value}</dd>
     </div>
   );
 }
@@ -1298,7 +1298,7 @@ const modalBox: React.CSSProperties = {
   width: 440, maxWidth: '92vw', boxShadow: '0 8px 32px rgba(0,0,0,.18)',
 };
 const errorBox: React.CSSProperties = {
-  background: '#fee2e2', color: '#991b1b', padding: '8px 12px',
+  background: 'var(--danger-soft)', color: 'var(--danger)', padding: '8px 12px',
   borderRadius: 6, marginBottom: '0.75rem', fontSize: '0.85rem',
 };
 const labelStyle: React.CSSProperties = {

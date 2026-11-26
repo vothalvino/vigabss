@@ -224,7 +224,7 @@ export function DataImport() {
                     {result.errors.map((e, i) => (
                       <tr key={i}>
                         <td style={{ ...td, width: 110 }}>{e.row}</td>
-                        <td style={{ ...td, color: '#dc2626' }}>{e.error}</td>
+                        <td style={{ ...td, color: 'var(--danger)' }}>{e.error}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -256,7 +256,7 @@ const columnsBox: React.CSSProperties = {
   padding: '10px 12px', marginBottom: 16, fontSize: 12.5, overflowWrap: 'anywhere',
 };
 const hint: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted, #6b7280)' };
-const errText: React.CSSProperties = { color: '#dc2626', fontSize: 13, marginTop: 10 };
+const errText: React.CSSProperties = { color: 'var(--danger)', fontSize: 13, marginTop: 10 };
 const btn: React.CSSProperties = {
   padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500, border: 'none',
 };

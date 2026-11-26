@@ -249,7 +249,7 @@ export function GenerateQuoteModal({ lockedClientId, lockedClientName, onClose, 
             </div>
 
             {items.length === 0 && (
-              <p style={{ fontSize: '0.82rem', color: '#9ca3af', textAlign: 'center', padding: '0.75rem 0' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.75rem 0' }}>
                 {t('ui.generateQuoteModal.useTheButtonsAboveTo')}
               </p>
             )}
@@ -275,7 +275,7 @@ export function GenerateQuoteModal({ lockedClientId, lockedClientName, onClose, 
                   <button
                     type="button"
                     onClick={() => removeItem(item.localId)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '1rem', lineHeight: 1 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1 }}
                     aria-label={t('ui.generateQuoteModal.removeItem')}
                   >×</button>
                 </div>
@@ -317,7 +317,7 @@ export function GenerateQuoteModal({ lockedClientId, lockedClientName, onClose, 
                       ))}
                     </select>
                     {addons.length === 0 && !addonsError && (
-                      <p style={{ fontSize: '0.74rem', color: '#9ca3af', margin: '4px 0 0' }}>
+                      <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
                         {t('ui.generateQuoteModal.addProductsUnderPlansAdd')}
                       </p>
                     )}

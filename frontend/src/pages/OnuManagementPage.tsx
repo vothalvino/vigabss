@@ -153,16 +153,16 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 
 function OnuStateBadge({ state }: { state: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    online:       { bg: '#d1fae5', color: '#065f46' },
-    offline:      { bg: '#f3f4f6', color: '#374151' },
-    los:          { bg: '#fee2e2', color: '#991b1b' },
-    dying_gasp:   { bg: '#fef3c7', color: '#92400e' },
-    power_off:    { bg: '#e5e7eb', color: '#4b5563' },
+    online:       { bg: 'var(--success-soft)', color: 'var(--success)' },
+    offline:      { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+    los:          { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    dying_gasp:   { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    power_off:    { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
     loc:          { bg: '#fed7aa', color: '#9a3412' },
     unconfigured: { bg: '#ede9fe', color: '#5b21b6' },
-    unknown:      { bg: '#f3f4f6', color: '#6b7280' },
+    unknown:      { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
-  const s = map[state] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[state] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {state.replace('_', ' ')}
@@ -172,14 +172,14 @@ function OnuStateBadge({ state }: { state: string }) {
 
 function JobStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    pending:     { bg: '#fef3c7', color: '#92400e' },
-    queued:      { bg: '#dbeafe', color: '#1e40af' },
+    pending:     { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    queued:      { bg: 'var(--info-soft)', color: 'var(--info)' },
     in_progress: { bg: '#ede9fe', color: '#5b21b6' },
-    completed:   { bg: '#d1fae5', color: '#065f46' },
-    failed:      { bg: '#fee2e2', color: '#991b1b' },
-    cancelled:   { bg: '#f3f4f6', color: '#6b7280' },
+    completed:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+    failed:      { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    cancelled:   { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {status.replace('_', ' ')}

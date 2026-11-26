@@ -77,7 +77,7 @@ const bar: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between',
   padding: '8px 16px', fontSize: '0.875rem', borderBottom: '1px solid transparent',
 };
-const info: React.CSSProperties = { background: '#eff6ff', color: '#1e3a8a', borderBottomColor: '#bfdbfe' };
-const warn: React.CSSProperties = { background: '#fffbeb', color: '#78350f', borderBottomColor: '#fde68a' };
-const danger: React.CSSProperties = { background: '#fef2f2', color: '#7f1d1d', borderBottomColor: '#fecaca', fontWeight: 600 };
+const info: React.CSSProperties = { background: 'var(--info-soft)', color: 'var(--info)', borderBottomColor: '#bfdbfe' };
+const warn: React.CSSProperties = { background: 'var(--warning-soft)', color: 'var(--warning)', borderBottomColor: '#fde68a' };
+const danger: React.CSSProperties = { background: 'var(--danger-soft)', color: 'var(--danger)', borderBottomColor: '#fecaca', fontWeight: 600 };
 const link: React.CSSProperties = { color: 'inherit', fontWeight: 700, textDecoration: 'underline', whiteSpace: 'nowrap' };

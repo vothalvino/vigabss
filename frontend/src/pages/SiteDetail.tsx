@@ -86,10 +86,10 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  active:   { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#6b7280' },
-  online:   { bg: '#d1fae5', color: '#065f46' },
-  offline:  { bg: '#fee2e2', color: '#991b1b' },
+  active:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
+  online:   { bg: 'var(--success-soft)', color: 'var(--success)' },
+  offline:  { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 function InfoRow({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
@@ -682,12 +682,12 @@ const styles = {
   tr: { borderBottom: '1px solid var(--border-subtle)' },
   td: { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
   msg:      { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
+  msgError: { padding: '2rem 1.5rem', color: 'var(--danger)', margin: 0 },
   woFormPanel: { background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border)', borderRadius: 8, padding: '0.85rem 1rem', marginTop: '0.6rem', display: 'flex' as const, flexDirection: 'column' as const, gap: '0.55rem', maxWidth: 420 },
   woFormLabel: { display: 'flex' as const, flexDirection: 'column' as const, gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' },
   woFormInput: { padding: '0.5rem 0.6rem', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'var(--font-sans)' },
   woFormActions: { display: 'flex' as const, gap: 8, marginTop: '0.25rem' },
-  woFormError: { color: '#ef4444', fontSize: '0.8rem', margin: 0 },
+  woFormError: { color: 'var(--danger)', fontSize: '0.8rem', margin: 0 },
   woBtnPrimary: { padding: '0.45rem 1.1rem', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' },
   woBtnSecondary: { padding: '0.45rem 1.1rem', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' },
 };

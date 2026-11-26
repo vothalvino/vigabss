@@ -96,13 +96,13 @@ function displayStatus(status: string, dueDate: string | null): string {
 }
 
 const STATUS_COLORS: StatusColors = {
-  draft: { bg: '#f3f4f6', color: '#6b7280' },
+  draft: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   pending: { bg: '#ede9fe', color: '#5b21b6' },
-  sent: { bg: '#dbeafe', color: '#1e40af' },
-  paid: { bg: '#d1fae5', color: '#065f46' },
-  overdue: { bg: '#fee2e2', color: '#991b1b' },
-  cancelled: { bg: '#fef3c7', color: '#92400e' },
-  void: { bg: '#f3f4f6', color: '#374151' },
+  sent: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  paid: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  overdue: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+  cancelled: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  void: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 // Generate Invoice Modal lives in @/components/GenerateInvoiceModal (shared with
@@ -235,9 +235,9 @@ export function InvoiceList() {
             style={{
               padding: '4px 12px',
               borderRadius: 20,
-              border: '1px solid #d1d5db',
-              background: statusFilter === s ? 'var(--accent)' : '#fff',
-              color: statusFilter === s ? '#fff' : '#374151',
+              border: '1px solid var(--border-strong)',
+              background: statusFilter === s ? 'var(--accent)' : 'var(--bg-card)',
+              color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer',
               fontSize: '0.8rem',
               fontWeight: 500,
@@ -278,20 +278,20 @@ export function InvoiceList() {
         </div>
       )}
       {voidError && (
-        <p style={{ color: '#b91c1c', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{voidError}</p>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{voidError}</p>
       )}
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>{t('invoiceList.loading')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('invoiceList.loading')}</p>}
       {isError && <p style={{ color: 'var(--accent)' }}>{t('invoiceList.error')}</p>}
       {data && (
         <>
           <div
-            style={{ background: '#fff', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}
+            style={{ background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}
           >
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <tr style={{ background: 'var(--bg-body)', borderBottom: '1px solid var(--border)' }}>
                   <th style={{ padding: '10px 14px', width: 36 }}>
                     <input
                       type="checkbox"
@@ -307,7 +307,7 @@ export function InvoiceList() {
                       padding: '10px 8px',
                       textAlign: 'left',
                       fontWeight: 600,
-                      color: '#374151',
+                      color: 'var(--text-secondary)',
                       whiteSpace: 'nowrap',
                       width: 40,
                       fontSize: '0.875rem',
@@ -324,7 +324,7 @@ export function InvoiceList() {
               <tbody>
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
+                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       {t('invoiceList.noInvoices')}
                     </td>
                   </tr>
@@ -332,7 +332,7 @@ export function InvoiceList() {
                 {data.data.map((inv, idx) => (
                   <tr
                     key={inv.id}
-                    style={{ borderBottom: '1px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}
+                    style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-body)' }}
                   >
                     <td style={{ padding: '10px 14px' }}>
                       <input
@@ -354,7 +354,7 @@ export function InvoiceList() {
                     </td>
                     <td style={{ padding: '10px 14px' }}>
                       {inv.client_id ? (
-                        <Link to={`/clients/${inv.client_id}`} style={{ color: '#374151', textDecoration: 'none' }}>
+                        <Link to={`/clients/${inv.client_id}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
                           {clientMap.get(inv.client_id) ?? String(inv.client_id)}
                         </Link>
                       ) : (
@@ -364,7 +364,7 @@ export function InvoiceList() {
                     <td
                       style={{
                         padding: '10px 8px',
-                        color: '#9ca3af',
+                        color: 'var(--text-muted)',
                         fontSize: '0.8rem',
                         whiteSpace: 'nowrap',
                         width: 40,
@@ -379,7 +379,7 @@ export function InvoiceList() {
                     <td style={{ padding: '10px 14px' }}>
                       <StatusBadge status={displayStatus(inv.status, inv.due_date)} colors={STATUS_COLORS} />
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#9ca3af', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                       {fmt(inv.created_at)}
                     </td>
                   </tr>
@@ -421,7 +421,7 @@ export function InvoiceList() {
             <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>
               {t('ui.invoiceList.void')}{selected.size} {t('ui.invoiceList.invoice')}{selected.size !== 1 ? 's' : ''}?
             </h2>
-            <p style={{ fontSize: '0.9rem', color: '#374151' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
               {t('ui.invoiceList.theSelectedInvoice')}{selected.size !== 1 ? 's' : ''} {t('ui.invoiceList.willBeMarkedAsVoid')}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>

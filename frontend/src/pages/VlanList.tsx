@@ -92,9 +92,9 @@ async function deleteVlan(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  reserved: { bg: '#dbeafe', color: '#1e40af' },
-  deprecated: { bg: '#fee2e2', color: '#991b1b' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  reserved: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  deprecated: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ export function VlanList() {
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           {t('ui.vlanList.actionFailedPleaseTryAgain')}
         </p>
       )}
@@ -390,7 +390,7 @@ export function VlanList() {
                           {t('ui.vlanList.edit')}
                         </button>
                         <button
-                          style={{ ...styles.actionBtn, color: '#991b1b' }}
+                          style={{ ...styles.actionBtn, color: 'var(--danger)' }}
                           onClick={() => setDeleteId(v.id)}
                           title={t('ui.vlanList.deleteThisVlan')}
                         >

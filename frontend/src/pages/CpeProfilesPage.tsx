@@ -63,8 +63,8 @@ const tabStyle = (active: boolean) => ({
   border: 'none',
   cursor: 'pointer',
   fontWeight: active ? 600 : 400,
-  background: active ? '#2563eb' : '#f3f4f6',
-  color: active ? '#fff' : '#374151',
+  background: active ? '#2563eb' : 'var(--bg-subtle)',
+  color: active ? '#fff' : 'var(--text-secondary)',
   marginRight: 8,
 });
 
@@ -129,19 +129,19 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ color: '#6b7280' }}>{total} {t('cpeProfiles.profiles.title')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{total} {t('cpeProfiles.profiles.title')}</span>
         <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           + {t('cpeProfiles.profiles.newProfile')}
         </button>
       </div>
 
-      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
+      {deleteMut.error && <p role="alert" style={{ color: 'var(--danger)' }}>{deleteMut.error.message}</p>}
 
       {isLoading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#dc2626' }}>{t('cpeProfiles.profiles.error')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('cpeProfiles.profiles.error')}</p>}
 
       {!isLoading && profiles.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('cpeProfiles.profiles.empty')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('cpeProfiles.profiles.empty')}</p>
       )}
 
       {profiles.length > 0 && (
@@ -170,7 +170,7 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
                       {p.name}
                     </button>
                     {p.organization_id === null && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>{t('ui.cpeProfilesPage.global')}</span>
+                      <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)' }}>{t('ui.cpeProfilesPage.global')}</span>
                     )}
                   </td>
                   <td style={styles.td}>{p.manufacturer ?? '—'}</td>
@@ -205,7 +205,7 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <h3 style={{ marginTop: 0 }}>{t('cpeProfiles.profiles.createTitle')}</h3>
-            {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--danger)' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.name')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.manufacturer')}</label>
@@ -296,7 +296,7 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
   });
 
   if (!profile) {
-    return <p style={{ color: '#6b7280' }}>{t('cpeProfiles.mappings.empty')}</p>;
+    return <p style={{ color: 'var(--text-muted)' }}>{t('cpeProfiles.mappings.empty')}</p>;
   }
 
   const mappings = data?.data ?? [];
@@ -304,19 +304,19 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ color: '#374151', fontWeight: 600 }}>{profile.name}</span>
+        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{profile.name}</span>
         <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           + {t('cpeProfiles.mappings.newMapping')}
         </button>
       </div>
 
-      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
+      {deleteMut.error && <p role="alert" style={{ color: 'var(--danger)' }}>{deleteMut.error.message}</p>}
 
       {isLoading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#dc2626' }}>{t('cpeProfiles.mappings.error')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('cpeProfiles.mappings.error')}</p>}
 
       {!isLoading && mappings.length === 0 && (
-        <p style={{ color: '#6b7280' }}>{t('ui.cpeProfilesPage.noMappingsForThisProfile')}</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('ui.cpeProfilesPage.noMappingsForThisProfile')}</p>
       )}
 
       {mappings.length > 0 && (
@@ -352,7 +352,7 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <h3 style={{ marginTop: 0 }}>{t('cpeProfiles.mappings.createTitle')}</h3>
-            {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--danger)' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeProfiles.mappings.parameterPath')}<RequiredMark /></label>
             <input style={modalStyles.input} placeholder={t('ui.cpeProfilesPage.deviceWifiSsid1Ssid')} value={form.parameter_path} onChange={e => setForm(f => ({ ...f, parameter_path: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeProfiles.mappings.sourceType')}<RequiredMark /></label>
@@ -407,7 +407,7 @@ export function CpeProfilesPage() {
   return (
     <div style={{ padding: 24 }}>
       <h1 style={{ margin: '0 0 4px' }}>{t('cpeProfiles.title')}</h1>
-      <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 24 }}>{t('cpeProfiles.subtitle')}</p>
+      <p style={{ color: 'var(--text-muted)', marginTop: 0, marginBottom: 24 }}>{t('cpeProfiles.subtitle')}</p>
 
       <div style={{ marginBottom: 24 }}>
         {(['profiles', 'mappings'] as TabKey[]).map(k => (

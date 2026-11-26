@@ -183,8 +183,8 @@ export async function seedNasDevice(id: number, body: SeedBody): Promise<SeedRes
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#fef3c7', color: '#92400e' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -193,11 +193,11 @@ const STATUS_COLORS: StatusColors = {
 
 function HealthBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    up: { bg: '#d1fae5', color: '#065f46' },
-    down: { bg: '#fee2e2', color: '#991b1b' },
-    unknown: { bg: '#f3f4f6', color: '#374151' },
+    up: { bg: 'var(--success-soft)', color: 'var(--success)' },
+    down: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    unknown: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span
       style={{
@@ -363,11 +363,11 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
             <p style={{
               margin: '0 0 8px',
               padding: '8px 12px',
-              background: '#eff6ff',
+              background: 'var(--info-soft)',
               border: '1px solid #bfdbfe',
               borderRadius: 6,
               fontSize: '0.82rem',
-              color: '#1e40af',
+              color: 'var(--info)',
               lineHeight: 1.5,
             }}>
               {t('nasList.natedHint')}
@@ -622,11 +622,11 @@ export function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogPro
 // ---------------------------------------------------------------------------
 
 const SEED_STEP_COLORS: Record<string, { bg: string; color: string }> = {
-  created: { bg: '#d1fae5', color: '#065f46' },
-  updated: { bg: '#dbeafe', color: '#1e40af' },
-  unchanged: { bg: '#f3f4f6', color: '#374151' },
-  skipped: { bg: '#f3f4f6', color: '#374151' },
-  error: { bg: '#fee2e2', color: '#991b1b' },
+  created: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  updated: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  unchanged: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  skipped: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
+  error: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
 };
 
 interface SeedModalProps {
@@ -783,7 +783,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
 
         {result ? (
           <div style={modalStyles.form}>
-            <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: result.ok ? '#065f46' : '#991b1b' }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: result.ok ? 'var(--success)' : 'var(--danger)' }}>
               {result.ok ? '✓ Seed completed' : '⚠ Seed completed with errors'} — {result.host}:{result.port}{result.tls ? ' (TLS)' : ''}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
@@ -831,7 +831,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                 placeholder="e.g. 203.0.113.10"
                 required
               />
-              <span style={{ fontWeight: 400, fontSize: 12, color: '#6b7280' }}>
+              <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-muted)' }}>
                 {t('ui.nasList.theIpTheRouterUses')}
               </span>
             </label>

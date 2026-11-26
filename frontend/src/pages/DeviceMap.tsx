@@ -127,11 +127,11 @@ async function fetchLinks(): Promise<NetworkLink[]> {
 
 function DeviceStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    online:      { bg: '#d1fae5', color: '#065f46' },
-    offline:     { bg: '#fee2e2', color: '#991b1b' },
-    maintenance: { bg: '#fef9c3', color: '#854d0e' },
+    online:      { bg: 'var(--success-soft)', color: 'var(--success)' },
+    offline:     { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    maintenance: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -155,12 +155,12 @@ function SiteStatusDot({ status }: { status: string }) {
 
 function LinkStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    active:         { bg: '#d1fae5', color: '#065f46' },
-    down:           { bg: '#fee2e2', color: '#991b1b' },
-    maintenance:    { bg: '#fef9c3', color: '#854d0e' },
-    decommissioned: { bg: '#f3f4f6', color: '#9ca3af' },
+    active:         { bg: 'var(--success-soft)', color: 'var(--success)' },
+    down:           { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    maintenance:    { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    decommissioned: { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -207,10 +207,10 @@ function DeviceChip({ device, actions }: { device: Device; actions?: DeviceChipA
   return (
     <div
       style={{
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--border)',
         borderRadius: 8,
         padding: '8px 10px',
-        background: archived ? '#f9fafb' : hovered ? '#f0f4ff' : '#fff',
+        background: archived ? 'var(--bg-body)' : hovered ? 'var(--bg-subtle)' : 'var(--bg-card)',
         opacity: archived ? 0.7 : 1,
         cursor: 'default',
         minWidth: 160,
@@ -225,19 +225,19 @@ function DeviceChip({ device, actions }: { device: Device; actions?: DeviceChipA
           {device.name}
         </Link>
       </div>
-      <div style={{ fontSize: '0.72rem', color: '#6b7280', marginBottom: 3 }}>
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 3 }}>
         {device.manufacturer ? `${device.manufacturer} ` : ''}
         {device.model ?? device.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
       </div>
       {device.ip_address && (
-        <div style={{ fontSize: '0.72rem', color: '#6b7280', fontFamily: 'monospace', marginBottom: 4 }}>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: 4 }}>
           {device.ip_address}
         </div>
       )}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         {archived ? (
           <span style={{
-            background: '#f3f4f6', color: '#6b7280',
+            background: 'var(--bg-subtle)', color: 'var(--text-muted)',
             padding: '1px 7px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 600,
           }}>
             {t('ui.deviceMap.archived')}
@@ -292,22 +292,22 @@ function SiteCard({ site, devices, actions }: SiteCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <div style={{
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--border)',
       borderRadius: 10,
-      background: '#fff',
+      background: 'var(--bg-card)',
       boxShadow: '0 0 0 1px var(--border)',
       overflow: 'hidden',
     }}>
       {/* Site header */}
       <div
         style={{
-          background: '#f9fafb',
+          background: 'var(--bg-body)',
           padding: '10px 14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           cursor: 'pointer',
-          borderBottom: collapsed ? 'none' : '1px solid #e5e7eb',
+          borderBottom: collapsed ? 'none' : '1px solid var(--border)',
         }}
         onClick={() => setCollapsed(c => !c)}
       >
@@ -321,21 +321,21 @@ function SiteCard({ site, devices, actions }: SiteCardProps) {
             ) : site.name}
           </span>
           {site.site_type && (
-            <span style={{ fontSize: '0.73rem', color: '#6b7280' }}>
+            <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
               ({site.site_type})
             </span>
           )}
           {(site.city || site.state) && (
-            <span style={{ fontSize: '0.73rem', color: '#9ca3af', marginLeft: 8 }}>
+            <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginLeft: 8 }}>
               📍 {[site.city, site.state].filter(Boolean).join(', ')}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             {devices.length} {t('ui.deviceMap.device')}{devices.length !== 1 ? 's' : ''}
           </span>
-          <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{collapsed ? '▶' : '▼'}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{collapsed ? '▶' : '▼'}</span>
         </div>
       </div>
 
@@ -343,7 +343,7 @@ function SiteCard({ site, devices, actions }: SiteCardProps) {
       {!collapsed && (
         <div style={{ padding: 12 }}>
           {devices.length === 0 ? (
-            <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.8rem', fontStyle: 'italic' }}>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
               {t('ui.deviceMap.noDevicesAssignedToThis')}
             </p>
           ) : (
@@ -385,7 +385,7 @@ function LinksTable({ links, deviceMap }: LinksTableProps) {
     <div style={{ overflowX: 'auto', marginTop: '1.5rem' }}>
       <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{t('ui.deviceMap.networkLinks')}</h2>
       {links.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noNetworkLinksDefined')}</p>
+        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noNetworkLinksDefined')}</p>
       ) : (
         <table style={tableStyle}>
           <thead>
@@ -410,7 +410,7 @@ function LinksTable({ links, deviceMap }: LinksTableProps) {
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.8rem' }}>{l.interface_b ?? '—'}</td>
                 <td style={td}>
                   <span style={{
-                    background: '#f3f4f6', color: LINK_TYPE_COLOR[l.link_type] ?? '#374151',
+                    background: 'var(--bg-subtle)', color: LINK_TYPE_COLOR[l.link_type] ?? 'var(--text-secondary)',
                     padding: '2px 7px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600,
                     textTransform: 'capitalize',
                   }}>
@@ -446,14 +446,14 @@ function SummaryBar({ sites, devices, links }: SummaryBarProps) {
 
   const stat = (label: string, value: string | number, color?: string) => (
     <div style={{
-      background: '#fff',
-      border: '1px solid #e5e7eb',
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border)',
       borderRadius: 8,
       padding: '10px 16px',
       minWidth: 120,
     }}>
-      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: color ?? '#111' }}>{value}</div>
-      <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 1 }}>{label}</div>
+      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: color ?? 'var(--text-primary)' }}>{value}</div>
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 1 }}>{label}</div>
     </div>
   );
 
@@ -899,7 +899,7 @@ export function DeviceMap() {
           <option value="maintenance">{t('ui.deviceMap.maintenance')}</option>
           <option value="decommissioned">{t('ui.deviceMap.decommissioned')}</option>
         </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
           <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
           {t('ui.deviceMap.showArchived')}
         </label>
@@ -910,10 +910,10 @@ export function DeviceMap() {
         )}
       </div>
 
-      {actionError && <p style={{ color: '#e00', fontSize: '0.85rem' }}>{actionError}</p>}
+      {actionError && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{actionError}</p>}
 
-      {isLoading && <p style={{ color: '#888' }}>{t('ui.deviceMap.loadingNetworkMap')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('ui.deviceMap.failedToLoadNetworkData')}</p>}
+      {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.deviceMap.loadingNetworkMap')}</p>}
+      {error && <p style={{ color: 'var(--danger)' }}>{t('ui.deviceMap.failedToLoadNetworkData')}</p>}
 
       {!isLoading && !error && (
         <>
@@ -923,10 +923,10 @@ export function DeviceMap() {
           {/* Sites + their devices */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{t('ui.deviceMap.sites')}</h2>
           {sites.length === 0 && !siteFilter && (
-            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesDefined')}</p>
+            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesDefined')}</p>
           )}
           {sites.length === 0 && siteFilter && (
-            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesMatch')}{siteFilter}".</p>
+            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesMatch')}{siteFilter}".</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {sites.map(site => (
@@ -991,15 +991,15 @@ export function DeviceMap() {
 // ---------------------------------------------------------------------------
 
 const filterInput: React.CSSProperties = {
-  padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db',
-  fontSize: '0.85rem', background: '#fff', minWidth: 200,
+  padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-strong)',
+  fontSize: '0.85rem', background: 'var(--bg-card)', minWidth: 200,
 };
 const filterSelect: React.CSSProperties = {
-  padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db',
-  fontSize: '0.85rem', background: '#fff',
+  padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-strong)',
+  fontSize: '0.85rem', background: 'var(--bg-card)',
 };
 const btnSecondary: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem',
 };
 const btnPrimary: React.CSSProperties = {
@@ -1007,24 +1007,24 @@ const btnPrimary: React.CSSProperties = {
   padding: '7px 16px', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
 };
 const chipBtn: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
   padding: '2px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem',
 };
 const chipDangerBtn: React.CSSProperties = {
-  background: '#fff', color: '#dc2626', border: '1px solid #fecaca',
+  background: 'var(--bg-card)', color: 'var(--danger)', border: '1px solid #fecaca',
   padding: '2px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem',
 };
 const tableStyle: React.CSSProperties = {
-  width: '100%', borderCollapse: 'collapse', background: '#fff',
+  width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)',
   borderRadius: 8, overflow: 'hidden',
   boxShadow: '0 0 0 1px var(--border)',
 };
 const th: React.CSSProperties = {
   padding: '10px 12px', textAlign: 'left', fontSize: '0.78rem',
-  fontWeight: 700, color: '#555', background: '#f9fafb',
-  borderBottom: '1px solid #e5e7eb',
+  fontWeight: 700, color: 'var(--text-secondary)', background: 'var(--bg-body)',
+  borderBottom: '1px solid var(--border)',
 };
 const td: React.CSSProperties = {
-  padding: '10px 12px', fontSize: '0.85rem', color: '#374151',
-  borderBottom: '1px solid #f3f4f6',
+  padding: '10px 12px', fontSize: '0.85rem', color: 'var(--text-secondary)',
+  borderBottom: '1px solid var(--border)',
 };

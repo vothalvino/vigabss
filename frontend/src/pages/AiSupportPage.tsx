@@ -123,7 +123,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: disabled ? '#9ca3af' : bg, color: '#fff', border: 'none',
+        background: disabled ? '#9ca3af' : bg, color: 'var(--bg-card)', border: 'none',
         borderRadius: 4, padding: '4px 10px', cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: 12, marginRight: 4,
       }}
@@ -234,20 +234,20 @@ function ChatTab() {
   return (
     <div style={{ display: 'flex', gap: 16, height: 480 }}>
       {/* Conversation list */}
-      <div style={{ width: 240, borderRight: '1px solid #e5e7eb', overflowY: 'auto' }}>
+      <div style={{ width: 240, borderRight: '1px solid var(--border)', overflowY: 'auto' }}>
         <div style={{ padding: '8px 0', display: 'grid', gap: 4 }}>
           <input
             type="number"
             value={newClientId}
             onChange={e => setNewClientId(e.target.value)}
             placeholder={t('ui.aiSupportPage.clientId')}
-            style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13 }}
+            style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
           />
           <input
             value={newMessage}
             onChange={e => setNewMessage(e.target.value)}
             placeholder={t('aiSupport.chat.send')}
-            style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13 }}
+            style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
           />
           <ActionButton
             onClick={handleNewConversation}
@@ -255,11 +255,11 @@ function ChatTab() {
             disabled={!newClientId.trim() || !newMessage.trim()}
           />
         </div>
-        {error && <div style={{ color: '#dc2626', fontSize: 12, padding: '0 4px' }}>{error}</div>}
+        {error && <div style={{ color: 'var(--danger)', fontSize: 12, padding: '0 4px' }}>{error}</div>}
         {loading ? (
-          <div style={{ color: '#6b7280', padding: 8, fontSize: 13 }}>...</div>
+          <div style={{ color: 'var(--text-muted)', padding: 8, fontSize: 13 }}>...</div>
         ) : conversations.length === 0 ? (
-          <div style={{ color: '#6b7280', padding: 8, fontSize: 13 }}>
+          <div style={{ color: 'var(--text-muted)', padding: 8, fontSize: 13 }}>
             {t('aiSupport.chat.noConversations')}
             <br />{t('aiSupport.chat.startNew')}
           </div>
@@ -271,13 +271,13 @@ function ChatTab() {
               style={{
                 padding: '8px 10px',
                 cursor: 'pointer',
-                background: selected?.id === conv.id ? '#eff6ff' : 'transparent',
+                background: selected?.id === conv.id ? 'var(--info-soft)' : 'transparent',
                 borderLeft: selected?.id === conv.id ? '3px solid #2563eb' : '3px solid transparent',
                 fontSize: 13,
               }}
             >
               <div style={{ fontWeight: 600 }}>#{conv.id}</div>
-              <div style={{ fontSize: 11, color: '#6b7280' }}>{t('aiSupport.chat.channel')}: {conv.channel}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('aiSupport.chat.channel')}: {conv.channel}</div>
               <StatusBadge status={conv.status} />
             </div>
           ))
@@ -287,16 +287,16 @@ function ChatTab() {
       {/* Message thread */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {!selected ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
             {t('aiSupport.chat.startNew')}
           </div>
         ) : (
           <>
-            <div style={{ padding: '4px 0 8px', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ padding: '4px 0 8px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
               <strong>#{selected.id}</strong>
               <StatusBadge status={selected.status} />
               {selected.intent && (
-                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   {t('aiSupport.chat.intent')}: {selected.intent}
                   {selected.confidence != null && ` (${Math.round(selected.confidence * 100)}%)`}
                 </span>
@@ -312,7 +312,7 @@ function ChatTab() {
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
               {msgLoading ? (
-                <div style={{ color: '#6b7280', fontSize: 13 }}>{t('aiSupport.chat.typing')}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('aiSupport.chat.typing')}</div>
               ) : (
                 messages.map(msg => (
                   <div
@@ -326,8 +326,8 @@ function ChatTab() {
                   >
                     <div style={{
                       maxWidth: '70%',
-                      background: msg.role === 'user' ? '#2563eb' : '#f3f4f6',
-                      color: msg.role === 'user' ? '#fff' : '#111827',
+                      background: msg.role === 'user' ? '#2563eb' : 'var(--bg-subtle)',
+                      color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                       borderRadius: 8,
                       padding: '6px 12px',
                       fontSize: 13,
@@ -345,7 +345,7 @@ function ChatTab() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder={t('aiSupport.chat.send')}
-                style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13 }}
+                style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
               />
               <ActionButton onClick={handleSend} label={t('aiSupport.chat.send')} disabled={sending || !input.trim()} />
             </div>
@@ -455,16 +455,16 @@ function KbTab() {
           onChange={e => setSearch(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
           placeholder={t('aiSupport.kb.search')}
-          style={{ flex: 1, padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13 }}
+          style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13 }}
         />
         <ActionButton onClick={handleSearch} label={t('aiSupport.kb.search')} variant="secondary" />
         <ActionButton onClick={() => setShowCreate(!showCreate)} label={t('aiSupport.kb.create')} />
       </div>
 
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
 
       {showCreate && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
           <h4 style={{ marginTop: 0 }}>{t('aiSupport.kb.create')}</h4>
           <div style={{ display: 'grid', gap: 8 }}>
             <div>
@@ -533,11 +533,11 @@ function KbTab() {
       )}
 
       {loading ? (
-        <div style={{ color: '#6b7280' }}>...</div>
+        <div style={{ color: 'var(--text-muted)' }}>...</div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ background: '#f3f4f6' }}>
+            <tr style={{ background: 'var(--bg-subtle)' }}>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.title')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.category')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.locale')}</th>
@@ -547,9 +547,9 @@ function KbTab() {
           </thead>
           <tbody>
             {articles.map(a => (
-              <tr key={a.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '8px', fontWeight: 600 }}>{a.title}</td>
-                <td style={{ padding: '8px', color: '#6b7280' }}>{a.category ?? '—'}</td>
+                <td style={{ padding: '8px', color: 'var(--text-muted)' }}>{a.category ?? '—'}</td>
                 <td style={{ padding: '8px' }}>{a.locale}</td>
                 <td style={{ padding: '8px' }}>
                   {a.is_published ? <StatusBadge status="published" /> : <StatusBadge status="draft" />}
@@ -571,7 +571,7 @@ function KbTab() {
             ))}
             {articles.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#6b7280' }}>
+                <td colSpan={5} style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>
                   {t('aiSupport.kb.noArticles')}
                 </td>
               </tr>
@@ -657,27 +657,27 @@ function MetricsTab() {
         <ActionButton onClick={load} label={t('ui.aiSupportPage.apply')} variant="secondary" disabled={loading} />
       </div>
 
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ color: '#6b7280' }}>...</div>
+        <div style={{ color: 'var(--text-muted)' }}>...</div>
       ) : metrics == null ? (
-        <div style={{ color: '#6b7280' }}>{t('aiSupport.metrics.noData')}</div>
+        <div style={{ color: 'var(--text-muted)' }}>{t('aiSupport.metrics.noData')}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {kpis.map(kpi => (
             <div
               key={kpi.label}
               style={{
-                background: '#f9fafb',
-                border: '1px solid #e5e7eb',
+                background: 'var(--bg-body)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
                 padding: 20,
                 textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 28, fontWeight: 700, color: '#2563eb' }}>{kpi.value}</div>
-              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{kpi.label}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{kpi.label}</div>
             </div>
           ))}
         </div>
@@ -737,7 +737,7 @@ export function NocInsightsTab() {
   return (
     <div>
       {/* Action bar */}
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border)', borderRadius: 6, padding: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <ActionButton
             onClick={() => runAction('shift-summary')}
@@ -768,7 +768,7 @@ export function NocInsightsTab() {
             value={alertId}
             onChange={e => setAlertId(e.target.value)}
             placeholder={t('aiSupport.noc.alertId')}
-            style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13, width: 160 }}
+            style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4, fontSize: 13, width: 160 }}
           />
           <ActionButton
             onClick={handleExplainAlert}
@@ -778,18 +778,18 @@ export function NocInsightsTab() {
         </div>
       </div>
 
-      {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ color: '#6b7280' }}>...</div>
+        <div style={{ color: 'var(--text-muted)' }}>...</div>
       ) : insights.length === 0 ? (
-        <div style={{ color: '#6b7280', padding: 16, textAlign: 'center' }}>
+        <div style={{ color: 'var(--text-muted)', padding: 16, textAlign: 'center' }}>
           {t('aiSupport.noc.noInsights')}
         </div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ background: '#f3f4f6' }}>
+            <tr style={{ background: 'var(--bg-subtle)' }}>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.alertType')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.alertId')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.confidence')}</th>
@@ -800,9 +800,9 @@ export function NocInsightsTab() {
           </thead>
           <tbody>
             {insights.map(ins => (
-              <tr key={ins.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <tr key={ins.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '8px' }}><StatusBadge status={ins.insight_type} /></td>
-                <td style={{ padding: '8px', color: '#6b7280' }}>{ins.alert_id ?? '—'}</td>
+                <td style={{ padding: '8px', color: 'var(--text-muted)' }}>{ins.alert_id ?? '—'}</td>
                 <td style={{ padding: '8px' }}>
                   {ins.confidence != null ? `${Math.round(ins.confidence * 100)}%` : '—'}
                 </td>
@@ -810,7 +810,7 @@ export function NocInsightsTab() {
                 <td style={{ padding: '8px', maxWidth: 240, fontSize: 12, color: '#2563eb' }}>
                   {ins.recommendation ?? '—'}
                 </td>
-                <td style={{ padding: '8px', fontSize: 12, color: '#6b7280' }}>
+                <td style={{ padding: '8px', fontSize: 12, color: 'var(--text-muted)' }}>
                   {new Date(ins.created_at).toLocaleString()}
                 </td>
               </tr>
@@ -853,7 +853,7 @@ export function AiSupportPage() {
               background: 'transparent',
               cursor: 'pointer',
               fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? '#2563eb' : '#374151',
+              color: activeTab === tab.id ? '#2563eb' : 'var(--text-secondary)',
               fontSize: 14,
               marginBottom: -2,
             }}

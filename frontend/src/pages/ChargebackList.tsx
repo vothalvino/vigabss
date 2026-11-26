@@ -99,13 +99,13 @@ function isPastDue(dueBy: string | null): boolean {
 
 function ChargebackStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    received:           { bg: '#dbeafe', color: '#1e40af' },
-    evidence_submitted: { bg: '#fef3c7', color: '#92400e' },
-    won:                { bg: '#d1fae5', color: '#065f46' },
-    lost:               { bg: '#fee2e2', color: '#991b1b' },
-    accepted:           { bg: '#f3f4f6', color: '#374151' },
+    received:           { bg: 'var(--info-soft)', color: 'var(--info)' },
+    evidence_submitted: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+    won:                { bg: 'var(--success-soft)', color: 'var(--success)' },
+    lost:               { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+    accepted:           { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
       {status.replace('_', ' ')}
@@ -362,23 +362,23 @@ export function ChargebackList() {
                     return (
                       <tr key={cb.id} style={styles.tr}>
                         <td style={styles.td}>#{cb.id}</td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{cb.payment_id ?? '—'}</td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{cb.gateway || '—'}</td>
-                        <td style={{ ...styles.td, color: '#6b7280', fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{cb.payment_id ?? '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{cb.gateway || '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.78rem' }}>
                           {cb.gateway_dispute_id || '—'}
                         </td>
                         <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(cb.amount)}</td>
                         <td style={styles.td}>{cb.currency}</td>
                         <td style={styles.td}><ChargebackStatusBadge status={cb.status} /></td>
-                        <td style={{ ...styles.td, color: overdue ? '#991b1b' : '#6b7280', fontWeight: overdue ? 700 : 400 }}>
+                        <td style={{ ...styles.td, color: overdue ? 'var(--danger)' : 'var(--text-muted)', fontWeight: overdue ? 700 : 400 }}>
                           {fmt(cb.due_by)}
                         </td>
-                        <td style={{ ...styles.td, color: '#6b7280' }}>{fmtDatetime(cb.created_at)}</td>
+                        <td style={{ ...styles.td, color: 'var(--text-muted)' }}>{fmtDatetime(cb.created_at)}</td>
                         <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                           {canUpdate && (
                             <button
                               type="button"
-                              style={{ padding: '3px 10px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                              style={{ padding: '3px 10px', background: 'var(--warning-soft)', color: 'var(--warning)', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
                               onClick={() => setUpdatingItem(cb)}
                             >
                               {t('chargebacks.update')}

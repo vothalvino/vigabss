@@ -390,7 +390,7 @@ export function PonPortManagementPage() {
                     <tr style={styles.tr}>
                       <td style={styles.td}>{t('ponPortManagement.utilization.maintenance')}</td>
                       <td style={styles.td}>
-                        <span style={{ color: util.port.maintenance_mode ? '#d97706' : '#059669', fontWeight: 600 }}>
+                        <span style={{ color: util.port.maintenance_mode ? '#d97706' : 'var(--success)', fontWeight: 600 }}>
                           {util.port.maintenance_mode
                             ? t('ponPortManagement.utilization.maintenanceModeOn')
                             : t('ponPortManagement.utilization.maintenanceModeOff')}
@@ -662,7 +662,7 @@ export function PonPortManagementPage() {
                   </tr>
                   <tr style={styles.tr}>
                     <td style={styles.td}><strong>{t('ponPortManagement.powerBudget.margin')}</strong></td>
-                    <td style={{ ...styles.tdNum, color: pbResult.margin_db >= 0 ? '#059669' : '#dc2626', fontWeight: 700 }}>
+                    <td style={{ ...styles.tdNum, color: pbResult.margin_db >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
                       {pbResult.margin_db} dB
                     </td>
                   </tr>

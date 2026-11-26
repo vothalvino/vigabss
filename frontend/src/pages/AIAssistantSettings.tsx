@@ -690,7 +690,7 @@ function ProvidersTab() {
                       aria-label={t('ui.aIAssistantSettings.moveDown')}
                       onClick={() => moveProvider(providers, idx, 'down')}
                     >▼</button>
-                    <span style={{ fontSize: '0.8rem', color: '#888' }}>{p.priority}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{p.priority}</span>
                   </span>
                 </td>
                 <td style={sty.td}>{p.name}</td>
@@ -715,7 +715,7 @@ function ProvidersTab() {
                     <button style={sty.btnDanger} onClick={() => setDeleteId(p.id)}>{t('common.delete')}</button>
                   </span>
                   {verifyResult?.id === p.id && (
-                    <p style={{ ...sty.verifyMsg, color: verifyResult.ok ? '#16a34a' : '#dc2626' }}>
+                    <p style={{ ...sty.verifyMsg, color: verifyResult.ok ? '#16a34a' : 'var(--danger)' }}>
                       {verifyResult.ok ? '✓' : '✗'} {verifyResult.msg}
                     </p>
                   )}
@@ -1065,7 +1065,7 @@ function ForbiddenTermsTab() {
         </button>
       </div>
 
-      <p style={{ fontSize: '0.85rem', color: '#555', marginTop: 0 }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 0 }}>
         {t('aiAssistantSettings.forbiddenTerms.description')}
       </p>
 
@@ -1271,7 +1271,7 @@ function actionBadge(action: string): React.CSSProperties {
     proposed: '#6d28d9', discarded: '#888', failed: '#dc2626',
   };
   return { padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600,
-    background: colors[action] ?? '#888', color: '#fff' };
+    background: colors[action] ?? '#888', color: 'var(--bg-card)' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1345,7 +1345,7 @@ const sty = {
   td:          { padding: '0.6rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', verticalAlign: 'middle' as const },
   code:        { background: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.82rem' },
   rowActions:  { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const },
-  errorText:   { color: '#dc2626', fontSize: '0.85rem', margin: '0.5rem 0 0' },
+  errorText:   { color: 'var(--danger)', fontSize: '0.85rem', margin: '0.5rem 0 0' },
   successText: { color: '#16a34a', fontSize: '0.85rem', margin: '0.5rem 0 0' },
   hint:        { fontWeight: 400, color: 'var(--text-faint)', fontSize: '0.8rem' },
   verifyMsg:   { margin: '4px 0 0', fontSize: '0.8rem' },

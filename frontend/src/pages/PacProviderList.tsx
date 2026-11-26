@@ -60,8 +60,8 @@ async function fetchProviders(page: number): Promise<PacResponse> {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: StatusColors = {
-  active: { bg: '#d1fae5', color: '#065f46' },
-  inactive: { bg: '#f3f4f6', color: '#374151' },
+  active: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  inactive: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
 };
 
 function EnvBadge({ env }: { env: string }) {
@@ -69,8 +69,8 @@ function EnvBadge({ env }: { env: string }) {
   return (
     <span
       style={{
-        background: isProd ? '#fee2e2' : '#dbeafe',
-        color: isProd ? '#991b1b' : '#1e40af',
+        background: isProd ? 'var(--danger-soft)' : 'var(--info-soft)',
+        color: isProd ? 'var(--danger)' : 'var(--info)',
         padding: '2px 8px',
         borderRadius: 12,
         fontSize: '0.72rem',
@@ -264,7 +264,7 @@ function TestInstallNote() {
   const { user } = useAuth();
   if (user?.install_mode !== 'test') return null;
   return (
-    <p role="status" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, margin: '4px 0 12px' }}>
+    <p role="status" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid #f59e0b', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, margin: '4px 0 12px' }}>
       {t('sandboxFiscal.pacNote')}
     </p>
   );
@@ -309,7 +309,7 @@ function AutoStampBar() {
         {t('cfdiAutoStamp.label')}
       </label>
       <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('cfdiAutoStamp.hint')}</p>
-      {err && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#991b1b' }}>{err}</p>}
+      {err && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--danger)' }}>{err}</p>}
     </div>
   );
 }

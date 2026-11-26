@@ -135,11 +135,11 @@ export function PortalSpeedTest() {
 
 function statusColor(status: string): React.CSSProperties {
   switch (status) {
-    case 'completed': return { background: '#d1fae5', color: '#065f46' };
-    case 'running': return { background: '#dbeafe', color: '#1e40af' };
-    case 'queued': return { background: '#fef3c7', color: '#92400e' };
-    case 'failed': return { background: '#fee2e2', color: '#991b1b' };
-    default: return { background: '#f3f4f6', color: '#374151' };
+    case 'completed': return { background: 'var(--success-soft)', color: 'var(--success)' };
+    case 'running': return { background: 'var(--info-soft)', color: 'var(--info)' };
+    case 'queued': return { background: 'var(--warning-soft)', color: 'var(--warning)' };
+    case 'failed': return { background: 'var(--danger-soft)', color: 'var(--danger)' };
+    default: return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   }
 }
 

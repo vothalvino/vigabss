@@ -151,7 +151,7 @@ export function MxRegisteredContractSourceField({
     fontSize: '0.78rem',
     lineHeight: 1.4,
   };
-  const alertStyle: CSSProperties = { ...messageStyle, color: '#991b1b' };
+  const alertStyle: CSSProperties = { ...messageStyle, color: 'var(--danger)' };
   const fieldId = 'mx-registered-contract-source';
   const helpId = `${fieldId}-help`;
 
