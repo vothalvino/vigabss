@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the Cashier page shows who each cashier belongs to by name.** The
+  owner column used to show only a user number; it now shows the person's
+  name with the number beside it, and a review note names who wrote it.
+
 - **Changed: a cashier whose count matches needs no approval.** Closing a
   cashier with the cash counted equal to the cash expected approves it on the
   spot. Only a count that differs waits for a supervisor, who now either

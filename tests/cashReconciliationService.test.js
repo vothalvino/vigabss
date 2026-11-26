@@ -364,6 +364,24 @@ describe('cashReconciliationService', () => {
       expect(db.query.mock.calls[3][0]).toMatch(/status = 'closed'/);
     });
 
+    test('session rows get their owner\'s and reviewer\'s names; an automatic approval names nobody', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 10, first_name: 'Ana', last_name: 'Ruiz' }, { id: 5, first_name: 'Luis', last_name: 'Peña' }]]);
+      const rows = [
+        { id: 1, agent_user_id: 10, approved_by: 5 },
+        { id: 2, agent_user_id: 10, approved_by: null },
+        { id: 3, agent_user_id: 77, approved_by: null },
+      ];
+      await cashReconciliationService.addStaffNames(rows);
+      expect(rows.map((r) => [r.agent_name, r.approved_by_name])).toEqual([['Ana Ruiz', 'Luis Peña'], ['Ana Ruiz', null], [null, null]]);
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0][1].sort()).toEqual([10, 5, 77].sort());
+    });
+
+    test('naming an empty list asks the database nothing', async () => {
+      await cashReconciliationService.addStaffNames([]);
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
     test('a person with a cashier open past the allowed hours cannot take more cash', async () => {
       db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ id: 3 }]]);
       await expect(cashReconciliationService.assertCashierNotOverdue(1, 10)).rejects.toMatchObject({ statusCode: 409, code: 'CASHIER_NOT_CLOSED' });

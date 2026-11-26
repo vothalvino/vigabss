@@ -68,9 +68,21 @@ describe('CashReconciliationList page', () => {
   it('renders a table row when session data is returned', async () => {
     renderList();
     await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('3')).toBeInTheDocument());
+    // Without a name the owner is shown by number.
+    await waitFor(() => expect(screen.getByText('#3')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Open')).toBeInTheDocument());
   });
+  it('shows the owner of a cashier by name, with the number beside it', async () => {
+    mockApiGet.mockImplementation((path: string) => {
+      if (path === '/cash-reconciliation/sessions')
+        return Promise.resolve({ data: { data: [{ ...session1, agent_name: 'Ana Ruiz' }], meta: { total: 1, page: 1, limit: 50, totalPages: 1 } }, error: undefined });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    renderList();
+    const name = await screen.findByText('Ana Ruiz');
+    expect(name.closest('td')).toHaveTextContent('Ana Ruiz #3');
+  });
+
   describe('reviewing a count', () => {
     const withSessions = (rows: Record<string, unknown>[]) => mockApiGet.mockImplementation((path: string) => {
       if (path === '/cash-reconciliation/sessions')

@@ -18,6 +18,21 @@ const ctrl = crudController(CashReconciliationSession);
 router.use(authenticate);
 router.use(orgScope);
 
+// Session rows name their owner and reviewer (agent_name, approved_by_name),
+// so the page shows who a cashier belongs to instead of a user number.
+function withStaffNames(handler) {
+  return (req, res, next) => {
+    const send = res.json.bind(res);
+    res.json = (body) => {
+      res.json = send;
+      if (res.statusCode >= 400 || !body || body.data === undefined) return send(body);
+      cashReconciliationService.addStaffNames(body.data).then(() => send(body), next);
+      return res;
+    };
+    return handler(req, res, next);
+  };
+}
+
 // Open a new session
 router.post('/sessions', requirePermission('cash_reconciliation.create'), validate(openSessionSchema, { strip: false }), async (req, res, next) => {
   try {
@@ -51,7 +66,7 @@ router.get('/attention', requirePermission('cash_reconciliation.approve'), async
 });
 
 // List sessions
-router.get('/sessions', requirePermission('cash_reconciliation.view'), ctrl.list);
+router.get('/sessions', requirePermission('cash_reconciliation.view'), withStaffNames(ctrl.list));
 
 // Get session detail with payments
 router.get('/sessions/:id', requirePermission('cash_reconciliation.view'), async (req, res, next) => {

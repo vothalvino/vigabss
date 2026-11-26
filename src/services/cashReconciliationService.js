@@ -249,6 +249,22 @@ async function staffNames(ids) {
 }
 
 /**
+ * Set agent_name and approved_by_name on each session row (or the one row):
+ * who owns the cashier and who reviewed it. approved_by_name stays null on a
+ * count that was approved automatically.
+ */
+async function addStaffNames(data) {
+  const rows = Array.isArray(data) ? data : (data && typeof data === 'object' ? [data] : []);
+  const names = await staffNames(rows.flatMap((r) => [r.agent_user_id, r.approved_by]));
+  for (const row of rows) {
+    if (!('agent_user_id' in row)) continue;
+    row.agent_name = names.get(Number(row.agent_user_id)) || null;
+    row.approved_by_name = row.approved_by === null || row.approved_by === undefined
+      ? null : names.get(Number(row.approved_by)) || null;
+  }
+}
+
+/**
  * What a supervisor should look at: cashiers left open longer than allowed,
  * and closed ones whose count did not match and nobody has reviewed yet.
  */
@@ -342,5 +358,5 @@ async function getSessionDetail(sessionId, orgId) {
 
 module.exports = {
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
-  myOpenSession, attention, assertCashierNotOverdue, rules, matches,
+  myOpenSession, attention, assertCashierNotOverdue, rules, matches, addStaffNames,
 };

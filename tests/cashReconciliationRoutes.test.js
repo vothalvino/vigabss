@@ -17,6 +17,7 @@ jest.mock('../src/services/cashReconciliationService', () => ({
   closeSession: jest.fn(),
   approveSession: jest.fn(),
   disputeSession: jest.fn(),
+  addStaffNames: jest.fn(),
   getSessionDetail: jest.fn(),
   myOpenSession: jest.fn(),
   attention: jest.fn(),
@@ -164,10 +165,15 @@ describe('GET /api/v1/cash-reconciliation/sessions', () => {
     db.query
       .mockResolvedValueOnce([[mockSession]])      // findAll
       .mockResolvedValueOnce([[{ total: 1 }]]);    // count
+    // The rows are named before they are sent.
+    cashReconciliationService.addStaffNames.mockImplementation(async (rows) => {
+      for (const row of rows) row.agent_name = 'Ana Ruiz';
+    });
 
     const res = await request(app)
       .get('/api/v1/cash-reconciliation/sessions')
       .set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.data[0].agent_name).toBe('Ana Ruiz');
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);

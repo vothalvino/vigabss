@@ -48,6 +48,9 @@ interface ReconciliationSession {
   notes: string | null;
   approved_by?: number | null;
   review_note?: string | null;
+  /** Who owns the cashier and who reviewed it, by name. */
+  agent_name?: string | null;
+  approved_by_name?: string | null;
 }
 
 interface SessionsResponse {
@@ -358,7 +361,11 @@ export function CashReconciliationList() {
                           onClick={() => setExpandedId(expandedId === session.id ? null : session.id)}
                         >
                           <td style={styles.td}>#{session.id}</td>
-                          <td style={styles.td}>{session.agent_user_id}</td>
+                          <td style={styles.td}>
+                            {session.agent_name
+                              ? <>{session.agent_name} <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>#{session.agent_user_id}</span></>
+                              : <>#{session.agent_user_id}</>}
+                          </td>
                           <td style={styles.td}>
                             <SessionStatusBadge status={session.status} automatic={session.status === 'approved' && (session.approved_by === null || session.approved_by === undefined)} />
                           </td>
@@ -409,6 +416,7 @@ export function CashReconciliationList() {
                           <tr>
                             <td colSpan={COLS.length} style={{ padding: '8px 20px 0', background: '#f8faff', fontSize: '0.82rem' }}>
                               <strong>{t('cashReconciliation.review.noteShown')}</strong> {session.review_note}
+                              {session.approved_by_name && <span style={{ color: '#6b7280' }}> — {session.approved_by_name}</span>}
                             </td>
                           </tr>
                         )}
