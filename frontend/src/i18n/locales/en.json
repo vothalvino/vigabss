@@ -2385,6 +2385,21 @@
     "saved": "Settings saved.",
     "saveError": "Failed to save settings."
   },
+  "orgLogo": {
+    "title": "Company logo",
+    "hint": "Your customers see it as the browser tab icon and at the top of the client portal, and as the tab icon of the contract signing page. PNG, JPG or WebP, up to 512 KB. A square image works best.",
+    "none": "No logo yet",
+    "upload": "Upload logo",
+    "replace": "Replace logo",
+    "remove": "Remove",
+    "choose": "Choose a logo image",
+    "currentAlt": "Current company logo",
+    "saved": "Logo saved.",
+    "removed": "Logo removed.",
+    "tooLarge": "The image is too large. The limit is 512 KB.",
+    "uploadError": "The logo could not be uploaded.",
+    "removeError": "The logo could not be removed."
+  },
   "orgDetail": {
     "back": "Back to list",
     "loadError": "Failed to load organization.",
@@ -11364,6 +11379,7 @@
     }
   },
   "publicSigning": {
+    "tabTitle": "Documents to sign",
     "hello": "Hello, {{name}}",
     "helloNoName": "Hello",
     "intro": "Read and sign the documents of your internet installation. Take your time: each one opens in full before you sign.",

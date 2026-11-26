@@ -14,6 +14,9 @@ import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
+import { usePortalTabIcon } from '@/hooks/usePortalTabIcon';
+import { blobToDataUrl } from '@/utils/blobToDataUrl';
 import { useMutation } from '@/api/useMutation';
 import { SignatureCanvas } from '@/components/SignatureCanvas';
 import {
@@ -178,6 +181,19 @@ export default function PublicSigning() {
   });
 
   const page = q.data;
+  // The customer's browser tab names the company, never the software.
+  usePortalTabTitle(page?.organization_name, t('publicSigning.tabTitle'));
+  const logo = useQuery({
+    queryKey: ['public-signing-logo', token],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/public/signing/${token}/logo`, { credentials: 'omit' });
+      return res.ok ? blobToDataUrl(await res.blob()) : null;
+    },
+    enabled: Boolean(page),
+    retry: false,
+    staleTime: Infinity,
+  });
+  usePortalTabIcon(logo.data);
   const pending = page?.documents.filter(d => d.status === 'pending') ?? [];
 
   return (

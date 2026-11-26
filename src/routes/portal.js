@@ -71,6 +71,7 @@ const { validate } = require('../middleware/validate');
 // passwordResetLimiter (see its doc comment in middleware/rateLimit.js) —
 // sharing one instance across the staff and portal routes would silently
 // merge their budgets since express-rate-limit's default store keys by IP.
+const organizationLogo = require('../services/organizationLogoService');
 const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter, publicLimiter } = require('../middleware/rateLimit');
 const portalAuthService = require('../services/portalAuthService');
 const loginSecurity = require('../services/loginSecurityService');
@@ -196,10 +197,26 @@ const kbRateSchema = {
 router.get('/brand', publicLimiter, async (_req, res, next) => {
   try {
     const [rows] = await db.query(
-      "SELECT name FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
+      "SELECT id, name FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
     );
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ data: { organization_name: rows.length === 1 ? rows[0].name : null } });
+    const only = rows.length === 1 ? rows[0] : null;
+    res.json({
+      data: {
+        organization_name: only ? only.name : null,
+        has_logo: only ? Boolean(await organizationLogo.current(only.id)) : false,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /portal/brand/logo — that one company's logo, for the sign-in pages.
+router.get('/brand/logo', publicLimiter, async (_req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT id FROM organizations WHERE deleted_at IS NULL AND status = 'active' LIMIT 2",
+    );
+    await organizationLogo.send(res, rows.length === 1 ? rows[0].id : null, 'public, max-age=300');
   } catch (err) { next(err); }
 });
 
@@ -314,6 +331,13 @@ router.post('/auth/password-reset', authLimiter, validate(portalResetPasswordSch
 // All routes below require a valid portal JWT
 // ---------------------------------------------------------------------------
 router.use(portalAuthenticate);
+
+// GET /portal/logo — the signed-in customer's company logo (404 when none).
+router.get('/logo', async (req, res, next) => {
+  try {
+    await organizationLogo.send(res, req.client.organization_id, 'private, max-age=300');
+  } catch (err) { next(err); }
+});
 
 // GET /portal/auth/me
 router.get('/auth/me', (req, res) => {

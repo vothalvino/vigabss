@@ -2385,6 +2385,21 @@
     "saved": "Configuración guardada.",
     "saveError": "Error al guardar la configuración."
   },
+  "orgLogo": {
+    "title": "Logotipo de la empresa",
+    "hint": "Tus clientes lo ven como el icono de la pestaña del navegador y en la parte superior del portal de clientes, y como icono de la pestaña en la página de firma de contratos. PNG, JPG o WebP, hasta 512 KB. Una imagen cuadrada funciona mejor.",
+    "none": "Aún sin logotipo",
+    "upload": "Subir logotipo",
+    "replace": "Reemplazar logotipo",
+    "remove": "Quitar",
+    "choose": "Elegir una imagen de logotipo",
+    "currentAlt": "Logotipo actual de la empresa",
+    "saved": "Logotipo guardado.",
+    "removed": "Logotipo eliminado.",
+    "tooLarge": "La imagen es demasiado grande. El límite es de 512 KB.",
+    "uploadError": "No se pudo subir el logotipo.",
+    "removeError": "No se pudo quitar el logotipo."
+  },
   "orgDetail": {
     "back": "Volver a la lista",
     "loadError": "No se pudo cargar la organización.",
@@ -11358,6 +11373,7 @@
     }
   },
   "publicSigning": {
+    "tabTitle": "Documentos por firmar",
     "hello": "Hola, {{name}}",
     "helloNoName": "Hola",
     "intro": "Lee y firma los documentos de tu instalación de internet. Tómate tu tiempo: cada uno se abre completo antes de firmar.",

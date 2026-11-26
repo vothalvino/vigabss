@@ -241,8 +241,15 @@ No other new permission. Staff send or copy a remote signing link with
 and list them with `signed_documents.view`. A reseller asks the ISP to send its
 lead's customer the link with `reseller_app.signup`
 (`POST /reseller-app/leads/:id/signing-link`) and never receives it. The
-public signing routes (`/public/signing/:token`) have no session: the token is
-the credential (`src/middleware/v1DefaultDeny.js`).
+public signing routes (`/public/signing/:token`, including the company logo at
+`/public/signing/:token/logo`) have no session: the token is the credential
+(`src/middleware/v1DefaultDeny.js`).
+
+A company's logo is uploaded and removed with `organizations.update`
+(`POST` / `DELETE /organizations/:id/logo`) and read by staff with
+`organizations.view`. Its customers read it through the portal session
+(`GET /portal/logo`); `GET /portal/brand` and `/portal/brand/logo` need no
+sign-in and answer only when the installation has exactly one active company.
 
 Binding a user whose group lacks `reseller_app.use` leaves it fenced with no
 usable app: `/punto` shows a no-access notice. Logins created with

@@ -9,6 +9,8 @@ import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePortalTabTitle } from '@/hooks/usePortalTabTitle';
+import { usePortalTabIcon } from '@/hooks/usePortalTabIcon';
+import { blobToDataUrl } from '@/utils/blobToDataUrl';
 import { useQuery } from '@tanstack/react-query';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { useDarkMode } from '@/auth/DarkModeContext';
@@ -50,6 +52,19 @@ export function PortalLayout() {
   const companyName = legalInfo.data?.data.organization_name?.trim() || null;
   const brandText = companyName ?? t('portalLayout.tabTitle');
   usePortalTabTitle(companyName);
+  // The company's logo, when it has uploaded one: the tab icon and the header.
+  const logo = useQuery({
+    queryKey: ['portal-logo'],
+    queryFn: async () => {
+      const res = await portalAuthedFetch('/api/v1/portal/logo');
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('logo fetch failed');
+      return blobToDataUrl(await res.blob());
+    },
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+  usePortalTabIcon(logo.data);
   const cartaUrl = legalInfo.data?.data.locale === 'MX' ? legalInfo.data.data.carta_derechos_url : null;
 
   // The Data packs tab is for subscribers whose plan has a data allowance (or
@@ -76,6 +91,7 @@ export function PortalLayout() {
       {/* Top bar */}
       <header className="portal-header">
         <Link to="/portal" style={styles.logo} >
+          {logo.data && <img src={logo.data} alt="" style={styles.logoImage} />}
           {brandText}
         </Link>
         <nav className="portal-nav">
@@ -199,6 +215,13 @@ const styles = {
     flexDirection: 'column' as const,
     fontFamily: 'var(--font-sans)',
     background: 'var(--bg-body)',
+  },
+  logoImage: {
+    height: 28,
+    maxWidth: 120,
+    objectFit: 'contain' as const,
+    marginRight: 8,
+    verticalAlign: 'middle',
   },
   logo: {
     fontWeight: 700,

@@ -69,14 +69,16 @@ function staticAssets(distDir) {
     return res.status(404).type('text/plain').send('Not found');
   };
 
-  // The client portal's first paint: the same page with a neutral head. The
-  // app replaces the title with the company's name once it has loaded; until
-  // then a customer's browser tab must not show the software's name or
-  // version.
+  // The first paint of the pages a company's customers open (the client
+  // portal and the contract signing link): the same page with a neutral head.
+  // The app replaces the title and icon with the company's once it has
+  // loaded; until then a customer's browser tab must not show the software's
+  // name, version or logo.
   const portalPage = (req, res, next) => {
     fs.readFile(path.join(distDir, 'index.html'), 'utf8', (err, html) => {
       if (err) return next();
-      res.setHeader('Cache-Control', 'no-cache');
+      // The signing page has already been marked no-store; keep that.
+      if (!res.getHeader('Cache-Control')) res.setHeader('Cache-Control', 'no-cache');
       return res.type('html').send(neutralHead(html));
     });
   };
@@ -88,7 +90,11 @@ function staticAssets(distDir) {
 function neutralHead(html) {
   return html
     .replace(/<title>[^<]*<\/title>/i, '<title>Portal</title>')
-    .replace(/<meta\s+name="description"[^>]*>/i, '<meta name="description" content="Portal" />');
+    .replace(/<meta\s+name="description"[^>]*>/i, '<meta name="description" content="Portal" />')
+    // A plain icon until the page swaps in the company's logo, and no web-app
+    // manifest: that file names the software as the installable app.
+    .replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" href="/icons/portal.svg" type="image/svg+xml" />')
+    .replace(/[ \t]*<link\s+rel="manifest"[^>]*>\r?\n?/i, '');
 }
 
 module.exports = { staticAssets, neutralHead };

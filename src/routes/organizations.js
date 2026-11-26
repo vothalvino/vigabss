@@ -24,7 +24,8 @@ const emailSettingsService = require('../services/emailSettingsService');
 const mxRegisteredTemplateService = require('../services/mxRegisteredContractTemplateService');
 const { updateEmailSettings, testEmailSettings: testEmailSettingsSchema } = require('../middleware/schemas/emailSettings');
 const auditLog = require('../services/auditLog');
-const { emailSettingsTestLimiter } = require('../middleware/rateLimit');
+const { emailSettingsTestLimiter, uploadLimiter } = require('../middleware/rateLimit');
+const organizationLogo = require('../services/organizationLogoService');
 const { AppError } = require('../utils/errors');
 const privacyNoticeService = require('../services/privacyNoticeService');
 const logger = require('../utils/logger').child({ service: 'routes/organizations' });
@@ -204,6 +205,70 @@ router.patch('/:id', orgScope, requirePermission('organizations.update'), assert
 // fiscal records (stamped CFDIs) whose retention outlives any tenant's wish
 // to leave, so decommissioning is the operator's act, like restore already was.
 router.delete('/:id', orgScope, requirePermission('organizations.delete'), requireInstallOperator, ctrl.destroy);
+
+// ---------------------------------------------------------------------------
+// The company's logo (services/organizationLogoService.js): what its customers
+// see as the browser tab icon and in the header of the client portal.
+// ---------------------------------------------------------------------------
+router.get('/:id/logo', orgScope, requirePermission('organizations.view'), assertCallerOwnsTargetOrg, async (req, res, next) => {
+  try {
+    res.json({ data: organizationLogo.describe(await organizationLogo.current(req.params.id)) });
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/logo/image', orgScope, requirePermission('organizations.view'), assertCallerOwnsTargetOrg, async (req, res, next) => {
+  try {
+    await organizationLogo.send(res, req.params.id, 'private, no-cache');
+  } catch (err) { next(err); }
+});
+
+router.post('/:id/logo', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, uploadLimiter, (req, res, next) => {
+  organizationLogo.uploadLogo(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const message = uploadErr.code === 'LIMIT_FILE_SIZE'
+        ? `The logo is too large. The limit is ${Math.round(organizationLogo.MAX_LOGO_BYTES / 1024)} KB.`
+        : uploadErr.message;
+      return res.status(422).json({ error: { code: 'UPLOAD_ERROR', message } });
+    }
+    if (!req.file) {
+      return res.status(422).json({ error: { code: 'UPLOAD_ERROR', message: 'No file provided' } });
+    }
+    try {
+      const row = await organizationLogo.replace(req.params.id, req.file, req.user?.id);
+      await auditLog.log({
+        userId: req.user?.id || null,
+        organizationId: Number(req.params.id),
+        action: 'update',
+        tableName: 'organizations',
+        recordId: Number(req.params.id),
+        newValues: { logo: row.file_name },
+      });
+      return res.status(201).json({ data: organizationLogo.describe(row) });
+    } catch (err) {
+      if (err.code === 'NOT_AN_IMAGE') {
+        return res.status(422).json({ error: { code: 'UPLOAD_ERROR', message: err.message } });
+      }
+      return next(err);
+    }
+  });
+});
+
+router.delete('/:id/logo', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, async (req, res, next) => {
+  try {
+    const removed = await organizationLogo.remove(req.params.id);
+    if (removed) {
+      await auditLog.log({
+        userId: req.user?.id || null,
+        organizationId: Number(req.params.id),
+        action: 'update',
+        tableName: 'organizations',
+        recordId: Number(req.params.id),
+        newValues: { logo: null },
+      });
+    }
+    res.status(204).send();
+  } catch (err) { next(err); }
+});
 router.post('/:id/restore', orgScope, requirePermission('organizations.update'), requireInstallOperator, ctrl.restore);
 
 // Settings sub-routes — PER-ORG keys only (migration 443 split, j56).

@@ -244,6 +244,14 @@ async function linkDocuments(orgId, link) {
   return docs || [];
 }
 
+/** The organization of a link that can still be used; 404 / 410 otherwise. */
+function organizationOf(token) {
+  return withTokenTenant(token, async (orgId) => {
+    await liveLink(orgId, token);
+    return orgId;
+  });
+}
+
 /** The public page of a link. */
 async function view(token) {
   return withTokenTenant(token, async (orgId) => {
@@ -373,6 +381,7 @@ module.exports = {
   listForOrder,
   revokeForOrder,
   tokenOrg,
+  organizationOf,
   maskEmail,
   maskPhone,
   ttlHours,

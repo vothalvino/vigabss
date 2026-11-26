@@ -6,6 +6,7 @@
 //
 //  GET  /public/signing/:token                         the documents of the link
 //  POST /public/signing/:token/documents/:docId/sign   the customer signs one
+//  GET  /public/signing/:token/logo                    the company's logo
 //
 // A token that is malformed, unknown, expired, replaced or used up answers
 // 404 or 410 with no detail about the installation. Responses are no-store.
@@ -15,6 +16,7 @@ const { Router } = require('express');
 const { validate } = require('../middleware/validate');
 const auditLog = require('../services/auditLog');
 const links = require('../services/documentSigningLinkService');
+const organizationLogo = require('../services/organizationLogoService');
 
 const router = Router();
 
@@ -39,6 +41,14 @@ const signSchema = {
 router.get('/:token', async (req, res, next) => {
   try {
     res.json({ data: await links.view(req.params.token) });
+  } catch (err) { next(err); }
+});
+
+// GET /public/signing/:token/logo — the company's logo for the page's tab icon.
+router.get('/:token/logo', async (req, res, next) => {
+  try {
+    const orgId = await links.organizationOf(req.params.token);
+    await organizationLogo.send(res, orgId, 'no-store');
   } catch (err) { next(err); }
 });
 

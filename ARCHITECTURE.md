@@ -1374,6 +1374,16 @@ trees for staff and subscriber users:
 
 - `AuthContext` + `PrivateRoute` protect staff/admin operations.
 - `PortalAuthContext` + `PortalRoute` protect the subscriber portal.
+- Customer-facing pages (the portal under `/portal` and the contract signing
+  link `/firmar/:token`) never show the software's name, version or logo. The
+  server sends those addresses the page with a neutral title and icon
+  (`neutralHead` in `src/middleware/staticAssets.js`), and the page then shows
+  the company's name and logo (`usePortalTabTitle`, `usePortalTabIcon`). The
+  logo is one PNG, JPEG or WebP per organization, uploaded on the organization
+  screen and stored under `storage/organizations/logos` with a `files` row in
+  the primary database (`src/services/organizationLogoService.js`). Before
+  sign-in the company is known only when the installation has exactly one
+  active organization (`GET /portal/brand`).
 - The reseller app (`/punto`, `frontend/src/pages/punto/`) is for staff
   accounts with a `reseller_binding` (from `/auth/me`). `PuntoRoute` guards it
   and sends unbound users to `/`; `PrivateRoute` sends a bound user from every
