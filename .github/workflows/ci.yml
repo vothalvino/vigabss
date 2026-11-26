@@ -452,11 +452,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run migrations
-        run: pnpm run migrate
-
+      # Migrates the databases and runs the suites. The isolation sweep's
+      # write half is split into four parts that run side by side, each on its
+      # own database in the one MySQL service (src/scripts/db-integration-shards.js).
       - name: Run the real-database Jest suites
-        run: pnpm exec jest ${{ matrix.suites }} --ci --runInBand --forceExit
+        env:
+          DB_SWEEP_SHARDS: '4'
+        run: node src/scripts/db-integration-shards.js ${{ matrix.suites }}
 
       - name: Upload the isolation sweep report
         if: always()

@@ -26,6 +26,7 @@ const READ = /(?:process\.env\.|process\.env\[['"]|\b(?:parseIntEnv|parseBoolEnv
 const INTERNAL = [
   /^LOADTEST_/, /^SOAK_/, // load and soak test scripts
   /^E2E_/, // the e2e persona seed (src/scripts/seed-e2e.js); set by CI and docker-compose.e2e.yml
+  /^DB_SWEEP_/, /^DB_INTEGRATION_/, // CI's real-database job (src/scripts/db-integration-shards.js)
   /_GIT_SHA$/, /_UPDATE_REPO$/, // stamped by the image build and update tooling
   /^WG_LEGACY_SERVER_ENABLED$/, /^WG_HELPER_SOCKET$/, /^WG_PRIVILEGED_HELPER$/, // set by docker-compose.prod.yml / the helper
   /^(VIGABSS_)?ADMIN_PASSWORD$/, // npm run admin, documented in the README

@@ -1637,6 +1637,14 @@ global, which sweeps the global path of routes that branch on locale. Every
 parameterised route must resolve to a seeded row, or be listed as
 install-wide or (global only) MX-only. Point it only at a throwaway database:
 it writes freely.
+The sweep's write half sends one request at a time and checks every row of the
+other organization after each, so CI runs it through
+`src/scripts/db-integration-shards.js`: four processes, each sweeping every
+fourth write route (`DB_SWEEP_SHARD`) against its own freshly migrated
+database on the job's one MySQL service, then the other suites on the first
+database. A change is still attributed to the single request that made it.
+The script also turns off per-commit disk syncing on that server, so never
+point it at a database that matters.
 Frontend tests run in `America/Mexico_City` (vite.config.ts), and the
 coverage floor gates CI. A page test that needs the real token, refresh and
 retry path stubs only `fetch` with `src/test/fakeServer.ts` and uses
