@@ -67,8 +67,10 @@ async function finalizeIfFullyPaid(exec, invoice) {
      SELECT SUM(amount) FROM credit_note_applications WHERE invoice_id = ? AND deleted_at IS NULL`,
     [invoice.id, invoice.id],
   );
-  const totalAllocated = allocRows.reduce((sum, r) => sum + parseFloat(r.total_allocated || 0), 0);
-  if (totalAllocated < parseFloat(invoice.total)) return false;
+  // In whole cents: as floats, 346.84 paid + 232.00 credited is 578.8399999999999,
+  // just under an invoice of 578.84, and the invoice stayed unpaid.
+  const centsAllocated = allocRows.reduce((sum, r) => sum + money.toCents(r.total_allocated || 0), 0);
+  if (centsAllocated < money.toCents(invoice.total)) return false;
   await exec(
     'UPDATE invoices SET status = ?, paid_at = NOW() WHERE id = ?',
     ['paid', invoice.id],

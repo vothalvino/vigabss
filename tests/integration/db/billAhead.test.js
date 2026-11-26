@@ -221,13 +221,15 @@ describeDb('billing ahead against a real database', () => {
   });
 
   test('a downgrade completes a month the payment had only partly paid before it adds new months', async () => {
-    const c = await customer('Change Partial', '200.00');
-    await pay(c.client, '850.00');
+    // Amounts whose float sum falls a hair short of the total (346.84 paid +
+    // 232.00 credited against 578.84): the month must still come out paid.
+    const c = await customer('Change Partial', '578.84');
+    await pay(c.client, '2025.94');
     await billAhead({ orgId: ORG, clientId: c.client });
     const before = await invoicesOf(c.client);
     const partial = before.find(i => i.paid > 0 && i.paid < i.total);
     expect(partial).toBeDefined();
-    const cheaper = await otherPlan('Change Partial cheaper', '100.00');
+    const cheaper = await otherPlan('Change Partial cheaper', '346.84');
 
     expect((await changePlan(c.contract, cheaper)).status).toBe(200);
     const after = await invoicesOf(c.client);
@@ -236,8 +238,8 @@ describeDb('billing ahead against a real database', () => {
     // ...no earlier month owes while a later one holds money...
     const firstUnpaid = after.findIndex(i => i.status !== 'paid');
     if (firstUnpaid !== -1) expect(after.slice(firstUnpaid + 1).every(i => i.paid === 0)).toBe(true);
-    // ...and the 850 is still exactly on invoices.
-    expect(money(after.reduce((t, i) => t + i.paid, 0))).toBe(850);
+    // ...and the payment is still exactly on invoices.
+    expect(money(after.reduce((t, i) => t + i.paid, 0))).toBe(2025.94);
     expect(after.length).toBeGreaterThan(before.length);
   });
 
