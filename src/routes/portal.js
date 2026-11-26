@@ -335,7 +335,7 @@ router.use(portalAuthenticate);
 // GET /portal/logo — the signed-in customer's company logo (404 when none).
 router.get('/logo', async (req, res, next) => {
   try {
-    await organizationLogo.send(res, req.client.organization_id, 'private, max-age=300');
+    await organizationLogo.send(res, req.client.organizationId, 'private, max-age=300');
   } catch (err) { next(err); }
 });
 
