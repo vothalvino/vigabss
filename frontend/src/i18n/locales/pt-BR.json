@@ -613,7 +613,9 @@
     "disabled": "Desativado",
     "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}",
     "keyLabels": {
-      "resellerDefaultCreditLimit": "Limite de dinheiro padrão para revendedores"
+      "resellerDefaultCreditLimit": "Limite de dinheiro padrão para revendedores",
+      "cashierMatchTolerance": "Caixa: diferença que ainda conta como conferida",
+      "cashierMaxOpenHours": "Caixa: horas que pode ficar aberto"
     }
   },
   "common": {
@@ -2610,6 +2612,21 @@
     "pay": "Pagar Parcela",
     "schedule": "Calendário de Parcelas"
   },
+  "cashierReminder": {
+    "mineOpen": "Seu caixa está aberto desde {{since}}.",
+    "mineOverdue": "Seu caixa está aberto há mais de {{hours}} horas. Feche-o antes de registrar mais dinheiro.",
+    "expected": "Dinheiro esperado: {{amount}}.",
+    "closeIt": "Fechar caixa",
+    "othersOverdue_one": "{{count}} caixa está aberto há mais de {{hours}} horas: {{names}}.",
+    "othersOverdue_other": "{{count}} caixas estão abertos há mais de {{hours}} horas: {{names}}.",
+    "awaitingReview_one": "{{count}} fechamento não bateu e aguarda revisão.",
+    "awaitingReview_other": "{{count}} fechamentos não bateram e aguardam revisão.",
+    "review": "Abrir Fechamento de caixa",
+    "signOutTitle": "Fechar o caixa primeiro?",
+    "signOutBody": "Seu caixa ainda está aberto. Conte o dinheiro e feche-o antes de sair, para que os pagamentos de hoje fiquem conferidos.",
+    "signOutAnyway": "Sair mesmo assim",
+    "goToCashier": "Ir para o meu caixa"
+  },
   "cashReconciliation": {
     "title": "Fechamento de caixa",
     "openSession": "Abrir caixa",
@@ -2627,10 +2644,23 @@
       "open": "Aberto",
       "closed": "Fechado",
       "approved": "Aprovado",
-      "disputed": "Contestado"
+      "disputed": "Contestado",
+      "approvedAuto": "Aprovado · bateu"
     },
     "close": "Fechar caixa",
     "approve": "Aprovar",
+    "dispute": "Contestar",
+    "review": {
+      "approveTitle": "Aprovar este fechamento",
+      "disputeTitle": "Contestar este fechamento",
+      "approveHelp": "O valor contado difere do dinheiro esperado em {{variance}}. Aprove quando a diferença estiver explicada, e diga como.",
+      "disputeHelp": "O valor contado difere do dinheiro esperado em {{variance}}. Conteste quando a diferença não estiver explicada, e diga o que falta.",
+      "note": "Nota",
+      "noteRequired": "Escreva uma nota explicando a diferença.",
+      "failed": "Não foi possível salvar a revisão.",
+      "ownCashier": "Outro supervisor revisa o seu próprio caixa",
+      "noteShown": "Nota da revisão:"
+    },
     "countedTotal": "Total Contado",
     "notes": "Observações",
     "cashPayments": "Pagamentos em Dinheiro da Sessão"

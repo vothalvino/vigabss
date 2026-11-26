@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 397 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 031)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 032)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -759,6 +759,8 @@ Production installs use `install.sh`, which runs the same migrations.
 
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
 > **Migration 018 — Access technology:** a plan is offered over WISP, FTTH or both (`plans.access_technology`), and a contract is written for one of them (`contracts.access_technology`), chosen when it is created and fixed afterwards. Contracts from before the migration carry NULL and follow their plan, so existing plans and contracts stay WISP.
+
+> **Migration 032 — Cashier review:** `cash_reconciliation_sessions.review_note` holds the supervisor's note when approving or disputing a count that did not match (a matching count is approved when the cashier is closed, with `approved_by` NULL). It also retires the cash sessions the reseller app used to open behind the scenes and never closed: resellers and collectors account for their cash with cash bags only.
 
 > **Migration 031 — Custom menus:** `user_menus` (a person's own sidebar: groups they name, holding the pages they pick), `menu_templates` (a menu an administrator prepared, optionally locked) and `menu_template_assignments` (one template per user group and per person). A menu lists page addresses only and grants no access. New permission `menu_templates.manage`.
 

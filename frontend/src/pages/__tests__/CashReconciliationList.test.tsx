@@ -69,6 +69,60 @@ describe('CashReconciliationList page', () => {
     renderList();
     await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('3')).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('open')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Open')).toBeInTheDocument());
+  });
+  describe('reviewing a count', () => {
+    const withSessions = (rows: Record<string, unknown>[]) => mockApiGet.mockImplementation((path: string) => {
+      if (path === '/cash-reconciliation/sessions')
+        return Promise.resolve({ data: { data: rows, meta: { total: rows.length, page: 1, limit: 50, totalPages: 1 } }, error: undefined });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    const closed = { ...session1, status: 'closed', closed_at: '2024-01-01T18:00:00Z', expected_total: '300.00', counted_total: '280.00', variance: '-20.00' };
+
+    it('offers Approve and Dispute on someone else\'s count that did not match', async () => {
+      withSessions([{ ...closed, id: 5, agent_user_id: 3 }]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#5')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dispute' })).toBeInTheDocument();
+    });
+
+    it('opens the review dialog, which asks for a note', async () => {
+      withSessions([{ ...closed, id: 5, agent_user_id: 3 }]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#5')).toBeInTheDocument());
+      screen.getByRole('button', { name: 'Dispute' }).click();
+      expect(await screen.findByRole('dialog', { name: 'Dispute this count' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Note')).toBeInTheDocument();
+    });
+
+    it('does not let a supervisor review their own cashier', async () => {
+      withSessions([{ ...closed, id: 6, agent_user_id: 1 }]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#6')).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Dispute' })).not.toBeInTheDocument();
+      expect(screen.getByText('Another supervisor reviews your own cashier')).toBeInTheDocument();
+    });
+
+    it('a disputed count can still be approved, but not disputed again', async () => {
+      withSessions([{ ...closed, id: 7, agent_user_id: 3, status: 'disputed', approved_by: 9 }]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#7')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Dispute' })).not.toBeInTheDocument();
+    });
+
+    it('marks a matched count as approved automatically and offers nothing to review', async () => {
+      withSessions([
+        { ...closed, id: 8, status: 'approved', variance: '0.00', counted_total: '300.00', approved_by: null },
+        { ...closed, id: 9, status: 'approved', approved_by: 4 },
+      ]);
+      renderList();
+      await waitFor(() => expect(screen.getByText('#8')).toBeInTheDocument());
+      expect(screen.getByText('Approved · matched')).toBeInTheDocument();
+      expect(screen.getByText('Approved')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    });
   });
 });

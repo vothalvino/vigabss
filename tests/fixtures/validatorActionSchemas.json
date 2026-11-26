@@ -16,6 +16,8 @@
   "bulk.js:suspend",
   "cashReconciliation.js:openSessionSchema",
   "cashReconciliation.js:closeSessionSchema",
+  "cashReconciliation.js:approveSessionSchema",
+  "cashReconciliation.js:disputeSessionSchema",
   "cfdi.js:generateXml",
   "cfdi.js:stamp",
   "cfdi.js:cancel",

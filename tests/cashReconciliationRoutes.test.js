@@ -16,7 +16,11 @@ jest.mock('../src/services/cashReconciliationService', () => ({
   openSession: jest.fn(),
   closeSession: jest.fn(),
   approveSession: jest.fn(),
+  disputeSession: jest.fn(),
   getSessionDetail: jest.fn(),
+  myOpenSession: jest.fn(),
+  attention: jest.fn(),
+  assertCashierNotOverdue: jest.fn(),
 }));
 
 jest.mock('../src/utils/logger', () => {
@@ -303,11 +307,11 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/approve', () => {
     const res = await request(app)
       .post('/api/v1/cash-reconciliation/sessions/1/approve')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({});
+      .send({ note: 'cambio mal dado' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('approved');
-    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, 1);
+    expect(cashReconciliationService.approveSession).toHaveBeenCalledWith(1, 1, 1, 'cambio mal dado');
   });
 
   test('returns 422 when session is not closed', async () => {
@@ -348,5 +352,80 @@ describe('POST /api/v1/cash-reconciliation/sessions/:id/approve', () => {
       .send({});
 
     expect(res.status).toBe(404);
+  });
+});
+
+// =============================================================================
+// Review, reminders
+// =============================================================================
+describe('POST /api/v1/cash-reconciliation/sessions/:id/dispute', () => {
+  const dispute = (body) => request(app)
+    .post('/api/v1/cash-reconciliation/sessions/1/dispute')
+    .set('Authorization', `Bearer ${authToken}`)
+    .send(body);
+
+  test('disputes with the note', async () => {
+    mockAuthUser();
+    cashReconciliationService.disputeSession.mockResolvedValueOnce({ id: 1, status: 'disputed' });
+    const res = await dispute({ note: 'faltan 20 sin explicar' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('disputed');
+    expect(cashReconciliationService.disputeSession).toHaveBeenCalledWith(1, 1, 1, 'faltan 20 sin explicar');
+  });
+
+  test('a dispute without a note is refused before the service', async () => {
+    mockAuthUser();
+    expect((await dispute({})).status).toBe(422);
+    mockAuthUser();
+    expect((await dispute({ note: 'a' })).status).toBe(422);
+    expect(cashReconciliationService.disputeSession).not.toHaveBeenCalled();
+  });
+
+  test('returns 401 without auth token', async () => {
+    const res = await request(app).post('/api/v1/cash-reconciliation/sessions/1/dispute').send({ note: 'faltan 20' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('the reminder routes', () => {
+  test('my-cashier answers the caller\'s own open cashier, or null', async () => {
+    mockAuthUser();
+    cashReconciliationService.myOpenSession.mockResolvedValueOnce({ id: 7, hours_open: 3, overdue: false });
+    const res = await request(app).get('/api/v1/cash-reconciliation/my-cashier').set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: 7, overdue: false });
+    expect(cashReconciliationService.myOpenSession).toHaveBeenCalledWith(1, 1);
+
+    mockAuthUser();
+    cashReconciliationService.myOpenSession.mockResolvedValueOnce(null);
+    const none = await request(app).get('/api/v1/cash-reconciliation/my-cashier').set('Authorization', `Bearer ${authToken}`);
+    expect(none.body).toEqual({ data: null });
+  });
+
+  test('attention answers what a supervisor should look at', async () => {
+    mockAuthUser();
+    cashReconciliationService.attention.mockResolvedValueOnce({ max_open_hours: 16, overdue_open: [], awaiting_review: 2 });
+    const res = await request(app).get('/api/v1/cash-reconciliation/attention').set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.awaiting_review).toBe(2);
+    expect(cashReconciliationService.attention).toHaveBeenCalledWith(1);
+  });
+
+  test('both need a sign-in', async () => {
+    expect((await request(app).get('/api/v1/cash-reconciliation/my-cashier')).status).toBe(401);
+    expect((await request(app).get('/api/v1/cash-reconciliation/attention')).status).toBe(401);
+  });
+
+  test('my-cashier is not read as a session id', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'cashReconciliation.js'), 'utf8');
+    expect(src.indexOf("router.get('/my-cashier'")).toBeGreaterThan(-1);
+    expect(src.indexOf("router.get('/attention'")).toBeGreaterThan(-1);
+  });
+
+  test('the permissions: anyone who opens or views cashiers sees their own; only approvers see the supervisor list or review', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'cashReconciliation.js'), 'utf8');
+    expect(src).toMatch(/router\.get\('\/my-cashier', requirePermission\('cash_reconciliation\.create', 'cash_reconciliation\.view'\)/);
+    expect(src).toMatch(/router\.get\('\/attention', requirePermission\('cash_reconciliation\.approve'\)/);
+    expect(src).toMatch(/router\.post\('\/sessions\/:id\/dispute', requirePermission\('cash_reconciliation\.approve'\)/);
   });
 });

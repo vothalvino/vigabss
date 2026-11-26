@@ -1584,7 +1584,10 @@ function generateSpec() {
         get: { tags: ['Cash Reconciliation'], summary: 'Get session detail with included cash payments', operationId: 'getCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CashReconciliationSession') },
       },
       '/cash-reconciliation/sessions/{id}/close': { post: { tags: ['Cash Reconciliation'], summary: 'Close a session with counted total', operationId: 'closeCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cashReconciliation_closeSessionSchema'), responses: r200('CashReconciliationSession') } },
-      '/cash-reconciliation/sessions/{id}/approve': { post: { tags: ['Cash Reconciliation'], summary: 'Approve a closed reconciliation session', operationId: 'approveCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CashReconciliationSession') } },
+      '/cash-reconciliation/sessions/{id}/approve': { post: { tags: ['Cash Reconciliation'], summary: 'Approve a closed or disputed session whose count did not match (a matching count is approved when the session is closed). Needs a note; not allowed on your own session (403 OWN_CASHIER)', operationId: 'approveCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { note: { type: 'string', maxLength: 1000 } } } } } }, responses: r200('CashReconciliationSession') } },
+      '/cash-reconciliation/sessions/{id}/dispute': { post: { tags: ['Cash Reconciliation'], summary: 'Dispute a closed session whose count did not match. Needs a note; not allowed on your own session (403 OWN_CASHIER)', operationId: 'disputeCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['note'], properties: { note: { type: 'string', minLength: 3, maxLength: 1000 } } } } } }, responses: r200('CashReconciliationSession') } },
+      '/cash-reconciliation/my-cashier': { get: { tags: ['Cash Reconciliation'], summary: "The caller's own open session (when opened, cash recorded so far, whether it is past the organization's cashier_max_open_hours), or null", operationId: 'getMyCashier', security: [{ bearerAuth: [] }], responses: { 200: { description: 'The open session or null', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: ['object', 'null'], properties: { id: { type: 'integer' }, opened_at: { type: 'string', format: 'date-time' }, hours_open: { type: 'integer' }, expected_total: { type: 'number' }, max_open_hours: { type: 'integer' }, overdue: { type: 'boolean' } } } } } } } } } } },
+      '/cash-reconciliation/attention': { get: { tags: ['Cash Reconciliation'], summary: 'For supervisors: sessions open longer than cashier_max_open_hours and the number of closed sessions waiting for a review', operationId: 'getCashierAttention', security: [{ bearerAuth: [] }], responses: { 200: { description: 'What needs a supervisor', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { max_open_hours: { type: 'integer' }, awaiting_review: { type: 'integer' }, overdue_open: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, agent_user_id: { type: 'integer' }, agent_name: { type: ['string', 'null'] }, opened_at: { type: 'string', format: 'date-time' }, hours_open: { type: 'integer' } } } } } } } } } } } } } },
 
       // ---- Communication — §1.4 ----
       '/message-outbox': { get: { tags: ['Communication'], summary: 'Outgoing messages (email, SMS, WhatsApp, push) with their delivery state; bodies are on GET /message-outbox/{id}', operationId: 'listMessageOutbox', security: [{ bearerAuth: [] }], parameters: [
@@ -3566,13 +3569,7 @@ function generateSpec() {
         get: { tags: ['Reseller App'], summary: 'Receipt of a collection of this reseller (masked client name when not its own), with a plain-text thermal layout', operationId: 'getResellerAppReceipt', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'width', in: 'query', required: false, description: 'plain_text printer width in mm (default 58: 32 columns; 80: 48 columns)', schema: { type: 'string', enum: ['58', '80'] } }], responses: { 200: { description: 'Receipt', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppReceiptSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app'), 404: errorResponse('Not a collection of this reseller') } },
       },
       '/reseller-app/payments/{id}/void': {
-        post: { tags: ['Reseller App'], summary: 'Void a collection of this reseller taken today (organization time zone) by the caller, whose cash session is still open and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect', operationId: 'voidResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['reason'], properties: { reason: { type: 'string', minLength: 3, maxLength: 200 } } }, 'Why it is voided'), responses: { 200: { description: 'Voided', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'object', required: ['payment_id', 'status', 'amount', 'ledger_entry_id'], properties: { payment_id: { type: 'integer' }, status: { type: 'string', enum: ['voided'] }, amount: { type: 'number' }, ledger_entry_id: { type: 'integer' } } }) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 404: errorResponse('Not a collection of this reseller'), 409: errorResponse('ALREADY_VOIDED, NOT_YOUR_COLLECTION (taken by another user of the reseller), VOID_WINDOW_CLOSED (not today), CASH_SESSION_CLOSED, PAYMENT_HAS_REP or CASH_SEALED_IN_BAG (its cash is no longer on hand: sealed in a cash bag)'), 422: errorResponse('reason is missing or too short') } },
-      },
-      '/reseller-app/cash-session': {
-        get: { tags: ['Reseller App'], summary: "The caller's open cash session (expected total net of voids) and its last 10 closed sessions", operationId: 'getResellerAppCashSession', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Cash box', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppCashSessionSchema()) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
-      },
-      '/reseller-app/cash-session/close': {
-        post: { tags: ['Reseller App'], summary: "Close the caller's open cash session with the cash counted; computes the expected total and the variance. The ledger does not change. Needs reseller_app.collect", operationId: 'closeResellerAppCashSession', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['counted_total'], properties: { counted_total: { type: 'number', minimum: 0 }, notes: { type: 'string', maxLength: 1000 } } }, 'The count'), responses: { 200: { description: 'Closed session', content: { 'application/json': { schema: dataEnvelopeSchema(resellerAppClosedSessionSchema()) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 409: errorResponse('NO_OPEN_CASH_SESSION'), 422: errorResponse('Validation failed') } },
+        post: { tags: ['Reseller App'], summary: 'Void a collection of this reseller taken today (organization time zone) by the caller, whose cash is still on hand (not sealed in a bag) and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect', operationId: 'voidResellerAppCollection', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', required: ['reason'], properties: { reason: { type: 'string', minLength: 3, maxLength: 200 } } }, 'Why it is voided'), responses: { 200: { description: 'Voided', content: { 'application/json': { schema: dataEnvelopeSchema({ type: 'object', required: ['payment_id', 'status', 'amount', 'ledger_entry_id'], properties: { payment_id: { type: 'integer' }, status: { type: 'string', enum: ['voided'] }, amount: { type: 'number' }, ledger_entry_id: { type: 'integer' } } }) } } }, 403: errorResponse('Not a reseller account, or no reseller_app.collect'), 404: errorResponse('Not a collection of this reseller'), 409: errorResponse('ALREADY_VOIDED, NOT_YOUR_COLLECTION (taken by another user of the reseller), VOID_WINDOW_CLOSED (not today), CASH_SESSION_CLOSED, PAYMENT_HAS_REP or CASH_SEALED_IN_BAG (its cash is no longer on hand: sealed in a cash bag)'), 422: errorResponse('reason is missing or too short') } },
       },
       '/reseller-app/ledger': {
         get: { tags: ['Reseller App'], summary: "The collecting reseller's cash ledger, newest first, with the summary; commission lines (the commission it keeps when an invoice of its subtree is paid, and its reversal) name their invoice", operationId: 'getResellerAppLedger', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: { 200: { description: 'Ledger', content: { 'application/json': { schema: resellerLedgerPageSchema(false) } } }, 403: errorResponse('Only reseller accounts can use the reseller app') } },
@@ -4080,40 +4077,6 @@ function resellerAppReceiptSchema() {
       legend: { type: 'string' },
       language: { type: 'string', enum: ['es', 'en'], description: 'es for an MX organization' },
       plain_text: { type: 'string', description: 'Thermal-printer text (32 or 48 columns)' },
-    },
-  };
-}
-function resellerAppClosedSessionSchema() {
-  return {
-    type: 'object',
-    required: ['id', 'opened_at', 'closed_at', 'expected_total', 'counted_total', 'variance', 'status'],
-    properties: {
-      id: { type: 'integer' },
-      opened_at: { type: 'string', format: 'date-time' },
-      closed_at: { type: ['string', 'null'], format: 'date-time' },
-      expected_total: { type: ['number', 'null'] },
-      counted_total: { type: ['number', 'null'] },
-      variance: { type: ['number', 'null'], description: 'counted - expected; negative = short' },
-      status: { type: 'string', enum: ['open', 'closed', 'approved', 'disputed'] },
-    },
-  };
-}
-function resellerAppCashSessionSchema() {
-  return {
-    type: 'object',
-    required: ['current', 'recent'],
-    properties: {
-      current: {
-        type: ['object', 'null'],
-        required: ['id', 'opened_at', 'expected_total', 'collections_count'],
-        properties: {
-          id: { type: 'integer' },
-          opened_at: { type: 'string', format: 'date-time' },
-          expected_total: { type: 'number', description: 'Collections of the session, net of voids' },
-          collections_count: { type: 'integer' },
-        },
-      },
-      recent: { type: 'array', items: resellerAppClosedSessionSchema() },
     },
   };
 }

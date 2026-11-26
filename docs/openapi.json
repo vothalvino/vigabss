@@ -32923,7 +32923,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "Approve a closed reconciliation session",
+        "summary": "Approve a closed or disputed session whose count did not match (a matching count is approved when the session is closed). Needs a note; not allowed on your own session (403 OWN_CASHIER)",
         "operationId": "approveCashReconciliationSession",
         "security": [
           {
@@ -32940,6 +32940,22 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "CashReconciliationSession",
@@ -32947,6 +32963,183 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/sessions/{id}/dispute": {
+      "post": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "Dispute a closed session whose count did not match. Needs a note; not allowed on your own session (403 OWN_CASHIER)",
+        "operationId": "disputeCashReconciliationSession",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "note"
+                ],
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "CashReconciliationSession",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/my-cashier": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "The caller's own open session (when opened, cash recorded so far, whether it is past the organization's cashier_max_open_hours), or null",
+        "operationId": "getMyCashier",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The open session or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "opened_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "hours_open": {
+                          "type": "integer"
+                        },
+                        "expected_total": {
+                          "type": "number"
+                        },
+                        "max_open_hours": {
+                          "type": "integer"
+                        },
+                        "overdue": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/attention": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "For supervisors: sessions open longer than cashier_max_open_hours and the number of closed sessions waiting for a review",
+        "operationId": "getCashierAttention",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What needs a supervisor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "max_open_hours": {
+                          "type": "integer"
+                        },
+                        "awaiting_review": {
+                          "type": "integer"
+                        },
+                        "overdue_open": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "agent_user_id": {
+                                "type": "integer"
+                              },
+                              "agent_name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "opened_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "hours_open": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -69645,7 +69838,7 @@
         "tags": [
           "Reseller App"
         ],
-        "summary": "Void a collection of this reseller taken today (organization time zone) by the caller, whose cash session is still open and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect",
+        "summary": "Void a collection of this reseller taken today (organization time zone) by the caller, whose cash is still on hand (not sealed in a bag) and that no REP binds: reverses its allocations and client credit, cancels the payment and books collection_void (the negated collection entry) in the ledger. Needs reseller_app.collect",
         "operationId": "voidResellerAppCollection",
         "security": [
           {
@@ -69808,352 +70001,6 @@
           },
           "422": {
             "description": "reason is missing or too short",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "error": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "object",
-                          "additionalProperties": true
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reseller-app/cash-session": {
-      "get": {
-        "tags": [
-          "Reseller App"
-        ],
-        "summary": "The caller's open cash session (expected total net of voids) and its last 10 closed sessions",
-        "operationId": "getResellerAppCashSession",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Cash box",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "required": [
-                        "current",
-                        "recent"
-                      ],
-                      "properties": {
-                        "current": {
-                          "type": [
-                            "object",
-                            "null"
-                          ],
-                          "required": [
-                            "id",
-                            "opened_at",
-                            "expected_total",
-                            "collections_count"
-                          ],
-                          "properties": {
-                            "id": {
-                              "type": "integer"
-                            },
-                            "opened_at": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "expected_total": {
-                              "type": "number",
-                              "description": "Collections of the session, net of voids"
-                            },
-                            "collections_count": {
-                              "type": "integer"
-                            }
-                          }
-                        },
-                        "recent": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "required": [
-                              "id",
-                              "opened_at",
-                              "closed_at",
-                              "expected_total",
-                              "counted_total",
-                              "variance",
-                              "status"
-                            ],
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "opened_at": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "closed_at": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "format": "date-time"
-                              },
-                              "expected_total": {
-                                "type": [
-                                  "number",
-                                  "null"
-                                ]
-                              },
-                              "counted_total": {
-                                "type": [
-                                  "number",
-                                  "null"
-                                ]
-                              },
-                              "variance": {
-                                "type": [
-                                  "number",
-                                  "null"
-                                ],
-                                "description": "counted - expected; negative = short"
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "open",
-                                  "closed",
-                                  "approved",
-                                  "disputed"
-                                ]
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Only reseller accounts can use the reseller app",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "error": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "object",
-                          "additionalProperties": true
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/reseller-app/cash-session/close": {
-      "post": {
-        "tags": [
-          "Reseller App"
-        ],
-        "summary": "Close the caller's open cash session with the cash counted; computes the expected total and the variance. The ledger does not change. Needs reseller_app.collect",
-        "operationId": "closeResellerAppCashSession",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "The count",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "counted_total"
-                ],
-                "properties": {
-                  "counted_total": {
-                    "type": "number",
-                    "minimum": 0
-                  },
-                  "notes": {
-                    "type": "string",
-                    "maxLength": 1000
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Closed session",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "required": [
-                        "id",
-                        "opened_at",
-                        "closed_at",
-                        "expected_total",
-                        "counted_total",
-                        "variance",
-                        "status"
-                      ],
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "opened_at": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "closed_at": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
-                        },
-                        "expected_total": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "counted_total": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "variance": {
-                          "type": [
-                            "number",
-                            "null"
-                          ],
-                          "description": "counted - expected; negative = short"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "open",
-                            "closed",
-                            "approved",
-                            "disputed"
-                          ]
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not a reseller account, or no reseller_app.collect",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "error": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "object",
-                          "additionalProperties": true
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "NO_OPEN_CASH_SESSION",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "error": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "object",
-                          "additionalProperties": true
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {
@@ -85621,6 +85468,28 @@
         },
         "required": [
           "counted_total"
+        ]
+      },
+      "cashReconciliation_approveSessionSchema": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maximum": 1000
+          }
+        }
+      },
+      "cashReconciliation_disputeSessionSchema": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minimum": 3,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "note"
         ]
       },
       "cfdi_generateXml": {

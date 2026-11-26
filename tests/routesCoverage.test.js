@@ -1569,7 +1569,9 @@ describe('Payment Routes — /api/v1/payments', () => {
       const res = await request(app)
         .post('/api/v1/payments')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ client_id: 10, amount: 500, payment_method: 'cash', payment_date: '2024-01-01' });
+        // A transfer: a cash payment first checks the caller's cashier
+        // (tests/cashReconciliationRecordedBy.test.js).
+        .send({ client_id: 10, amount: 500, payment_method: 'transfer', payment_date: '2024-01-01' });
 
       expect(res.status).toBe(201);
       expect(billingService.recordPaymentCredit).toHaveBeenCalled();
@@ -1605,7 +1607,7 @@ describe('Payment Routes — /api/v1/payments', () => {
       const res = await request(app)
         .post('/api/v1/payments')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ client_id: 10, amount: 500, payment_method: 'cash', payment_date: '2024-01-01', currency: 'USD' });
+        .send({ client_id: 10, amount: 500, payment_method: 'transfer', payment_date: '2024-01-01', currency: 'USD' });
 
       expect(res.status).toBe(201);
       // The org-currency lookup is skipped entirely when the caller sends one;

@@ -20,6 +20,7 @@ const db = require('../config/database');
 const { AppError } = require('../utils/errors');
 const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
 const { withResellerNames } = require('../utils/resellerNames');
+const cashReconciliationService = require('../services/cashReconciliationService');
 
 const router = Router();
 
@@ -175,6 +176,11 @@ router.post('/', requirePermission('payments.create'), validate(createPayment, {
     req.body.recorded_by = req.user?.id ?? null;
     delete req.body.reseller_id;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
+    // A cashier this person left open past the allowed hours has to be
+    // closed before they take more cash (409 CASHIER_NOT_CLOSED).
+    if (req.body.payment_method === 'cash') {
+      await cashReconciliationService.assertCashierNotOverdue(req.orgId, req.user?.id ?? null);
+    }
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would
     // silently win regardless of the org's real currency. An explicitly-set

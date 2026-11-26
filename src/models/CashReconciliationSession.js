@@ -11,7 +11,7 @@ class CashReconciliationSession extends BaseModel {
     return [
       'organization_id', 'agent_user_id', 'opened_at', 'closed_at',
       'expected_total', 'counted_total', 'variance', 'status', 'notes',
-      'approved_by', 'approved_at',
+      'approved_by', 'approved_at', 'review_note',
     ];
   }
 

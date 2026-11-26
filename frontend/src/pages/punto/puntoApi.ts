@@ -242,28 +242,6 @@ export interface PuntoReceipt {
   plain_text?: string | null;
 }
 
-export interface PuntoOpenSession {
-  id: number;
-  opened_at: string;
-  expected_total: number | string;
-  collections_count: number;
-}
-
-export interface PuntoClosedSession {
-  id: number;
-  opened_at: string;
-  closed_at: string | null;
-  expected_total: number | string;
-  counted_total: number | string | null;
-  variance: number | string | null;
-  status: string;
-}
-
-export interface PuntoCashSession {
-  current: PuntoOpenSession | null;
-  recent: PuntoClosedSession[];
-}
-
 export type PuntoLedgerType =
   | 'collection' | 'collection_void' | 'deposit' | 'adjustment' | 'bag_sealed'
   | 'commission' | 'commission_reversal' | 'payout' | 'collection_fee' | 'collection_fee_reversal';
@@ -316,7 +294,6 @@ export const puntoKeys = {
   collectClient: (id: number) => ['punto', 'collect-client', id] as const,
   receipt: (id: number) => ['punto', 'receipt', id] as const,
   collections: (date: string, page: number) => ['punto', 'collections', date, page] as const,
-  cashSession: ['punto', 'cash-session'] as const,
   ledger: (page: number) => ['punto', 'ledger', page] as const,
   bags: ['punto', 'bags'] as const,
   statements: (page: number) => ['punto', 'statements', page] as const,
@@ -324,11 +301,10 @@ export const puntoKeys = {
   leadSigning: (leadId: number) => ['punto', 'lead-signing', leadId] as const,
 };
 
-/** Every query a collection, a void, a cash-box close or a sealed bag changes. */
+/** Every query a collection, a void or a sealed bag changes. */
 export const PUNTO_MONEY_QUERIES = [
   puntoKeys.me,
   ['punto', 'collections'],
-  puntoKeys.cashSession,
   ['punto', 'ledger'],
   puntoKeys.bags,
 ] as const;
@@ -436,21 +412,6 @@ export async function voidPuntoCollection(id: number, reason: string): Promise<v
 
 export async function fetchPuntoReceipt(id: number): Promise<PuntoReceipt> {
   return (await apiFetch<{ data: PuntoReceipt }>(`/reseller-app/payments/${id}/receipt`)).data;
-}
-
-/** GET /reseller-app/cash-session: `{ current, recent }` (aliases accepted). */
-export async function fetchPuntoCashSession(): Promise<PuntoCashSession> {
-  const res = await apiFetch<{ data?: unknown; recent?: unknown; closed?: unknown }>('/reseller-app/cash-session');
-  const data = (res.data ?? null) as Record<string, unknown> | null;
-  // Either { data: { current, recent } } or { data: <open session|null>, recent }.
-  const wrapped = data && ('current' in data || 'open' in data || 'recent' in data || 'closed' in data);
-  const current = (wrapped ? data.current ?? data.open ?? null : data) as PuntoOpenSession | null;
-  const recent = (wrapped ? data.recent ?? data.closed : res.recent ?? res.closed) as PuntoClosedSession[] | undefined;
-  return { current: current && current.id ? current : null, recent: Array.isArray(recent) ? recent : [] };
-}
-
-export async function closePuntoCashSession(body: { counted_total: number; notes?: string }): Promise<PuntoClosedSession> {
-  return (await apiFetch<{ data: PuntoClosedSession }>('/reseller-app/cash-session/close', { method: 'POST', body: JSON.stringify(body) })).data;
 }
 
 /** A ledger page: entries plus the summary (top level or in meta). */

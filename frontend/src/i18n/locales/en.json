@@ -613,7 +613,9 @@
     "disabled": "Disabled",
     "wireguardPorts": "Endpoint: {{endpoint}} · NAS UDP {{nasPort}} · client UDP {{clientPort}}",
     "keyLabels": {
-      "resellerDefaultCreditLimit": "Default cash limit for resellers"
+      "resellerDefaultCreditLimit": "Default cash limit for resellers",
+      "cashierMatchTolerance": "Cashier: difference that still counts as a match",
+      "cashierMaxOpenHours": "Cashier: hours it may stay open"
     }
   },
   "common": {
@@ -2610,6 +2612,21 @@
     "pay": "Pay Installment",
     "schedule": "Installment Schedule"
   },
+  "cashierReminder": {
+    "mineOpen": "Your cashier has been open since {{since}}.",
+    "mineOverdue": "Your cashier has been open for more than {{hours}} hours. Close it before you record more cash.",
+    "expected": "Cash expected: {{amount}}.",
+    "closeIt": "Close it",
+    "othersOverdue_one": "{{count}} cashier has been open for more than {{hours}} hours: {{names}}.",
+    "othersOverdue_other": "{{count}} cashiers have been open for more than {{hours}} hours: {{names}}.",
+    "awaitingReview_one": "{{count}} count did not match and waits for a review.",
+    "awaitingReview_other": "{{count}} counts did not match and wait for a review.",
+    "review": "Open Cashier",
+    "signOutTitle": "Close your cashier first?",
+    "signOutBody": "Your cashier is still open. Count the cash and close it before you leave, so today’s payments are accounted for.",
+    "signOutAnyway": "Sign out anyway",
+    "goToCashier": "Go to my cashier"
+  },
   "cashReconciliation": {
     "title": "Cashier",
     "openSession": "Open Cashier",
@@ -2627,10 +2644,23 @@
       "open": "Open",
       "closed": "Closed",
       "approved": "Approved",
-      "disputed": "Disputed"
+      "disputed": "Disputed",
+      "approvedAuto": "Approved · matched"
     },
     "close": "Close Cashier",
     "approve": "Approve",
+    "dispute": "Dispute",
+    "review": {
+      "approveTitle": "Approve this count",
+      "disputeTitle": "Dispute this count",
+      "approveHelp": "The count differs from the cash expected by {{variance}}. Approve it when the difference is explained, and say how.",
+      "disputeHelp": "The count differs from the cash expected by {{variance}}. Dispute it when the difference is not explained, and say what is missing.",
+      "note": "Note",
+      "noteRequired": "Write a note explaining the difference.",
+      "failed": "The review could not be saved.",
+      "ownCashier": "Another supervisor reviews your own cashier",
+      "noteShown": "Review note:"
+    },
     "countedTotal": "Counted Total",
     "notes": "Notes",
     "cashPayments": "Cash Payments in Session"

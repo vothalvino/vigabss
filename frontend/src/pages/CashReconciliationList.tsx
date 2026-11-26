@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
+import { CashierReviewDialog, type CashierDecision } from '@/pages/cashier/CashierReviewDialog';
+import { CASHIER_ATTENTION_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
 import { styles } from './crudStyles';
 import {
   extractApiError,
@@ -44,6 +46,8 @@ interface ReconciliationSession {
   counted_total: string | null;
   variance: string | null;
   notes: string | null;
+  approved_by?: number | null;
+  review_note?: string | null;
 }
 
 interface SessionsResponse {
@@ -86,7 +90,8 @@ function fmtAmount(amount: string | null | undefined): string {
 // Badges
 // ---------------------------------------------------------------------------
 
-function SessionStatusBadge({ status }: { status: string }) {
+function SessionStatusBadge({ status, automatic = false }: { status: string; automatic?: boolean }) {
+  const { t } = useTranslation();
   const map: Record<string, { bg: string; color: string }> = {
     open:     { bg: '#dbeafe', color: '#1e40af' },
     closed:   { bg: '#fef3c7', color: '#92400e' },
@@ -96,7 +101,7 @@ function SessionStatusBadge({ status }: { status: string }) {
   const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
   return (
     <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
+      {automatic ? t('cashReconciliation.status.approvedAuto') : t(`cashReconciliation.status.${status}`, status)}
     </span>
   );
 }
@@ -278,16 +283,8 @@ export function CashReconciliationList() {
   const canUpdate = can(user, 'cash_reconciliation.update');
   const canApprove = can(user, 'cash_reconciliation.approve');
 
-  const approveMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const { error: e } = await api.POST(
-        '/cash-reconciliation/sessions/{id}/approve',
-        { params: { path: { id } }, body: {} as never } as never,
-      );
-      if (e) throw new Error(extractApiError(e, 'Failed to approve session'));
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cash-sessions'] }),
-  });
+  // A count that did not match waits here for a supervisor's decision.
+  const [review, setReview] = useState<{ id: number; decision: CashierDecision; variance: string | null } | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['cash-sessions', page],
@@ -304,7 +301,11 @@ export function CashReconciliationList() {
   const meta = data?.meta;
   const totalPages = meta?.totalPages ?? (meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1);
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['cash-sessions'] });
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ['cash-sessions'] });
+    void qc.invalidateQueries({ queryKey: MY_CASHIER_KEY });
+    void qc.invalidateQueries({ queryKey: CASHIER_ATTENTION_KEY });
+  };
 
   const COLS = [
     t('cashReconciliation.columns.id'),
@@ -358,7 +359,9 @@ export function CashReconciliationList() {
                         >
                           <td style={styles.td}>#{session.id}</td>
                           <td style={styles.td}>{session.agent_user_id}</td>
-                          <td style={styles.td}><SessionStatusBadge status={session.status} /></td>
+                          <td style={styles.td}>
+                            <SessionStatusBadge status={session.status} automatic={session.status === 'approved' && (session.approved_by === null || session.approved_by === undefined)} />
+                          </td>
                           <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(session.opened_at)}</td>
                           <td style={{ ...styles.td, color: '#6b7280' }}>{fmt(session.closed_at)}</td>
                           <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(session.expected_total)}</td>
@@ -376,18 +379,39 @@ export function CashReconciliationList() {
                                 {t('cashReconciliation.close')}
                               </button>
                             )}
-                            {canApprove && session.status === 'closed' && (
-                              <button
-                                type="button"
-                                style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
-                                disabled={approveMutation.isPending}
-                                onClick={() => approveMutation.mutate(session.id)}
-                              >
-                                {t('cashReconciliation.approve')}
-                              </button>
+                            {canApprove && ['closed', 'disputed'].includes(session.status) && (
+                              Number(session.agent_user_id) === Number(user?.id) ? (
+                                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{t('cashReconciliation.review.ownCashier')}</span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, marginRight: 6 }}
+                                    onClick={() => setReview({ id: session.id, decision: 'approve', variance: session.variance })}
+                                  >
+                                    {t('cashReconciliation.approve')}
+                                  </button>
+                                  {session.status === 'closed' && (
+                                    <button
+                                      type="button"
+                                      style={{ padding: '3px 10px', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                                      onClick={() => setReview({ id: session.id, decision: 'dispute', variance: session.variance })}
+                                    >
+                                      {t('cashReconciliation.dispute')}
+                                    </button>
+                                  )}
+                                </>
+                              )
                             )}
                           </td>
                         </tr>
+                        {expandedId === session.id && session.review_note && (
+                          <tr>
+                            <td colSpan={COLS.length} style={{ padding: '8px 20px 0', background: '#f8faff', fontSize: '0.82rem' }}>
+                              <strong>{t('cashReconciliation.review.noteShown')}</strong> {session.review_note}
+                            </td>
+                          </tr>
+                        )}
                         {expandedId === session.id && (
                           <CashPaymentsRow sessionId={session.id} colSpan={COLS.length} />
                         )}
@@ -421,6 +445,15 @@ export function CashReconciliationList() {
           sessionId={closingId}
           onClose={() => setClosingId(null)}
           onClosed={refresh}
+        />
+      )}
+      {review && (
+        <CashierReviewDialog
+          sessionId={review.id}
+          decision={review.decision}
+          variance={review.variance}
+          onClose={() => setReview(null)}
+          onDone={() => { setReview(null); refresh(); }}
         />
       )}
     </div>

@@ -12,6 +12,9 @@ import { DrDrillBanner } from '@/components/DrDrillBanner';
 import { EmailVerificationBanner } from '@/components/EmailVerificationBanner';
 import { UpdateAvailableBanner } from '@/components/UpdateAvailableBanner';
 import { AdminIpAllowlistBanner } from '@/components/AdminIpAllowlistBanner';
+import { CashierReminder } from '@/components/CashierReminder';
+import { SignOutWithCashierDialog } from '@/components/SignOutWithCashierDialog';
+import { useMyCashier } from '@/components/cashierReminderData';
 import { useDarkMode } from '@/auth/DarkModeContext';
 import { useAccent } from '@/auth/AccentContext';
 import { ChangelogPanel } from '@/components/ChangelogPanel';
@@ -238,7 +241,12 @@ export function Layout() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Signing out with a cashier still open asks first: the count is easy to
+  // forget at the end of a shift.
+  const myCashier = useMyCashier().data;
+  const [askCashier, setAskCashier] = useState(false);
   async function handleLogout() {
+    if (myCashier) { setAskCashier(true); return; }
     await logout();
   }
 
@@ -527,6 +535,13 @@ export function Layout() {
       </aside>
 
       {/* Main content */}
+      {askCashier && (
+        <SignOutWithCashierDialog
+          onCancel={() => setAskCashier(false)}
+          onGoToCashier={() => { setAskCashier(false); navigate('/cash-reconciliation'); }}
+          onSignOut={() => { setAskCashier(false); void logout(); }}
+        />
+      )}
       <main ref={mainRef} className="app-main" id="main-content" tabIndex={-1}>
         {/* One responsive top bar keeps page context and global actions stable. */}
         <header className="app-topbar">
@@ -547,6 +562,7 @@ export function Layout() {
         <EmailVerificationBanner />
         <UpdateAvailableBanner />
         <AdminIpAllowlistBanner />
+        <CashierReminder />
         {tabbed && activeRoute && <PageTabs tabset={activeTabset} tabs={activeTabs} activePath={activeRoute.path} back={setupBack} />}
         <ErrorBoundary key={location.pathname}>
           <Suspense fallback={<LoadingState />}>

@@ -13,7 +13,7 @@
 //   snapshot (DAL-04):
 //     credit check  cash_on_hand + amount <= effective credit limit, else 409
 //                   (cash_on_hand = the balance; a sealed bag's cash left it)
-//     cash session  the collecting user's open session, opened if none
+//     no cash session: a point's cash is accounted for by its cash bags
 //     payments row  cash, SAT forma 01, completed, recorded_by = the user,
 //                   reseller_id = the collecting reseller: the top-level
 //                   reseller of the user's binding (a sub-reseller's user
@@ -274,24 +274,6 @@ async function storedAnswer(exec, orgId, storedKey, forUpdate) {
   };
 }
 
-/** The collecting user's open cash session on the transaction, opened if none. */
-async function openCashSession(exec, orgId, userId) {
-  const [rows] = await exec(
-    `SELECT id FROM cash_reconciliation_sessions
-      WHERE organization_id = ? AND agent_user_id = ? AND status = 'open' AND deleted_at IS NULL
-      ORDER BY id DESC LIMIT 1
-      FOR UPDATE`,
-    [orgId, userId],
-  );
-  if (rows && rows[0]) return Number(rows[0].id);
-  const [result] = await exec(
-    `INSERT INTO cash_reconciliation_sessions (organization_id, agent_user_id, opened_at, status, notes)
-     VALUES (?, ?, NOW(), 'open', 'Opened by the reseller app')`,
-    [orgId, userId],
-  );
-  return Number(result.insertId);
-}
-
 /**
  * Record a cash collection. Returns { status, body, replayed }.
  * @param {object} req - authenticated, org-scoped, bound (req.resellerScope)
@@ -428,8 +410,9 @@ async function collect(req, body, idempotencyKey = null) {
     }
     invoices = invoices.filter((inv) => !paymentAllocationService.allocationRefusal(payer, inv));
 
-    // 7. The collecting user's cash session.
-    const cashSessionId = await openCashSession(exec, orgId, userId);
+    // 7. No cash session: a point's cash is accounted for by its cash bags,
+    // not by opening and closing a cashier.
+    const cashSessionId = null;
 
     // 8. The payment, its client-ledger credit and its allocations.
     const [payResult] = await exec(
@@ -550,9 +533,9 @@ function conflict(message, code) {
 }
 
 /**
- * Void a collection: only the collecting reseller, only by the user whose cash
- * box holds it, only on the business day it was taken, only while that cash
- * session is open, never while a REP binds it.
+ * Void a collection: only the collecting reseller, only by the user who took
+ * the cash, only on the business day it was taken, only while the cash is
+ * still on hand (not sealed in a bag), never while a REP binds it.
  */
 async function voidCollection(req, paymentId, reason) {
   const orgId = req.orgId;
@@ -637,27 +620,22 @@ async function voidCollection(req, paymentId, reason) {
     );
     const entry = entryRows && entryRows[0];
     if (!entry) throw new NotFoundError('Payment');
+    // Entries written before points stopped having cash sessions carry one;
+    // the void's own entry keeps it so the two still pair up.
     const cashSessionId = entry.cash_session_id === null || entry.cash_session_id === undefined
       ? null : Number(entry.cash_session_id);
     // The cash is in the drawer of the user who took it: only that user may
     // void it (a colleague bound to the same reseller may not).
-    let sessionOwner = payment.recorded_by === null || payment.recorded_by === undefined ? null : Number(payment.recorded_by);
-    if (cashSessionId !== null) {
+    let takenBy = payment.recorded_by === null || payment.recorded_by === undefined ? null : Number(payment.recorded_by);
+    if (takenBy === null && cashSessionId !== null) {
       const [sessionRows] = await exec(
-        `SELECT status, agent_user_id FROM cash_reconciliation_sessions
-          WHERE id = ? AND organization_id = ? AND deleted_at IS NULL
-          FOR UPDATE`,
+        `/* includes deleted rows: only names who took the cash of an old collection */
+         SELECT agent_user_id FROM cash_reconciliation_sessions WHERE id = ? AND organization_id = ?`,
         [cashSessionId, orgId],
       );
-      const session = sessionRows && sessionRows[0];
-      if (session) sessionOwner = Number(session.agent_user_id);
-      if (sessionOwner !== Number(userId)) {
-        throw conflict('Only the person who took this cash can void it.', 'NOT_YOUR_COLLECTION');
-      }
-      if (!session || session.status !== 'open') {
-        throw conflict('The cash box of this collection is already closed; ask the ISP to correct it.', 'CASH_SESSION_CLOSED');
-      }
-    } else if (sessionOwner !== Number(userId)) {
+      if (sessionRows && sessionRows[0]) takenBy = Number(sessionRows[0].agent_user_id);
+    }
+    if (takenBy !== Number(userId)) {
       throw conflict('Only the person who took this cash can void it.', 'NOT_YOUR_COLLECTION');
     }
 
@@ -763,21 +741,11 @@ async function listCollections(req, { date, limit, offset }) {
   const params = [orgId, collectorId, from, to];
   const [rows] = await db.query(
     `/* includes deleted rows: a voided collection stays on the day's list as voided */
-     SELECT p.id, p.client_id, p.amount, p.currency, p.status, p.created_at, p.deleted_at,
+     SELECT p.id, p.client_id, p.amount, p.currency, p.status, p.created_at, p.deleted_at, p.recorded_by,
             c.name AS client_name, c.reseller_id AS client_reseller_id,
             (SELECT e.cash_session_id FROM reseller_ledger_entries e
               WHERE e.organization_id = p.organization_id AND e.payment_id = p.id AND e.entry_type = 'collection'
-              LIMIT 1) AS cash_session_id,
-            (SELECT s.status FROM reseller_ledger_entries e
-               JOIN cash_reconciliation_sessions s ON s.id = e.cash_session_id AND s.organization_id = e.organization_id
-                AND s.deleted_at IS NULL
-              WHERE e.organization_id = p.organization_id AND e.payment_id = p.id AND e.entry_type = 'collection'
-              LIMIT 1) AS cash_session_status,
-            (SELECT s.agent_user_id FROM reseller_ledger_entries e
-               JOIN cash_reconciliation_sessions s ON s.id = e.cash_session_id AND s.organization_id = e.organization_id
-                AND s.deleted_at IS NULL
-              WHERE e.organization_id = p.organization_id AND e.payment_id = p.id AND e.entry_type = 'collection'
-              LIMIT 1) AS cash_session_user_id
+              LIMIT 1) AS cash_session_id
        FROM payments p
        LEFT JOIN clients c ON c.id = p.client_id AND c.organization_id = p.organization_id
       WHERE ${where}
@@ -825,9 +793,12 @@ async function listCollections(req, { date, limit, offset }) {
       status: voided ? 'voided' : 'completed',
       invoice_numbers: numbers.get(Number(r.id)) || [],
       cash_session_id: r.cash_session_id === null || r.cash_session_id === undefined ? null : Number(r.cash_session_id),
-      // Only the user whose open cash box holds it may void it.
-      voidable: !voided && businessDate(new Date(r.created_at)) === today && r.cash_session_status === 'open'
-        && Number(r.cash_session_user_id) === Number(req.user.id),
+      // Only the user who took the cash may void it, on the day it was taken.
+      // Whether the cash is still on hand (not sealed in a bag) is checked
+      // when the void is asked for.
+      voidable: !voided && businessDate(new Date(r.created_at)) === today
+        && r.recorded_by !== null && r.recorded_by !== undefined
+        && Number(r.recorded_by) === Number(req.user.id),
     };
   });
   return { data, meta: { total: Number(count?.total) || 0, date: day } };
@@ -982,103 +953,6 @@ async function receipt(req, paymentId, { width = 32 } = {}) {
   return out;
 }
 
-// -----------------------------------------------------------------------------
-// Cash session (Mi caja)
-// -----------------------------------------------------------------------------
-
-function sessionTotalsSql() {
-  // Net of voids: a void carries its collection's session and a negative amount.
-  return `SELECT COALESCE(SUM(e.amount), 0) AS expected_total,
-                 COALESCE(SUM(e.entry_type = 'collection'), 0) - COALESCE(SUM(e.entry_type = 'collection_void'), 0) AS collections_count
-            FROM reseller_ledger_entries e
-           WHERE e.organization_id = ? AND e.cash_session_id = ?
-             AND e.entry_type IN ('collection', 'collection_void')`;
-}
-
-const nullableMoney = (v) => (v === null || v === undefined ? null : toMoney(v));
-
-/** GET /reseller-app/cash-session: { current, recent }. */
-async function cashSession(req) {
-  const orgId = req.orgId;
-  const userId = req.user.id;
-  const [openRows] = await db.query(
-    `SELECT id, opened_at FROM cash_reconciliation_sessions
-      WHERE organization_id = ? AND agent_user_id = ? AND status = 'open' AND deleted_at IS NULL
-      ORDER BY id DESC LIMIT 1`,
-    [orgId, userId],
-  );
-  let current = null;
-  if (openRows && openRows[0]) {
-    const [[totals]] = await db.query(sessionTotalsSql(), [orgId, openRows[0].id]);
-    current = {
-      id: Number(openRows[0].id),
-      opened_at: openRows[0].opened_at,
-      expected_total: toMoney(totals?.expected_total),
-      collections_count: Number(totals?.collections_count) || 0,
-    };
-  }
-  const [closed] = await db.query(
-    `SELECT id, opened_at, closed_at, expected_total, counted_total, variance, status
-       FROM cash_reconciliation_sessions
-      WHERE organization_id = ? AND agent_user_id = ? AND status <> 'open' AND deleted_at IS NULL
-      ORDER BY id DESC LIMIT 10`,
-    [orgId, userId],
-  );
-  return {
-    current,
-    recent: (closed || []).map((s) => ({
-      id: Number(s.id),
-      opened_at: s.opened_at,
-      closed_at: s.closed_at,
-      expected_total: nullableMoney(s.expected_total),
-      counted_total: nullableMoney(s.counted_total),
-      variance: nullableMoney(s.variance),
-      status: s.status,
-    })),
-  };
-}
-
-/**
- * POST /reseller-app/cash-session/close: close the caller's open session with
- * the cash it counted (cashReconciliationService.closeSession computes the
- * expected total and the variance). The ledger does not change: the cash is
- * still the reseller's to hand in.
- */
-async function closeCashSession(req, { counted_total: counted, notes }) {
-  const orgId = req.orgId;
-  const userId = req.user.id;
-  const [openRows] = await db.query(
-    `SELECT id FROM cash_reconciliation_sessions
-      WHERE organization_id = ? AND agent_user_id = ? AND status = 'open' AND deleted_at IS NULL
-      ORDER BY id DESC LIMIT 1`,
-    [orgId, userId],
-  );
-  if (!openRows || !openRows[0]) throw new AppError('You have no open cash box to close.', 409, 'NO_OPEN_CASH_SESSION');
-  const sessionId = Number(openRows[0].id);
-  const cashReconciliationService = require('./cashReconciliationService');
-  const closed = await cashReconciliationService.closeSession(sessionId, orgId, toMoney(counted));
-  const text = typeof notes === 'string' && notes.trim() ? notes.trim() : null;
-  if (text) {
-    await db.query(
-      'UPDATE cash_reconciliation_sessions SET notes = ? WHERE id = ? AND organization_id = ?',
-      [text, sessionId, orgId],
-    );
-  }
-  await afterCommit(() => auditLog.log({
-    userId, organizationId: orgId, action: 'close', tableName: 'cash_reconciliation_sessions', recordId: sessionId,
-    newValues: { expected_total: closed?.expected_total, counted_total: closed?.counted_total, variance: closed?.variance },
-  }), 'audit log');
-  return {
-    id: sessionId,
-    opened_at: closed?.opened_at ?? null,
-    closed_at: closed?.closed_at ?? null,
-    expected_total: nullableMoney(closed?.expected_total),
-    counted_total: nullableMoney(closed?.counted_total),
-    variance: nullableMoney(closed?.variance),
-    status: closed?.status ?? 'closed',
-  };
-}
-
 /** What the reseller collected on today's business day (live collections only). */
 async function collectedToday(orgId, collectorId) {
   const today = businessToday();
@@ -1102,8 +976,6 @@ module.exports = {
   voidCollection,
   listCollections,
   receipt,
-  cashSession,
-  closeCashSession,
   collectedToday,
   LOOKUP_LIMIT,
 };

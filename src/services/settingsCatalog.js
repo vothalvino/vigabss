@@ -58,6 +58,23 @@ const ORG_SETTING_DEFS = {
       return Number.isInteger(n) && n > 0 ? null : 'must be a positive integer';
     },
   },
+  cashier_match_tolerance: {
+    default: '0',
+    description: 'Largest difference between the cash counted and the cash expected that still counts as a match when a cashier is closed. A matching cashier is approved automatically; a larger difference waits for a supervisor. 0 means the count must match exactly.',
+    validate(value) {
+      const n = Number(value);
+      return String(value).trim() !== '' && Number.isFinite(n) && n >= 0 && n <= 10000 && Math.round(n * 100) === n * 100
+        ? null : 'must be an amount between 0 and 10000 with at most two decimals';
+    },
+  },
+  cashier_max_open_hours: {
+    default: '16',
+    description: 'Hours a cashier may stay open. After that its owner is reminded on every page, supervisors see it as overdue, and the owner cannot record another cash payment until it is closed.',
+    validate(value) {
+      const n = Number(value);
+      return Number.isInteger(n) && n >= 1 && n <= 72 ? null : 'must be an integer between 1 and 72';
+    },
+  },
   install_test_window_minutes: {
     default: '60',
     description: 'Minutes of temporary internet the technician gets on a pending contract to test the install (speed test included) before formal activation. The line is disabled again when the window ends.',

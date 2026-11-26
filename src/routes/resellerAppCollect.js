@@ -13,8 +13,6 @@
 //  GET  /reseller-app/payments?date=           the reseller's collections of a day
 //  GET  /reseller-app/payments/:id/receipt     receipt of one of them
 //  POST /reseller-app/payments/:id/void        void a same-day collection
-//  GET  /reseller-app/cash-session             the user's open cash box and last closes
-//  POST /reseller-app/cash-session/close       close it with the counted cash
 //  GET  /reseller-app/ledger                   the reseller's cash ledger and summary
 //
 // The money logic is in services/resellerCollectionService.js and
@@ -46,11 +44,6 @@ const collectSchema = {
 
 const voidSchema = {
   reason: { type: 'string', required: true, min: 3, max: 200 },
-};
-
-const closeSessionSchema = {
-  counted_total: { type: 'number', required: true, min: 0, max: 9999999999.99 },
-  notes:         { type: 'string', max: 1000 },
 };
 
 // =============================================================================
@@ -139,24 +132,6 @@ router.post('/payments/:id/void', requirePermission('reseller_app.collect'), val
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'reason must be at least 3 characters' } });
     }
     res.json({ data: await collection.voidCollection(req, req.params.id, reason) });
-  } catch (err) { next(err); }
-});
-
-// =============================================================================
-// GET /reseller-app/cash-session
-// =============================================================================
-router.get('/cash-session', requirePermission('reseller_app.use', 'reseller_app.cash'), async (req, res, next) => {
-  try {
-    res.json({ data: await collection.cashSession(req) });
-  } catch (err) { next(err); }
-});
-
-// =============================================================================
-// POST /reseller-app/cash-session/close
-// =============================================================================
-router.post('/cash-session/close', requirePermission('reseller_app.collect'), validate(closeSessionSchema), async (req, res, next) => {
-  try {
-    res.json({ data: await collection.closeCashSession(req, req.body) });
   } catch (err) { next(err); }
 });
 

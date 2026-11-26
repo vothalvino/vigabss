@@ -18,9 +18,14 @@ export const SETTING_NUMBER_INPUTS: Record<string, { min: number; step?: string 
   pppoe_auth_failure_threshold: { min: 1 },
   // The cash a reseller may hold before handing it in, unless its own limit is set.
   reseller_default_credit_limit: { min: 0, step: '0.01' },
+  // The cashier: how large a difference still matches, and how long one may stay open.
+  cashier_match_tolerance: { min: 0, step: '0.01' },
+  cashier_max_open_hours: { min: 1 },
 };
 
 /** i18n keys of the translated names shown above the raw setting key. */
 export const SETTING_LABEL_KEYS: Record<string, string> = {
   reseller_default_credit_limit: 'settingsPage.keyLabels.resellerDefaultCreditLimit',
+  cashier_match_tolerance: 'settingsPage.keyLabels.cashierMatchTolerance',
+  cashier_max_open_hours: 'settingsPage.keyLabels.cashierMaxOpenHours',
 };
