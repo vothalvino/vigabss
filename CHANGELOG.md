@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.47 — 2026-11-25
+
 - **Fixed: a signed-in customer did not see the company's logo in the client
   portal.** The portal asked for the logo without saying which company the
   customer belongs to, so the tab icon and the header stayed plain even after
