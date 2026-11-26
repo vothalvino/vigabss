@@ -162,6 +162,41 @@ describeDb('the money tie-out against a real database', () => {
     expect(report.cash.differences.unexplained).toBe(0);
   });
 
+  test('a transfer names the bank account it reached; another organization\'s account is refused and cash never names one', async () => {
+    const accounts = (await api('get', '/payments/bank-accounts')).body.data;
+    const formal = accounts.find(a => a.purpose === 'client_invoices');
+    expect(formal).toBeDefined();
+    const [[client]] = await db.query('SELECT id FROM clients WHERE organization_id = ? LIMIT 1', [ORG]);
+    const pay = (body) => api('post', '/payments', { client_id: client.id, currency: 'MXN', payment_date: today(), ...body });
+
+    expect((await pay({ amount: 400, payment_method: 'transfer', bank_account_id: formal.id })).status).toBe(201);
+    expect((await pay({ amount: 150, payment_method: 'card' })).status).toBe(201);
+    // Cash goes to the drawer and reaches the bank as a deposit: the account is dropped.
+    // (The cashier reopens with the 590 it was left with.)
+    expect((await api('post', '/cash-reconciliation/sessions', { opening_total: 590 })).status).toBe(201);
+    const cash = await pay({ amount: 20, payment_method: 'cash', bank_account_id: formal.id });
+    expect(cash.status).toBe(201);
+    const [[stored]] = await db.query('SELECT bank_account_id FROM payments WHERE id = ?', [cash.body.data.id]);
+    expect(stored.bank_account_id).toBeNull();
+
+    const other = await createOrgAdmin(db, ORG + 2, 'TIEOUT3');
+    const foreign = await request(app).post('/api/v1/money-tieout/bank-accounts').set('Authorization', `Bearer ${other.token}`).send({ name: 'Theirs' });
+    expect(foreign.status).toBe(201);
+    const refused = await pay({ amount: 5, payment_method: 'transfer', bank_account_id: foreign.body.data.id });
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe('BANK_ACCOUNT_INVALID');
+
+    const report = await tieOut();
+    expect(report.collected.non_cash).toBe(550);
+    expect(report.bank.accounts.find(a => a.id === formal.id)).toMatchObject({ payments: 1, received: 400 });
+    expect(report.bank.direct_unassigned).toBe(150);
+    expect(report.bank.in_client_invoice_accounts).toBe(400);
+    expect(report.bank.in_general_public_accounts).toBe(700);
+    // The 20 in cash is in the reopened drawer, so the month still adds up.
+    expect(report.cash.in_transit_end.in_drawers).toBe(610);
+    expect(report.cash.differences.unexplained).toBe(0);
+  });
+
   test('another organization sees none of it', async () => {
     const other = await createOrgAdmin(db, ORG + 1, 'TIEOUT2');
     const res = await request(app).get('/api/v1/money-tieout').set('Authorization', `Bearer ${other.token}`);

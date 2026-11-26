@@ -1750,6 +1750,8 @@
     "invalidAmount": "Por favor ingresa un monto válido mayor que cero.",
     "currency": "Moneda",
     "paymentMethod": "Método de Pago",
+    "bankAccount": "Cuenta bancaria a la que llegó",
+    "bankAccountNone": "Sin indicar",
     "status": "Estado",
     "statusValues": {
       "completed": "Completado",
@@ -12148,6 +12150,14 @@
     },
     "bank": {
       "title": "Cuentas bancarias",
+      "forClients": "Dinero del mes facturado a clientes",
+      "forPublic": "Dinero del mes para Público en General",
+      "inClientAccounts": "Llegó a cuentas de facturas de clientes",
+      "inPublicAccounts": "Llegó a cuentas de Público en General",
+      "inOtherAccounts": "Llegó a cuentas de uso general",
+      "unassigned": "Pagado por transferencia, tarjeta o cheque sin indicar cuenta",
+      "received": "Pagado directo",
+      "cashDeposits": "Depósitos de efectivo",
       "hint": "Deposita el efectivo de facturas de clientes y el de Público en General como se muestra aquí, para que cada cuenta coincida con lo facturado.",
       "cashForClients": "Efectivo del mes facturado a clientes",
       "cashForPublic": "Efectivo del mes para Público en General",

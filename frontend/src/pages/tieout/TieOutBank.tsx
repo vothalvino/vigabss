@@ -10,6 +10,15 @@ import {
 
 const PURPOSES = ['client_invoices', 'general_public', 'any'] as const;
 
+function Figure({ label, value, warn }: { label: string; value: number | null | undefined; warn?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.88rem' }}>
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span style={{ fontWeight: 700, color: warn ? 'var(--warning)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>{formatMoney(value)}</span>
+    </div>
+  );
+}
+
 export function TieOutBank({ report, onChanged }: { report: TieOutReport; onChanged: () => void }) {
   const { t } = useTranslation();
   const bank = report.bank;
@@ -51,19 +60,15 @@ export function TieOutBank({ report, onChanged }: { report: TieOutReport; onChan
     <section style={card} aria-label={t('tieOut.bank.title')}>
       <h2 style={cardTitle}>{t('tieOut.bank.title')}</h2>
       <p style={hint}>{t('tieOut.bank.hint')}</p>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tieOut.bank.cashForClients')}</div>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatMoney(bank?.cash_for_client_invoices)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tieOut.bank.cashForPublic')}</div>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatMoney(bank?.cash_for_general_public)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tieOut.bank.deposited')}</div>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatMoney(bank?.deposited)}</div>
-        </div>
+      <div style={{ display: 'grid', gap: '4px 24px', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginBottom: 12 }}>
+        <Figure label={t('tieOut.bank.forClients')} value={bank?.for_client_invoices} />
+        <Figure label={t('tieOut.bank.inClientAccounts')} value={bank?.in_client_invoice_accounts} />
+        <Figure label={t('tieOut.bank.forPublic')} value={bank?.for_general_public} />
+        <Figure label={t('tieOut.bank.inPublicAccounts')} value={bank?.in_general_public_accounts} />
+        <Figure label={t('tieOut.bank.cashForClients')} value={bank?.cash_for_client_invoices} />
+        <Figure label={t('tieOut.bank.cashForPublic')} value={bank?.cash_for_general_public} />
+        {(bank?.in_other_accounts ?? 0) !== 0 && <Figure label={t('tieOut.bank.inOtherAccounts')} value={bank?.in_other_accounts} />}
+        {(bank?.direct_unassigned ?? 0) !== 0 && <Figure label={t('tieOut.bank.unassigned')} value={bank?.direct_unassigned} warn />}
       </div>
       {accounts.length === 0
         ? <p style={hint}>{t('tieOut.bank.none')}</p>
@@ -74,7 +79,8 @@ export function TieOutBank({ report, onChanged }: { report: TieOutReport; onChan
                 <tr>
                   <th style={th}>{t('tieOut.bank.account')}</th>
                   <th style={th}>{t('tieOut.bank.purpose')}</th>
-                  <th style={{ ...th, textAlign: 'right' }}>{t('tieOut.bank.depositsInMonth')}</th>
+                  <th style={{ ...th, textAlign: 'right' }}>{t('tieOut.bank.cashDeposits')}</th>
+                  <th style={{ ...th, textAlign: 'right' }}>{t('tieOut.bank.received')}</th>
                   <th style={th} />
                 </tr>
               </thead>
@@ -99,6 +105,7 @@ export function TieOutBank({ report, onChanged }: { report: TieOutReport; onChan
                       </select>
                     </td>
                     <td style={{ ...td, textAlign: 'right' }}>{formatMoney(a.deposited)}{a.deposits ? ` (${a.deposits})` : ''}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{formatMoney(a.received)}{a.payments ? ` (${a.payments})` : ''}</td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <button
                         type="button"

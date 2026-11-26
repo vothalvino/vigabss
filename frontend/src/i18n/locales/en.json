@@ -1750,6 +1750,8 @@
     "invalidAmount": "Please enter a valid amount greater than zero.",
     "currency": "Currency",
     "paymentMethod": "Payment Method",
+    "bankAccount": "Bank account it reached",
+    "bankAccountNone": "Not stated",
     "status": "Status",
     "statusValues": {
       "completed": "Completed",
@@ -12154,6 +12156,14 @@
     },
     "bank": {
       "title": "Bank accounts",
+      "forClients": "Month's money invoiced to clients",
+      "forPublic": "Month's money for General Public",
+      "inClientAccounts": "Reached client-invoice accounts",
+      "inPublicAccounts": "Reached General Public accounts",
+      "inOtherAccounts": "Reached accounts for any use",
+      "unassigned": "Paid by transfer, card or check with no account named",
+      "received": "Paid straight in",
+      "cashDeposits": "Cash deposits",
       "hint": "Deposit the cash that belongs to client invoices and the cash that belongs to General Public as shown here, so each account matches what is invoiced.",
       "cashForClients": "Cash of the month invoiced to clients",
       "cashForPublic": "Cash of the month for General Public",

@@ -28,6 +28,15 @@ const router = Router();
 // A payment's client_id decides whose balance it credits and whose subscriber
 // portal lists it, so it must be a live client of the caller's org (TNB-09).
 // The FK alone accepted any tenant's client. 422 like invoices' check.
+/** 422 unless the bank account is an active one of this organization. */
+async function assertBankAccountUsable(bankAccountId, orgId) {
+  const [rows] = await db.query(
+    "SELECT id FROM bank_accounts WHERE id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL",
+    [bankAccountId, orgId],
+  );
+  if (!rows[0]) throw new AppError('That bank account is not one of this organization\'s active accounts.', 422, 'BANK_ACCOUNT_INVALID');
+}
+
 async function assertPaymentClientOwned(clientId, orgId, exec = db.query.bind(db)) {
   const [rows] = await exec(
     'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL LIMIT 1',
@@ -165,6 +174,18 @@ router.use(orgScope);
 // Rows carry reseller_id (the reseller that collected the payment in the
 // reseller app, migration 004) and reseller_name; ?reseller_id= filters.
 router.get('/', requirePermission('payments.view'), withResellerNames(ctrl.list));
+// The active bank accounts a non-cash payment can name. Before '/:id'.
+router.get('/bank-accounts', requirePermission('payments.create', 'payments.view'), async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, name, bank_name, account_hint, purpose FROM bank_accounts
+        WHERE organization_id = ? AND status = 'active' AND deleted_at IS NULL ORDER BY name, id`,
+      [req.orgId],
+    );
+    res.json({ data: rows });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', requirePermission('payments.view'), withResellerNames(ctrl.get));
 
 // Create a payment and optionally allocate + reconnect
@@ -177,6 +198,11 @@ router.post('/', requirePermission('payments.create'), validate(createPayment, {
     req.body.recorded_by = req.user?.id ?? null;
     delete req.body.reseller_id;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
+    // The bank account the money reached: one of this organization's active
+    // accounts, and never on cash, which reaches the bank as a deposit from
+    // the safe.
+    if ((req.body.payment_method ?? 'cash') === 'cash') delete req.body.bank_account_id;
+    else if (req.body.bank_account_id !== undefined) await assertBankAccountUsable(req.body.bank_account_id, req.orgId);
     // Cash needs an open cashier (409 CASHIER_NOT_OPEN). One this person left
     // open past the allowed hours has to be closed first (409
     // CASHIER_NOT_CLOSED), and when the supervisors made the pickup threshold

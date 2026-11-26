@@ -28,7 +28,9 @@ function makeReport(over: Record<string, unknown> = {}) {
     },
     bank: {
       deposited: 700, cash_for_client_invoices: 200, cash_for_general_public: 1100,
-      accounts: [{ id: 4, name: 'Public account', bank_name: 'Bank B', account_hint: '9876', purpose: 'general_public', status: 'active', deposits: 1, deposited: 700 }],
+      for_client_invoices: 500, for_general_public: 1300, in_client_invoice_accounts: 0, in_general_public_accounts: 1000,
+      in_other_accounts: 0, direct_unassigned: 200,
+      accounts: [{ id: 4, name: 'Public account', bank_name: 'Bank B', account_hint: '9876', purpose: 'general_public', status: 'active', deposits: 1, deposited: 700, payments: 2, received: 300 }],
     },
     attention: [{ kind: 'bag_waiting', bag_id: 3, serial: 'B-0003', point_name: 'Corner Store', status: 'ready_for_pickup', amount: 600, days: 5 }],
     resico: { applies: true, year: 2026, income: 1750000, limit: 3500000, percent: 50 },
@@ -74,6 +76,10 @@ describe('MoneyTieOut page', () => {
     expect(screen.getByRole('region', { name: 'Needs attention' })).toHaveTextContent('Bag B-0003 of Corner Store');
     expect(screen.getByRole('region', { name: 'RESICO yearly limit' })).toHaveTextContent('50%');
     expect(await screen.findByText(/Public account · slip 1/)).toBeInTheDocument();
+    const bank = screen.getByRole('region', { name: 'Bank accounts' });
+    expect(bank).toHaveTextContent('Reached General Public accounts$1,000.00');
+    expect(bank).toHaveTextContent('Paid by transfer, card or check with no account named$200.00');
+    expect(bank).toHaveTextContent('$300.00 (2)');
   });
 
   it('says so when cash is left unexplained, and asks for a count before the safe is tracked', async () => {

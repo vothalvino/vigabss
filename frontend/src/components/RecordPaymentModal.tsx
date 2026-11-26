@@ -32,6 +32,7 @@
 
 import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { BankAccountPicker } from '@/components/BankAccountPicker';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useMyCashier } from '@/components/cashierReminderData';
@@ -112,6 +113,7 @@ interface CreatePaymentBody {
   payment_date: string;
   status: string;
   reference_number?: string;
+  bank_account_id?: number;
 }
 
 async function createPaymentReq(body: CreatePaymentBody): Promise<number> {
@@ -174,6 +176,7 @@ export function RecordPaymentModal({
     amount: '', currency: orgCurrency, payment_method: 'cash', status: 'completed',
     payment_date: TODAY, reference: '',
   });
+  const [bankAccountId, setBankAccountId] = useState('');
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -284,6 +287,7 @@ export function RecordPaymentModal({
           payment_date: form.payment_date,
           status: form.status,
           ...(form.reference.trim() ? { reference_number: form.reference.trim() } : {}),
+          ...(form.payment_method !== 'cash' && bankAccountId ? { bank_account_id: Number(bankAccountId) } : {}),
         });
         setCreatedId(pid);
       }
@@ -422,6 +426,10 @@ export function RecordPaymentModal({
               {t('recordPayment.needsCashier')}{' '}
               <Link to="/cash-reconciliation" onClick={onClose} style={{ color: 'inherit', fontWeight: 700 }}>{t('recordPayment.openCashier')}</Link>
             </p>
+          )}
+
+          {form.payment_method !== 'cash' && (
+            <BankAccountPicker value={bankAccountId} onChange={setBankAccountId} disabled={paymentLocked} labelStyle={labelStyle} inputStyle={inputStyle} />
           )}
 
           <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('recordPayment.status')}</label>

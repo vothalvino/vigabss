@@ -14,7 +14,7 @@ class Payment extends BaseModel {
     return [
       'organization_id', 'client_id', 'amount', 'currency',
       'payment_method', 'payment_date', 'reference_number', 'sat_forma_pago',
-      'clabe', 'bank_name', 'status', 'notes',
+      'clabe', 'bank_name', 'bank_account_id', 'status', 'notes',
       // Set server-side only: POST /payments stamps the caller, and updates drop it.
       'recorded_by',
     ];

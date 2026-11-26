@@ -1054,6 +1054,7 @@ CREATE TABLE IF NOT EXISTS payments (
     reference_number VARCHAR(100)    NULL COMMENT 'Check number, transaction ID, etc.',
     clabe            VARCHAR(18)     NULL COMMENT '18-digit CLABE interbank key — required for SPEI and CoDi transactions',
     bank_name        VARCHAR(100)    NULL COMMENT 'Bank name for SPEI / CoDi transactions',
+    bank_account_id  BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'The bank account a non-cash payment reached; NULL for cash and when not stated (migration 038)',
     notes            TEXT            NULL,
     status           ENUM('pending', 'completed', 'failed', 'refunded', 'cancelled')
                                      NOT NULL DEFAULT 'completed'
@@ -1076,6 +1077,9 @@ CREATE TABLE IF NOT EXISTS payments (
     KEY idx_payments_org_payment_date (organization_id, payment_date),
     KEY idx_payments_org_created (organization_id, created_at),
     KEY idx_payments_deleted_at (deleted_at),
+    KEY idx_payments_bank_account (bank_account_id),
+    CONSTRAINT fk_payments_bank_account FOREIGN KEY (bank_account_id)
+        REFERENCES bank_accounts (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_payments_client FOREIGN KEY (client_id)
         REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_payments_invoice FOREIGN KEY (invoice_id)
