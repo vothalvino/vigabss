@@ -29,6 +29,10 @@ import { useClientNames } from '@/api/clientNames';
 import { formatDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
+import { useResellerOptions } from '@/pages/resellers/resellerOptions';
+import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types (local to this file — list-level concerns)
@@ -65,8 +69,8 @@ interface GatewayTransaction {
 
 const API_BASE = '/api/v1';
 
-async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string, resellerId: number | null): Promise<PaymentsResponse> {
-  const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
+async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string, resellerId: number | null, filters: ListFilterValue): Promise<PaymentsResponse> {
+  const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order, ...listFilterQuery(filters) };
   if (statusFilter) query.status = statusFilter;
   if (resellerId) query.reseller_id = resellerId;
   const res = await api.GET('/payments', { params: { query: query } });
@@ -362,16 +366,27 @@ export function PaymentList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [statusFilter, setStatusFilter] = useState('');
+  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
   const [showRecord, setShowRecord] = useState(false);
   const sort = useTableSort('created_at', 'DESC');
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const resellerParam = Number(params.get('reseller_id'));
   const resellerId = Number.isInteger(resellerParam) && resellerParam > 0 ? resellerParam : null;
+  // Who collected it: a reseller or a collector. Kept in the address, so a
+  // link from a reseller's page lands on its payments.
+  const { user: filterUser } = useAuth();
+  const resellers = useResellerOptions({ topLevel: true, enabled: can(filterUser, 'resellers.view') });
+  const setReseller = (id: string) => {
+    const next = new URLSearchParams(params);
+    if (id) next.set('reseller_id', id); else next.delete('reseller_id');
+    setParams(next, { replace: true });
+    setPage(1);
+  };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, resellerId],
-    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order, resellerId),
+    queryKey: ['payments', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, resellerId, listFilterKey(filters)],
+    queryFn: () => fetchPayments(page, pageSize, statusFilter, sort.order_by, sort.order, resellerId, filters),
     placeholderData: prev => prev,
   });
 
@@ -414,6 +429,23 @@ export function PaymentList() {
           </button>
         ))}
       </div>
+
+      <ListFilters value={filters} dateLabel={t('listFilters.paymentDate')} onChange={(next) => { setFilters(next); setPage(1); }}>
+        {(resellers.data?.rows.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <label htmlFor="payment-collected-by" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('listFilters.collectedBy')}</label>
+            <select
+              id="payment-collected-by"
+              value={resellerId ?? ''}
+              onChange={e => setReseller(e.target.value)}
+              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-strong)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+            >
+              <option value="">{t('listFilters.anyone')}</option>
+              {resellers.data?.rows.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+        )}
+      </ListFilters>
 
       {resellerId && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: '1rem' }}>

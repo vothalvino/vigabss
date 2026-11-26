@@ -12172,5 +12172,18 @@
       "accountHint": "Últimos dígitos",
       "add": "Adicionar conta"
     }
+  },
+  "listFilters": {
+    "collectedBy": "Recebido por",
+    "anyone": "Qualquer um",
+    "title": "Filtros",
+    "from": "{{what}} de",
+    "to": "Até",
+    "client": "Cliente",
+    "clear": "Limpar filtros",
+    "issueDate": "Data de emissão",
+    "paymentDate": "Data do pagamento",
+    "createdDate": "Criado",
+    "openedDate": "Aberto"
   }
 }

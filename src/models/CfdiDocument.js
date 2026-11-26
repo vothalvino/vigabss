@@ -18,6 +18,9 @@ class CfdiDocument extends BaseModel {
   // NOT fillable — they are set exclusively by cfdiService's stamp/cancel
   // flows, so SAT state can never be forged through the generic CRUD routes
   // (the #469 void↔cancel gating depends on that).
+  // The list's ?date_from=&date_to= range: when the document was created.
+  static get dateFilter() { return { column: 'created_at', kind: 'datetime' }; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'invoice_id', 'credit_note_id', 'payment_id',

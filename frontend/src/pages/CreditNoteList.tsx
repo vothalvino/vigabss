@@ -25,6 +25,7 @@ import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { useTranslation } from 'react-i18next';
+import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,8 +110,8 @@ export function reasonLabel(reason: string): string {
 // Fetch / mutate helpers
 // ---------------------------------------------------------------------------
 
-async function fetchCreditNotes(page: number, statusFilter: string): Promise<CreditNotesResponse> {
-  const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
+async function fetchCreditNotes(page: number, statusFilter: string, filters: ListFilterValue): Promise<CreditNotesResponse> {
+  const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE, ...listFilterQuery(filters) };
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/credit-notes', { params: { query: query } });
   if (res.error) throw new Error('Failed to load credit notes');
@@ -512,6 +513,7 @@ export function CreditNoteList() {
   const isMxOrg = user?.organization_locale === 'MX';
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
   const [showNew, setShowNew] = useState(false);
   const [editNote, setEditNote] = useState<CreditNote | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -519,8 +521,8 @@ export function CreditNoteList() {
   const [stampMsg, setStampMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const notesQ = useQuery({
-    queryKey: ['credit-notes', page, statusFilter],
-    queryFn: () => fetchCreditNotes(page, statusFilter),
+    queryKey: ['credit-notes', page, statusFilter, listFilterKey(filters)],
+    queryFn: () => fetchCreditNotes(page, statusFilter, filters),
   });
 
   const deleteMutation = useMutation({
@@ -573,6 +575,8 @@ export function CreditNoteList() {
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>{t('creditNoteList.clearFilter')}</button>
         )}
       </div>
+
+      <ListFilters value={filters} dateLabel={t('listFilters.issueDate')} onChange={(next) => { setFilters(next); setPage(1); }} />
 
       {deleteMutation.isError && (
         <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('creditNoteList.actionFailedPleaseTryAgain')}</p>

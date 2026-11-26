@@ -26,6 +26,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { formatMoney } from '@/lib/money';
+import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,8 +49,9 @@ async function fetchInvoices(
   statusFilter: string,
   orderBy: string,
   order: string,
+  filters: ListFilterValue,
 ): Promise<InvoicesResponse> {
-  const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
+  const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order, ...listFilterQuery(filters) };
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/invoices', { params: { query: query } });
   if (res.error) throw new Error('Failed to load invoices');
@@ -137,6 +139,7 @@ export function InvoiceList() {
     const s = searchParams.get('status');
     return s && STATUS_OPTIONS.includes(s) ? s : '';
   });
+  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
   const [showGenerate, setShowGenerate] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmVoid, setConfirmVoid] = useState(false);
@@ -152,8 +155,8 @@ export function InvoiceList() {
   }, [sort.sortBy, sort.sortDir]);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['invoices', page, pageSize, statusFilter, sort.sortBy, sort.sortDir],
-    queryFn: () => fetchInvoices(page, pageSize, statusFilter, sort.order_by, sort.order),
+    queryKey: ['invoices', page, pageSize, statusFilter, sort.sortBy, sort.sortDir, listFilterKey(filters)],
+    queryFn: () => fetchInvoices(page, pageSize, statusFilter, sort.order_by, sort.order, filters),
     placeholderData: (prev) => prev,
   });
 
@@ -247,6 +250,8 @@ export function InvoiceList() {
           </button>
         ))}
       </div>
+
+      <ListFilters value={filters} dateLabel={t('listFilters.issueDate')} onChange={(next) => { setFilters(next); setPage(1); }} />
 
       {/* Bulk actions */}
       {selected.size > 0 && (

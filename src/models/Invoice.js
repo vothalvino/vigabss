@@ -10,6 +10,9 @@ class Invoice extends BaseModel {
 
   static get businessDateColumns() { return ['issue_date']; }
 
+  // The list's ?date_from=&date_to= range: when it was issued.
+  static get dateFilter() { return { column: 'issue_date', kind: 'date' }; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'contract_id', 'invoice_number',

@@ -7,6 +7,9 @@ const BaseModel = require('./BaseModel');
 class CashReconciliationSession extends BaseModel {
   static get tableName() { return 'cash_reconciliation_sessions'; }
 
+  // The list's ?date_from=&date_to= range: when the cashier was opened.
+  static get dateFilter() { return { column: 'opened_at', kind: 'datetime' }; }
+
   static get fillable() {
     return [
       'organization_id', 'agent_user_id', 'opened_at', 'closed_at',

@@ -16,6 +16,7 @@ import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/Sandbox
 import { formatMoney } from '@/lib/money';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { UnpaidPpdPanel } from '@/components/UnpaidPpdPanel';
+import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,11 +74,12 @@ function authHeaders(): Record<string, string> {
 }
 
 async function fetchCfdi(
-  page: number, statusFilter: string, typeFilter: string, orderBy: string, order: 'ASC' | 'DESC',
+  page: number, statusFilter: string, typeFilter: string, orderBy: string, order: 'ASC' | 'DESC', filters: ListFilterValue,
 ): Promise<CfdiListResponse> {
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), order_by: orderBy, order });
   if (statusFilter) params.set('sat_status', statusFilter);
   if (typeFilter) params.set('tipo_comprobante', typeFilter);
+  for (const [key, value] of Object.entries(listFilterQuery(filters))) params.set(key, String(value));
   const res = await authedFetch(`${API_BASE}/cfdi-documents?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load CFDI documents');
   return res.json() as Promise<CfdiListResponse>;
@@ -378,6 +380,7 @@ export function CfdiList() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
   const [stampTarget, setStampTarget] = useState<CfdiDocument | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CfdiDocument | null>(null);
   const qc = useQueryClient();
@@ -386,8 +389,8 @@ export function CfdiList() {
   const sort = useTableSort('id', 'DESC');
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['cfdi', page, statusFilter, typeFilter, sort.order_by, sort.order],
-    queryFn: () => fetchCfdi(page, statusFilter, typeFilter, sort.order_by, sort.order),
+    queryKey: ['cfdi', page, statusFilter, typeFilter, sort.order_by, sort.order, listFilterKey(filters)],
+    queryFn: () => fetchCfdi(page, statusFilter, typeFilter, sort.order_by, sort.order, filters),
     placeholderData: prev => prev,
   });
 
@@ -515,6 +518,8 @@ export function CfdiList() {
           </div>
         </div>
       </div>
+
+      <ListFilters value={filters} dateLabel={t('listFilters.createdDate')} onChange={(next) => { setFilters(next); setPage(1); }} />
 
       {/* Table */}
       {isLoading && <p style={{ color: 'var(--text-muted)' }}>{t('ui.cfdiList.loading')}</p>}

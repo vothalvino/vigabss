@@ -34,6 +34,7 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
+import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -255,12 +256,13 @@ export function CashReconciliationList() {
   // A count that did not match waits here for a supervisor's decision.
   const [review, setReview] = useState<{ id: number; decision: CashierDecision; variance: string | null } | null>(null);
 
+  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['cash-sessions', page],
+    queryKey: ['cash-sessions', page, listFilterKey(filters)],
     queryFn: async () => {
       const res = await api.GET('/cash-reconciliation/sessions', {
         // Newest first: today's cashiers are what the page is opened for.
-        params: { query: { page, limit: PAGE_SIZE, order_by: 'id', order: 'desc' } as never },
+        params: { query: { page, limit: PAGE_SIZE, order_by: 'id', order: 'desc', ...listFilterQuery(filters) } as never },
       });
       if (res.error) throw new Error('Failed to load sessions');
       return res.data as unknown as SessionsResponse;
@@ -303,6 +305,8 @@ export function CashReconciliationList() {
       </div>
 
       <CashierRulesBox canEdit={canApprove} />
+
+      <ListFilters value={filters} dateLabel={t('listFilters.openedDate')} showClient={false} onChange={(next) => { setFilters(next); setPage(1); }} />
 
       <div style={styles.tableCard}>
         {isLoading ? (
