@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.48 — 2026-11-26
+
 - **Changed: closing a cashier is a count, not a hand-in.** The cash stays in
   the drawer between shifts. Opening a cashier now starts by counting the
   drawer, and the page shows what was counted at the last close. What the
