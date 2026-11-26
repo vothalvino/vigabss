@@ -748,7 +748,7 @@
     "tabNames": {
       "cash": "Caja",
       "transactions": "Transacciones",
-      "recurring": "Recurrentes",
+      "recurring": "Tarjetas",
       "problems": "Problemas",
       "security": "Seguridad",
       "tunnels": "Túneles",
@@ -904,7 +904,7 @@
     "paymentGateways": "Pasarelas de Pago",
     "paymentProblems": "Problemas de pagos",
     "paymentTransactions": "Transacciones de Pago",
-    "recurringPaymentProfiles": "Pagos Recurrentes",
+    "recurringPaymentProfiles": "Tarjetas registradas",
     "users": "Usuarios",
     "organizations": "Organizaciones",
     "dsar": "DSAR",
@@ -9715,11 +9715,11 @@
       "close": "Cerrar"
     },
     "recurringPaymentProfileList": {
-      "recurringPaymentProfiles": "🔁 Perfiles de pago recurrente",
+      "recurringPaymentProfiles": "💳 Tarjetas registradas",
       "total": " en total",
       "loading": "Cargando…",
-      "failedToLoadRecurringPayment": "No se pudieron cargar los perfiles de pago recurrente.",
-      "noRecurringPaymentProfilesFound": "No se encontraron perfiles de pago recurrente.",
+      "failedToLoadRecurringPayment": "No se pudieron cargar las tarjetas registradas.",
+      "noRecurringPaymentProfilesFound": "No hay tarjetas registradas.",
       "prev": "← Anterior",
       "page": "Página ",
       "of": " de ",
