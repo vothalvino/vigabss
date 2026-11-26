@@ -1586,6 +1586,14 @@ function generateSpec() {
       '/cash-reconciliation/sessions/{id}/close': { post: { tags: ['Cash Reconciliation'], summary: 'Close a session with counted total', operationId: 'closeCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cashReconciliation_closeSessionSchema'), responses: r200('CashReconciliationSession') } },
       '/cash-reconciliation/sessions/{id}/approve': { post: { tags: ['Cash Reconciliation'], summary: 'Approve a closed or disputed session whose count did not match (a matching count is approved when the session is closed). Needs a note; not allowed on your own session (403 OWN_CASHIER) unless you are the admin of the organization', operationId: 'approveCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { note: { type: 'string', maxLength: 1000 } } } } } }, responses: r200('CashReconciliationSession') } },
       '/cash-reconciliation/sessions/{id}/dispute': { post: { tags: ['Cash Reconciliation'], summary: 'Dispute a closed session whose count did not match. Needs a note; not allowed on your own session (403 OWN_CASHIER) unless you are the admin of the organization', operationId: 'disputeCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['note'], properties: { note: { type: 'string', minLength: 3, maxLength: 1000 } } } } } }, responses: r200('CashReconciliationSession') } },
+      '/cash-reconciliation/opening': { get: { tags: ['Cash Reconciliation'], summary: 'What the drawer of the caller should hold when they open: the count of their last close, or null when there is none to compare with', operationId: 'getCashierOpening', security: [{ bearerAuth: [] }], responses: { 200: { description: 'The expected opening cash', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { expected: { type: ['number', 'null'] } } } } } } } } } } },
+      '/cash-reconciliation/rules': {
+        get: { tags: ['Cash Reconciliation'], summary: 'The cashier rules of the organization: match tolerance, hours a cashier may stay open, the cash pickup threshold and whether it is strict', operationId: 'getCashierRules', security: [{ bearerAuth: [] }], responses: { 200: { description: 'The rules', content: { 'application/json': { schema: { type: 'object', properties: { data: cashierRulesSchema() } } } } } } },
+        put: { tags: ['Cash Reconciliation'], summary: 'A supervisor sets the cash pickup threshold (0 turns the reminder off) and whether a cashier holding that much is stopped from taking more cash or only reminded', operationId: 'updateCashierRules', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { pickup_threshold: { type: 'number', minimum: 0 }, pickup_strict: { type: 'boolean' } } } } } }, responses: { 200: { description: 'The rules', content: { 'application/json': { schema: { type: 'object', properties: { data: cashierRulesSchema() } } } } } } },
+      },
+      '/cash-reconciliation/sessions/{id}/pickups': { post: { tags: ['Cash Reconciliation'], summary: 'A supervisor takes cash out of an open session. It waits for the owner of the session to confirm it (an admin taking from their own session is confirmed at once); not allowed on your own session otherwise (403 OWN_CASHIER)', operationId: 'createCashPickup', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['amount'], properties: { amount: { type: 'number', minimum: 0.01 }, note: { type: 'string', maxLength: 500 } } } } } }, responses: { 201: { description: 'The pickup', content: { 'application/json': { schema: { type: 'object', properties: { data: cashPickupSchema() } } } } } } } },
+      '/cash-reconciliation/pickups/{id}/confirm': { post: { tags: ['Cash Reconciliation'], summary: 'The owner of the session confirms a pending cash pickup; from then on it lowers what the drawer should hold', operationId: 'confirmCashPickup', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'The pickup', content: { 'application/json': { schema: { type: 'object', properties: { data: cashPickupSchema() } } } } } } } },
+      '/cash-reconciliation/pickups/{id}/cancel': { post: { tags: ['Cash Reconciliation'], summary: 'Cancel a pending cash pickup: by the owner of the session or the supervisor who recorded it', operationId: 'cancelCashPickup', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'The pickup', content: { 'application/json': { schema: { type: 'object', properties: { data: cashPickupSchema() } } } } } } } },
       '/cash-reconciliation/my-cashier': { get: { tags: ['Cash Reconciliation'], summary: "The caller's own open session (when opened, cash recorded so far, whether it is past the organization's cashier_max_open_hours), or null", operationId: 'getMyCashier', security: [{ bearerAuth: [] }], responses: { 200: { description: 'The open session or null', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: ['object', 'null'], properties: { id: { type: 'integer' }, opened_at: { type: 'string', format: 'date-time' }, hours_open: { type: 'integer' }, expected_total: { type: 'number' }, max_open_hours: { type: 'integer' }, overdue: { type: 'boolean' } } } } } } } } } } },
       '/cash-reconciliation/attention': { get: { tags: ['Cash Reconciliation'], summary: 'For supervisors: sessions open longer than cashier_max_open_hours and the number of closed sessions waiting for a review', operationId: 'getCashierAttention', security: [{ bearerAuth: [] }], responses: { 200: { description: 'What needs a supervisor', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { max_open_hours: { type: 'integer' }, awaiting_review: { type: 'integer' }, overdue_open: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, agent_user_id: { type: 'integer' }, agent_name: { type: ['string', 'null'] }, opened_at: { type: 'string', format: 'date-time' }, hours_open: { type: 'integer' } } } } } } } } } } } } } },
 
@@ -4077,6 +4085,32 @@ function resellerAppReceiptSchema() {
       legend: { type: 'string' },
       language: { type: 'string', enum: ['es', 'en'], description: 'es for an MX organization' },
       plain_text: { type: 'string', description: 'Thermal-printer text (32 or 48 columns)' },
+    },
+  };
+}
+function cashierRulesSchema() {
+  return {
+    type: 'object',
+    properties: {
+      match_tolerance: { type: 'number' },
+      max_open_hours: { type: 'integer' },
+      pickup_threshold: { type: 'number', description: '0 = no reminder' },
+      pickup_strict: { type: 'boolean' },
+    },
+  };
+}
+function cashPickupSchema() {
+  return {
+    type: 'object',
+    properties: {
+      id: { type: 'integer' },
+      session_id: { type: 'integer' },
+      amount: { type: 'number' },
+      status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled'] },
+      taken_by: { type: 'integer' },
+      confirmed_by: { type: ['integer', 'null'] },
+      note: { type: ['string', 'null'] },
+      created_at: { type: 'string', format: 'date-time' },
     },
   };
 }

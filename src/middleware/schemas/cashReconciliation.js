@@ -4,6 +4,8 @@
 
 const openSessionSchema = {
   notes: { type: 'string' },
+  // The cash counted in the drawer when the shift starts.
+  opening_total: { type: 'number', required: true, min: 0, max: 9999999999.99 },
 };
 
 const closeSessionSchema = {
@@ -20,4 +22,20 @@ const disputeSessionSchema = {
   note: { type: 'string', required: true, min: 3, max: 1000 },
 };
 
-module.exports = { openSessionSchema, closeSessionSchema, approveSessionSchema, disputeSessionSchema };
+// Cash a supervisor takes out of an open cashier.
+const pickupSchema = {
+  amount: { type: 'number', required: true, min: 0.01, max: 9999999999.99 },
+  note: { type: 'string', max: 500 },
+};
+
+// What a supervisor sets: when cash should be handed in, and whether a
+// cashier over that amount is stopped or only reminded.
+const pickupRulesSchema = {
+  pickup_threshold: { type: 'number', min: 0, max: 9999999999.99 },
+  pickup_strict: { type: 'boolean' },
+};
+
+module.exports = {
+  openSessionSchema, closeSessionSchema, approveSessionSchema, disputeSessionSchema,
+  pickupSchema, pickupRulesSchema,
+};

@@ -1190,7 +1190,10 @@ CREATE TABLE IF NOT EXISTS cash_reconciliation_sessions (
     agent_user_id       BIGINT UNSIGNED  NOT NULL COMMENT 'Field agent who opened this session',
     opened_at           DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
     closed_at           DATETIME         NULL,
-    expected_total      DECIMAL(12,2)    NULL     COMMENT 'System-computed total of cash payments recorded during session window',
+    opening_total       DECIMAL(12,2)    NULL     COMMENT 'Cash the agent counted in the drawer when opening; NULL on sessions from before migration 033',
+    opening_expected    DECIMAL(12,2)    NULL     COMMENT 'What the drawer should have held at opening: the count of the agent''s previous close; NULL when there was none to compare with (migration 033)',
+    pickups_total       DECIMAL(12,2)    NULL     COMMENT 'Cash handed to supervisors during the session (confirmed pickups), fixed at close (migration 033)',
+    expected_total      DECIMAL(12,2)    NULL     COMMENT 'Cash the drawer should hold at close: opening_total + cash payments of the session - pickups_total (payments alone before migration 033)',
     counted_total       DECIMAL(12,2)    NULL     COMMENT 'Physical cash count submitted by the agent at close',
     variance            DECIMAL(12,2)    NULL     COMMENT 'counted_total - expected_total; negative = short, positive = over',
     status              ENUM('open','closed','approved','disputed') NOT NULL DEFAULT 'open',
@@ -1215,6 +1218,40 @@ CREATE TABLE IF NOT EXISTS cash_reconciliation_sessions (
     CONSTRAINT fk_cash_recon_approved_by FOREIGN KEY (approved_by)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Table: cash_reconciliation_pickups (migration 033)
+-- Purpose: Cash a supervisor takes out of an open cashier (once it holds more
+--          than the organization's threshold). The supervisor records it and
+--          the cashier's owner confirms it; only a confirmed pickup lowers
+--          what the drawer is expected to hold.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cash_reconciliation_pickups (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NULL     COMMENT 'Owning tenant organisation (the session''s)',
+    session_id      BIGINT UNSIGNED NOT NULL COMMENT 'The open cashier the cash was taken from',
+    amount          DECIMAL(12,2)   NOT NULL,
+    status          ENUM('pending','confirmed','cancelled') NOT NULL DEFAULT 'pending'
+                        COMMENT 'pending = recorded by the supervisor, waiting for the owner; confirmed = counts; cancelled = never happened',
+    taken_by        BIGINT UNSIGNED NOT NULL COMMENT 'Supervisor who took the cash',
+    confirmed_by    BIGINT UNSIGNED NULL     COMMENT 'The cashier''s owner who confirmed it (the taker when an admin takes from their own)',
+    confirmed_at    DATETIME        NULL,
+    cancelled_by    BIGINT UNSIGNED NULL,
+    cancelled_at    DATETIME        NULL,
+    note            VARCHAR(500)    NULL,
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_cash_recon_pickups_session (session_id, status),
+    KEY idx_cash_recon_pickups_org (organization_id),
+    CONSTRAINT fk_cash_recon_pickups_session FOREIGN KEY (session_id)
+        REFERENCES cash_reconciliation_sessions (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_recon_pickups_org FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT chk_cash_recon_pickups_amount CHECK (amount > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cash taken out of an open cashier by a supervisor (migration 033)';
 
 -- ---------------------------------------------------------------------------
 -- Table: cash_reconciliation_session_payments (migration 521)

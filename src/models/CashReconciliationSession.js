@@ -12,6 +12,7 @@ class CashReconciliationSession extends BaseModel {
       'organization_id', 'agent_user_id', 'opened_at', 'closed_at',
       'expected_total', 'counted_total', 'variance', 'status', 'notes',
       'approved_by', 'approved_at', 'review_note',
+      'opening_total', 'opening_expected', 'pickups_total',
     ];
   }
 
