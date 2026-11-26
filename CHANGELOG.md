@@ -5,6 +5,16 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Added: filter lists by date and by client.** Invoices, Payments, CFDI,
+  Credit Notes and Cashier have a filter bar: a from date and a to date (both
+  days included) and, where the list has clients, a client search. Each list
+  filters on its own date: issue date for invoices and credit notes, payment
+  date for payments, the day a CFDI was created, the day a cashier was opened.
+  Payments can also be filtered by the reseller or collector that took them.
+  The filters work together with the status buttons and the sort, and the
+  overdue invoices view takes them too. In the API they are `date_from`,
+  `date_to` and `client_id` on those lists.
+
 - **Fixed: a downgrade left a partly paid month owing while it paid for new
   ones.** When a customer who paid ahead downgraded, the money freed from the
   months already invoiced went to new months even if an earlier month had

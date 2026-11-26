@@ -538,7 +538,7 @@ function generateSpec() {
       '/contracts/{id}/regenerate-pppoe': { post: { tags: ['Contracts'], summary: 'Regenerate (rotate) the PPPoE password for a contract’s RADIUS account; keeps the username and best-effort pushes the new secret to the NAS', operationId: 'regenerateContractPppoe', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'New PPPoE credentials', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract not found' }, 422: { description: 'Contract is not PPPoE or has no RADIUS account' } } } },
 
       // ---- Invoices ----
-      ...withRowResponses(crudPaths('invoices', 'Invoices', 'Invoice'), 'Invoice'),
+      ...withListParams(withRowResponses(crudPaths('invoices', 'Invoices', 'Invoice'), 'Invoice'), [clientFilterParam(), ...dateRangeParams('the issue date')]),
       '/invoices/{id}/items': {
         get: { tags: ['Invoices'], summary: 'List invoice line items', operationId: 'listInvoiceItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: arrayDataResponse('InvoiceItem') } },
         post: {
@@ -575,6 +575,7 @@ function generateSpec() {
       // ---- Payments ----
       ...withListParams(withRowResponses(crudPaths('payments', 'Payments', 'Payment'), 'Payment'), [
         { name: 'reseller_id', in: 'query', required: false, schema: { type: 'integer' }, description: 'Only payments collected by this reseller in the reseller app' },
+        clientFilterParam(), ...dateRangeParams('the payment date'),
       ]),
       '/payments/bank-accounts': { get: { tags: ['Payments'], summary: "The organization's active bank accounts, for a payment by transfer, card or check to name the one it reached (bank_account_id on POST /payments). Needs payments.create or payments.view", operationId: 'listPaymentBankAccounts', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Active bank accounts', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, name: { type: 'string' }, bank_name: { type: ['string', 'null'] }, account_hint: { type: ['string', 'null'] }, purpose: { type: 'string', enum: ['client_invoices', 'general_public', 'any'] } } } } } } } } } } } },
       '/payments/{id}/allocate': { post: { tags: ['Payments'], summary: 'Allocate payment to invoice', operationId: 'allocatePaymentToInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('payments_allocatePayment'), responses: r201('Allocation') } },
@@ -599,7 +600,7 @@ function generateSpec() {
       },
 
       // ---- Credit Notes ----
-      ...withRowResponses(crudPaths('credit-notes', 'Credit Notes', 'CreditNote'), 'CreditNote'),
+      ...withListParams(withRowResponses(crudPaths('credit-notes', 'Credit Notes', 'CreditNote'), 'CreditNote'), [clientFilterParam(), ...dateRangeParams('the issue date')]),
       '/credit-notes/{id}/stamp': { post: { tags: ['Credit Notes'], summary: 'Convert an MX-org credit note into a CFDI de Egreso (tipo E, related to the credited invoice via TipoRelacion 01) and stamp it via the org PAC; 200 with stamped:false + stamp_error on retryable PAC failure', operationId: 'stampCreditNote', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('creditNotes_stampCreditNote (optional uso_cfdi, forma_pago)'), responses: r200('{ cfdi_document_id, serie, uuid, sat_status, stamped }') } },
 
       // ---- Quotes ----
@@ -683,7 +684,7 @@ function generateSpec() {
       '/cfdi/{id}/pdf': { get: { tags: ['CFDI'], summary: 'Download CFDI PDF', operationId: 'cfdiDownloadPdf', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/pdf') } },
 
       // ---- CFDI Documents ----
-      ...crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'),
+      ...withListParams(crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'), [clientFilterParam(), ...dateRangeParams('the day the document was created')]),
       '/cfdi-documents/unpaid-ppd': { get: { tags: ['CFDI Documents'], summary: 'Deferred-payment (PPD) invoice CFDIs still in force whose invoice is not paid, oldest first (at most 500). One that will not be collected should be cancelled', operationId: 'listUnpaidPpdCfdis', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Unpaid PPD CFDIs', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, uuid: { type: 'string', nullable: true }, serie: { type: 'string', nullable: true }, folio: { type: 'integer', nullable: true }, stamp_date: { type: 'string', format: 'date-time', nullable: true }, total: { type: 'number' }, moneda: { type: 'string' }, receptor_rfc: { type: 'string' }, receptor_nombre: { type: 'string' }, client_id: { type: 'integer', nullable: true }, invoice_id: { type: 'integer' }, invoice_number: { type: 'string' }, invoice_status: { type: 'string' }, due_date: { type: 'string', format: 'date', nullable: true }, amount_paid: { type: 'number' }, balance: { type: 'number' }, days_open: { type: 'integer' } } } }, meta: { type: 'object', properties: { total: { type: 'integer' }, balance: { type: 'number' } } } } } } } } } } },
       '/cfdi-documents/environment': { get: { tags: ['CFDI Documents'], summary: "The organization's PAC environment and whether this install runs in production (sandbox CFDIs are not fiscally valid)", operationId: 'getCfdiEnvironment', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Fiscal environment', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { pac_environment: { type: 'string', enum: ['sandbox', 'production'] }, production_install: { type: 'boolean' } } } } } } } } } } },
       '/cfdi-documents/{id}/conceptos': { get: { tags: ['CFDI Documents'], summary: 'List the conceptos (line items) of a CFDI', operationId: 'listCfdiDocumentConceptos', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Concepto[]') } },
@@ -1582,7 +1583,7 @@ function generateSpec() {
 
       // ---- Cash Reconciliation — §2.3 ----
       '/cash-reconciliation/sessions': {
-        get: { tags: ['Cash Reconciliation'], summary: 'List cash reconciliation sessions', operationId: 'listCashReconciliationSessions', security: [{ bearerAuth: [] }], responses: r200('CashReconciliationSession[]') },
+        get: { tags: ['Cash Reconciliation'], summary: 'List cash reconciliation sessions', operationId: 'listCashReconciliationSessions', security: [{ bearerAuth: [] }], parameters: dateRangeParams('the day the cashier was opened'), responses: r200('CashReconciliationSession[]') },
         post: { tags: ['Cash Reconciliation'], summary: 'Open a new cash reconciliation session', operationId: 'openCashReconciliationSession', security: [{ bearerAuth: [] }], requestBody: jsonBody('cashReconciliation_openSessionSchema'), responses: r201('CashReconciliationSession') },
       },
       '/cash-reconciliation/sessions/{id}': {
@@ -5815,6 +5816,15 @@ function listEnvelopeResponse(componentName) {
 }
 
 /** Add query parameters to the list operation of a crudPaths() resource. */
+/** ?date_from=&date_to= of a list: business days, both included (BaseModel.dateFilter). */
+function dateRangeParams(what) {
+  return [
+    { name: 'date_from', in: 'query', required: false, schema: { type: 'string', format: 'date' }, description: `Only rows from this day on, by ${what}` },
+    { name: 'date_to', in: 'query', required: false, schema: { type: 'string', format: 'date' }, description: `Only rows up to and including this day, by ${what}` },
+  ];
+}
+const clientFilterParam = () => ({ name: 'client_id', in: 'query', required: false, schema: { type: 'integer' }, description: 'Only rows of this client' });
+
 function withListParams(paths, params) {
   const [list] = Object.keys(paths);
   paths[list].get.parameters = [...(paths[list].get.parameters || []), ...params];

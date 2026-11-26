@@ -360,19 +360,28 @@ router.get('/', requirePermission('invoices.view'), async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const offset = (page - 1) * limit;
+    // The overdue view takes the same client and date range filters as the
+    // generic list.
+    const extra = [];
+    const extraParams = [];
+    const filters = {};
+    for (const key of ['client_id', 'contract_id', 'date_from', 'date_to']) {
+      if (req.query[key] !== undefined) filters[key] = req.query[key];
+    }
+    Invoice.applyListFilters(filters, extra, extraParams);
     const WHERE = `WHERE organization_id = ? AND deleted_at IS NULL
-        AND status IN ('issued', 'sent', 'overdue') AND due_date < ${sqlBusinessToday()}`;
+        AND status IN ('issued', 'sent', 'overdue') AND due_date < ${sqlBusinessToday()}${extra.map(c => ` AND ${c}`).join('')}`;
     // Honour the list's sort like the generic path does; the column is checked
     // against the model's allow-list. Default: longest overdue first.
     const sortCol = Invoice.sortable.includes(req.query.order_by) ? req.query.order_by : 'due_date';
     const sortDir = String(req.query.order || '').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
     const [rows] = await db.query(
       `SELECT * FROM invoices ${WHERE} ORDER BY \`${sortCol}\` ${sortDir}, id ${sortDir} LIMIT ${limit} OFFSET ${offset}`,
-      [req.orgId],
+      [req.orgId, ...extraParams],
     );
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM invoices ${WHERE}`,
-      [req.orgId],
+      [req.orgId, ...extraParams],
     );
     // Present the derived state honestly: a row filtered as overdue displays as
     // overdue even if its stored column still reads 'issued'/'sent'.

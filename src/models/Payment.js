@@ -10,6 +10,9 @@ class Payment extends BaseModel {
 
   static get businessDateColumns() { return ['payment_date']; }
 
+  // The list's ?date_from=&date_to= range: the payment's date.
+  static get dateFilter() { return { column: 'payment_date', kind: 'date' }; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'amount', 'currency',

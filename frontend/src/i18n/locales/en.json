@@ -12178,5 +12178,18 @@
       "accountHint": "Last digits",
       "add": "Add account"
     }
+  },
+  "listFilters": {
+    "collectedBy": "Collected by",
+    "anyone": "Anyone",
+    "title": "Filters",
+    "from": "{{what}} from",
+    "to": "To",
+    "client": "Client",
+    "clear": "Clear filters",
+    "issueDate": "Issue date",
+    "paymentDate": "Payment date",
+    "createdDate": "Created",
+    "openedDate": "Opened"
   }
 }

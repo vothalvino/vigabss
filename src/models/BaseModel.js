@@ -6,8 +6,8 @@
 // =============================================================================
 
 const db = require('../config/database');
-const { businessToday } = require('../utils/businessDate');
-const { NotFoundError, AppError } = require('../utils/errors');
+const { businessToday, addDays, businessDayStartUtc } = require('../utils/businessDate');
+const { NotFoundError, AppError, ValidationError } = require('../utils/errors');
 
 // TNB-34: the organization argument of the org-scoped methods used to default
 // to null, and null silently dropped the tenant predicate, so a call that left
@@ -144,6 +144,47 @@ class BaseModel {
   }
 
   /**
+   * The column a list's date range (?date_from=&date_to=, business days,
+   * both inclusive) filters on, or null when the list has none. `kind` says
+   * how it is stored: 'date' for a DATE column holding a business day,
+   * 'datetime' for a UTC DATETIME/TIMESTAMP, whose range is the business
+   * days' own start and end.
+   * @returns {{ column: string, kind: 'date'|'datetime' }|null}
+   */
+  static get dateFilter() {
+    return null;
+  }
+
+  /**
+   * Add a list's filters to `conditions`/`params`: equality on the columns a
+   * list may filter by, and the date range when the model has one. Unknown
+   * keys are ignored, as before; a date that is not YYYY-MM-DD is refused.
+   */
+  static applyListFilters(where, conditions, params) {
+    for (const [col, val] of Object.entries(where || {})) {
+      if (col === 'date_from' || col === 'date_to') continue;
+      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'organization_id') {
+        conditions.push(`\`${col}\` = ?`);
+        params.push(val);
+      }
+    }
+    const range = this.dateFilter;
+    if (!range || !where) return;
+    for (const key of ['date_from', 'date_to']) {
+      const value = where[key];
+      if (value === undefined || value === null || value === '') continue;
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+        throw new ValidationError(`${key} must be a date (YYYY-MM-DD)`);
+      }
+      const from = key === 'date_from';
+      // The end day is included: everything before the day after it.
+      const day = from ? value : addDays(value, 1);
+      conditions.push(`\`${range.column}\` ${from ? '>=' : '<'} ?`);
+      params.push(range.kind === 'datetime' ? businessDayStartUtc(day) : day);
+    }
+  }
+
+  /**
    * List records with optional filters, pagination, and org scoping.
    * @param {object} [options]
    * @param {boolean} [options.withDeleted=false] Include soft-deleted records
@@ -171,12 +212,7 @@ class BaseModel {
       conditions.push('deleted_at IS NULL');
     }
 
-    for (const [col, val] of Object.entries(where)) {
-      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'organization_id') {
-        conditions.push(`\`${col}\` = ?`);
-        params.push(val);
-      }
-    }
+    this.applyListFilters(where, conditions, params);
 
     // Validate orderBy against allowed columns to prevent SQL injection
     const safeOrderBy = this.sortable.includes(orderBy) ? orderBy : 'id';
@@ -218,12 +254,7 @@ class BaseModel {
       conditions.push('deleted_at IS NULL');
     }
 
-    for (const [col, val] of Object.entries(where)) {
-      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'organization_id') {
-        conditions.push(`\`${col}\` = ?`);
-        params.push(val);
-      }
-    }
+    this.applyListFilters(where, conditions, params);
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const sql = `SELECT COUNT(*) AS total FROM \`${this.tableName}\` ${whereClause}`;
