@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: the Payments page stayed light in dark mode.** Its table, rows,
+  filters and the payment action dialogs used fixed white and grey colours.
+  They now follow the theme.
+
 - **Changed: taking cash needs an open cashier.** A person who records a cash
   payment, or pays a client group in cash, must have their cashier open;
   otherwise the payment is refused with "Open your cashier before recording a

@@ -463,12 +463,12 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.allocatePayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.allocatePayment2')}{payment.id}</h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('paymentActions.applyThisPaymentToAn')}
         </p>
 
         {loadingAllocs && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.computingUnallocatedBalance')}</p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('paymentActions.computingUnallocatedBalance')}</p>
         )}
 
         {!loadingAllocs && (
@@ -504,12 +504,12 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
             ))}
           </select>
           {loadingInvoices && (
-            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
               {t('paymentActions.loadingInvoices')}
             </p>
           )}
           {!loadingInvoices && applicableInvoices.length === 0 && (
-            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
               {t('paymentActions.noApplicableInvoicesForThis')}
             </p>
           )}
@@ -592,7 +592,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.reallocatePayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.reallocatePayment2')}{payment.id}</h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('paymentActions.moveThisPaymentSAllocation')}
         </p>
         {mutation.isError && (
@@ -615,7 +615,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
             ))}
           </select>
           {!loadingAllocs && allocs.length === 0 && (
-            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
               {t('paymentActions.noCurrentAllocationsForThis')}
             </p>
           )}
@@ -701,12 +701,12 @@ function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.reassignPayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.reassignPayment2')}{payment.id}</h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('paymentActions.moveThisPaymentToA')}
         </p>
 
         {loadingAllocs && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.checkingAllocations')}</p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('paymentActions.checkingAllocations')}</p>
         )}
 
         {!loadingAllocs && isBlocked && (
@@ -773,16 +773,16 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
     <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.unApplyPayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.unApplyPayment2')}{payment.id}</h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('paymentActions.removeThisPaymentFromA')}
         </p>
 
         {isLoading && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.loadingAllocations')}</p>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('paymentActions.loadingAllocations')}</p>
         )}
 
         {!isLoading && allocs.length === 0 && (
-          <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             {t('paymentActions.thisPaymentHasNoLive')}
           </p>
         )}
@@ -790,7 +790,7 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
         {!isLoading && allocs.length > 0 && (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', marginBottom: '1rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #e5e7eb', color: '#6b7280', textAlign: 'left' }}>
+              <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textAlign: 'left' }}>
                 <th style={{ padding: '6px 8px' }}>{t('paymentActions.invoice2')}</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('paymentActions.amount2')}</th>
                 <th style={{ padding: '6px 8px' }}></th>
@@ -798,8 +798,8 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
             </thead>
             <tbody>
               {allocs.map(a => (
-                <tr key={a.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '6px 8px', color: '#374151' }}>#{a.invoice_id}</td>
+                <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>#{a.invoice_id}</td>
                   <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(a.amount, payment.currency)}
                   </td>
@@ -961,7 +961,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         )}
         {canUpdate && (
           <button
-            style={{ ...iconBtn, background: '#f3f4f6', color: '#374151' }}
+            style={{ ...iconBtn, background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
             onClick={() => setEditOpen(true)}
             title={t('paymentActions.editPayment3')}
             aria-label={t('paymentActions.editPayment3')}
@@ -1040,7 +1040,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         <div style={overlay} role="alertdialog" aria-modal="true" aria-label={t('paymentActions.deletePayment2')}>
           <div style={modalBox}>
             <h3 style={{ margin: '0 0 0.75rem' }}>{t('paymentActions.deletePayment3')}{payment.id}?</h3>
-            <p style={{ margin: '0 0 1.25rem', color: '#4b5563', fontSize: '0.9rem' }}>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               {t('paymentActions.thisWillPermanentlyRemovePayment')}{' '}
               {formatMoney(payment.amount, payment.currency)}{t('paymentActions.thisActionCannotBeUndone')}
             </p>

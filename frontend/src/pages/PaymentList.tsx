@@ -109,16 +109,16 @@ function GatewayBadge({ status }: { status: string }) {
     pending:    { bg: '#fef9c3', color: '#854d0e' },
     succeeded:  { bg: '#d1fae5', color: '#065f46' },
     disputed:   { bg: '#fee2e2', color: '#991b1b' },
-    cancelled:  { bg: '#f3f4f6', color: '#374151' },
+    cancelled:  { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
     authorized: { bg: '#d1fae5', color: '#065f46' },
     captured:   { bg: '#d1fae5', color: '#065f46' },
     settled:    { bg: '#d1fae5', color: '#065f46' },
     failed:     { bg: '#fee2e2', color: '#991b1b' },
     declined:   { bg: '#fee2e2', color: '#991b1b' },
     refunded:   { bg: '#dbeafe', color: '#1e40af' },
-    voided:     { bg: '#f3f4f6', color: '#374151' },
+    voided:     { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
   };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
+  const s = map[status] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' };
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -150,7 +150,7 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
   if (isLoading) {
     return (
       <tr>
-        <td colSpan={9} style={{ padding: '8px 20px', background: '#f8faff', fontSize: '0.82rem', color: '#9ca3af' }}>
+        <td colSpan={9} style={{ padding: '8px 20px', background: 'var(--bg-subtle)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('ui.paymentList.loadingAllocations')}
         </td>
       </tr>
@@ -159,15 +159,15 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
 
   return (
     <tr>
-      <td colSpan={9} style={{ padding: '8px 20px 12px', background: '#f8faff' }}>
+      <td colSpan={9} style={{ padding: '8px 20px 12px', background: 'var(--bg-subtle)' }}>
         {allocs.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('ui.paymentList.noInvoiceAllocations')}</p>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('ui.paymentList.noInvoiceAllocations')}</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr>
                 {['Invoice', 'Allocated Amount'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: '#6b7280', fontWeight: 600 }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -215,7 +215,7 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
   if (isLoading) {
     return (
       <tr>
-        <td colSpan={9} style={{ padding: '8px 20px', background: '#fafff8', fontSize: '0.82rem', color: '#9ca3af' }}>
+        <td colSpan={9} style={{ padding: '8px 20px', background: 'var(--bg-subtle)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {t('ui.paymentList.loadingGatewayTransactions')}
         </td>
       </tr>
@@ -224,9 +224,9 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
 
   return (
     <tr>
-      <td colSpan={9} style={{ padding: '8px 20px 12px', background: '#fafff8' }}>
+      <td colSpan={9} style={{ padding: '8px 20px 12px', background: 'var(--bg-subtle)' }}>
         {linked.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
             {t('ui.paymentList.noGatewayTransactionsLinkedTo')}
           </p>
         ) : (
@@ -234,7 +234,7 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
             <thead>
               <tr>
                 {['Gateway', 'Gateway Txn ID', 'Amount', 'Status', 'Date'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: '#6b7280', fontWeight: 600 }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -242,14 +242,14 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
               {linked.map((t: GatewayTransaction) => (
                 <tr key={t.id}>
                   <td style={{ padding: '4px 8px', textTransform: 'capitalize' }}>{t.gateway_name || t.gateway_provider || '—'}</td>
-                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#6b7280' }}>
+                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     {t.gateway_reference_id || '—'}
                   </td>
                   <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(t.amount, t.currency)}
                   </td>
                   <td style={{ padding: '4px 8px' }}><GatewayBadge status={t.gateway_status} /></td>
-                  <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{fmt(t.created_at)}</td>
+                  <td style={{ padding: '4px 8px', color: 'var(--text-muted)' }}>{fmt(t.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -281,10 +281,10 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
 
   return (
     <>
-      <tr style={{ borderBottom: '1px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+      <tr style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-body)' }}>
         {/* Client name */}
         <td style={{ padding: '10px 14px' }}>
-          <Link to={`/clients/${payment.client_id}`} style={{ color: '#374151', textDecoration: 'none' }}>
+          <Link to={`/clients/${payment.client_id}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
             {clientName ?? String(payment.client_id)}
           </Link>
           {payment.reseller_name && (
@@ -294,7 +294,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
           )}
         </td>
         {/* Payment ID — narrow. The client is the linked name beside it. */}
-        <td style={{ padding: '10px 8px', color: '#9ca3af', fontSize: '0.8rem', whiteSpace: 'nowrap', width: 40 }}>
+        <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap', width: 40 }}>
           {payment.id}
         </td>
         {/* Amount */}
@@ -302,7 +302,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
           {formatMoney(payment.amount, payment.currency)}
         </td>
         {/* Method */}
-        <td style={{ padding: '10px 14px', textTransform: 'capitalize', color: '#4b5563' }}>
+        <td style={{ padding: '10px 14px', textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
           {payment.payment_method?.replace('_', ' ') || '—'}
         </td>
         {/* Status */}
@@ -310,18 +310,18 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
           <StatusBadge status={payment.status} colors={STATUS_COLORS} />
         </td>
         {/* Date */}
-        <td style={{ padding: '10px 14px', color: '#6b7280' }}>
+        <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
           {fmt(payment.payment_date || payment.created_at)}
         </td>
         {/* Reference */}
-        <td style={{ padding: '10px 14px', color: '#9ca3af', fontSize: '0.8rem', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.8rem', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {payment.reference_number || '—'}
         </td>
         {/* Actions */}
         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
           <div className="row-actions-one-line" style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'center' }}>
             <button
-              style={{ ...actionBtn, background: expanded === 'alloc' ? '#ede9fe' : '#f3f4f6', color: '#5b21b6' }}
+              style={{ ...actionBtn, background: expanded === 'alloc' ? '#ede9fe' : 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
               onClick={() => toggleExpand('alloc')}
               title={t('ui.paymentList.showInvoiceAllocations')}
               aria-label={t('ui.paymentList.showInvoiceAllocations')}
@@ -329,7 +329,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
               📎
             </button>
             <button
-              style={{ ...actionBtn, background: expanded === 'gateway' ? '#d1fae5' : '#f3f4f6', color: '#065f46' }}
+              style={{ ...actionBtn, background: expanded === 'gateway' ? '#d1fae5' : 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
               onClick={() => toggleExpand('gateway')}
               title={t('ui.paymentList.showGatewayTransactions')}
               aria-label={t('ui.paymentList.showGatewayTransactions')}
@@ -405,8 +405,8 @@ export function PaymentList() {
             onClick={() => handleFilterChange(s)}
             style={{
               padding: '4px 12px', borderRadius: 20, border: '1px solid #d1d5db',
-              background: statusFilter === s ? 'var(--accent)' : '#fff',
-              color: statusFilter === s ? '#fff' : '#374151',
+              background: statusFilter === s ? 'var(--accent)' : 'var(--bg-card)',
+              color: statusFilter === s ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
             }}
           >
@@ -420,7 +420,7 @@ export function PaymentList() {
           <span style={resellerBadge}>
             {t('paymentList.resellerFilter', { name: extractList<Payment>(data).find(p => p.reseller_name)?.reseller_name ?? `#${resellerId}` })}
           </span>
-          <button type="button" style={{ ...actionBtn, width: 'auto', padding: '0 10px', background: '#f3f4f6' }}
+          <button type="button" style={{ ...actionBtn, width: 'auto', padding: '0 10px', background: 'var(--bg-subtle)' }}
             onClick={() => { const p = new URLSearchParams(params); p.delete('reseller_id'); setParams(p, { replace: true }); setPage(1); }}>
             {t('paymentList.clearResellerFilter')}
           </button>
@@ -432,26 +432,26 @@ export function PaymentList() {
       {isError && <p style={{ color: 'var(--accent)' }}>{t('paymentList.error')}</p>}
       {data && (
         <>
-          <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
                   <SortableTh label={t('paymentList.table.client')} col="client_id" sort={sort} />
-                  <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', width: 40, fontSize: '0.875rem' }}>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', width: 40, fontSize: '0.875rem' }}>
                     {t('paymentList.table.paymentId')}
                   </th>
                   <SortableTh label={t('paymentList.table.amount')} col="amount" sort={sort} />
                   <SortableTh label={t('paymentList.table.method')} col="payment_method" sort={sort} />
                   <SortableTh label={t('paymentList.table.status')} col="status" sort={sort} />
                   <SortableTh label={t('paymentList.table.date')} col="payment_date" sort={sort} />
-                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{t('paymentList.table.reference')}</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{t('paymentList.table.actions')}</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{t('paymentList.table.reference')}</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{t('paymentList.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.data.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
+                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       {t('paymentList.noPayments')}
                     </td>
                   </tr>
