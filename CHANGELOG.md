@@ -17,6 +17,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   way. Contracts in a trial and plans that charge data overage are not billed
   ahead: their credit waits and pays the invoices as they come, as before.
 
+- **Changed: a plan change reaches the months already invoiced.** When a
+  customer who paid ahead changes plan, the months invoiced ahead are
+  adjusted. On an upgrade the difference of each of those months is added to
+  the plan change's invoice. On a downgrade each month keeps its invoice: a
+  credit note on it covers the difference, the same amount of the customer's
+  payment becomes credit again, and that credit pays for further months at
+  the new price, so the prepaid time is extended. The part of the current
+  month is prorated by days as before.
+
+- **Fixed: a plan change prorated the wrong month for a customer who had paid
+  ahead.** The proration looked at the latest invoiced month, which for a
+  customer billed ahead is a future one, instead of the month in progress.
+
 - **Fixed: many screens stayed light in dark mode.** Payments, Invoices and
   about a hundred other staff screens used fixed white and grey colours for
   their tables, panels, borders and text, and fixed pastel colours for status

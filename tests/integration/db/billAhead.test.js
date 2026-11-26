@@ -171,4 +171,75 @@ describeDb('billing ahead against a real database', () => {
     const none = await request(app).post('/api/v1/clients/999999999/bill-ahead').set('Authorization', `Bearer ${admin.token}`);
     expect(none.status).toBe(404);
   });
+
+  // ---------------------------------------------------------------------------
+  // A plan change midway (services/planChangeProrationService.js)
+  // ---------------------------------------------------------------------------
+  const otherPlan = (name, price) => insert('plans', {
+    organization_id: ORG, name, download_speed_mbps: 20, upload_speed_mbps: 5,
+    price, currency: 'MXN', billing_cycle: 'monthly', status: 'active',
+  });
+  const changePlan = (contract, plan) => request(app)
+    .put(`/api/v1/contracts/${contract}`).set('Authorization', `Bearer ${admin.token}`).send({ plan_id: plan });
+  const money = (n) => Math.round(Number(n) * 100) / 100;
+
+  test('a downgrade keeps every invoiced month, credits the difference, and the freed money pays for more months', async () => {
+    const c = await customer('Change Down', '200.00');
+    await pay(c.client, '1000.00');
+    await billAhead({ orgId: ORG, clientId: c.client });
+    const before = await invoicesOf(c.client);
+    const cheaper = await otherPlan('Change Down cheaper', '100.00');
+
+    const res = await changePlan(c.contract, cheaper);
+    expect(res.status).toBe(200);
+    const after = await invoicesOf(c.client);
+
+    // The months invoiced before are all still there, and more follow them.
+    expect(after.slice(0, before.length).map(i => i.id)).toEqual(before.map(i => i.id));
+    expect(after.length).toBeGreaterThan(before.length);
+    for (let i = 1; i < after.length; i += 1) expect(after[i].start).toBe(dayAfter(after[i - 1].end));
+    // The customer's 1,000 is still exactly on invoices: nothing lost, nothing counted twice.
+    expect(money(after.reduce((t, i) => t + i.paid, 0))).toBe(1000);
+    // Each month that had been fully paid is still paid: by the payment plus its credit note.
+    const [notes] = await db.query(
+      `SELECT cn.invoice_id, cn.total, COALESCE((SELECT SUM(a.amount) FROM credit_note_applications a
+                WHERE a.credit_note_id = cn.id AND a.deleted_at IS NULL), 0) AS applied
+         FROM credit_notes cn WHERE cn.client_id = ? AND cn.invoice_id IS NOT NULL AND cn.deleted_at IS NULL`,
+      [c.client],
+    );
+    expect(notes.length).toBeGreaterThanOrEqual(1);
+    const [rows] = await db.query('SELECT id, status FROM invoices WHERE id IN (?) ', [before.filter(i => i.status === 'paid').map(i => i.id)]);
+    for (const row of rows) expect([row.id, row.status]).toEqual([row.id, 'paid']);
+    for (const note of notes) expect(money(note.applied)).toBe(money(note.total));
+    // The new months are at the new price.
+    const added = after.slice(before.length);
+    expect(added.every(i => i.total < before[0].total)).toBe(true);
+  });
+
+  test('an upgrade bills the difference of every month already invoiced on one extra invoice', async () => {
+    const c = await customer('Change Up', '100.00');
+    await pay(c.client, '1000.00');
+    await billAhead({ orgId: ORG, clientId: c.client });
+    const before = await invoicesOf(c.client);
+    const dearer = await otherPlan('Change Up dearer', '150.00');
+
+    const res = await changePlan(c.contract, dearer);
+    expect(res.status).toBe(200);
+    const after = await invoicesOf(c.client);
+    // No month is added or removed.
+    expect(after.map(i => i.id)).toEqual(before.map(i => i.id));
+    const [extra] = await db.query(
+      `SELECT i.id, i.subtotal, i.status FROM invoices i
+        WHERE i.client_id = ? AND i.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM billing_periods bp WHERE bp.invoice_id = i.id)`,
+      [c.client],
+    );
+    expect(extra.length).toBe(1);
+    // At least the whole difference (50) of every month after the current one.
+    const today = new Date().toISOString().slice(0, 10);
+    const monthsAhead = before.filter(i => i.start > today).length;
+    expect(monthsAhead).toBeGreaterThanOrEqual(1);
+    expect(Number(extra[0].subtotal)).toBeGreaterThanOrEqual(50 * monthsAhead);
+    expect(Number(extra[0].subtotal)).toBeLessThanOrEqual(50 * (monthsAhead + 1));
+  });
 });

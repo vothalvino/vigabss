@@ -508,6 +508,11 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
         conn.release();
       }
       if (proration?.invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, proration.invoice);
+      // A downgrade freed money from the months billed ahead: it pays for
+      // further months at the new price.
+      if (proration?.freed > 0) {
+        await planChangeProrationService.extendAfterChange({ organizationId, clientId: rows[0].client_id, actorId });
+      }
       const network = await contractPlanChangeService.pushPlanChange(contractId, organizationId);
       await auditLog.log({
         userId: actorId, organizationId, action: 'update', tableName: 'contracts', recordId: contractId,
