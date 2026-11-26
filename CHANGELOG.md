@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.45 — 2026-11-25
+
 - **Changed: the client portal shows the company's name, not the software's.**
   A signed-in customer sees the name of the company they deal with in the
   browser tab, at the top of every portal page and in the footer. The sign-in
