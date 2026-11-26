@@ -76,23 +76,38 @@ it('carries the company name for the browser tab', async () => {
 });
 
 describe('GET /portal/brand (no sign-in)', () => {
-  function orgs(names) {
-    db.query.mockImplementation((sql) => (/FROM organizations/.test(sql)
-      ? Promise.resolve([names.map((name) => ({ name }))])
-      : Promise.resolve([[]])));
+  function orgs(names, { logo = false } = {}) {
+    db.query.mockImplementation((sql) => {
+      if (/FROM organizations/.test(sql)) return Promise.resolve([names.map((name, i) => ({ id: i + 1, name }))]);
+      if (/FROM files/.test(sql) && logo) return Promise.resolve([[{ id: 9, file_name: 'l.png', file_path: 'organizations/logos/none.png', mime_type: 'image/png' }]]);
+      return Promise.resolve([[]]);
+    });
   }
 
   it('names the company when the installation serves exactly one', async () => {
     orgs(['Red Norte']);
     const res = await request(app).get('/api/v1/portal/brand');
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ organization_name: 'Red Norte' });
+    expect(res.body.data).toEqual({ organization_name: 'Red Norte', has_logo: false });
   });
 
   it('names nobody when there are several companies', async () => {
     orgs(['Red Norte', 'Red Sur']);
     const res = await request(app).get('/api/v1/portal/brand');
     expect(res.status).toBe(200);
-    expect(res.body.data).toEqual({ organization_name: null });
+    expect(res.body.data).toEqual({ organization_name: null, has_logo: false });
+  });
+
+  it('says when that one company has a logo', async () => {
+    orgs(['Red Norte'], { logo: true });
+    const res = await request(app).get('/api/v1/portal/brand');
+    expect(res.body.data).toEqual({ organization_name: 'Red Norte', has_logo: true });
+  });
+
+  it('gives no logo to anyone when there are several companies', async () => {
+    orgs(['Red Norte', 'Red Sur'], { logo: true });
+    const res = await request(app).get('/api/v1/portal/brand/logo');
+    expect(res.status).toBe(404);
+    expect(db.query.mock.calls.some(([sql]) => /FROM files/.test(sql))).toBe(false);
   });
 });

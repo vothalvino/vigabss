@@ -5,9 +5,9 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export function usePortalTabTitle(companyName?: string | null): void {
+export function usePortalTabTitle(companyName?: string | null, fallback?: string): void {
   const { t } = useTranslation();
-  const title = companyName?.trim() || t('portalLayout.tabTitle');
+  const title = companyName?.trim() || fallback || t('portalLayout.tabTitle');
   useEffect(() => {
     const previous = document.title;
     document.title = title;

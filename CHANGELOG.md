@@ -5,10 +5,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-- **Changed: the client portal's browser tab no longer shows the software's
-  name while the page loads.** A portal address now arrives with the neutral
-  title "Portal", which the page replaces with the company's name once it has
-  loaded.
+- **Added: a company can upload its logo.** The organization screen has a
+  "Company logo" box to upload, replace or remove one image (PNG, JPG or
+  WebP, up to 512 KB). The company's customers see it as the browser tab icon
+  and at the top of the client portal, and as the tab icon of the contract
+  signing page. On the portal sign-in page the logo shows when the
+  installation serves a single company.
+
+- **Changed: customer pages never show the software's name or logo, even
+  while loading.** The client portal and the contract signing link now arrive
+  with a neutral title and a plain icon, which the page replaces with the
+  company's name and logo once it has loaded. The signing page's tab shows the
+  company's name, and the software's install manifest is no longer offered on
+  those pages.
 
 ## 0.1.0-alpha.45 — 2026-11-25
 

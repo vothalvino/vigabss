@@ -31,7 +31,8 @@ beforeAll(() => {
   app = express();
   app.use('/assets', assets);
   app.use(spa);
-  app.get(/^\/portal(\/|$)/, portalPage);
+  app.use('/firmar', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  app.get(/^\/(portal|firmar)(\/|$)/, portalPage);
 });
 
 afterAll(() => fs.rmSync(dist, { recursive: true, force: true }));
@@ -98,6 +99,16 @@ test('the neutral head keeps nothing that names the software, and leaves the res
   expect(out).toContain('<title>Portal</title>');
   expect(out).toContain('<meta name="description" content="Portal" />');
   expect(head).not.toMatch(/vigabss \d|alpha/i);
+  expect(out).toContain('<link rel="icon" href="/icons/portal.svg" type="image/svg+xml" />');
+  expect(out).not.toMatch(/vigabss\.svg|rel="manifest"/);
+  expect(fs.existsSync(path.join(__dirname, '..', 'frontend', 'public', 'icons', 'portal.svg'))).toBe(true);
   expect(out).toContain('<div id="root"></div>');
   expect(out.length).toBeLessThan(real.length);
+});
+
+test('the signing link gets the neutral page too and stays uncached', async () => {
+  const res = await request(app).get('/firmar/7-abc');
+  expect(res.status).toBe(200);
+  expect(res.text).toBe('<!doctype html><title>Portal</title>');
+  expect(res.headers['cache-control']).toBe('no-store');
 });
