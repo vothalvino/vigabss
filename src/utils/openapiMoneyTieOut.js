@@ -74,7 +74,16 @@ const report = () => obj({
   }),
   bank: obj({
     deposited: num(), cash_for_client_invoices: num(), cash_for_general_public: num(),
-    accounts: { type: 'array', items: obj({ ...bankAccount().properties, deposits: { type: 'integer' }, deposited: num() }) },
+    for_client_invoices: num(), for_general_public: num(),
+    in_client_invoice_accounts: num(), in_general_public_accounts: num(), in_other_accounts: num(),
+    direct_unassigned: { ...num(), description: 'Paid by transfer, card or check with no bank account named' },
+    accounts: {
+      type: 'array',
+      items: obj({
+        ...bankAccount().properties, deposits: { type: 'integer' }, deposited: num(),
+        payments: { type: 'integer', description: 'Non-cash payments of the month that name this account' }, received: num(),
+      }),
+    },
   }),
   attention: {
     type: 'array',

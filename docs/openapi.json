@@ -9476,6 +9476,68 @@
         }
       }
     },
+    "/payments/bank-accounts": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "The organization's active bank accounts, for a payment by transfer, card or check to name the one it reached (bank_account_id on POST /payments). Needs payments.create or payments.view",
+        "operationId": "listPaymentBankAccounts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active bank accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "bank_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "account_hint": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "client_invoices",
+                              "general_public",
+                              "any"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/payments/{id}/allocate": {
       "post": {
         "tags": [
@@ -80781,6 +80843,25 @@
                             "cash_for_general_public": {
                               "type": "number"
                             },
+                            "for_client_invoices": {
+                              "type": "number"
+                            },
+                            "for_general_public": {
+                              "type": "number"
+                            },
+                            "in_client_invoice_accounts": {
+                              "type": "number"
+                            },
+                            "in_general_public_accounts": {
+                              "type": "number"
+                            },
+                            "in_other_accounts": {
+                              "type": "number"
+                            },
+                            "direct_unassigned": {
+                              "type": "number",
+                              "description": "Paid by transfer, card or check with no bank account named"
+                            },
                             "accounts": {
                               "type": "array",
                               "items": {
@@ -80823,6 +80904,13 @@
                                     "type": "integer"
                                   },
                                   "deposited": {
+                                    "type": "number"
+                                  },
+                                  "payments": {
+                                    "type": "integer",
+                                    "description": "Non-cash payments of the month that name this account"
+                                  },
+                                  "received": {
                                     "type": "number"
                                   }
                                 }
@@ -98604,6 +98692,10 @@
             "type": "string",
             "maximum": 100
           },
+          "bank_account_id": {
+            "type": "number",
+            "minimum": 1
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -107573,6 +107665,12 @@
               "null"
             ]
           },
+          "bank_account_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "notes": {
             "type": [
               "string",
@@ -107640,6 +107738,7 @@
           "reference_number",
           "clabe",
           "bank_name",
+          "bank_account_id",
           "notes",
           "status",
           "version",

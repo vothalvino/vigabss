@@ -189,6 +189,36 @@ describe('RecordPaymentModal', () => {
     expect(screen.getByText(/stays as client credit/i)).toBeInTheDocument();
   });
 
+  it('a payment not in cash can name the bank account it reached; cash never does', async () => {
+    const getMock = api.GET as unknown as ReturnType<typeof vi.fn>;
+    const base = getMock.getMockImplementation()!;
+    getMock.mockImplementation((path: string, ...rest: unknown[]) => (path === '/payments/bank-accounts'
+      ? Promise.resolve({ data: { data: [{ id: 4, name: 'Client invoices', account_hint: '1234', purpose: 'client_invoices' }] }, error: undefined })
+      : base(path, ...rest)));
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText('INV-10');
+    // Cash goes to the drawer: no account to choose.
+    expect(screen.queryByLabelText('Bank account it reached')).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Payment Method'), 'transfer');
+    const picker = await screen.findByLabelText('Bank account it reached');
+    expect(picker).toHaveValue('');
+    await user.selectOptions(picker, '4');
+    await user.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect((authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some((c) => String(c[0]).endsWith('/api/v1/payments'))).toBe(true));
+    const createCall = (authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) => String(c[0]).endsWith('/api/v1/payments'));
+    expect(JSON.parse((createCall![1] as RequestInit).body as string)).toMatchObject({ payment_method: 'transfer', bank_account_id: 4 });
+  });
+
+  it('with no bank accounts the question is not asked', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText('INV-10');
+    await user.selectOptions(screen.getByLabelText('Payment Method'), 'transfer');
+    await waitFor(() => expect(api.GET).toHaveBeenCalledWith('/payments/bank-accounts'));
+    expect(screen.queryByLabelText('Bank account it reached')).not.toBeInTheDocument();
+  });
+
   it('submit creates the payment then makes ONE allocate-auto call with the checked invoice_ids', async () => {
     const user = userEvent.setup();
     const { onRecorded } = renderModal();

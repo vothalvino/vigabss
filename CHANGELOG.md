@@ -5,6 +5,20 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Added: a payment names the bank account it reached.** When the
+  organization has bank accounts, recording a payment by transfer, card or
+  check asks which account it reached (it can be left unstated). Money
+  Tie-out then shows, for each account, the cash deposited and the payments
+  made straight into it, compares the month's money that belongs to client
+  invoices and to General Public with what the accounts of each kind
+  received, and lists what was paid with no account named. Cash never names
+  an account: it reaches the bank as a deposit from the safe (migration 038).
+
+- **Fixed: Money Tie-out could count a cash payment in two drawers.** A
+  payment recorded in the same second a cashier reopened was counted in the
+  closed cashier's count and again in the new one. A payment an earlier
+  cashier already counted is now left out.
+
 - **Added: Money Tie-out, a month's collections tied to the bank.** A new
   page under Billing, Payments, for whoever supervises the cash
   (`cash_reconciliation.approve`). For any month it shows:

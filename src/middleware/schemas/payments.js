@@ -28,6 +28,8 @@ const createPayment = {
   sat_forma_pago: { type: 'string', max: 2 },
   clabe: { type: 'string', max: 18 },
   bank_name: { type: 'string', max: 100 },
+  // The organization's bank account a non-cash payment reached (migration 038).
+  bank_account_id: { type: 'number', min: 1 },
   status: { type: 'string', enum: ['pending', 'completed', 'failed', 'refunded', 'cancelled'] },
 };
 

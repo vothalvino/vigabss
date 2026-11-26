@@ -157,6 +157,9 @@ async function bagsBalance(orgId, at) {
 /**
  * The cash in staff drawers at `at`. A cashier that was open then holds its
  * opening count plus the cash it took, less the pickups its owner confirmed.
+ * A payment an earlier cashier already counted is not taken again: timestamps
+ * are stored to the second, so one recorded in the second this cashier opened
+ * could otherwise be in both.
  * A cashier closed by then holds what was counted: closing is a count, not a
  * hand-in. Cashiers from before the opening count existed, and those of point
  * logins, are not drawers.
@@ -168,7 +171,12 @@ async function drawersBalance(orgId, at) {
               WHERE p.organization_id = s.organization_id AND p.payment_method = 'cash'
                 AND p.recorded_by = s.agent_user_id AND p.status = 'completed' AND p.deleted_at IS NULL
                 AND p.reseller_id IS NULL
-                AND p.created_at >= s.opened_at AND p.created_at < ?) AS collected,
+                AND p.created_at >= s.opened_at AND p.created_at < ?
+                AND NOT EXISTS (
+                  SELECT 1 FROM cash_reconciliation_session_payments counted
+                   WHERE counted.payment_id = p.id AND counted.organization_id = p.organization_id
+                     AND counted.session_id <> s.id
+                )) AS collected,
             (SELECT COALESCE(SUM(k.amount), 0) FROM cash_reconciliation_pickups k
               WHERE k.organization_id = s.organization_id AND k.session_id = s.id
                 AND k.status = 'confirmed' AND k.confirmed_at < ?) AS handed_in
@@ -606,6 +614,20 @@ async function report(orgId, year, month, now = new Date()) {
     [orgId, range.fromUtc, cutoff],
   );
   const depositedBy = new Map((deposits || []).map((r) => [Number(r.bank_account_id), { count: Number(r.n), total: round2(r.total) }]));
+  // Money that went straight to the bank (transfer, card, check, online), by
+  // the account the payment names; NULL = the payment does not say.
+  const [direct] = await db.query(
+    `SELECT p.bank_account_id, COUNT(*) AS n, COALESCE(SUM(p.amount), 0) AS total FROM payments p
+      WHERE p.organization_id = ? AND p.status = 'completed' AND p.deleted_at IS NULL
+        AND p.payment_method <> 'cash' AND p.payment_date >= ? AND p.payment_date < ?
+      GROUP BY p.bank_account_id`,
+    [orgId, range.from, range.to],
+  );
+  const receivedBy = new Map((direct || []).map((r) => [r.bank_account_id === null ? null : Number(r.bank_account_id), { count: Number(r.n), total: round2(r.total) }]));
+  const inAccounts = { client_invoices: 0, general_public: 0, any: 0 };
+  for (const a of accounts) {
+    inAccounts[a.purpose] += cents(depositedBy.get(Number(a.id))?.total) + cents(receivedBy.get(Number(a.id))?.total);
+  }
 
   // more cash than the records explain (+) or less (-)
   const differenceTotal = fromCents(
@@ -641,9 +663,19 @@ async function report(orgId, year, month, now = new Date()) {
       // Cash collected in the month, by the account it belongs in.
       cash_for_client_invoices: fiscal.cash.client_cfdi,
       cash_for_general_public: fiscal.cash.general_public,
+      // All of the month's money, by the account it belongs in, next to what
+      // the accounts of each purpose received (cash deposits + direct payments).
+      for_client_invoices: fiscal.client_cfdi,
+      for_general_public: fiscal.general_public,
+      in_client_invoice_accounts: fromCents(inAccounts.client_invoices),
+      in_general_public_accounts: fromCents(inAccounts.general_public),
+      in_other_accounts: fromCents(inAccounts.any),
+      // Paid by transfer, card or check with no bank account named.
+      direct_unassigned: receivedBy.get(null)?.total || 0,
       accounts: accounts.map((a) => ({
         id: a.id, name: a.name, bank_name: a.bank_name, account_hint: a.account_hint, purpose: a.purpose, status: a.status,
         deposits: depositedBy.get(Number(a.id))?.count || 0, deposited: depositedBy.get(Number(a.id))?.total || 0,
+        payments: receivedBy.get(Number(a.id))?.count || 0, received: receivedBy.get(Number(a.id))?.total || 0,
       })),
     },
     attention: await attention(orgId, now, closed ? await inTransit(orgId, new Date(now.getTime() + 2000)) : closing),

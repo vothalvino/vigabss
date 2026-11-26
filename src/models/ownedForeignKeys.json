@@ -45,6 +45,9 @@
   "cash_reconciliation_session_payments": {
     "payment_id": "payments"
   },
+  "cash_safe_movements": {
+    "bank_account_id": "bank_accounts"
+  },
   "cfdi_documents": {
     "client_id": "clients",
     "invoice_id": "invoices",
@@ -405,6 +408,7 @@
     "settled_invoice_id": "invoices"
   },
   "payments": {
+    "bank_account_id": "bank_accounts",
     "client_id": "clients",
     "invoice_id": "invoices"
   },

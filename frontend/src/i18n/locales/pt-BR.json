@@ -1750,6 +1750,8 @@
     "invalidAmount": "Insira um valor válido maior que zero.",
     "currency": "Moeda",
     "paymentMethod": "Método de Pagamento",
+    "bankAccount": "Conta bancária em que entrou",
+    "bankAccountNone": "Não informado",
     "status": "Status",
     "statusValues": {
       "completed": "Concluído",
@@ -12148,6 +12150,14 @@
     },
     "bank": {
       "title": "Contas bancárias",
+      "forClients": "Dinheiro do mês faturado a clientes",
+      "forPublic": "Dinheiro do mês para Público em Geral",
+      "inClientAccounts": "Entrou em contas de faturas de clientes",
+      "inPublicAccounts": "Entrou em contas de Público em Geral",
+      "inOtherAccounts": "Entrou em contas de uso geral",
+      "unassigned": "Pago por transferência, cartão ou cheque sem indicar conta",
+      "received": "Pago direto",
+      "cashDeposits": "Depósitos em dinheiro",
       "hint": "Deposite o dinheiro das faturas de clientes e o do Público em Geral como mostrado aqui, para que cada conta coincida com o faturado.",
       "cashForClients": "Dinheiro do mês faturado a clientes",
       "cashForPublic": "Dinheiro do mês para Público em Geral",
