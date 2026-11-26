@@ -58,7 +58,7 @@
   "src/services/billingService.js": 11,
   "src/services/businessEvents.js": 7,
   "src/services/campaignService.js": 3,
-  "src/services/cashReconciliationService.js": 3,
+  "src/services/cashReconciliationService.js": 2,
   "src/services/cfdiService.js": 24,
   "src/services/checkoutService.js": 5,
   "src/services/configBackupService.js": 5,

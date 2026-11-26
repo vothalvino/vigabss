@@ -6,7 +6,7 @@
   "pages/AlertSuppressionList.tsx": 2,
   "pages/ApiTokenList.tsx": 1,
   "pages/BillingAdjustmentList.tsx": 1,
-  "pages/CashReconciliationList.tsx": 3,
+  "pages/CashReconciliationList.tsx": 1,
   "pages/ClientGroupList.tsx": 2,
   "pages/CommunicationCampaignList.tsx": 2,
   "pages/ConfigBackupScheduleList.tsx": 1,

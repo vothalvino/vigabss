@@ -21,6 +21,7 @@ async function rules(orgId, exec = db.query.bind(db)) {
   );
   for (const row of rows || []) {
     // A stored value the catalog would refuse today falls back to the default.
+    if (!keys.includes(row.setting_key)) continue;
     if (ORG_SETTING_DEFS[row.setting_key].validate(String(row.setting_value)) === null) values[row.setting_key] = row.setting_value;
   }
   return { tolerance: Number(values.cashier_match_tolerance), maxOpenHours: Number(values.cashier_max_open_hours) };
@@ -186,8 +187,8 @@ async function reviewSession(sessionId, orgId, reviewerUserId, decision, note) {
   logger.info({ sessionId, reviewerUserId, decision }, 'Reconciliation session reviewed');
 
   const [updated] = await db.query(
-    'SELECT * FROM cash_reconciliation_sessions WHERE id = ?',
-    [sessionId],
+    'SELECT * FROM cash_reconciliation_sessions WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [sessionId, orgId],
   );
   return updated[0];
 }
@@ -233,7 +234,9 @@ async function staffNames(ids) {
   const names = new Map();
   if (!unique.length) return names;
   const read = () => db.query(
-    `SELECT id, first_name, last_name FROM users WHERE id IN (${unique.map(() => '?').join(', ')})`,
+    `/* org-scoped by: the ids are the owners of this organization's own sessions; staff identities live in the primary database */
+     /* includes deleted rows: a cashier left open by someone since removed still names them */
+     SELECT id, first_name, last_name FROM users WHERE id IN (${unique.map(() => '?').join(', ')})`,
     unique,
   );
   try {

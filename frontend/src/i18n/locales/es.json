@@ -613,7 +613,9 @@
     "disabled": "Desactivado",
     "wireguardPorts": "Endpoint: {{endpoint}} · UDP NAS {{nasPort}} · UDP clientes {{clientPort}}",
     "keyLabels": {
-      "resellerDefaultCreditLimit": "Límite de efectivo predeterminado para revendedores"
+      "resellerDefaultCreditLimit": "Límite de efectivo predeterminado para revendedores",
+      "cashierMatchTolerance": "Caja: diferencia que aún cuenta como cuadrada",
+      "cashierMaxOpenHours": "Caja: horas que puede seguir abierta"
     }
   },
   "common": {
@@ -2610,6 +2612,21 @@
     "pay": "Pagar Cuota",
     "schedule": "Calendario de Pagos"
   },
+  "cashierReminder": {
+    "mineOpen": "Tu caja está abierta desde {{since}}.",
+    "mineOverdue": "Tu caja lleva más de {{hours}} horas abierta. Haz el corte antes de registrar más efectivo.",
+    "expected": "Efectivo esperado: {{amount}}.",
+    "closeIt": "Hacer corte",
+    "othersOverdue_one": "{{count}} caja lleva más de {{hours}} horas abierta: {{names}}.",
+    "othersOverdue_other": "{{count}} cajas llevan más de {{hours}} horas abiertas: {{names}}.",
+    "awaitingReview_one": "{{count}} corte no cuadró y espera revisión.",
+    "awaitingReview_other": "{{count}} cortes no cuadraron y esperan revisión.",
+    "review": "Abrir Corte de caja",
+    "signOutTitle": "¿Hacer el corte primero?",
+    "signOutBody": "Tu caja sigue abierta. Cuenta el efectivo y haz el corte antes de irte, para que los pagos de hoy queden cuadrados.",
+    "signOutAnyway": "Salir de todos modos",
+    "goToCashier": "Ir a mi caja"
+  },
   "cashReconciliation": {
     "title": "Corte de caja",
     "openSession": "Abrir caja",
@@ -2627,10 +2644,23 @@
       "open": "Abierto",
       "closed": "Cerrado",
       "approved": "Aprobado",
-      "disputed": "Disputado"
+      "disputed": "Disputado",
+      "approvedAuto": "Aprobado · cuadró"
     },
     "close": "Hacer corte",
     "approve": "Aprobar",
+    "dispute": "Disputar",
+    "review": {
+      "approveTitle": "Aprobar este corte",
+      "disputeTitle": "Disputar este corte",
+      "approveHelp": "Lo contado difiere del efectivo esperado por {{variance}}. Apruébalo cuando la diferencia esté explicada, y di cómo.",
+      "disputeHelp": "Lo contado difiere del efectivo esperado por {{variance}}. Dispútalo cuando la diferencia no esté explicada, y di qué falta.",
+      "note": "Nota",
+      "noteRequired": "Escribe una nota que explique la diferencia.",
+      "failed": "No se pudo guardar la revisión.",
+      "ownCashier": "Otro supervisor revisa tu propia caja",
+      "noteShown": "Nota de revisión:"
+    },
     "countedTotal": "Total Contado",
     "notes": "Notas",
     "cashPayments": "Pagos en Efectivo de la Sesión"

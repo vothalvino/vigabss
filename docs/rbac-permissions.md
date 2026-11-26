@@ -203,6 +203,16 @@ and fee with `resellers.create` / `resellers.update`; a bound reseller cannot.
 Both ledger routes are org-level only, whatever the bound user's group holds,
 and so is a reseller's `credit_limit` on `POST`/`PUT /resellers`. A bound
 user reads its own position in the app (`GET /reseller-app/me`, `/ledger`).
+The staff cashier (`/cash-reconciliation`): `cash_reconciliation.create`
+opens one and reads the caller's own (`GET /my-cashier`, also allowed with
+`.view`); `.update` closes it; `.approve` reviews a count that did not match
+(`POST /sessions/:id/approve` and `/dispute`, each with a note, never on the
+reviewer's own session) and reads the supervisor list (`GET /attention`). A
+count within the organization's `cashier_match_tolerance` is approved when the
+session is closed, with no approver. Recording a cash payment
+(`POST /payments`) answers 409 `CASHIER_NOT_CLOSED` while the caller has a
+session open longer than `cashier_max_open_hours`.
+
 `reseller_admin` holds no `cash_reconciliation.*` permission: a point never
 opens or closes a cashier. Its cash is accounted for by its cash bags, and
 the staff cashier routes are behind the fence.

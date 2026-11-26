@@ -5,6 +5,29 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: a cashier whose count matches needs no approval.** Closing a
+  cashier with the cash counted equal to the cash expected approves it on the
+  spot. Only a count that differs waits for a supervisor, who now either
+  approves it or disputes it, and writes why. Nobody can review their own
+  cashier. Settings has a new tolerance, "difference that still counts as a
+  match", which starts at zero.
+
+- **Added: reminders to close the cashier.** Someone with an open cashier
+  sees a bar on every page with the time it was opened and the cash it
+  expects, and is asked "Close your cashier first?" when signing out. A
+  cashier left open longer than the hours set in Settings (16 by default)
+  turns that bar into a warning, shows up for supervisors by name, and stops
+  its owner from recording another cash payment until it is closed.
+  Supervisors also see how many counts are waiting for a review.
+
+- **Changed: resellers and collectors no longer have a cash session.** Their
+  cash is accounted for by their cash bags alone. The reseller app used to
+  open a session behind the scenes on the first collection and nothing ever
+  closed it, so those sessions sat on the staff Cashier page as open for
+  ever; the ones still open are retired by this release. Voiding a collection
+  keeps its rules: the same day, by the person who took the cash, while the
+  cash is still on hand.
+
 - **Changed: "Cash Reconciliation" is now "Cashier".** The staff page for the
   end-of-shift cash count is "Corte de caja" in Spanish and "Fechamento de
   caixa" in Portuguese, and its buttons read "Open Cashier" and "Close

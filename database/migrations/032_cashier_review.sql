@@ -14,7 +14,8 @@
 -- are retired here (soft-deleted); the ledger entries that name them keep
 -- their reference.
 --
--- Safe to re-run: the column is added only when missing, and retiring an
+-- Safe to re-run: the column is added and the comment changed only when
+-- needed, and retiring an
 -- already retired session changes nothing.
 -- =============================================================================
 
@@ -31,14 +32,19 @@ BEGIN
         COMMENT 'The supervisor''s note when approving or disputing a count that did not match (migration 032)'
         AFTER approved_at;
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cash_reconciliation_sessions' AND COLUMN_NAME = 'approved_by'
+       AND COLUMN_COMMENT NOT LIKE '%migration 032%'
+  ) THEN
+    ALTER TABLE cash_reconciliation_sessions
+      MODIFY COLUMN approved_by BIGINT UNSIGNED NULL
+        COMMENT 'Supervisor who approved or disputed the session; NULL on an approved session = approved automatically because the count matched (migration 032)';
+  END IF;
 END $$
 DELIMITER ;
 CALL m032_cashier_review();
 DROP PROCEDURE IF EXISTS m032_cashier_review;
-
-ALTER TABLE cash_reconciliation_sessions
-  MODIFY COLUMN approved_by BIGINT UNSIGNED NULL
-    COMMENT 'Supervisor who approved or disputed the session; NULL on an approved session = approved automatically because the count matched (migration 032)';
 
 UPDATE cash_reconciliation_sessions
    SET deleted_at = NOW()
