@@ -152,8 +152,14 @@ export function MoneyTieOut() {
                 {(differences.safe_counts ?? 0) !== 0 && <Line indent label={t('tieOut.sum.safeCounts')} value={differences.safe_counts} />}
                 {(differences.point_adjustments ?? 0) !== 0 && <Line indent label={t('tieOut.sum.pointAdjustments')} value={differences.point_adjustments} />}
                 {(differences.point_payouts ?? 0) !== 0 && <Line indent label={t('tieOut.sum.pointPayouts')} value={differences.point_payouts} />}
-                <Line strong tone={unexplained === 0 ? 'good' : 'bad'} label={t('tieOut.sum.unexplained')} value={unexplained} />
-                <p style={{ ...hint, margin: '8px 0 0' }}>{unexplained === 0 ? t('tieOut.sum.addsUp') : t('tieOut.sum.doesNotAddUp')}</p>
+                <Line strong tone={unexplained === 0 ? 'good' : cash.started_in_month ? undefined : 'bad'} label={t('tieOut.sum.unexplained')} value={unexplained} />
+                <p style={{ ...hint, margin: '8px 0 0' }}>
+                  {unexplained === 0
+                    ? t('tieOut.sum.addsUp')
+                    : cash.started_in_month
+                      ? t('tieOut.sum.startedInMonth', { date: cash.tracking_since ? new Date(cash.tracking_since).toLocaleDateString(i18n.language) : '' })
+                      : t('tieOut.sum.doesNotAddUp')}
+                </p>
               </>
             )}
         </section>

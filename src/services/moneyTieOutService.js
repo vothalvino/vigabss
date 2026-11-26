@@ -636,6 +636,11 @@ async function report(orgId, year, month, now = new Date()) {
   );
   const explained = Object.values(differences).reduce((n, v) => n + cents(v), 0);
   const tracked = closing.in_safe !== null;
+  // The safe is followed from its first count. A month that began before it
+  // cannot add up: cash from before that day was never followed.
+  const counts = tracked ? await safeCounts(orgId, cutoff) : null;
+  const trackingSince = counts ? new Date(counts.since) : null;
+  const startedInMonth = Boolean(trackingSince && trackingSince > range.fromUtc);
 
   return {
     period: {
@@ -646,6 +651,8 @@ async function report(orgId, year, month, now = new Date()) {
     fiscal,
     cash: {
       tracked,
+      tracking_since: trackingSince ? trackingSince.toISOString() : null,
+      started_in_month: startedInMonth,
       recorded,
       in_transit_start: opening,
       in_transit_end: closing,

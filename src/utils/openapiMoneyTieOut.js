@@ -60,7 +60,10 @@ const report = () => obj({
   }),
   fiscal: obj({ ...split(), cash: obj(split()) }),
   cash: obj({
-    tracked: { type: 'boolean' }, recorded: num(), in_transit_start: transit(), in_transit_end: transit(),
+    tracked: { type: 'boolean' },
+    tracking_since: { type: ['string', 'null'], format: 'date-time', description: 'The first safe count' },
+    started_in_month: { type: 'boolean', description: 'Tracking began during this month, so its cash cannot add up' },
+    recorded: num(), in_transit_start: transit(), in_transit_end: transit(),
     deposited: num(), commissions_kept: num(), other_out: num(), other_in: num(),
     reached_safe: obj({ pickups: num(), bags: num(), handed_in: num() }),
     differences: {
