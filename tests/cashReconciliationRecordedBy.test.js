@@ -131,11 +131,12 @@ describe('the session window', () => {
 });
 
 describe('a cashier left open past the allowed hours is closed before more cash is taken', () => {
+  // The caller's open cashier, as the check reads it: overdue or not.
   const overdueFor = (userId) => {
     const base = db.query.getMockImplementation();
     db.query.mockImplementation(async (sql, params) => {
-      if (/FROM cash_reconciliation_sessions/.test(sql) && /DATE_SUB\(NOW\(\), INTERVAL \? HOUR\)/.test(sql)) {
-        return [Number(params[1]) === userId ? [{ id: 3 }] : []];
+      if (/FROM cash_reconciliation_sessions/.test(sql) && /AS overdue/.test(sql)) {
+        return [Number(params[2]) === userId ? [{ id: 3, agent_user_id: userId, opened_at: 'x', opening_total: '0.00', overdue: 1 }] : []];
       }
       return base(sql, params);
     });

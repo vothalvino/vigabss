@@ -18,10 +18,17 @@ jest.mock('../src/services/cashReconciliationService', () => ({
   approveSession: jest.fn(),
   disputeSession: jest.fn(),
   addStaffNames: jest.fn(),
+  listPickups: jest.fn(),
+  openingExpectation: jest.fn(),
+  rules: jest.fn(),
+  setPickupRules: jest.fn(),
+  createPickup: jest.fn(),
+  confirmPickup: jest.fn(),
+  cancelPickup: jest.fn(),
+  assertMayTakeCash: jest.fn(),
   getSessionDetail: jest.fn(),
   myOpenSession: jest.fn(),
   attention: jest.fn(),
-  assertCashierNotOverdue: jest.fn(),
 }));
 
 jest.mock('../src/utils/logger', () => {
@@ -90,7 +97,7 @@ describe('POST /api/v1/cash-reconciliation/sessions', () => {
     const res = await request(app)
       .post('/api/v1/cash-reconciliation/sessions')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({});
+      .send({ opening_total: 500 });
 
     expect(res.status).toBe(201);
     expect(res.body.data.id).toBe(1);
@@ -99,6 +106,7 @@ describe('POST /api/v1/cash-reconciliation/sessions', () => {
       expect.objectContaining({
         organizationId: 1,
         agentUserId: 1,
+        openingTotal: 500,
       }),
     );
   });
@@ -115,7 +123,7 @@ describe('POST /api/v1/cash-reconciliation/sessions', () => {
     const res = await request(app)
       .post('/api/v1/cash-reconciliation/sessions')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({ notes: 'Morning shift' });
+      .send({ notes: 'Morning shift', opening_total: 500 });
 
     expect(res.status).toBe(201);
     expect(cashReconciliationService.openSession).toHaveBeenCalledWith(
@@ -126,7 +134,7 @@ describe('POST /api/v1/cash-reconciliation/sessions', () => {
   test('returns 401 without auth token', async () => {
     const res = await request(app)
       .post('/api/v1/cash-reconciliation/sessions')
-      .send({});
+      .send({ opening_total: 500 });
 
     expect(res.status).toBe(401);
   });
@@ -142,7 +150,7 @@ describe('POST /api/v1/cash-reconciliation/sessions', () => {
     const res = await request(app)
       .post('/api/v1/cash-reconciliation/sessions')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({});
+      .send({ opening_total: 500 });
 
     expect(res.status).toBe(422);
   });
@@ -209,6 +217,7 @@ describe('GET /api/v1/cash-reconciliation/sessions/:id', () => {
     };
 
     cashReconciliationService.getSessionDetail.mockResolvedValueOnce(sessionDetail);
+    cashReconciliationService.listPickups.mockResolvedValueOnce([{ id: 9, amount: 4000, status: 'pending' }]);
 
     const res = await request(app)
       .get('/api/v1/cash-reconciliation/sessions/3')
@@ -433,5 +442,117 @@ describe('the reminder routes', () => {
     expect(src).toMatch(/router\.get\('\/my-cashier', requirePermission\('cash_reconciliation\.create', 'cash_reconciliation\.view'\)/);
     expect(src).toMatch(/router\.get\('\/attention', requirePermission\('cash_reconciliation\.approve'\)/);
     expect(src).toMatch(/router\.post\('\/sessions\/:id\/dispute', requirePermission\('cash_reconciliation\.approve'\)/);
+  });
+});
+
+// =============================================================================
+// Opening count, rules, pickups
+// =============================================================================
+describe('opening a cashier', () => {
+  const open = (body) => request(app).post('/api/v1/cash-reconciliation/sessions').set('Authorization', `Bearer ${authToken}`).send(body);
+
+  test('the cash counted in the drawer is required', async () => {
+    mockAuthUser();
+    expect((await open({})).status).toBe(422);
+    mockAuthUser();
+    expect((await open({ opening_total: -1 })).status).toBe(422);
+    expect(cashReconciliationService.openSession).not.toHaveBeenCalled();
+  });
+
+  test('GET /opening answers what the caller\'s drawer should hold', async () => {
+    mockAuthUser();
+    cashReconciliationService.openingExpectation.mockResolvedValueOnce(480);
+    const res = await request(app).get('/api/v1/cash-reconciliation/opening').set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ expected: 480 });
+    expect(cashReconciliationService.openingExpectation).toHaveBeenCalledWith(1, 1);
+  });
+});
+
+describe('the session detail lists its pickups', () => {
+  test('pickups come with the session and its payments', async () => {
+    mockAuthUser();
+    cashReconciliationService.getSessionDetail.mockResolvedValueOnce({ session: { id: 3 }, payments: [] });
+    cashReconciliationService.listPickups.mockResolvedValueOnce([{ id: 9, amount: 4000, status: 'pending' }]);
+    const res = await request(app).get('/api/v1/cash-reconciliation/sessions/3').set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.pickups).toEqual([{ id: 9, amount: 4000, status: 'pending' }]);
+    expect(cashReconciliationService.listPickups).toHaveBeenCalledWith(1, 3);
+  });
+});
+
+describe('cashier rules', () => {
+  const rules = { tolerance: 0, maxOpenHours: 16, pickupThreshold: 5000, pickupStrict: true };
+
+  test('anyone who uses the cashier reads them', async () => {
+    mockAuthUser();
+    cashReconciliationService.rules.mockResolvedValueOnce(rules);
+    const res = await request(app).get('/api/v1/cash-reconciliation/rules').set('Authorization', `Bearer ${authToken}`);
+    expect(res.body.data).toEqual({ match_tolerance: 0, max_open_hours: 16, pickup_threshold: 5000, pickup_strict: true });
+  });
+
+  test('a supervisor sets the threshold and the strict switch', async () => {
+    mockAuthUser();
+    cashReconciliationService.setPickupRules.mockResolvedValueOnce(rules);
+    const res = await request(app).put('/api/v1/cash-reconciliation/rules').set('Authorization', `Bearer ${authToken}`)
+      .send({ pickup_threshold: 5000, pickup_strict: true });
+    expect(res.status).toBe(200);
+    expect(res.body.data.pickup_strict).toBe(true);
+    expect(cashReconciliationService.setPickupRules).toHaveBeenCalledWith(1, { pickup_threshold: 5000, pickup_strict: true });
+  });
+
+  test('a negative threshold or a strict that is not yes or no is refused', async () => {
+    mockAuthUser();
+    expect((await request(app).put('/api/v1/cash-reconciliation/rules').set('Authorization', `Bearer ${authToken}`).send({ pickup_threshold: -5 })).status).toBe(422);
+    mockAuthUser();
+    expect((await request(app).put('/api/v1/cash-reconciliation/rules').set('Authorization', `Bearer ${authToken}`).send({ pickup_strict: 'maybe' })).status).toBe(422);
+    expect(cashReconciliationService.setPickupRules).not.toHaveBeenCalled();
+  });
+});
+
+describe('cash pickups', () => {
+  test('a supervisor records one with the amount and a note', async () => {
+    mockAuthUser();
+    cashReconciliationService.createPickup.mockResolvedValueOnce({ id: 9, status: 'pending', amount: 4000 });
+    const res = await request(app).post('/api/v1/cash-reconciliation/sessions/3/pickups').set('Authorization', `Bearer ${authToken}`)
+      .send({ amount: 4000, note: 'a la caja fuerte' });
+    expect(res.status).toBe(201);
+    expect(cashReconciliationService.createPickup).toHaveBeenCalledWith(1, 3, { id: 1, role: 'admin' }, 4000, 'a la caja fuerte');
+  });
+
+  test('an amount is required and must be more than zero', async () => {
+    for (const body of [{}, { amount: 0 }, { amount: -10 }]) {
+      mockAuthUser();
+      const res = await request(app).post('/api/v1/cash-reconciliation/sessions/3/pickups').set('Authorization', `Bearer ${authToken}`).send(body);
+      expect(res.status).toBe(422);
+    }
+    expect(cashReconciliationService.createPickup).not.toHaveBeenCalled();
+  });
+
+  test('the owner confirms, and either side cancels', async () => {
+    mockAuthUser();
+    cashReconciliationService.confirmPickup.mockResolvedValueOnce({ id: 9, status: 'confirmed' });
+    const ok = await request(app).post('/api/v1/cash-reconciliation/pickups/9/confirm').set('Authorization', `Bearer ${authToken}`);
+    expect(ok.body.data.status).toBe('confirmed');
+    expect(cashReconciliationService.confirmPickup).toHaveBeenCalledWith(1, 9, 1);
+    mockAuthUser();
+    cashReconciliationService.cancelPickup.mockResolvedValueOnce({ id: 9, status: 'cancelled' });
+    const no = await request(app).post('/api/v1/cash-reconciliation/pickups/9/cancel').set('Authorization', `Bearer ${authToken}`);
+    expect(no.body.data.status).toBe('cancelled');
+    expect(cashReconciliationService.cancelPickup).toHaveBeenCalledWith(1, 9, 1);
+  });
+
+  test('every pickup and rules route needs a sign-in', async () => {
+    for (const [method, path] of [['post', '/sessions/3/pickups'], ['post', '/pickups/9/confirm'], ['post', '/pickups/9/cancel'], ['get', '/rules'], ['put', '/rules'], ['get', '/opening']]) {
+      expect([path, (await request(app)[method](`/api/v1/cash-reconciliation${path}`).send({ amount: 1 })).status]).toEqual([path, 401]);
+    }
+  });
+
+  test('the permissions: supervisors record pickups and set the rules; the owner confirms', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'cashReconciliation.js'), 'utf8');
+    expect(src).toMatch(/router\.post\('\/sessions\/:id\/pickups', requirePermission\('cash_reconciliation\.approve'\)/);
+    expect(src).toMatch(/router\.put\('\/rules', requirePermission\('cash_reconciliation\.approve'\)/);
+    expect(src).toMatch(/router\.post\('\/pickups\/:id\/confirm', requirePermission\('cash_reconciliation\.create'\)/);
+    expect(src).toMatch(/router\.get\('\/opening', requirePermission\('cash_reconciliation\.create'\)/);
   });
 });
