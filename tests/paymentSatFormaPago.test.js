@@ -6,6 +6,13 @@
 
 const request = require('supertest');
 
+// Cash needs the caller's open cashier (tests/cashReconciliationRecordedBy.test.js);
+// here the caller has one.
+jest.mock('../src/services/cashReconciliationService', () => ({
+  ...jest.requireActual('../src/services/cashReconciliationService'),
+  assertRequestMayTakeCash: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   queryReplica: jest.fn(),

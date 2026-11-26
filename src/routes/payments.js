@@ -176,13 +176,12 @@ router.post('/', requirePermission('payments.create'), validate(createPayment, {
     req.body.recorded_by = req.user?.id ?? null;
     delete req.body.reseller_id;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
-    // A cashier this person left open past the allowed hours has to be
-    // closed before they take more cash (409 CASHIER_NOT_CLOSED), and when
-    // the supervisors made the pickup threshold strict, one already holding
-    // that much has to hand cash in first (409 CASHIER_OVER_LIMIT).
-    if (req.body.payment_method === 'cash') {
-      await cashReconciliationService.assertMayTakeCash(req.orgId, req.user?.id ?? null);
-    }
+    // Cash needs an open cashier (409 CASHIER_NOT_OPEN). One this person left
+    // open past the allowed hours has to be closed first (409
+    // CASHIER_NOT_CLOSED), and when the supervisors made the pickup threshold
+    // strict, one already holding that much has to hand cash in first (409
+    // CASHIER_OVER_LIMIT). A payment with no method is cash: the column's default.
+    await cashReconciliationService.assertRequestMayTakeCash(req, req.body.payment_method ?? 'cash');
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would
     // silently win regardless of the org's real currency. An explicitly-set

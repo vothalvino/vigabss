@@ -406,12 +406,26 @@ describe('cashReconciliationService', () => {
       await expect(cashReconciliationService.assertMayTakeCash(1, 10)).resolves.toBeUndefined();
     });
 
-    test('someone with no open cashier, or no user at all, is not stopped', async () => {
+    test('cash needs an open cashier', async () => {
       database();
+      await expect(cashReconciliationService.assertMayTakeCash(1, 10)).rejects.toMatchObject({ statusCode: 409, code: 'CASHIER_NOT_OPEN' });
+    });
+
+    test('with a cashier open, inside its hours and under the limit, cash is taken', async () => {
+      database({ session: { ...mine, overdue: 0 }, collected: '100.00' });
       await expect(cashReconciliationService.assertMayTakeCash(1, 10)).resolves.toBeUndefined();
-      db.query.mockReset();
-      await expect(cashReconciliationService.assertMayTakeCash(1, null)).resolves.toBeUndefined();
+    });
+
+    test('only cash is checked, and only when a person records it', async () => {
+      const req = (user) => ({ orgId: 1, user });
+      database();
+      for (const method of ['transfer', 'card', 'other', 'spei']) {
+        await expect(cashReconciliationService.assertRequestMayTakeCash(req({ id: 10 }), method)).resolves.toBeUndefined();
+      }
+      // Another system posting with an API token has no drawer.
+      await expect(cashReconciliationService.assertRequestMayTakeCash(req({ id: 10, apiTokenId: 4 }), 'cash')).resolves.toBeUndefined();
       expect(db.query).not.toHaveBeenCalled();
+      await expect(cashReconciliationService.assertRequestMayTakeCash(req({ id: 10 }), 'cash')).rejects.toMatchObject({ code: 'CASHIER_NOT_OPEN' });
     });
 
     test('session rows get their owner\'s and reviewer\'s names; an automatic approval names nobody', async () => {

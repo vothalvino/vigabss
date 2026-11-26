@@ -11,6 +11,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createClientGroup, updateClientGroup, payClientGroup } = require('../middleware/schemas/clientGroups');
 const groupBillingService = require('../services/groupBillingService');
+const cashReconciliationService = require('../services/cashReconciliationService');
 const auditLog = require('../services/auditLog');
 const logger = require('../utils/logger').child({ service: 'routes/clientGroups' });
 
@@ -104,6 +105,8 @@ router.get('/:id/billing', requirePermission('payments.view'), async (req, res, 
 // Shared-billing: the primary pays the group's balance (payments.create).
 router.post('/:id/pay', requirePermission('payments.create'), validate(payClientGroup, { strip: false }), async (req, res, next) => {
   try {
+    // Cash needs the payer's open cashier, like any cash payment.
+    await cashReconciliationService.assertRequestMayTakeCash(req, req.body.payment_method || 'other');
     const result = await groupBillingService.payGroup(req.orgId, req.params.id, {
       amount: req.body.amount,
       payment_method: req.body.payment_method,

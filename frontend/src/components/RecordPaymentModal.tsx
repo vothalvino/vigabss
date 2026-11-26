@@ -33,6 +33,8 @@
 import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { useMyCashier } from '@/components/cashierReminderData';
 import { api, authedFetch } from '@/api/client';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import {
@@ -158,6 +160,8 @@ export function RecordPaymentModal({
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // Cash goes into the payer's drawer, so it needs their open cashier.
+  const myCashier = useMyCashier();
   const [createdId, setCreatedId] = useState<number | null>(null);
   const [result, setResult] = useState<AllocateAutoResult | null>(null);
   const [step, setStep] = useState<'form' | 'success'>('form');
@@ -374,6 +378,13 @@ export function RecordPaymentModal({
           <select id={`${fieldId}-4`} style={inputStyle} value={form.payment_method} onChange={e => setField('payment_method', e.target.value)} disabled={paymentLocked}>
             {PAYMENT_METHODS.map(m => <option key={m} value={m}>{t(`paymentMethods.${m}`)}</option>)}
           </select>
+
+          {form.payment_method === 'cash' && !paymentLocked && !myCashier.isLoading && !myCashier.data && (
+            <p role="status" style={{ margin: '6px 0 0', padding: '8px 10px', borderRadius: 6, background: '#fffbeb', color: '#78350f', fontSize: '0.85rem' }}>
+              {t('recordPayment.needsCashier')}{' '}
+              <Link to="/cash-reconciliation" onClick={onClose} style={{ color: 'inherit', fontWeight: 700 }}>{t('recordPayment.openCashier')}</Link>
+            </p>
+          )}
 
           <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('recordPayment.status')}</label>
           <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)} disabled={paymentLocked}>

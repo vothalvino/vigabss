@@ -1734,6 +1734,8 @@
     "clearResellerFilter": "Ver todos os pagamentos"
   },
   "recordPayment": {
+    "needsCashier": "Dinheiro precisa do seu caixa aberto, e você não tem nenhum aberto.",
+    "openCashier": "Abrir seu caixa",
     "title": "Registrar Pagamento",
     "successTitle": "Pagamento Registrado",
     "client": "Cliente",

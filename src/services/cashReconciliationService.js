@@ -452,12 +452,13 @@ async function attention(orgId) {
 
 /**
  * Before a person records a cash payment:
+ *  - they need an open cashier. Cash taken with none open would go into a
+ *    drawer that no count expects it in;
  *  - a cashier of theirs left open longer than allowed has to be closed
  *    first, which is what makes the daily count happen;
  *  - when the supervisors have made the pickup threshold strict, a cashier
  *    already holding that much has to hand cash in first. The payment that
  *    crosses the threshold goes through; the next one is refused.
- * Someone with no open cashier is not affected.
  */
 async function assertMayTakeCash(orgId, userId) {
   if (userId === null || userId === undefined) return;
@@ -471,7 +472,9 @@ async function assertMayTakeCash(orgId, userId) {
     [maxOpenHours, orgId, userId],
   );
   const session = rows[0];
-  if (!session) return;
+  if (!session) {
+    throw new AppError('Open your cashier before recording a cash payment.', 409, 'CASHIER_NOT_OPEN');
+  }
   if (Number(session.overdue) === 1) {
     throw new AppError(
       `Your cashier has been open for more than ${maxOpenHours} hours. Close it before recording another cash payment.`,
@@ -487,6 +490,17 @@ async function assertMayTakeCash(orgId, userId) {
       );
     }
   }
+}
+
+/**
+ * The check above for a request that records a payment by `method`. Only cash
+ * is checked, and only when a person is recording it: a payment posted with an
+ * API token comes from another system, which has no drawer.
+ */
+async function assertRequestMayTakeCash(req, method) {
+  if (method !== 'cash') return;
+  if (req.user?.apiTokenId) return;
+  await assertMayTakeCash(req.orgId, req.user?.id ?? null);
 }
 
 // -----------------------------------------------------------------------------
@@ -664,6 +678,6 @@ async function getSessionDetail(sessionId, orgId) {
 
 module.exports = {
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
-  myOpenSession, attention, assertMayTakeCash, rules, setPickupRules, matches, addStaffNames,
+  myOpenSession, attention, assertMayTakeCash, assertRequestMayTakeCash, rules, setPickupRules, matches, addStaffNames,
   openingExpectation, drawer, createPickup, confirmPickup, cancelPickup, listPickups,
 };

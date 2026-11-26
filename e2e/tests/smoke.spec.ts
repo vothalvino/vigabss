@@ -227,6 +227,19 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   await expect(generateDialog).not.toBeVisible({ timeout: 30_000 });
 
   // -------------------------------------------------------------------------
+  // Step 5b — Cashier → Open Cashier. The payment below is cash, and cash
+  // needs the payer's open cashier. An empty drawer is counted.
+  // -------------------------------------------------------------------------
+  await page.goto('/cash-reconciliation');
+  await page.getByRole('button', { name: /open cashier/i }).click();
+  const cashierDialog = page.getByRole('dialog', { name: /open cashier/i });
+  await cashierDialog.getByLabel(/cash counted in the drawer/i).fill('0');
+  await cashierDialog.getByRole('button', { name: /^open cashier$/i }).click();
+  await expect(cashierDialog).not.toBeVisible({ timeout: 15_000 });
+  // The reminder that a cashier is open shows on every page from now on.
+  await expect(page.getByTestId('my-cashier-bar')).toBeVisible({ timeout: 15_000 });
+
+  // -------------------------------------------------------------------------
   // Step 6 — Payments → Record Payment for our test client
   // -------------------------------------------------------------------------
   await page.goto('/payments');

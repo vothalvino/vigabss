@@ -10,6 +10,13 @@
 // here it is mocked so we test the route contract, not the money math twice.
 // =============================================================================
 
+// Cash needs the caller's open cashier (tests/cashReconciliationRecordedBy.test.js);
+// here the caller has one.
+jest.mock('../src/services/cashReconciliationService', () => ({
+  ...jest.requireActual('../src/services/cashReconciliationService'),
+  assertRequestMayTakeCash: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
@@ -104,6 +111,23 @@ describe('POST /client-groups/:id/pay', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.payment.id).toBe(900);
     expect(mockPayGroup).toHaveBeenCalledWith(1, '7', expect.objectContaining({ amount: 180, payment_method: 'cash', actorUserId: 1 }));
+  });
+
+  it('a cash payment without the payer\'s open cashier is refused and the group is not paid', async () => {
+    const cashier = require('../src/services/cashReconciliationService');
+    const { AppError } = require('../src/utils/errors');
+    cashier.assertRequestMayTakeCash.mockRejectedValueOnce(new AppError('Open your cashier before recording a cash payment.', 409, 'CASHIER_NOT_OPEN'));
+    const res = await request(app).post('/api/v1/client-groups/7/pay').send({ amount: 180, payment_method: 'cash' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CASHIER_NOT_OPEN');
+    expect(mockPayGroup).not.toHaveBeenCalled();
+    expect(cashier.assertRequestMayTakeCash).toHaveBeenCalledWith(expect.anything(), 'cash');
+  });
+
+  it('a group payment with no method is not cash', async () => {
+    const cashier = require('../src/services/cashReconciliationService');
+    await request(app).post('/api/v1/client-groups/7/pay').send({ amount: 180 });
+    expect(cashier.assertRequestMayTakeCash).toHaveBeenLastCalledWith(expect.anything(), 'other');
   });
 
   it('rejects an invalid payment_method via the schema', async () => {
