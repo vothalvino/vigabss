@@ -231,11 +231,16 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // needs the payer's open cashier. An empty drawer is counted.
   // -------------------------------------------------------------------------
   await page.goto('/cash-reconciliation');
-  await page.getByRole('button', { name: /open cashier/i }).click();
-  const cashierDialog = page.getByRole('dialog', { name: /open cashier/i });
-  await cashierDialog.getByLabel(/cash counted in the drawer/i).fill('0');
-  await cashierDialog.getByRole('button', { name: /^open cashier$/i }).click();
-  await expect(cashierDialog).not.toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: /^cashier$/i })).toBeVisible({ timeout: 15_000 });
+  // A retry of this test finds the cashier its first attempt opened.
+  const alreadyOpen = await page.getByTestId('my-cashier-bar').isVisible({ timeout: 3_000 }).catch(() => false);
+  if (!alreadyOpen) {
+    await page.getByRole('button', { name: /open cashier/i }).click();
+    const cashierDialog = page.getByRole('dialog', { name: /open cashier/i });
+    await cashierDialog.getByLabel(/cash counted in the drawer/i).fill('0');
+    await cashierDialog.getByRole('button', { name: /^open cashier$/i }).click();
+    await expect(cashierDialog).not.toBeVisible({ timeout: 15_000 });
+  }
   // The reminder that a cashier is open shows on every page from now on.
   await expect(page.getByTestId('my-cashier-bar')).toBeVisible({ timeout: 15_000 });
 
@@ -365,6 +370,10 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // Step 8 — Sign out → redirected to /login
   // -------------------------------------------------------------------------
   await page.getByRole('button', { name: /sign out/i }).click();
+  // The cashier opened in step 5b is still open, so signing out asks first.
+  const signOutDialog = page.getByRole('dialog', { name: /close your cashier first/i });
+  await expect(signOutDialog).toBeVisible({ timeout: 10_000 });
+  await signOutDialog.getByRole('button', { name: /sign out anyway/i }).click();
   await expect(page).toHaveURL(/\/login/);
   await expect(page.getByText(/VigaBSS/i).first()).toBeVisible();
 
