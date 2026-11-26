@@ -746,7 +746,7 @@
   },
   "nav": {
     "tabNames": {
-      "cash": "Caixa",
+      "cash": "Fechamento",
       "transactions": "Transações",
       "recurring": "Cartões",
       "problems": "Problemas",
@@ -888,7 +888,7 @@
     "ipv6Management": "Gestão IPv6",
     "transitionMechanisms": "Transições IPv6",
     "paymentPlans": "Planos de Pagamento",
-    "cashReconciliation": "Conciliação de Caixa",
+    "cashReconciliation": "Fechamento de caixa",
     "refundRequests": "Solicitações de Reembolso",
     "billingDisputes": "Disputas de Faturamento",
     "chargebacks": "Estornos",
@@ -2611,8 +2611,8 @@
     "schedule": "Calendário de Parcelas"
   },
   "cashReconciliation": {
-    "title": "Conciliação de Caixa",
-    "openSession": "Abrir Sessão",
+    "title": "Fechamento de caixa",
+    "openSession": "Abrir caixa",
     "columns": {
       "id": "ID",
       "agent": "Agente",
@@ -2629,7 +2629,7 @@
       "approved": "Aprovado",
       "disputed": "Contestado"
     },
-    "close": "Fechar Sessão",
+    "close": "Fechar caixa",
     "approve": "Aprovar",
     "countedTotal": "Total Contado",
     "notes": "Observações",
@@ -8104,7 +8104,7 @@
       "failedToLoadPayments": "Não foi possível carregar os pagamentos.",
       "noCashPaymentsInThis": "Não há pagamentos em dinheiro nesta sessão.",
       "total": " no total",
-      "failedToLoadReconciliationSessions": "Não foi possível carregar as sessões de conciliação.",
+      "failedToLoadReconciliationSessions": "Não foi possível carregar os fechamentos de caixa.",
       "noSessionsFound": "Nenhuma sessão encontrada.",
       "prev": "← Anterior",
       "page": "Página ",

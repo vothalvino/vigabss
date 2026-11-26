@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: "Cash Reconciliation" is now "Cashier".** The staff page for the
+  end-of-shift cash count is "Corte de caja" in Spanish and "Fechamento de
+  caixa" in Portuguese, and its buttons read "Open Cashier" and "Close
+  Cashier" ("Abrir caja" / "Hacer corte", "Abrir caixa" / "Fechar caixa"). In
+  Spanish the close button used to read "Cerrar Sesión", the same words as
+  signing out.
+
 - **Changed: "Recurring Payments" is now "Cards on File".** The page that
   lists the cards customers have saved for automatic payment has a plainer
   name in the menu, on its tab and in its title: "Tarjetas registradas" in

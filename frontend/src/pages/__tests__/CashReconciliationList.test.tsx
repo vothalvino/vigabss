@@ -57,12 +57,12 @@ describe('CashReconciliationList page', () => {
 
   it('renders the page title', async () => {
     renderList();
-    await waitFor(() => expect(screen.getByText('Cash Reconciliation')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Cashier' })).toBeInTheDocument());
   });
 
-  it('shows "Open Session" button when user has admin role', async () => {
+  it('shows the "Open Cashier" button when user has admin role', async () => {
     renderList();
-    await waitFor(() => expect(screen.getByText('+ Open Session')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('+ Open Cashier')).toBeInTheDocument());
   });
 
   it('renders a table row when session data is returned', async () => {

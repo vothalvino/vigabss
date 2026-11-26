@@ -746,7 +746,7 @@
   },
   "nav": {
     "tabNames": {
-      "cash": "Caja",
+      "cash": "Corte",
       "transactions": "Transacciones",
       "recurring": "Tarjetas",
       "problems": "Problemas",
@@ -888,7 +888,7 @@
     "ipv6Management": "Gestión IPv6",
     "transitionMechanisms": "Transiciones IPv6",
     "paymentPlans": "Planes de Pago",
-    "cashReconciliation": "Conciliación de Efectivo",
+    "cashReconciliation": "Corte de caja",
     "refundRequests": "Solicitudes de Reembolso",
     "billingDisputes": "Disputas de Facturación",
     "chargebacks": "Contracargos",
@@ -2611,8 +2611,8 @@
     "schedule": "Calendario de Pagos"
   },
   "cashReconciliation": {
-    "title": "Conciliación de Efectivo",
-    "openSession": "Abrir Sesión",
+    "title": "Corte de caja",
+    "openSession": "Abrir caja",
     "columns": {
       "id": "ID",
       "agent": "Agente",
@@ -2629,7 +2629,7 @@
       "approved": "Aprobado",
       "disputed": "Disputado"
     },
-    "close": "Cerrar Sesión",
+    "close": "Hacer corte",
     "approve": "Aprobar",
     "countedTotal": "Total Contado",
     "notes": "Notas",
@@ -8104,7 +8104,7 @@
       "failedToLoadPayments": "No se pudieron cargar los pagos.",
       "noCashPaymentsInThis": "No hay pagos en efectivo en esta sesión.",
       "total": " en total",
-      "failedToLoadReconciliationSessions": "No se pudieron cargar las sesiones de conciliación.",
+      "failedToLoadReconciliationSessions": "No se pudieron cargar los cortes de caja.",
       "noSessionsFound": "No se encontraron sesiones.",
       "prev": "← Anterior",
       "page": "Página ",
