@@ -71,7 +71,7 @@ run alone — rerun it before treating it as a regression. The main checkout's
 from the main checkout while worktrees exist under `.claude/worktrees/` also
 collects their test copies; pass `--testPathIgnorePatterns '/.claude/worktrees/'`.
 Confirmed 2026-10-29: symlinking the MAIN checkout's `frontend/node_modules`
-into the worktree (`ln -s /home/coder/Documents/Codex/vigabss/frontend/node_modules
+into the worktree (`ln -s <main checkout>/frontend/node_modules
 frontend/node_modules`) makes vitest, tsc, gen:api, the husky frontend hook
 and `trapForwardingOpenapi` all pass. Keep it during `git commit` of frontend
 files, then `rm` it.
