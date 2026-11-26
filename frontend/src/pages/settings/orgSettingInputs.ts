@@ -21,6 +21,7 @@ export const SETTING_NUMBER_INPUTS: Record<string, { min: number; step?: string 
   // The cashier: how large a difference still matches, and how long one may stay open.
   cashier_match_tolerance: { min: 0, step: '0.01' },
   cashier_max_open_hours: { min: 1 },
+  cashier_pickup_threshold: { min: 0, step: '0.01' },
 };
 
 /** i18n keys of the translated names shown above the raw setting key. */
@@ -28,4 +29,6 @@ export const SETTING_LABEL_KEYS: Record<string, string> = {
   reseller_default_credit_limit: 'settingsPage.keyLabels.resellerDefaultCreditLimit',
   cashier_match_tolerance: 'settingsPage.keyLabels.cashierMatchTolerance',
   cashier_max_open_hours: 'settingsPage.keyLabels.cashierMaxOpenHours',
+  cashier_pickup_threshold: 'settingsPage.keyLabels.cashierPickupThreshold',
+  cashier_pickup_strict: 'settingsPage.keyLabels.cashierPickupStrict',
 };

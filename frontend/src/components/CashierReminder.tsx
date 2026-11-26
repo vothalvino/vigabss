@@ -29,35 +29,43 @@ export function CashierReminder() {
 
   // The supervisor's line leaves out their own cashier: the first bar covers it.
   const othersOverdue = (attention?.overdue_open ?? []).filter((s) => s.id !== mine?.id);
+  const othersOverLimit = (attention?.over_threshold ?? []).filter((s) => s.id !== mine?.id);
+  const openedDifferent = attention?.opening_differences ?? [];
   const awaiting = attention?.awaiting_review ?? 0;
+  const who = (rows: { agent_name: string | null; agent_user_id: number }[]) =>
+    rows.slice(0, 3).map((s) => s.agent_name || `#${s.agent_user_id}`).join(', ');
+  const supervisorLines = [
+    othersOverdue.length > 0 && t('cashierReminder.othersOverdue', { count: othersOverdue.length, hours: attention?.max_open_hours, names: who(othersOverdue) }),
+    othersOverLimit.length > 0 && t('cashierReminder.othersOverLimit', { count: othersOverLimit.length, names: who(othersOverLimit) }),
+    openedDifferent.length > 0 && t('cashierReminder.openedDifferent', { count: openedDifferent.length, names: who(openedDifferent) }),
+    awaiting > 0 && t('cashierReminder.awaitingReview', { count: awaiting }),
+  ].filter(Boolean) as string[];
 
-  if (!mine && othersOverdue.length === 0 && awaiting === 0) return null;
+  if (!mine && supervisorLines.length === 0) return null;
 
   return (
     <>
       {mine && (
-        <div role={mine.overdue ? 'alert' : 'status'} style={{ ...bar, ...(mine.overdue ? danger : info) }} data-testid="my-cashier-bar">
+        <div role={mine.overdue ? 'alert' : 'status'} style={{ ...bar, ...(mine.overdue ? danger : mine.over_threshold ? warn : info) }} data-testid="my-cashier-bar">
           <span>
             {mine.overdue
               ? t('cashierReminder.mineOverdue', { hours: mine.max_open_hours })
               : t('cashierReminder.mineOpen', { since: time(mine.opened_at, i18n.language) })}
             {' '}
             {t('cashierReminder.expected', { amount: money(mine.expected_total, i18n.language) })}
+            {mine.over_threshold && (
+              <strong>{' '}{t(mine.pickup_strict ? 'cashierReminder.overLimitStrict' : 'cashierReminder.overLimit', { limit: money(mine.pickup_threshold ?? 0, i18n.language) })}</strong>
+            )}
+            {(mine.pending_pickups ?? 0) > 0 && (
+              <strong>{' '}{t('cashierReminder.pendingPickup', { count: mine.pending_pickups, amount: money(mine.pending_pickups_total ?? 0, i18n.language) })}</strong>
+            )}
           </span>
-          {!onCashierPage && <Link to={CASHIER_PATH} style={link}>{t('cashierReminder.closeIt')}</Link>}
+          {!onCashierPage && <Link to={CASHIER_PATH} style={link}>{t((mine.pending_pickups ?? 0) > 0 ? 'cashierReminder.confirmIt' : 'cashierReminder.closeIt')}</Link>}
         </div>
       )}
-      {(othersOverdue.length > 0 || awaiting > 0) && (
+      {supervisorLines.length > 0 && (
         <div role="status" style={{ ...bar, ...warn }} data-testid="cashier-attention-bar">
-          <span>
-            {othersOverdue.length > 0 && t('cashierReminder.othersOverdue', {
-              count: othersOverdue.length,
-              hours: attention?.max_open_hours,
-              names: othersOverdue.slice(0, 3).map((s) => s.agent_name || `#${s.agent_user_id}`).join(', '),
-            })}
-            {othersOverdue.length > 0 && awaiting > 0 && ' '}
-            {awaiting > 0 && t('cashierReminder.awaitingReview', { count: awaiting })}
-          </span>
+          <span>{supervisorLines.join(' ')}</span>
           {!onCashierPage && <Link to={CASHIER_PATH} style={link}>{t('cashierReminder.review')}</Link>}
         </div>
       )}

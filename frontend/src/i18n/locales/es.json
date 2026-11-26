@@ -615,7 +615,9 @@
     "keyLabels": {
       "resellerDefaultCreditLimit": "Límite de efectivo predeterminado para revendedores",
       "cashierMatchTolerance": "Caja: diferencia que aún cuenta como cuadrada",
-      "cashierMaxOpenHours": "Caja: horas que puede seguir abierta"
+      "cashierMaxOpenHours": "Caja: horas que puede seguir abierta",
+      "cashierPickupThreshold": "Caja: límite de efectivo antes de un retiro",
+      "cashierPickupStrict": "Caja: impedir pagos en efectivo sobre el límite"
     }
   },
   "common": {
@@ -2615,7 +2617,16 @@
   "cashierReminder": {
     "mineOpen": "Tu caja está abierta desde {{since}}.",
     "mineOverdue": "Tu caja lleva más de {{hours}} horas abierta. Haz el corte antes de registrar más efectivo.",
-    "expected": "Efectivo esperado: {{amount}}.",
+    "expected": "Efectivo en caja: {{amount}}.",
+    "overLimit": "Supera el límite de {{limit}}: pide a un supervisor que retire efectivo.",
+    "overLimitStrict": "Supera el límite de {{limit}}: un supervisor debe retirar efectivo antes de que registres más.",
+    "pendingPickup_one": "Un supervisor registró un retiro de {{amount}} que espera tu confirmación.",
+    "pendingPickup_other": "Los supervisores registraron {{count}} retiros, {{amount}} en total, que esperan tu confirmación.",
+    "confirmIt": "Confirmar",
+    "othersOverLimit_one": "{{count}} caja supera el límite de efectivo: {{names}}.",
+    "othersOverLimit_other": "{{count}} cajas superan el límite de efectivo: {{names}}.",
+    "openedDifferent_one": "{{count}} caja se abrió con un monto distinto al del último corte: {{names}}.",
+    "openedDifferent_other": "{{count}} cajas se abrieron con un monto distinto al del último corte: {{names}}.",
     "closeIt": "Hacer corte",
     "othersOverdue_one": "{{count}} caja lleva más de {{hours}} horas abierta: {{names}}.",
     "othersOverdue_other": "{{count}} cajas llevan más de {{hours}} horas abiertas: {{names}}.",
@@ -2650,6 +2661,44 @@
     "close": "Hacer corte",
     "approve": "Aprobar",
     "dispute": "Disputar",
+    "opening": {
+      "help": "Cuenta el efectivo en caja antes de empezar. Se queda ahí entre turnos, así que debe ser lo que contaste en tu último corte.",
+      "counted": "Efectivo contado en caja",
+      "lastClose": "Tu último corte fue de {{amount}}.",
+      "differs": "Es distinto a tu último corte. Puedes abrir de todos modos; un supervisor verá la diferencia.",
+      "required": "Escribe el efectivo que contaste en caja.",
+      "failed": "No se pudo abrir la caja.",
+      "shown": "Abrió con:",
+      "shownDiffers": "el último corte fue de {{amount}}"
+    },
+    "pickups": {
+      "title": "Retiros de efectivo por supervisores",
+      "none": "Ninguno.",
+      "record": "Registrar retiro de efectivo",
+      "amount": "Monto retirado",
+      "amountRequired": "Escribe el monto retirado, mayor que cero.",
+      "takenBy": "retirado por {{name}}",
+      "confirm": "Confirmar",
+      "reject": "Rechazar",
+      "failed": "No se pudo guardar.",
+      "status": {
+        "pending": "Espera la confirmación de quien atiende la caja",
+        "confirmed": "Confirmado",
+        "cancelled": "Cancelado"
+      }
+    },
+    "rules": {
+      "title": "Reglas de retiro de efectivo",
+      "help": "El efectivo se queda en caja entre turnos. Se entrega a un supervisor solo cuando la caja supera este límite.",
+      "threshold": "Límite de efectivo por caja",
+      "strict": "Estricto: impedir que una caja sobre el límite reciba más efectivo",
+      "offHint": "Con un límite de 0 no se recuerda a nadie que entregue efectivo.",
+      "remindHint": "Sobre el límite, se le recuerda a la caja y a los supervisores. Aún se puede recibir efectivo.",
+      "strictHint": "Sobre el límite, la caja no puede registrar otro pago en efectivo hasta que un supervisor retire efectivo.",
+      "saved": "Reglas guardadas.",
+      "failed": "No se pudieron guardar las reglas.",
+      "invalid": "Escribe un límite de 0 o más."
+    },
     "review": {
       "approveTitle": "Aprobar este corte",
       "disputeTitle": "Disputar este corte",

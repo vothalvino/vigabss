@@ -10,15 +10,32 @@ export interface MyCashier {
   id: number;
   opened_at: string;
   hours_open: number;
+  /** The cash the drawer should hold right now: opening + taken - handed in. */
   expected_total: number;
   max_open_hours: number;
   overdue: boolean;
+  /** 0 = no limit. */
+  pickup_threshold?: number;
+  pickup_strict?: boolean;
+  over_threshold?: boolean;
+  /** Pickups a supervisor recorded that wait for this person to confirm. */
+  pending_pickups?: number;
+  pending_pickups_total?: number;
 }
 
 export interface CashierAttention {
   max_open_hours: number;
   awaiting_review: number;
-  overdue_open: { id: number; agent_user_id: number; agent_name: string | null; opened_at: string; hours_open: number }[];
+  overdue_open: CashierAttentionRow[];
+  /** Open cashiers holding the pickup threshold or more. */
+  over_threshold?: CashierAttentionRow[];
+  /** Open cashiers opened with a different amount than they were closed with. */
+  opening_differences?: CashierAttentionRow[];
+}
+
+export interface CashierAttentionRow {
+  id: number; agent_user_id: number; agent_name: string | null; opened_at: string; hours_open: number;
+  cash_on_hand?: number; opening_difference?: number;
 }
 
 export const MY_CASHIER_KEY = ['my-cashier'] as const;
