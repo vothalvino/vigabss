@@ -89,6 +89,14 @@ describe('MoneyTieOut page', () => {
     expect(await screen.findByText(/Some cash is not explained/)).toBeInTheDocument();
     first.unmount();
 
+    report = makeReport();
+    Object.assign(report.cash, { started_in_month: true, tracking_since: '2026-11-20T06:00:00Z' });
+    (report.cash.differences as { unexplained: number }).unexplained = -25;
+    const second = show();
+    expect(await screen.findByText(/Cash from before that day was not followed/)).toBeInTheDocument();
+    expect(screen.queryByText(/Some cash is not explained/)).not.toBeInTheDocument();
+    second.unmount();
+
     report = makeReport({ cash: { ...makeReport().cash, tracked: false, differences: null, in_transit_end: transit({ in_safe: null }) } });
     show();
     expect(await screen.findByText(/Count the safe once to start/)).toBeInTheDocument();

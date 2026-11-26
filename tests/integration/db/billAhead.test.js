@@ -211,9 +211,34 @@ describeDb('billing ahead against a real database', () => {
     const [rows] = await db.query('SELECT id, status FROM invoices WHERE id IN (?) ', [before.filter(i => i.status === 'paid').map(i => i.id)]);
     for (const row of rows) expect([row.id, row.status]).toEqual([row.id, 'paid']);
     for (const note of notes) expect(money(note.applied)).toBe(money(note.total));
+    // A month the payment had only partly paid is completed before any new
+    // month is added: no earlier month owes while a later one is paid.
+    const firstUnpaid = after.findIndex(i => i.status !== 'paid');
+    if (firstUnpaid !== -1) expect(after.slice(firstUnpaid + 1).every(i => i.paid === 0)).toBe(true);
     // The new months are at the new price.
     const added = after.slice(before.length);
     expect(added.every(i => i.total < before[0].total)).toBe(true);
+  });
+
+  test('a downgrade completes a month the payment had only partly paid before it adds new months', async () => {
+    const c = await customer('Change Partial', '200.00');
+    await pay(c.client, '850.00');
+    await billAhead({ orgId: ORG, clientId: c.client });
+    const before = await invoicesOf(c.client);
+    const partial = before.find(i => i.paid > 0 && i.paid < i.total);
+    expect(partial).toBeDefined();
+    const cheaper = await otherPlan('Change Partial cheaper', '100.00');
+
+    expect((await changePlan(c.contract, cheaper)).status).toBe(200);
+    const after = await invoicesOf(c.client);
+    // The month that was partly paid is now paid in full...
+    expect(after.find(i => i.id === partial.id).status).toBe('paid');
+    // ...no earlier month owes while a later one holds money...
+    const firstUnpaid = after.findIndex(i => i.status !== 'paid');
+    if (firstUnpaid !== -1) expect(after.slice(firstUnpaid + 1).every(i => i.paid === 0)).toBe(true);
+    // ...and the 850 is still exactly on invoices.
+    expect(money(after.reduce((t, i) => t + i.paid, 0))).toBe(850);
+    expect(after.length).toBeGreaterThan(before.length);
   });
 
   test('an upgrade bills the difference of every month already invoiced on one extra invoice', async () => {

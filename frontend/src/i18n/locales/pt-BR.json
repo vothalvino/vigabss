@@ -12067,13 +12067,6 @@
       "nonCash": "Não em dinheiro (vai direto ao banco)",
       "total": "Total recebido"
     },
-    "methods": {
-      "transfer": "Transferência",
-      "card": "Cartão",
-      "check": "Cheque",
-      "online": "Online",
-      "other": "Outro"
-    },
     "fiscal": {
       "title": "Como está faturado",
       "hint": "O dinheiro com RFC do cliente já está faturado. Todo o resto termina em uma fatura global ao Público em Geral.",
@@ -12114,7 +12107,8 @@
       "pointPayouts": "Pagamentos a revendedores",
       "unexplained": "Sem explicação em nenhum registro",
       "addsUp": "Cada centavo está contabilizado.",
-      "doesNotAddUp": "Há dinheiro que nenhuma contagem ou correção explica. Verifique se houve dinheiro registrado sem caixa aberto ou um malote marcado como perdido."
+      "doesNotAddUp": "Há dinheiro que nenhuma contagem ou correção explica. Verifique se houve dinheiro registrado sem caixa aberto ou um malote marcado como perdido.",
+      "startedInMonth": "O cofre é acompanhado desde {{date}}. O dinheiro anterior a esse dia não foi acompanhado, então este mês não pode fechar. O próximo fechará."
     },
     "resico": {
       "title": "Limite anual do RESICO",

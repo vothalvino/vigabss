@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a downgrade left a partly paid month owing while it paid for new
+  ones.** When a customer who paid ahead downgraded, the money freed from the
+  months already invoiced went to new months even if an earlier month had
+  only been paid in part. That month is now completed first, then further
+  months are added.
+
+- **Changed: Money Tie-out says when a month started before the safe was
+  followed.** The safe is followed from its first count, so the month that
+  count is made in cannot add up. The page now says so, with the date,
+  instead of reporting that cash as unexplained.
+
 ## 0.1.0-alpha.49 — 2026-11-26
 
 - **Added: a payment names the bank account it reached.** When the

@@ -271,7 +271,74 @@ async function creditAheadMonths(exec, { organizationId, contract, proration, ac
       out.freed = money.round(out.freed + credited.freed);
     }
   }
+  if (out.freed > 0) {
+    out.toppedUp = await completeAheadInvoices(exec, {
+      organizationId, clientId: contract.client_id, invoiceIds: proration.aheadInvoiceIds,
+    });
+  }
   return out;
+}
+
+/**
+ * Money a downgrade freed first completes a month that was only partly paid,
+ * before it pays for further months. A payment holds one allocation per
+ * invoice, so the freed part of the payment that partly paid such a month
+ * cannot be allocated to it again: its existing allocation is raised instead.
+ * Oldest month first; an allocation a payment complement (REP) reports is
+ * left as it is.
+ *
+ * @returns {Promise<number>} what was moved onto those invoices
+ */
+async function completeAheadInvoices(exec, { organizationId, clientId, invoiceIds }) {
+  const repService = require('./repService');
+  const paymentAllocationService = require('./paymentAllocationService');
+  let moved = 0;
+  for (const invoiceId of invoiceIds || []) {
+    const [invoices] = await exec(
+      `SELECT i.id, i.total, i.organization_id,
+              (SELECT COALESCE(SUM(pa.amount), 0) FROM payment_allocations pa
+                WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL) AS paid,
+              (SELECT COALESCE(SUM(a.amount), 0) FROM credit_note_applications a
+                WHERE a.invoice_id = i.id AND a.deleted_at IS NULL) AS credited
+         FROM invoices i
+        WHERE i.id = ? AND i.organization_id <=> ? AND i.client_id = ? AND i.deleted_at IS NULL
+          AND i.status IN ('issued', 'sent', 'overdue')
+        FOR UPDATE`,
+      [invoiceId, organizationId, clientId],
+    );
+    const invoice = invoices[0];
+    if (!invoice) continue;
+    let owed = money.round(Number(invoice.total) - Number(invoice.paid) - Number(invoice.credited));
+    if (owed < 0.005) continue;
+    const [allocations] = await exec(
+      `SELECT pa.id, pa.payment_id, pa.amount,
+              p.amount - (SELECT COALESCE(SUM(x.amount), 0) FROM payment_allocations x
+                           WHERE x.payment_id = p.id AND x.deleted_at IS NULL) AS remainder
+         FROM payment_allocations pa
+         JOIN payments p ON p.id = pa.payment_id AND p.organization_id <=> ? AND p.client_id = ?
+                        AND p.status = 'completed' AND p.deleted_at IS NULL
+        WHERE pa.invoice_id = ? AND pa.deleted_at IS NULL
+        ORDER BY pa.id
+        FOR UPDATE`,
+      [organizationId, clientId, invoiceId],
+    );
+    for (const allocation of allocations || []) {
+      if (owed < 0.005) break;
+      const add = money.round(Math.min(owed, Number(allocation.remainder)));
+      if (!(add > 0)) continue;
+      try {
+        await repService.assertNoBindingRep(exec, { paymentId: allocation.payment_id, orgId: organizationId, invoiceId });
+      } catch (err) {
+        if (err && err.code === 'PAYMENT_HAS_REP') continue;
+        throw err;
+      }
+      await exec('UPDATE payment_allocations SET amount = ? WHERE id = ?', [money.round(Number(allocation.amount) + add), allocation.id]);
+      owed = money.round(owed - add);
+      moved = money.round(moved + add);
+    }
+    await paymentAllocationService.finalizeIfFullyPaid(exec, invoice);
+  }
+  return moved;
 }
 
 /**
@@ -282,4 +349,7 @@ async function extendAfterChange({ organizationId, clientId, actorId = null }) {
   return require('./billAheadService').billAheadQuietly({ orgId: organizationId, clientId, actorUserId: actorId });
 }
 
-module.exports = { prorate, prorationFor, issueProrationCreditNote, invoicedPeriods, creditAheadInvoice, creditAheadMonths, extendAfterChange };
+module.exports = {
+  prorate, prorationFor, issueProrationCreditNote, invoicedPeriods, creditAheadInvoice, creditAheadMonths,
+  completeAheadInvoices, extendAfterChange,
+};

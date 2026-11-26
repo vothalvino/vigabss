@@ -122,6 +122,9 @@ describeDb('the money tie-out against a real database', () => {
     // Nothing is invoiced, so all of it is credit that will end in a General Public invoice.
     expect(report.fiscal).toMatchObject({ client_cfdi: 0, credit: 1300, general_public: 1300 });
     expect(report.cash.tracked).toBe(true);
+    // The first count was made this month, so the page says the month started untracked.
+    expect(report.cash.started_in_month).toBe(true);
+    expect(new Date(report.cash.tracking_since).getTime()).toBeLessThanOrEqual(Date.now());
     expect(report.cash.recorded).toBe(1300);
     expect(report.cash.in_transit_end).toMatchObject({ at_points: 360, owed_to_points: 0, in_bags: 0, in_drawers: 590, in_safe: 90, total: 1040 });
     expect(report.cash).toMatchObject({ deposited: 700, commissions_kept: 50, other_in: 0, other_out: 0 });

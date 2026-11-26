@@ -12073,13 +12073,6 @@
       "nonCash": "Not in cash (goes straight to the bank)",
       "total": "Total collected"
     },
-    "methods": {
-      "transfer": "Transfer",
-      "card": "Card",
-      "check": "Check",
-      "online": "Online",
-      "other": "Other"
-    },
     "fiscal": {
       "title": "How it is invoiced",
       "hint": "Money in a client's RFC is already invoiced. Everything else ends in a General Public invoice.",
@@ -12120,7 +12113,8 @@
       "pointPayouts": "Payouts to resellers",
       "unexplained": "Not explained by any record",
       "addsUp": "Every peso is accounted for.",
-      "doesNotAddUp": "Some cash is not explained by a count or a correction. Check for cash recorded without an open cashier, or a bag marked as lost."
+      "doesNotAddUp": "Some cash is not explained by a count or a correction. Check for cash recorded without an open cashier, or a bag marked as lost.",
+      "startedInMonth": "The safe has been followed since {{date}}. Cash from before that day was not followed, so this month cannot add up. The next month will."
     },
     "resico": {
       "title": "RESICO yearly limit",

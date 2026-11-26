@@ -12067,13 +12067,6 @@
       "nonCash": "No en efectivo (llega directo al banco)",
       "total": "Total cobrado"
     },
-    "methods": {
-      "transfer": "Transferencia",
-      "card": "Tarjeta",
-      "check": "Cheque",
-      "online": "En línea",
-      "other": "Otro"
-    },
     "fiscal": {
       "title": "Cómo está facturado",
       "hint": "El dinero con RFC del cliente ya está facturado. Todo lo demás termina en una factura global al Público en General.",
@@ -12114,7 +12107,8 @@
       "pointPayouts": "Pagos a revendedores",
       "unexplained": "Sin explicación en ningún registro",
       "addsUp": "Cada peso está contabilizado.",
-      "doesNotAddUp": "Hay efectivo que ningún conteo o corrección explica. Revisa si se registró efectivo sin caja abierta o si una bolsa se marcó como perdida."
+      "doesNotAddUp": "Hay efectivo que ningún conteo o corrección explica. Revisa si se registró efectivo sin caja abierta o si una bolsa se marcó como perdida.",
+      "startedInMonth": "La caja fuerte se sigue desde el {{date}}. El efectivo anterior a ese día no se siguió, así que este mes no puede cuadrar. El siguiente sí."
     },
     "resico": {
       "title": "Límite anual de RESICO",
