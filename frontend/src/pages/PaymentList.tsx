@@ -293,9 +293,9 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
             </span>
           )}
         </td>
-        {/* Client ID — narrow */}
+        {/* Payment ID — narrow. The client is the linked name beside it. */}
         <td style={{ padding: '10px 8px', color: '#9ca3af', fontSize: '0.8rem', whiteSpace: 'nowrap', width: 40 }}>
-          {payment.client_id}
+          {payment.id}
         </td>
         {/* Amount */}
         <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#111827' }}>
@@ -438,7 +438,7 @@ export function PaymentList() {
                 <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                   <SortableTh label={t('paymentList.table.client')} col="client_id" sort={sort} />
                   <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', width: 40, fontSize: '0.875rem' }}>
-                    {t('paymentList.table.clientId')}
+                    {t('paymentList.table.paymentId')}
                   </th>
                   <SortableTh label={t('paymentList.table.amount')} col="amount" sort={sort} />
                   <SortableTh label={t('paymentList.table.method')} col="payment_method" sort={sort} />

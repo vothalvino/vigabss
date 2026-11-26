@@ -79,13 +79,15 @@ describe('PaymentList page', () => {
     await waitFor(() => expect(screen.getByText('Acme Corp')).toBeInTheDocument());
   });
 
-  it('renders the narrow numeric client ID column', async () => {
+  it('shows the payment\'s own id in the narrow ID column, not the client\'s', async () => {
     renderPaymentList();
     await waitFor(() => expect(screen.getByText('REF-001')).toBeInTheDocument());
-    // The narrow ID column should contain the raw client_id number "10".
-    // It appears as a standalone cell separate from the name link.
-    const cells = screen.getAllByText('10');
-    expect(cells.length).toBeGreaterThanOrEqual(1);
+    const row = screen.getByText('REF-001').closest('tr') as HTMLTableRowElement;
+    const headers = [...(row.closest('table') as HTMLTableElement).querySelectorAll('thead th')].map(th => th.textContent?.trim());
+    const idColumn = headers.indexOf('ID');
+    expect(idColumn).toBeGreaterThanOrEqual(0);
+    // The fixture is payment 1 of client 10.
+    expect(row.cells[idColumn].textContent?.trim()).toBe('1');
   });
 
   it('downloads the receipt PDF from /pdf/payments/:id when the PDF button is clicked', async () => {
