@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the client portal's browser tab no longer shows the software's
+  name while the page loads.** A portal address now arrives with the neutral
+  title "Portal", which the page replaces with the company's name once it has
+  loaded.
+
 ## 0.1.0-alpha.45 — 2026-11-25
 
 - **Changed: the client portal shows the company's name, not the software's.**

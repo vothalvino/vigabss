@@ -12,7 +12,7 @@ const path = require('path');
 const zlib = require('zlib');
 const express = require('express');
 const request = require('supertest');
-const { staticAssets } = require('../src/middleware/staticAssets');
+const { staticAssets, neutralHead } = require('../src/middleware/staticAssets');
 
 let dist;
 let app;
@@ -27,10 +27,11 @@ beforeAll(() => {
   fs.writeFileSync(path.join(dist, 'assets', 'small-def.css'), 'a{}');
   fs.writeFileSync(path.join(dist, 'secret.txt'), 'outside assets');
   fs.writeFileSync(path.join(dist, 'secret.txt.gz'), zlib.gzipSync('outside assets'));
-  const { assets, spa } = staticAssets(dist);
+  const { assets, spa, portalPage } = staticAssets(dist);
   app = express();
   app.use('/assets', assets);
   app.use(spa);
+  app.get(/^\/portal(\/|$)/, portalPage);
 });
 
 afterAll(() => fs.rmSync(dist, { recursive: true, force: true }));
@@ -78,4 +79,25 @@ test('the gzip lookup never leaves assets/', async () => {
 test('app.js mounts it', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   expect(src).toMatch(/app\.use\('\/assets', frontendAssets\.assets\);\napp\.use\(frontendAssets\.spa\);/);
+});
+
+test('a portal address gets the page with a neutral title, revalidated on every load', async () => {
+  for (const url of ['/portal', '/portal/login', '/portal/invoices/7']) {
+    const res = await request(app).get(url);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/html/);
+    expect(res.headers['cache-control']).toBe('no-cache');
+    expect(res.text).toBe('<!doctype html><title>Portal</title>');
+  }
+});
+
+test('the neutral head keeps nothing that names the software, and leaves the rest alone', () => {
+  const real = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'index.html'), 'utf8');
+  const out = neutralHead(real);
+  const head = out.slice(out.indexOf('<title>') - 200, out.indexOf('</title>') + 8);
+  expect(out).toContain('<title>Portal</title>');
+  expect(out).toContain('<meta name="description" content="Portal" />');
+  expect(head).not.toMatch(/vigabss \d|alpha/i);
+  expect(out).toContain('<div id="root"></div>');
+  expect(out.length).toBeLessThan(real.length);
 });

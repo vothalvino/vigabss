@@ -915,6 +915,9 @@ app.use('/firmar', (req, res, next) => {
 app.use('/assets', frontendAssets.assets);
 app.use(frontendAssets.spa);
 
+// The client portal gets the page with a neutral title (see staticAssets.js).
+app.get(/^\/portal(\/|$)/, frontendAssets.portalPage);
+
 // SPA fallback: any non-API GET that doesn't match a file → serve index.html
 app.get(/^\/(?!api|metrics|health)/, (req, res, next) => {
   const indexPath = path.join(__dirname, '..', 'frontend', 'dist', 'index.html');
