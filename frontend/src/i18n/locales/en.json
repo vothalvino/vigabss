@@ -746,7 +746,7 @@
   },
   "nav": {
     "tabNames": {
-      "cash": "Cash",
+      "cash": "Cashier",
       "transactions": "Transactions",
       "recurring": "Cards",
       "problems": "Problems",
@@ -888,7 +888,7 @@
     "ipv6Management": "IPv6 Management",
     "transitionMechanisms": "IPv6 Transitions",
     "paymentPlans": "Payment Plans",
-    "cashReconciliation": "Cash Reconciliation",
+    "cashReconciliation": "Cashier",
     "refundRequests": "Refund Requests",
     "billingDisputes": "Billing Disputes",
     "chargebacks": "Chargebacks",
@@ -2611,8 +2611,8 @@
     "schedule": "Installment Schedule"
   },
   "cashReconciliation": {
-    "title": "Cash Reconciliation",
-    "openSession": "Open Session",
+    "title": "Cashier",
+    "openSession": "Open Cashier",
     "columns": {
       "id": "ID",
       "agent": "Agent",
@@ -2629,7 +2629,7 @@
       "approved": "Approved",
       "disputed": "Disputed"
     },
-    "close": "Close Session",
+    "close": "Close Cashier",
     "approve": "Approve",
     "countedTotal": "Counted Total",
     "notes": "Notes",
@@ -8110,7 +8110,7 @@
       "failedToLoadPayments": "Failed to load payments.",
       "noCashPaymentsInThis": "No cash payments in this session.",
       "total": " total",
-      "failedToLoadReconciliationSessions": "Failed to load reconciliation sessions.",
+      "failedToLoadReconciliationSessions": "Failed to load the cashier sessions.",
       "noSessionsFound": "No sessions found.",
       "prev": "← Prev",
       "page": "Page ",
