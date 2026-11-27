@@ -11794,7 +11794,8 @@
     "title": "Malotes de dinheiro",
     "noAccess": "Você não tem acesso aos malotes de dinheiro.",
     "tabs": {
-      "board": "Painel",
+      "board": "Malotes",
+      "zones": "Zonas",
       "carriers": "Transportadores"
     },
     "status": {
@@ -11808,6 +11809,8 @@
       "lost": "Perdido"
     },
     "col": {
+      "zone": "Zona",
+      "sealed": "Lacrado",
       "serial": "Número",
       "status": "Status",
       "reseller": "Revendedor",
@@ -11830,6 +11833,59 @@
       "saving": "Salvando…",
       "invalidTransition": "Esta bolsa não está mais em um estado que permita isso. Recarregue-a para ver onde ela está agora.",
       "changed": "Esta bolsa mudou enquanto você salvava. Recarregue-a e tente novamente."
+    },
+    "dash": {
+      "title": "Dinheiro em malotes",
+      "readyBags": "Malotes prontos para coleta",
+      "transitBags": "Malotes a caminho",
+      "readyAmount": "Dinheiro em malotes prontos para coleta",
+      "transitAmount": "Dinheiro em malotes a caminho",
+      "help": "Malotes lacrados de todos os transportadores e zonas. Escolha um transportador ou uma zona abaixo para restringir estes números.",
+      "filtered": "Para o transportador e a zona escolhidos abaixo."
+    },
+    "filters": {
+      "title": "Filtros",
+      "allZones": "Todas as zonas",
+      "noZone": "Sem zona",
+      "dateOf": "Data",
+      "dates": {
+        "sealed": "De lacre",
+        "picked_up": "De coleta",
+        "received": "De recebimento"
+      },
+      "from": "De",
+      "to": "Até",
+      "differences": "Somente malotes com diferença na contagem",
+      "clear": "Limpar filtros",
+      "count_one": "{{count}} malote",
+      "count_other": "{{count}} malotes"
+    },
+    "zones": {
+      "help": "As zonas agrupam revendedores e cobradores por área. A lista de malotes e seus números podem ser filtrados por zona.",
+      "title": "Zonas",
+      "id": "ID",
+      "name": "Nome",
+      "points": "Pontos",
+      "none": "Ainda não há zonas.",
+      "newName": "Nome da nova zona",
+      "add": "Adicionar zona",
+      "rename": "Renomear",
+      "remove": "Remover",
+      "renameZone": "Renomear zona {{name}}",
+      "removeZone": "Remover zona {{name}}",
+      "renamePrompt": "Novo nome da zona",
+      "confirmRemove": "Remover a zona {{name}}? Seus pontos ficarão sem zona.",
+      "failed": "Não foi possível fazer isso.",
+      "pointsTitle": "Zona de cada ponto",
+      "point": "Ponto",
+      "kind": "Tipo",
+      "city": "Cidade",
+      "zoneOf": "Zona de {{name}}",
+      "noPoints": "Ainda não há revendedores nem cobradores.",
+      "kinds": {
+        "reseller": "Revendedor",
+        "collector": "Cobrador"
+      }
     },
     "board": {
       "help": "Os revendedores lacram malotes com o dinheiro que declaram, e nesse momento o valor declarado é descontado da conta deles; um transportador os coleta e você os conta quando chegam. Ao receber um malote, só a diferença, se houver, é registrada como ajuste na conta do revendedor.",

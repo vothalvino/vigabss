@@ -11800,7 +11800,8 @@
     "title": "Cash bags",
     "noAccess": "You don't have access to cash bags.",
     "tabs": {
-      "board": "Board",
+      "board": "Bags",
+      "zones": "Zones",
       "carriers": "Carriers"
     },
     "status": {
@@ -11814,6 +11815,8 @@
       "lost": "Lost"
     },
     "col": {
+      "zone": "Zone",
+      "sealed": "Sealed",
       "serial": "Serial",
       "status": "Status",
       "reseller": "Reseller",
@@ -11836,6 +11839,59 @@
       "saving": "Saving…",
       "invalidTransition": "This bag is no longer in a state that allows this. Reload it to see where it is now.",
       "changed": "This bag changed while you were saving. Reload it and try again."
+    },
+    "dash": {
+      "title": "Cash in bags",
+      "readyBags": "Bags ready for pickup",
+      "transitBags": "Bags on their way",
+      "readyAmount": "Cash in bags ready for pickup",
+      "transitAmount": "Cash in bags on their way",
+      "help": "Sealed bags of every carrier and zone. Choose a carrier or a zone below to narrow these numbers.",
+      "filtered": "For the carrier and zone chosen below."
+    },
+    "filters": {
+      "title": "Filters",
+      "allZones": "All zones",
+      "noZone": "No zone",
+      "dateOf": "Date",
+      "dates": {
+        "sealed": "Sealed",
+        "picked_up": "Picked up",
+        "received": "Received"
+      },
+      "from": "From",
+      "to": "To",
+      "differences": "Only bags with a count difference",
+      "clear": "Clear filters",
+      "count_one": "{{count}} bag",
+      "count_other": "{{count}} bags"
+    },
+    "zones": {
+      "help": "Zones group resellers and collectors by area. The bags list and its numbers can be filtered by zone.",
+      "title": "Zones",
+      "id": "ID",
+      "name": "Name",
+      "points": "Points",
+      "none": "No zones yet.",
+      "newName": "New zone name",
+      "add": "Add zone",
+      "rename": "Rename",
+      "remove": "Remove",
+      "renameZone": "Rename zone {{name}}",
+      "removeZone": "Remove zone {{name}}",
+      "renamePrompt": "New name for the zone",
+      "confirmRemove": "Remove zone {{name}}? Its points will be left with no zone.",
+      "failed": "That could not be done.",
+      "pointsTitle": "Zone of each point",
+      "point": "Point",
+      "kind": "Kind",
+      "city": "City",
+      "zoneOf": "Zone of {{name}}",
+      "noPoints": "No resellers or collectors yet.",
+      "kinds": {
+        "reseller": "Reseller",
+        "collector": "Collector"
+      }
     },
     "board": {
       "help": "Resellers seal bags with the cash they declare, and the declared amount is taken off their account at that moment; a carrier picks the bags up and you count them when they arrive. Receiving a bag only records a difference, if any, as an adjustment on the reseller's account.",

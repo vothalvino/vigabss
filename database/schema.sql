@@ -15374,6 +15374,30 @@ CREATE TABLE IF NOT EXISTS churn_scores (
 -- Table: resellers (migration 344 — §19.1 Multi-Tenancy / Reseller Support)
 -- Purpose: ISP → Master Reseller → Sub-Reseller hierarchy with white-label branding
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- Table: point_zones (migration 041)
+-- Purpose: zones that group resellers and collectors.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS point_zones (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Owning tenant organisation',
+    name            VARCHAR(100)    NOT NULL,
+    created_by      BIGINT UNSIGNED NULL,
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME        NULL,
+    active_flag     TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED
+                        COMMENT 'NULL when removed, so a removed zone does not block reusing its name',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_point_zones_name (organization_id, name, active_flag),
+    CONSTRAINT fk_point_zones_org FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_point_zones_created_by FOREIGN KEY (created_by)
+        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Zones that group resellers and collectors (migration 041)';
+
 CREATE TABLE IF NOT EXISTS resellers (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id     BIGINT UNSIGNED NULL     COMMENT 'Tenant organization; NULL = single-tenant',
@@ -15386,6 +15410,7 @@ CREATE TABLE IF NOT EXISTS resellers (
     contact_name        VARCHAR(255)    NULL,
     address             VARCHAR(255)    NULL     DEFAULT NULL COMMENT 'Street address of the point of sale, for the carrier route (migration 005)',
     city                VARCHAR(100)    NULL     DEFAULT NULL COMMENT 'City of the point of sale (migration 005)',
+    zone_id             BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'The zone this point is in (point_zones); NULL = none (migration 041)',
     latitude            DECIMAL(10, 7)  NULL     DEFAULT NULL COMMENT 'Point of sale latitude, for the carrier map link (migration 005)',
     longitude           DECIMAL(10, 7)  NULL     DEFAULT NULL COMMENT 'Point of sale longitude (migration 005)',
     status              ENUM('active', 'suspended', 'inactive') NOT NULL DEFAULT 'active',
@@ -15403,6 +15428,7 @@ CREATE TABLE IF NOT EXISTS resellers (
     updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at          DATETIME        DEFAULT NULL,
     PRIMARY KEY (id),
+    KEY idx_resellers_zone (zone_id),
     KEY idx_resellers_organization_id (organization_id),
     KEY idx_resellers_parent_id (parent_id),
     KEY idx_resellers_status (status),
@@ -15410,6 +15436,8 @@ CREATE TABLE IF NOT EXISTS resellers (
     KEY idx_resellers_org_kind (organization_id, kind),
     CONSTRAINT fk_resellers_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_resellers_zone FOREIGN KEY (zone_id)
+        REFERENCES point_zones (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_resellers_parent FOREIGN KEY (parent_id)
         REFERENCES resellers (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Multi-level reseller hierarchy (§19.1)';

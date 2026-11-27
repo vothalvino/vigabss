@@ -3,7 +3,7 @@
 // hand over, void, carriers, and the reseller page's Bolsas and ledger tabs
 // =============================================================================
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -39,6 +39,12 @@ const SUMMARY = {
 };
 const CARRIERS = [{ user_id: 30, first_name: 'Pedro', last_name: 'Ruta', email: 'ruta@example.com', phone: '5550001', status: 'active', resellers: [{ id: 4, name: 'Punto Norte' }], bags_in_hand: { with_carrier: 3, in_transit: 1 } }];
 const RESELLERS = [{ id: 4, name: 'Punto Norte' }, { id: 5, name: 'Punto Sur' }];
+const ZONES = [{ id: 1, name: 'North', points: 1 }, { id: 2, name: 'South', points: 0 }];
+const ZONE_POINTS = [
+  { id: 4, name: 'Punto Norte', kind: 'reseller', city: 'Saltillo', status: 'active', zone_id: 1 },
+  { id: 5, name: 'Punto Sur', kind: 'reseller', city: null, status: 'active', zone_id: null },
+  { id: 6, name: 'Cobros Centro', kind: 'collector', city: null, status: 'active', zone_id: null },
+];
 // Every point the assign form may pick: top-level resellers and collectors, not sub-resellers.
 const POINTS = [
   { id: 4, name: 'Punto Norte', parent_id: null, kind: 'reseller' },
@@ -62,6 +68,18 @@ function respond(path: string, init?: RequestInit): unknown {
     return { data: rows, meta: { total: rows.length, page: 1, limit: Number(q.get('limit')) } };
   }
   if (path === '/cash-bags/summary') return { data: SUMMARY };
+  if (path.startsWith('/cash-bags/dashboard')) {
+    const q = new URLSearchParams(path.split('?')[1] ?? '');
+    // Narrowed to a zone or a carrier, only the bag on its way is left.
+    return q.get('zone_id') || q.get('carrier_user_id')
+      ? { data: { ready: { bags: 0, amount: 0 }, in_transit: { bags: 1, amount: 800 } } }
+      : { data: { ready: { bags: 1, amount: 500 }, in_transit: { bags: 1, amount: 800 } } };
+  }
+  if (path === '/point-zones' && method === 'GET') return { data: ZONES };
+  if (path === '/point-zones/points') return { data: ZONE_POINTS };
+  if (path === '/point-zones' && method === 'POST') return { data: { id: 9, name: JSON.parse(String(init?.body)).name, points: 0 } };
+  if (path === '/point-zones/points/5' && method === 'PUT') return { data: { reseller_id: 5, zone_id: 2 } };
+  if (path === '/point-zones/2' && method === 'DELETE') return { data: { id: 2, name: 'South' } };
   const detail = path.match(/^\/cash-bags\/(\d+)$/);
   if (detail && method === 'GET') {
     const bag = ALL.find(b => b.id === Number(detail[1]));
@@ -121,29 +139,59 @@ beforeEach(async () => {
 afterEach(async () => { await i18n.changeLanguage('en'); });
 
 describe('board', () => {
-  it('shows ready, on their way, received and the per-reseller differences', async () => {
+  it('shows the bags waiting and on their way with their cash, and one list of every bag', async () => {
     renderPage(<CashBagsPage />);
-    const ready = await screen.findByRole('region', { name: /Ready for pickup/ });
-    expect(await within(ready).findByText('A-0001')).toBeInTheDocument();
-    const transit = screen.getByRole('region', { name: /On their way/ });
-    expect(await within(transit).findByText('A-0002')).toBeInTheDocument();
-    expect(within(transit).getByText(/Pedro Ruta/)).toBeInTheDocument();
-    const received = screen.getByRole('region', { name: /Received \(recent\)/ });
-    expect(await within(received).findByText('$10.00 short')).toBeInTheDocument();
-    const diff = screen.getByRole('region', { name: 'Differences' });
-    expect(await within(diff).findByText('Punto Norte')).toBeInTheDocument();
-    // A reseller whose bags match is not a difference.
-    expect(within(diff).queryByText('Punto Sur')).not.toBeInTheDocument();
-    expect(calls('GET', '/cash-bags?status=ready_for_pickup&page=1&limit=20')).toHaveLength(1);
+    const dash = await screen.findByRole('region', { name: 'Cash in bags' });
+    await waitFor(() => expect(dash).toHaveTextContent('Bags ready for pickup1'));
+    expect(dash).toHaveTextContent('Bags on their way1');
+    expect(dash).toHaveTextContent('Cash in bags ready for pickup$500.00');
+    expect(dash).toHaveTextContent('Cash in bags on their way$800.00');
+    // Every bag is in the one list, whatever its status, with its zone column.
+    for (const serial of ['A-0001', 'A-0002', 'A-0003', 'A-0004']) expect(await screen.findByText(serial)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Zone' })).toBeInTheDocument();
+    expect(screen.getByText('$10.00 short')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('4 bags');
+    expect(calls('GET', '/cash-bags?page=1&limit=25')).toHaveLength(1);
   });
 
-  it('filters every column by reseller and serial', async () => {
+  it('filters the list by status, point, zone, serial, dates and differences, and the numbers by carrier and zone', async () => {
     const user = userEvent.setup();
     renderPage(<CashBagsPage />);
+    const filters = await screen.findByRole('group', { name: 'Filters' });
     await screen.findByRole('option', { name: 'Punto Sur' });
-    await user.selectOptions(screen.getByLabelText('Reseller'), '5');
-    await user.type(screen.getByLabelText('Serial'), 'a-0');
-    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/cash-bags?status=in_transit&reseller_id=5&serial=A-0&page=1&limit=20'));
+    await screen.findByRole('option', { name: 'North' });
+    await user.selectOptions(within(filters).getByLabelText('Status'), 'in_transit');
+    await user.selectOptions(within(filters).getByLabelText('Reseller'), '5');
+    await user.type(within(filters).getByLabelText('Serial'), 'a-0');
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/cash-bags?status=in_transit&reseller_id=5&serial=A-0&page=1&limit=25'));
+
+    await user.selectOptions(within(filters).getByLabelText('Zone'), '1');
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/cash-bags/dashboard?zone_id=1'));
+    const dash = screen.getByRole('region', { name: 'Cash in bags' });
+    await waitFor(() => expect(dash).toHaveTextContent('Bags ready for pickup0'));
+    expect(screen.getByText('For the carrier and zone chosen below.')).toBeInTheDocument();
+    await user.selectOptions(within(filters).getByLabelText('Carrier'), '30');
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/cash-bags/dashboard?carrier_user_id=30&zone_id=1'));
+
+    await user.selectOptions(within(filters).getByLabelText('Date'), 'received');
+    fireEvent.change(within(filters).getByLabelText('From'), { target: { value: '2026-11-01' } });
+    fireEvent.change(within(filters).getByLabelText('To'), { target: { value: '2026-11-30' } });
+    await user.click(within(filters).getByLabelText('Only bags with a count difference'));
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith(
+      '/cash-bags?status=in_transit&reseller_id=5&carrier_user_id=30&serial=A-0&zone_id=1&date_field=received&date_from=2026-11-01&date_to=2026-11-30&has_variance=1&page=1&limit=25',
+    ));
+    await user.click(within(filters).getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenLastCalledWith('/cash-bags?page=1&limit=25'));
+    expect(within(filters).queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+  });
+
+  it('offers to receive a bag from its row', async () => {
+    const user = userEvent.setup();
+    renderPage(<CashBagsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Receive bag A-0002' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    // A bag in stock has nothing to receive.
+    expect(screen.queryByRole('button', { name: 'Receive bag A-0004' })).not.toBeInTheDocument();
   });
 
   it('explains a refused transition in the reader\'s language', async () => {
@@ -230,16 +278,10 @@ describe('board', () => {
     expect(within(dialog).queryByRole('list', { name: 'Movements recorded' })).not.toBeInTheDocument();
   });
 
-  it("shows the cash in sealed bags as already off the resellers' accounts", async () => {
-    renderPage(<CashBagsPage />);
-    expect(await screen.findByText("Cash in bags awaiting pickup or on their way: $1,300.00 (already taken off the resellers' accounts).")).toBeInTheDocument();
-  });
-
   it("the lost dialog says the reseller will not owe the bag and the loss is the company's", async () => {
     const user = userEvent.setup();
     renderPage(<CashBagsPage />);
-    const all = await screen.findByRole('region', { name: 'All bags' });
-    await user.click(await within(all).findByRole('button', { name: 'Open bag A-0001' }));
+    await user.click(await screen.findByRole('button', { name: 'Open bag A-0001' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(await within(dialog).findByRole('button', { name: 'Mark lost' }));
     expect(within(dialog).getByText(/the reseller will not owe it and the loss is the company's/)).toBeInTheDocument();
@@ -248,8 +290,7 @@ describe('board', () => {
   it('opens a bag with its history and voids it with a reason', async () => {
     const user = userEvent.setup();
     renderPage(<CashBagsPage />);
-    const all = await screen.findByRole('region', { name: 'All bags' });
-    await user.click(await within(all).findByRole('button', { name: 'Open bag A-0004' }));
+    await user.click(await screen.findByRole('button', { name: 'Open bag A-0004' }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText(/Lupita/)).toBeInTheDocument();
     // A bag in stock has no declared money: void, not lost, not receive.
@@ -353,6 +394,57 @@ describe('board', () => {
     expect(screen.queryByRole('button', { name: 'Assign bags' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Receive bag A-0001' })).not.toBeInTheDocument();
     expect(calls('GET', '/carriers')).toHaveLength(0);
+  });
+});
+
+describe('zones', () => {
+  async function openZones() {
+    const user = userEvent.setup();
+    renderPage(<CashBagsPage />);
+    await user.click(await screen.findByRole('tab', { name: 'Zones' }));
+    return user;
+  }
+
+  it('lists the zones with their id and points, and the zone of each point', async () => {
+    await openZones();
+    const zones = await screen.findByRole('region', { name: 'Zones' });
+    const north = (await within(zones).findByText('North')).closest('tr') as HTMLElement;
+    expect(north).toHaveTextContent('1North1');
+    const points = screen.getByRole('region', { name: 'Zone of each point' });
+    expect(await within(points).findByLabelText('Zone of Punto Norte')).toHaveValue('1');
+    expect(within(points).getByLabelText('Zone of Cobros Centro')).toHaveValue('');
+    expect((await within(points).findByText('Cobros Centro')).closest('tr')).toHaveTextContent('Collector');
+  });
+
+  it('adds a zone, puts a point in one, and removes one after confirming', async () => {
+    const user = await openZones();
+    await user.type(await screen.findByLabelText('New zone name'), 'Center');
+    await user.click(screen.getByRole('button', { name: 'Add zone' }));
+    await waitFor(() => expect(calls('POST', '/point-zones')).toHaveLength(1));
+    expect(bodyOf(calls('POST', '/point-zones')[0])).toEqual({ name: 'Center' });
+
+    await user.selectOptions(await screen.findByLabelText('Zone of Punto Sur'), '2');
+    await waitFor(() => expect(calls('PUT', '/point-zones/points/5')).toHaveLength(1));
+    expect(bodyOf(calls('PUT', '/point-zones/points/5')[0])).toEqual({ zone_id: 2 });
+
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await user.click(screen.getByRole('button', { name: 'Remove zone South' }));
+    expect(calls('DELETE', '/point-zones/2')).toHaveLength(0);
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole('button', { name: 'Remove zone South' }));
+    await waitFor(() => expect(calls('DELETE', '/point-zones/2')).toHaveLength(1));
+    confirm.mockRestore();
+  });
+
+  it('only shows the zones to someone who cannot change resellers', async () => {
+    mocks.user = { id: 2, role: 'billing', organization_currency: 'MXN', permissions: ['cash_bags.view'] };
+    await openZones();
+    expect(await within(await screen.findByRole('region', { name: 'Zones' })).findByText('North')).toBeInTheDocument();
+    // The zone of each point is shown as text, not as a choice.
+    expect((await within(screen.getByRole('region', { name: 'Zone of each point' })).findByText('Punto Norte')).closest('tr')).toHaveTextContent('North');
+    expect(screen.queryByLabelText('New zone name')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove zone South' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Zone of Punto Sur')).not.toBeInTheDocument();
   });
 });
 

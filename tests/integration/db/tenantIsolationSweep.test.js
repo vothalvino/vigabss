@@ -172,6 +172,8 @@ const PATH_PARAMS = {
   '/public/signing/:token/documents/:docId': 'signed_documents',
   '/cash-bags/:id': 'cash_bags',
   '/money-tieout/safe-movements/:id': 'cash_safe_movements',
+  '/point-zones/:id': 'point_zones',
+  '/point-zones/points/:resellerId': 'resellers',
   '/carriers/:userId': 'users',
   '/support/kb/:id': 'kb_articles',
   '/support/channels/:channel': { table: 'support_channel_configs', column: 'channel' },

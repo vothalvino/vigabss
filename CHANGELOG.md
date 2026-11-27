@@ -11,6 +11,19 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   now prints its invoice, payment ID and payment date under the description
   ("INV-000055 · ID de pago: 55 · Fecha de pago: 2026-11-27"). On other
   CFDIs an item that has an identifier prints it too.
+- **Changed: the Cash Bags page is four numbers and one list.** The columns
+  of cards are gone. On top: bags ready for pickup, bags on their way, and
+  the cash in each group. Below: one list of every bag, with filters for
+  status, reseller or collector, carrier, zone, serial, a date range on the
+  sealed, picked-up or received date, and only the bags counted differently
+  than declared. The carrier and the zone narrow the four numbers too. A row
+  shows the bag's zone and sealed date, and "Receive" is on the row of a bag
+  that can be received.
+
+- **Added: zones for resellers and collectors.** A zone is an ID and a name.
+  The new Zones tab on the Cash Bags page lists them, adds, renames and
+  removes them, and sets the zone of each reseller and collector. Removing a
+  zone leaves its points with none (migration 041).
 
 ## 0.1.0-alpha.51 — 2026-11-27
 
