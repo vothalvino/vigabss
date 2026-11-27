@@ -1484,6 +1484,29 @@ for i in $(seq 1 "$MAX_HTTPS_WAIT_ITERATIONS"); do
   sleep 2
 done
 
+# ── Updates from the web interface ────────────────────────────────────────────
+# Settings → Version → "Update now" needs the host's deploy agent, a systemd
+# timer outside Docker. Until now only `redeploy` installed it, so a new server
+# showed an update screen that could not update until someone ran a command on
+# the host. The installer turns it on with redeploy's own routine, from the
+# checkout, so there is one implementation. VIGABSS_DEPLOY_AGENT=0 in .env.prod
+# still opts out, and a host without systemd is skipped. Never fatal: the
+# install is complete without it and `sudo redeploy` installs it later.
+info "Turning on updates from the web interface..."
+if [[ -f "$INSTALL_DIR/redeploy.sh" ]]; then
+  if ! (
+    set +u
+    export VIGABSS_LIB_ONLY=1 VIGABSS_DIR="$INSTALL_DIR"
+    # shellcheck source=/dev/null
+    source "$INSTALL_DIR/redeploy.sh"
+    install_deploy_agent
+  ); then
+    warn "Could not turn on updates from the web interface. Run: sudo redeploy"
+  fi
+else
+  warn "redeploy.sh not found in $INSTALL_DIR — updates from the web interface stay off."
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${RESET}"

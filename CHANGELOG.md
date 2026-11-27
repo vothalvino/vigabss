@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: "Update now" works on a newly installed server.** The installer now
+  turns on the update agent that Settings, Version needs. Before, the screen
+  said the agent had not reported in and gave no way to turn it on. A server
+  already installed: run `sudo redeploy` once.
+
 - **Fixed: the one-line install stopped partway on a new server.** Run as
   `curl … | bash`, the installer ended without an error before it created the
   organization and before it showed the first password. It now runs to the

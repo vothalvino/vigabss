@@ -1547,6 +1547,12 @@ jobs:
           curl -fksS --max-time 10 --resolve install.example.com:443:127.0.0.1 \
             https://install.example.com/health/ready
           echo
+          # The installer turned on the agent behind Settings → Version → Update
+          # now, and it has reported to the app's database (it polls every 30 s).
+          sudo systemctl is-enabled vigabss-deploy-agent.timer
+          sudo systemctl is-active vigabss-deploy-agent.timer
+          sudo systemctl start vigabss-deploy-agent.service
+          $compose exec -T db-primary sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -u "$MYSQL_USER" "$MYSQL_DATABASE" --batch --skip-column-names -e "SELECT COUNT(*) FROM deploy_agent_status WHERE last_seen_at > NOW() - INTERVAL 3 MINUTE"' < /dev/null | grep -qx 1
           # The login page is served, so nginx, the app and the built frontend line up.
           curl -fksS --max-time 10 --resolve install.example.com:443:127.0.0.1 \
             -o /dev/null -w 'frontend: HTTP %{http_code}\n' https://install.example.com/

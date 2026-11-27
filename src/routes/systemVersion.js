@@ -149,7 +149,7 @@ router.post('/deploy', installOperatorOnly, async (req, res, next) => {
       return res.status(503).json({
         error: {
           code: 'DEPLOY_AGENT_UNAVAILABLE',
-          message: 'No deploy agent has checked in. Install the systemd timer on the host, or deploy from the CLI with `sudo redeploy`.',
+          message: 'The update agent on the server has not reported in. Run `sudo redeploy` once on the server: it updates and turns the agent on.',
         },
       });
     }

@@ -157,3 +157,62 @@ describe('run through a pipe', () => {
     expect(lines.slice(-2)).toEqual(['exit 0', '}']);
   });
 });
+
+// Reported on a new server: Settings → Version said the update agent had not
+// reported in and offered no way to turn it on. Only `redeploy` installed the
+// agent; the installer now does, with redeploy's own routine.
+describe('updates from the web interface', () => {
+  const start = INSTALL.indexOf('# ── Updates from the web interface');
+  const BLOCK = INSTALL.slice(start, INSTALL.indexOf('# ── Summary', start));
+  const repo = path.join(__dirname, '..');
+
+  function runBlock(envFileText) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-'));
+    const units = path.join(dir, 'units');
+    const bin = path.join(dir, 'bin');
+    const app = path.join(dir, 'app');
+    fs.mkdirSync(units); fs.mkdirSync(bin); fs.mkdirSync(path.join(app, 'deploy'), { recursive: true });
+    for (const f of ['redeploy.sh', 'deploy/vigabss-deploy-agent.service', 'deploy/vigabss-deploy-agent.timer']) {
+      fs.copyFileSync(path.join(repo, f), path.join(app, f));
+    }
+    fs.writeFileSync(path.join(app, 'docker-compose.prod.yml'), '');
+    fs.writeFileSync(path.join(app, '.env.prod'), envFileText);
+    // A stand-in systemctl that records what it was asked and reports success.
+    fs.writeFileSync(path.join(bin, 'systemctl'), `#!/bin/sh\necho "$*" >> "${dir}/systemctl.log"\nexit 0\n`, { mode: 0o755 });
+    const script = `set -euo pipefail
+info() { echo "INFO: $*"; }; warn() { echo "WARN: $*"; }
+INSTALL_DIR="${app}"
+${BLOCK}
+echo REACHED-THE-SUMMARY`;
+    const out = spawnSync('bash', ['-c', script], {
+      env: { PATH: `${bin}:${process.env.PATH}`, VIGABSS_SYSTEMD_UNIT_DIR: units },
+      encoding: 'utf8',
+    });
+    const log = fs.existsSync(path.join(dir, 'systemctl.log')) ? fs.readFileSync(path.join(dir, 'systemctl.log'), 'utf8') : '';
+    return { out, log, units, app };
+  }
+
+  test('the installer installs the agent units for its own directory and starts the timer', () => {
+    expect(start).toBeGreaterThan(-1);
+    const { out, log, units, app } = runBlock('DOMAIN=example.com\n');
+    expect(out.stdout).toContain('REACHED-THE-SUMMARY');
+    expect(out.stdout).not.toContain('WARN:');
+    const service = fs.readFileSync(path.join(units, 'vigabss-deploy-agent.service'), 'utf8');
+    expect(service).toContain(`ExecStart="${app}/deploy-agent.sh"`);
+    expect(service).not.toContain('__VIGABSS_INSTALL_DIR__');
+    expect(fs.existsSync(path.join(units, 'vigabss-deploy-agent.timer'))).toBe(true);
+    expect(log).toMatch(/^enable --now vigabss-deploy-agent\.timer$/m);
+  });
+
+  test('VIGABSS_DEPLOY_AGENT=0 in .env.prod still opts out', () => {
+    const { out, log, units } = runBlock('VIGABSS_DEPLOY_AGENT=0\n');
+    expect(out.stdout).toContain('REACHED-THE-SUMMARY');
+    expect(fs.existsSync(path.join(units, 'vigabss-deploy-agent.timer'))).toBe(false);
+    expect(log).not.toMatch(/^enable /m);
+  });
+
+  test('it runs after the stack is up and before the closing summary', () => {
+    expect(start).toBeGreaterThan(INSTALL.indexOf('log "Containers started."'));
+    expect(start).toBeLessThan(INSTALL.indexOf('YOUR FIRST SIGN-IN'));
+  });
+});
