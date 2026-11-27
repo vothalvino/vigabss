@@ -1047,6 +1047,12 @@ jobs:
         if: steps.warm.outcome == 'success'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      # Today's date, so the image's OS package step is rebuilt once a day
+      # and picks up security fixes Debian published since the cached build.
+      - name: OS patch day
+        id: osday
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       # Built ONCE, carrying its release tags from the start. The image that
       # Trivy scans below is then bit-for-bit the image that gets pushed — a
       # second build-push run could theoretically produce a different digest,
@@ -1066,6 +1072,7 @@ jobs:
           # newer checkout, which is exactly when the question gets asked.
           build-args: |
             GIT_SHA=${{ github.sha }}
+            OS_PATCH_DAY=${{ steps.osday.outputs.day }}
           tags: |
             vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
             ${{ env.RELEASE_IMAGE }}:${{ github.sha }}-${{ matrix.arch }}

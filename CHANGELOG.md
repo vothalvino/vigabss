@@ -5,6 +5,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: the image could miss a published OS security fix.** The image
+  build applies Debian's updates, but CI reused a cached copy of that step
+  from an earlier day, so a fix published since then did not reach the image.
+  The step is now rebuilt once a day.
+
 - **Fixed: a General Public invoice could not be stamped.** The document is
   addressed to no client, and a database rule required every CFDI's client to
   be Mexican, so saving it was refused before it reached the PAC. A CFDI with
