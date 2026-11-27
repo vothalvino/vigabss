@@ -2386,6 +2386,8 @@
     "noAccessWindows": "No hay ventanas de acceso configuradas."
   },
   "invoiceSettings": {
+    "numberPrefix": "Prefijo del número de factura",
+    "numberPrefixHint": "La siguiente factura se numerará como {{example}}. Déjalo vacío para usar {{fallback}}. Las facturas ya hechas conservan su número y el conteo continúa.",
     "title": "Configuración de Factura",
     "logoUrl": "URL del Logo",
     "logoUrlPlaceholder": "https://ejemplo.com/logo.png",

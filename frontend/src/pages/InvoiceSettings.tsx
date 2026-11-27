@@ -25,6 +25,10 @@ interface InvoiceSettingsData {
   header_color: string | null;
   footer_legal: string | null;
   payment_instructions: string | null;
+  /** The letters before invoice numbers; empty = the organization's default. */
+  number_prefix?: string | null;
+  default_number_prefix?: string;
+  effective_number_prefix?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,7 +49,11 @@ async function saveSettings(body: Partial<InvoiceSettingsData>): Promise<Invoice
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error('Failed to save invoice settings');
+  if (!res.ok) {
+    // The server's reason (a prefix it does not accept), when it gave one.
+    const reply = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new Error(reply.error?.message || '');
+  }
   return res.json();
 }
 
@@ -97,6 +105,7 @@ export function InvoiceSettings() {
     header_color: '#1a5276',
     footer_legal: '',
     payment_instructions: '',
+    number_prefix: '',
   });
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -112,6 +121,7 @@ export function InvoiceSettings() {
         header_color: data.header_color || '#1a5276',
         footer_legal: data.footer_legal || '',
         payment_instructions: data.payment_instructions || '',
+        number_prefix: data.number_prefix || '',
       });
     }
   }, [data]);
@@ -123,8 +133,8 @@ export function InvoiceSettings() {
       setMsg({ type: 'success', text: t('invoiceSettings.saved') });
       setTimeout(() => setMsg(null), 3000);
     },
-    onError: () => {
-      setMsg({ type: 'error', text: t('invoiceSettings.saveError') });
+    onError: (err: unknown) => {
+      setMsg({ type: 'error', text: (err instanceof Error && err.message) || t('invoiceSettings.saveError') });
     },
   });
 
@@ -165,6 +175,24 @@ export function InvoiceSettings() {
             {msg.text}
           </div>
         )}
+
+        <div style={fieldGroup}>
+          <label htmlFor={`${fieldId}-0`} style={labelStyle}>{t('invoiceSettings.numberPrefix')}</label>
+          <input id={`${fieldId}-0`}
+            style={{ ...inputStyle, maxWidth: 180, textTransform: 'uppercase' }}
+            maxLength={10}
+            value={form.number_prefix ?? ''}
+            placeholder={data?.default_number_prefix ?? ''}
+            aria-describedby={`${fieldId}-0-hint`}
+            onChange={e => setForm(f => ({ ...f, number_prefix: e.target.value.toUpperCase() }))}
+          />
+          <p id={`${fieldId}-0-hint`} style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+            {t('invoiceSettings.numberPrefixHint', {
+              example: `${(form.number_prefix || '').trim().replace(/-+$/, '') || data?.default_number_prefix || 'INV'}-000123`,
+              fallback: data?.default_number_prefix ?? 'INV',
+            })}
+          </p>
+        </div>
 
         <div style={fieldGroup}>
           <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('invoiceSettings.logoUrl')}</label>

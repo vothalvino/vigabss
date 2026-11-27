@@ -1534,8 +1534,8 @@ function generateSpec() {
       },
       // ---- Invoice Settings — §2.2B ----
       '/invoice-settings': {
-        get: { tags: ['Invoice Settings'], summary: 'Get invoice branding settings for current org', operationId: 'getInvoiceSettings', security: [{ bearerAuth: [] }], responses: r200('InvoiceSettings') },
-        put: { tags: ['Invoice Settings'], summary: 'Upsert invoice branding settings', operationId: 'updateInvoiceSettings', security: [{ bearerAuth: [] }], requestBody: jsonBody('InvoiceSettings'), responses: r200('InvoiceSettings') },
+        get: { tags: ['Invoice Settings'], summary: 'Get invoice settings for current org: branding, and number_prefix (the letters before invoice numbers; null = the default) with default_number_prefix (REM for a Mexican organization, INV otherwise) and effective_number_prefix', operationId: 'getInvoiceSettings', security: [{ bearerAuth: [] }], responses: r200('InvoiceSettings') },
+        put: { tags: ['Invoice Settings'], summary: 'Upsert invoice settings. number_prefix: 1 to 10 letters, digits or dashes; left out it is kept, sent empty it goes back to the default. Only invoices created afterwards take it', operationId: 'updateInvoiceSettings', security: [{ bearerAuth: [] }], requestBody: jsonBody('InvoiceSettings'), responses: r200('InvoiceSettings') },
       },
 
       // ---- Email Settings — per-org outbound SMTP (migration 386) ----

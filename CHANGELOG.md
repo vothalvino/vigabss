@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Added: choose the prefix of invoice numbers.** Billing setup, Invoice
+  Settings has a new "Invoice number prefix" field, with an example of the
+  next number. Use 1 to 10 letters, digits or dashes.
+
+- **Changed: invoices of a Mexican organization are numbered REM-, not
+  INV-.** With no prefix chosen, a Mexican organization now numbers its
+  invoices REM-000123 (the document is a remisión; the fiscal invoice is the
+  CFDI), and any other organization keeps INV-000123. Invoices already made
+  keep their numbers, and the count keeps running: after INV-000059 comes
+  REM-000060. The number printed on each line of a General Public invoice
+  follows the same prefix (migration 042).
+
 ## 0.1.0-alpha.52 — 2026-11-27
 
 - **Changed: the installer offers Mexico or Global instead of asking for a

@@ -2386,6 +2386,8 @@
     "noAccessWindows": "No access windows configured."
   },
   "invoiceSettings": {
+    "numberPrefix": "Invoice number prefix",
+    "numberPrefixHint": "The next invoice will be numbered like {{example}}. Leave it empty to use {{fallback}}. Invoices already made keep their numbers, and the count keeps running.",
     "title": "Invoice Branding Settings",
     "logoUrl": "Logo URL",
     "logoUrlPlaceholder": "https://example.com/logo.png",

@@ -435,7 +435,7 @@ function round2(n) {
  *   transaction so the invoice INSERT and the counter advance commit or
  *   roll back together.
  * @param {number|null} orgId
- * @returns {Promise<string>} e.g. "INV-000123"
+ * @returns {Promise<string>} e.g. "INV-000123", or "REM-000123" for a Mexican organization
  */
 async function nextSequenceNumber(conn, table, orgId) {
   await conn.execute(
@@ -449,7 +449,10 @@ async function nextSequenceNumber(conn, table, orgId) {
 
 async function nextInvoiceNumber(conn, orgId) {
   const next = await nextSequenceNumber(conn, 'organization_invoice_sequences', orgId);
-  return `INV-${String(next).padStart(6, '0')}`;
+  // The organization's own prefix (Invoice Settings), else REM in Mexico and
+  // INV elsewhere. Read on this connection, inside the caller's transaction.
+  const { effective } = await require('./invoiceSettingsService').numberPrefix(orgId, conn.query.bind(conn));
+  return `${effective}-${String(next).padStart(6, '0')}`;
 }
 
 /**
