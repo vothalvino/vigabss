@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VigaBSS 0.1.0-alpha.50 — Let's Encrypt bootstrap
+# VigaBSS 0.1.0-alpha.51 — Let's Encrypt bootstrap
 #
 # Run this ONCE on the host before starting the full production stack.
 # It solves the chicken-and-egg problem: nginx needs TLS certs to start,
