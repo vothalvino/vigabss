@@ -14,7 +14,7 @@
 //   ADMIN_PASSWORD  initial password; a random one is generated and logged
 //                   once when unset. Only the bcrypt hash is stored.
 //   ORG_NAME        organization name (default "My ISP")
-//   ORG_COUNTRY     ISO 3166-1 alpha-2 country code (optional; "MX" turns on
+//   ORG_COUNTRY     MX, GLOBAL or an ISO 3166-1 alpha-2 code (optional; "MX" turns on
 //                   the Mexican SAT/IFT compliance surface)
 //
 // Idempotent: an install that already has an administrator is left alone.
@@ -37,9 +37,12 @@ function readOptions(env = process.env) {
   if (!EMAIL.test(email)) {
     throw new Error('ADMIN_EMAIL must be set to the administrator\'s email address');
   }
-  const country = String(env.ORG_COUNTRY || '').trim().toUpperCase();
+  // GLOBAL is the installer's "any other country": an organization with no
+  // country, on the global locale.
+  const given = String(env.ORG_COUNTRY || '').trim().toUpperCase();
+  const country = given === 'GLOBAL' ? '' : given;
   if (country && !/^[A-Z]{2}$/.test(country)) {
-    throw new Error('ORG_COUNTRY must be a two-letter ISO country code (e.g. MX, US)');
+    throw new Error('ORG_COUNTRY must be MX, GLOBAL or a two-letter ISO country code (e.g. US)');
   }
   const name = String(env.ORG_NAME || '').trim() || 'My ISP';
   return { email, country: country || null, name: name.slice(0, 255) };

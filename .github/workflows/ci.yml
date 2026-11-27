@@ -1595,7 +1595,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Executed shell-script tests
-        run: pnpm exec jest --ci --testPathPatterns 'tests/(installReloadCron|tlsBootstrapRecovery|tlsRenewalConfig|redeployTopology|redeployEnvSync|redeployVerifiesSignature|deployRequest|deployPullsImage|hostNginxScope|productionBootstrap|releaseChannel|setupScriptHardening|setupSecrets|secretsInArgv|shellScriptsCi)\.test\.js$'
+        run: pnpm exec jest --ci --testPathPatterns 'tests/(installReloadCron|installPrompts|tlsBootstrapRecovery|tlsRenewalConfig|redeployTopology|redeployEnvSync|redeployVerifiesSignature|deployRequest|deployPullsImage|hostNginxScope|productionBootstrap|releaseChannel|setupScriptHardening|setupSecrets|secretsInArgv|shellScriptsCi)\.test\.js$'
 
   helm-lint:
     # Lint and render run everywhere with a read-only token. Releasing (a push
