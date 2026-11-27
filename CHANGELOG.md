@@ -5,6 +5,12 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: the one-line install stopped partway on a new server.** Run as
+  `curl … | bash`, the installer ended without an error before it created the
+  organization and before it showed the first password. It now runs to the
+  end. A server installed this way before the fix: run the same command again
+  and it finishes the install.
+
 - **Changed: the installer asks everything at the start and shows the first
   sign-in last.** On a first install the organization's name and where it
   operates (Mexico or Global) are now asked right after the domain and email,

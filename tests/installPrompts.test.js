@@ -126,3 +126,34 @@ test('the first sign-in details are the last thing the installer prints', () => 
   // The password leaves the env file only after it was printed.
   expect(INSTALL.indexOf('remove_env_key "$ENV_FILE" ADMIN_PASSWORD')).toBeGreaterThan(password);
 });
+
+// Reported on a clean server: the one-line install asked for the domain and
+// email and then ended without creating the organization or showing a
+// password. Piped into bash, the script is read a piece at a time, and the
+// first container command that read its own input took the rest of it.
+describe('run through a pipe', () => {
+  const piped = (script) => spawnSync('bash', [], { input: script, encoding: 'utf8', env: { PATH: process.env.PATH } });
+  // `cat` stands in for docker compose run/exec: it reads whatever input it is given.
+  const BODY = 'echo before\ncat >/dev/null\necho after\n';
+
+  test('a command that reads its input ends an unguarded piped script early, without an error', () => {
+    const out = piped(BODY);
+    expect(out.status).toBe(0);
+    expect(out.stdout).toBe('before\n');
+  });
+
+  test('the installer\'s guard lets the same script run to its end', () => {
+    const guard = INSTALL.slice(INSTALL.indexOf('# >>> piped-run guard'), INSTALL.indexOf('# <<< piped-run guard'));
+    expect(guard).toMatch(/^\{$/m);
+    expect(guard).toMatch(/^exec <\/dev\/null$/m);
+    const out = piped(`${guard}\n${BODY}exit 0\n}\n`);
+    expect(out.status).toBe(0);
+    expect(out.stdout).toBe('before\nafter\n');
+  });
+
+  test('the guard opens before the first command and closes on the last line', () => {
+    const lines = INSTALL.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+    expect(lines.slice(0, 3)).toEqual(['set -euo pipefail', '{', 'exec </dev/null']);
+    expect(lines.slice(-2)).toEqual(['exit 0', '}']);
+  });
+});
