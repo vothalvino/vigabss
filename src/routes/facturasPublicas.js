@@ -10,10 +10,12 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const {
   createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem, addEligibleFacturaPublicaItems,
+  generateFacturaPublica,
 } = require('../middleware/schemas/facturasPublicas');
 const db = require('../config/database');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const { globalPeriodProblem } = require('../utils/satCatalogs');
+const auditLog = require('../services/auditLog');
 const facturaPublicaService = require('../services/facturaPublicaService');
 
 const router = Router();
@@ -33,6 +35,32 @@ function assertPeriod(body, current = {}) {
 router.use(authenticate);
 router.use(orgScope);
 router.use(requireMxLocale);
+
+// The payments of a date range and form of payment whose invoices are still
+// to be reported to General Public. Before '/:id'.
+router.get('/eligible-payments', requirePermission('facturas_publicas.view'), async (req, res, next) => {
+  try {
+    res.json(await facturaPublicaService.eligiblePayments(req.orgId, {
+      date_from: req.query.date_from, date_to: req.query.date_to, forma_pago: req.query.forma_pago,
+    }));
+  } catch (err) { next(err); }
+});
+
+// Create a draft from those payments: all of them, or the ones named.
+router.post('/generate', requirePermission('facturas_publicas.create'), validate(generateFacturaPublica), async (req, res, next) => {
+  try {
+    const created = await facturaPublicaService.generateFromPayments(
+      req.orgId,
+      { date_from: req.body.date_from, date_to: req.body.date_to, forma_pago: req.body.forma_pago },
+      { paymentIds: Array.isArray(req.body.payment_ids) ? req.body.payment_ids : null },
+    );
+    await auditLog.log({
+      userId: req.user.id, organizationId: req.orgId, action: 'create',
+      tableName: 'factura_publica_invoices', recordId: created.id, newValues: created,
+    });
+    res.status(201).json({ data: created });
+  } catch (err) { next(err); }
+});
 
 // List facturas públicas
 router.get('/', requirePermission('facturas_publicas.view'), async (req, res, next) => {

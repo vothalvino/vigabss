@@ -25,4 +25,13 @@ const addEligibleFacturaPublicaItems = {
   currency: { type: 'string', pattern: /^[A-Z]{3}$/ },
 };
 
-module.exports = { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem, addEligibleFacturaPublicaItems };
+// A General Public invoice built from the payments of a range and form of payment.
+const generateFacturaPublica = {
+  date_from: { type: 'string', required: true, format: 'date' },
+  date_to: { type: 'string', required: true, format: 'date' },
+  forma_pago: { type: 'string', required: true, min: 2, max: 2 },
+  // The payments to include; left out, every eligible one.
+  payment_ids: { type: 'array' },
+};
+
+module.exports = { generateFacturaPublica, createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem, addEligibleFacturaPublicaItems };

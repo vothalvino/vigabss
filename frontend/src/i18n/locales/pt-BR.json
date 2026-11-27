@@ -10611,6 +10611,32 @@
     }
   },
   "facturaGlobal": {
+    "builder": {
+      "title": "Nova fatura global",
+      "help": "Uma fatura global declara uma única forma de pagamento, então faça uma para cada forma. Escolha a forma e os dias, carregue os pagamentos, desmarque os que quiser deixar de fora e crie o rascunho. A emissão é feita a partir do rascunho.",
+      "forma": "Forma de pagamento",
+      "formas": {
+        "01": "Dinheiro",
+        "02": "Cheque",
+        "03": "Transferência",
+        "04": "Cartão de crédito",
+        "28": "Cartão de débito"
+      },
+      "from": "Pagamentos de",
+      "to": "Até",
+      "load": "Carregar pagamentos",
+      "none": "Não há pagamentos dessa forma nesses dias com faturas a reportar.",
+      "all": "Incluir todos",
+      "include": "Incluir pagamento {{id}}",
+      "date": "Data",
+      "client": "Cliente",
+      "method": "Método",
+      "invoices": "Faturas",
+      "amount": "Valor",
+      "days": "Dias",
+      "summary": "{{picked}} de {{total}} pagamentos incluídos, {{amount}}",
+      "create": "Criar rascunho"
+    },
     "title": "Facturas globais",
     "description": "Uma factura global informa, em um único CFDI a PUBLICO EN GENERAL, as faturas pagas de um período que não têm CFDI próprio. Crie uma para o período, adicione as faturas e carimbe-a.",
     "total": "{{count}} no total",

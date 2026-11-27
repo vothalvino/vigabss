@@ -5,6 +5,23 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: a General Public invoice is built from the payments you
+  choose.** "New General Public invoice" now asks for a form of payment
+  (cash, bank transfer, credit card, debit card or check) and a range of
+  payment days, then lists the payments whose invoices are still to be
+  reported, all ticked. Untick any to leave out and create the draft; it is
+  stamped from the draft as before. It replaces the dialog that asked for a
+  month and took everything paid in it.
+  - A General Public CFDI states a single form of payment, so there is now
+    one per form. A draft made this way reports its own form instead of the
+    one that carried the most money.
+  - Several can exist for the same month. An invoice can still be in only
+    one, so what one draft took is not offered again.
+  - The range has to stay inside one month. A single day is filed as daily,
+    up to a week as weekly, up to 16 days as fortnightly, otherwise monthly.
+  - An invoice belongs to the payment that completed it. Amounts are shown
+    net of credit notes, as they will be reported (migration 040).
+
 - **Fixed: the image could miss a published OS security fix.** The image
   build applies Debian's updates, but CI reused a cached copy of that step
   from an earlier day, so a fix published since then did not reach the image.

@@ -10617,6 +10617,32 @@
     }
   },
   "facturaGlobal": {
+    "builder": {
+      "title": "New General Public invoice",
+      "help": "A General Public invoice states one form of payment, so make one for each. Choose the form and the days, load the payments, untick any you want to leave out, and create the draft. You stamp it from the draft.",
+      "forma": "Form of payment",
+      "formas": {
+        "01": "Cash",
+        "02": "Check",
+        "03": "Bank transfer",
+        "04": "Credit card",
+        "28": "Debit card"
+      },
+      "from": "Payments from",
+      "to": "To",
+      "load": "Load payments",
+      "none": "No payments of that form in those days have invoices left to report.",
+      "all": "Include all",
+      "include": "Include payment {{id}}",
+      "date": "Date",
+      "client": "Client",
+      "method": "Method",
+      "invoices": "Invoices",
+      "amount": "Amount",
+      "days": "Days",
+      "summary": "{{picked}} of {{total}} payments included, {{amount}}",
+      "create": "Create draft"
+    },
     "title": "Facturas globales",
     "description": "A factura global reports, as one CFDI to PUBLICO EN GENERAL, the paid invoices of a period that have no CFDI of their own. Create one for the period, add its invoices and stamp it.",
     "total": "{{count}} in total",
