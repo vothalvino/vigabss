@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the printed CFDI shows each item's payment ID and payment
+  date.** The stamped General Public invoice already carried them in each
+  item's identifier, but the printout showed only the description. Each item
+  now prints its invoice, payment ID and payment date under the description
+  ("INV-000055 · ID de pago: 55 · Fecha de pago: 2026-11-27"). On other
+  CFDIs an item that has an identifier prints it too.
+
 ## 0.1.0-alpha.51 — 2026-11-27
 
 - **Changed: General Public invoices are built from a range of payment
