@@ -95,7 +95,16 @@ async function stampGlobal(facturaId, orgId, { userId = null } = {}) {
     }
 
     const [invoices] = await exec(
-      `SELECT i.id, i.invoice_number, i.status, i.subtotal, i.tax_amount, i.total, i.tax_rate, i.currency
+      // What the invoice's credit notes took off it: a credit note on an
+      // invoice with no CFDI of its own has no CFDI either, so the global is
+      // the only place that reduction can be reported.
+      `SELECT i.id, i.invoice_number, i.status, i.subtotal, i.tax_amount, i.total, i.tax_rate, i.currency,
+              (SELECT COALESCE(SUM(cn.subtotal), 0) FROM credit_notes cn
+                WHERE cn.invoice_id = i.id AND cn.organization_id = i.organization_id
+                  AND cn.status IN ('issued', 'applied') AND cn.deleted_at IS NULL) AS credited_subtotal,
+              (SELECT COALESCE(SUM(cn.tax_amount), 0) FROM credit_notes cn
+                WHERE cn.invoice_id = i.id AND cn.organization_id = i.organization_id
+                  AND cn.status IN ('issued', 'applied') AND cn.deleted_at IS NULL) AS credited_tax
          FROM factura_publica_invoice_items fi
          JOIN invoices i ON i.id = fi.invoice_id AND i.organization_id = ? AND i.deleted_at IS NULL
         WHERE fi.factura_publica_invoice_id = ?
@@ -139,13 +148,18 @@ async function stampGlobal(facturaId, orgId, { userId = null } = {}) {
           422, 'CFDI_TASA_NOT_IN_CATALOG',
         );
       }
+      // Net of its credit notes: what was actually sold.
       return {
         invoice: inv,
         rate,
-        base: Math.round(Number(inv.subtotal || 0) * 100) / 100,
-        tax: Math.round(Number(inv.tax_amount || 0) * 100) / 100,
+        base: Math.round((Number(inv.subtotal || 0) - Number(inv.credited_subtotal || 0)) * 100) / 100,
+        tax: Math.round((Number(inv.tax_amount || 0) - Number(inv.credited_tax || 0)) * 100) / 100,
       };
-    });
+    // An invoice credited in full sold nothing: it is not a concepto.
+    }).filter(line => line.base > 0);
+    if (lines.length === 0) {
+      throw new AppError('Every invoice in this factura pública was credited in full: there is nothing to report.', 422, 'FACTURA_PUBLICA_EMPTY');
+    }
     const subtotal = Math.round(lines.reduce((s, l) => s + l.base, 0) * 100) / 100;
     const taxTotal = Math.round(lines.reduce((s, l) => s + l.tax, 0) * 100) / 100;
     const total = Math.round((subtotal + taxTotal) * 100) / 100;

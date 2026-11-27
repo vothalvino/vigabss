@@ -52,7 +52,15 @@ FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b
 # restores MySQL 8.x fine, and unlike Oracle's mysqldump needs no GTID
 # special-casing against the replicated primary). Without a dump client in the
 # image, scheduled database_backup runs produced empty 20-byte "backups".
-RUN apt-get update \
+#
+# OS_PATCH_DAY makes this step run again when the day changes. Without it the
+# build cache keeps reusing the step from the day it was first built, so a
+# security fix Debian published since then never reaches the image and the
+# container scan fails on a package that `apt-get upgrade` would have patched.
+# CI passes today's date; a build without it behaves as before.
+ARG OS_PATCH_DAY=unset
+RUN echo "OS packages as of ${OS_PATCH_DAY}" \
+  && apt-get update \
   && apt-get upgrade -y --no-install-recommends \
   && apt-get install -y --no-install-recommends wireguard-tools iproute2 nftables default-mysql-client \
   && rm -rf /var/lib/apt/lists/*

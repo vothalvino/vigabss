@@ -125,7 +125,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 400 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 038)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 039)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -767,6 +767,8 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 037 — Cash followed to the bank:** `bank_accounts` (each with what it is for: client invoices, General Public or any) and `cash_safe_movements` (safe counts, bank deposits, other cash in or out) let the money tie-out follow a month's collections from the point of charge to the bank.
 
 > **Migration 038 — A payment names its bank account:** `payments.bank_account_id` records which of the organization's bank accounts a transfer, card or check payment reached, so the money tie-out shows each account's direct receipts next to its cash deposits.
+
+> **Migration 039 — A CFDI without a client:** the `cfdi_documents` triggers required every document's client to be Mexican, which refused the General Public invoice (it has no client). A document with no client now needs its organization to be Mexican instead.
 
 > **Migration 034 — Retire point cash sessions:** retires the reseller-app cash sessions that had been closed (032 retired the open ones), so none waits for a review on the staff Cashier page.
 

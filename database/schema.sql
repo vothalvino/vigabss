@@ -6219,17 +6219,26 @@ BEGIN
 END$$
 
 -- ---------------------------------------------------------------------------
--- 3. cfdi_documents — require clients.locale = 'MX'
+-- 3. cfdi_documents — require clients.locale = 'MX'; with no client (the
+--    General Public invoice), organizations.locale = 'MX' (migration 039)
 -- ---------------------------------------------------------------------------
 CREATE TRIGGER trg_cfdi_documents_bi
 BEFORE INSERT ON cfdi_documents
 FOR EACH ROW
 BEGIN
     DECLARE v_locale VARCHAR(10);
-    SELECT locale INTO v_locale FROM clients WHERE id = NEW.client_id;
-    IF v_locale IS NULL OR v_locale != 'MX' THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'cfdi_documents requires the referenced client to have locale = ''MX''';
+    IF NEW.client_id IS NULL THEN
+        SELECT locale INTO v_locale FROM organizations WHERE id = NEW.organization_id;
+        IF v_locale IS NULL OR v_locale != 'MX' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'cfdi_documents without a client requires the organization to have locale = ''MX''';
+        END IF;
+    ELSE
+        SELECT locale INTO v_locale FROM clients WHERE id = NEW.client_id;
+        IF v_locale IS NULL OR v_locale != 'MX' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'cfdi_documents requires the referenced client to have locale = ''MX''';
+        END IF;
     END IF;
 END$$
 
@@ -6238,11 +6247,19 @@ BEFORE UPDATE ON cfdi_documents
 FOR EACH ROW
 BEGIN
     DECLARE v_locale VARCHAR(10);
-    IF NEW.client_id != OLD.client_id THEN
-        SELECT locale INTO v_locale FROM clients WHERE id = NEW.client_id;
-        IF v_locale IS NULL OR v_locale != 'MX' THEN
-            SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'cfdi_documents requires the referenced client to have locale = ''MX''';
+    IF NOT (NEW.client_id <=> OLD.client_id) THEN
+        IF NEW.client_id IS NULL THEN
+            SELECT locale INTO v_locale FROM organizations WHERE id = NEW.organization_id;
+            IF v_locale IS NULL OR v_locale != 'MX' THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'cfdi_documents without a client requires the organization to have locale = ''MX''';
+            END IF;
+        ELSE
+            SELECT locale INTO v_locale FROM clients WHERE id = NEW.client_id;
+            IF v_locale IS NULL OR v_locale != 'MX' THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'cfdi_documents requires the referenced client to have locale = ''MX''';
+            END IF;
         END IF;
     END IF;
 END$$
