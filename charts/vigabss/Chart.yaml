@@ -1,9 +1,9 @@
 apiVersion: v2
 name: vigabss
-description: VigaBSS 0.1.0-alpha.51 — ISP management platform (billing, RADIUS, SNMP, CFDI)
+description: VigaBSS 0.1.0-alpha.52 — ISP management platform (billing, RADIUS, SNMP, CFDI)
 type: application
-version: 0.1.0-alpha.51
-appVersion: "0.1.0-alpha.51"
+version: 0.1.0-alpha.52
+appVersion: "0.1.0-alpha.52"
 keywords:
   - isp
   - billing

@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.52 — 2026-11-27
+
 - **Changed: the installer offers Mexico or Global instead of asking for a
   country code.** On a new install it asks "Where does this ISP operate?"
   with two choices: Mexico, which turns on the SAT and IFT compliance
