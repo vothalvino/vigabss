@@ -127,7 +127,7 @@ All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 401 tables + column additions)
-│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 041)
+│   └── migrations/          # Numbered migrations (001 is the first-release baseline; latest: 042)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -775,6 +775,8 @@ Production installs use `install.sh`, which runs the same migrations.
 > **Migration 040 — General Public invoices by payment:** `factura_publica_invoices` gains `forma_pago`, `date_from` and `date_to`: a record is built from the payments of one form of payment in a date range. Several records can share a period, so the unique key on the period becomes a plain index.
 
 > **Migration 041 — Zones for points:** `point_zones` (an id and a name per organization) and `resellers.zone_id` group resellers and collectors by zone, so the cash bags page can total and filter by it.
+
+> **Migration 042 — Invoice number prefix:** `organization_invoice_settings.number_prefix` holds the letters before an organization's invoice numbers. Unset, a Mexican organization numbers `REM-000123` and any other `INV-000123`. Existing invoices keep their numbers and the counter keeps running.
 
 > **Migration 034 — Retire point cash sessions:** retires the reseller-app cash sessions that had been closed (032 retired the open ones), so none waits for a review on the staff Cashier page.
 

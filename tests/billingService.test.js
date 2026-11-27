@@ -115,8 +115,11 @@ describe('billingService', () => {
       mockConnection.execute.mockResolvedValue([{ affectedRows: 1 }]);
       mockConnection.query
         .mockResolvedValueOnce([[{ id: 1 }]])
+        .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
         .mockResolvedValueOnce([[{ id: 2 }]])
-        .mockResolvedValueOnce([[{ id: 3 }]]);
+        .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
+        .mockResolvedValueOnce([[{ id: 3 }]])
+        .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]); // the organization's number prefix
 
       const first = await billingService.nextInvoiceNumber(mockConnection, 42);
       const second = await billingService.nextInvoiceNumber(mockConnection, 42);
@@ -160,7 +163,9 @@ describe('billingService', () => {
       mockConnection.execute.mockResolvedValue([{ affectedRows: 1 }]);
       mockConnection.query
         .mockResolvedValueOnce([[{ id: 4 }]])
-        .mockResolvedValueOnce([[{ id: 5 }]]);
+        .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
+        .mockResolvedValueOnce([[{ id: 5 }]])
+        .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]); // the organization's number prefix
 
       // Simulates: invoice #4 generated, then (soft-)deleted, then another
       // invoice generated for the same org right after — a COUNT(*)-based
@@ -654,6 +659,7 @@ describe('billingService', () => {
         // through the same conn" SELECT once the invoice row exists.
         query: jest.fn()
           .mockResolvedValueOnce([[{ id: 1 }]])
+          .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
           .mockResolvedValueOnce([[{ id: 70, total: '580.00', status: 'issued' }]]),
         commit: jest.fn(),
         rollback: jest.fn(),
@@ -684,11 +690,13 @@ describe('billingService', () => {
           .mockResolvedValueOnce([{ insertId: 80 }])               // INSERT invoice
           .mockResolvedValueOnce([])                               // INSERT invoice_items
           .mockResolvedValueOnce([[{ id: 500 }]])                  // drawdownForSale: resolveOrCreateStockRow (existing row found)
+          .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
           .mockResolvedValueOnce([{ affectedRows: 1 }])            // drawdownForSale: UPDATE inventory_stock (decrement)
           .mockResolvedValueOnce([{ insertId: 900 }])              // drawdownForSale: INSERT inventory_transactions
           .mockResolvedValueOnce([]),                              // INSERT client_balance_ledger
         query: jest.fn()
           .mockResolvedValueOnce([[{ id: 1 }]])                    // nextInvoiceNumber: SELECT LAST_INSERT_ID()
+          .mockResolvedValueOnce([[{ number_prefix: null, locale: 'global' }]]) // the organization's number prefix
           .mockResolvedValueOnce([[{ id: 80, total: '150.00', status: 'issued' }]]), // read back
         commit: jest.fn(),
         rollback: jest.fn(),

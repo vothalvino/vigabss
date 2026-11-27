@@ -15,12 +15,19 @@ const router = Router();
 router.use(authenticate);
 router.use(orgScope);
 
+// The settings with the prefix invoice numbers take now and the one they
+// would take by default, so the page can show an example number.
+async function withPrefix(orgId, settings) {
+  const prefix = await invoiceSettingsService.numberPrefix(orgId);
+  return { ...settings, number_prefix: prefix.chosen, default_number_prefix: prefix.fallback, effective_number_prefix: prefix.effective };
+}
+
 router.get('/',
   requirePermission('invoice_settings.view'),
   async (req, res, next) => {
     try {
       const settings = await invoiceSettingsService.getInvoiceSettings(req.orgId);
-      res.json(settings || {});
+      res.json(await withPrefix(req.orgId, settings || {}));
     } catch (err) {
       next(err);
     }
@@ -35,7 +42,7 @@ router.put('/',
         req.orgId,
         req.body,
       );
-      res.json(settings);
+      res.json(await withPrefix(req.orgId, settings));
     } catch (err) {
       next(err);
     }

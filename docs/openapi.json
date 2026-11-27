@@ -32534,7 +32534,7 @@
         "tags": [
           "Invoice Settings"
         ],
-        "summary": "Get invoice branding settings for current org",
+        "summary": "Get invoice settings for current org: branding, and number_prefix (the letters before invoice numbers; null = the default) with default_number_prefix (REM for a Mexican organization, INV otherwise) and effective_number_prefix",
         "operationId": "getInvoiceSettings",
         "security": [
           {
@@ -32558,7 +32558,7 @@
         "tags": [
           "Invoice Settings"
         ],
-        "summary": "Upsert invoice branding settings",
+        "summary": "Upsert invoice settings. number_prefix: 1 to 10 letters, digits or dashes; left out it is kept, sent empty it goes back to the default. Only invoices created afterwards take it",
         "operationId": "updateInvoiceSettings",
         "security": [
           {

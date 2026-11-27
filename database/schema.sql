@@ -10200,6 +10200,7 @@ CREATE TABLE IF NOT EXISTS organization_invoice_settings (
     header_color         VARCHAR(7)      NULL     DEFAULT '#1a5276',
     footer_legal         TEXT            NULL,
     payment_instructions TEXT            NULL,
+    number_prefix        VARCHAR(10)     NULL COMMENT 'Letters before the invoice number (REM gives REM-000123); NULL = the default: REM for a Mexican organization, INV otherwise (migration 042)',
     created_at           TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at           TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

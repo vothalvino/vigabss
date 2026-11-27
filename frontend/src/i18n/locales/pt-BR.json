@@ -2386,6 +2386,8 @@
     "noAccessWindows": "Nenhuma janela de acesso configurada."
   },
   "invoiceSettings": {
+    "numberPrefix": "Prefixo do número da fatura",
+    "numberPrefixHint": "A próxima fatura será numerada como {{example}}. Deixe vazio para usar {{fallback}}. As faturas já feitas mantêm seu número e a contagem continua.",
     "title": "Configurações de Fatura",
     "logoUrl": "URL do Logo",
     "logoUrlPlaceholder": "https://exemplo.com/logo.png",
