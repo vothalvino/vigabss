@@ -38,6 +38,19 @@
 # =============================================================================
 
 set -euo pipefail
+
+# Everything below is one { … } block, closed on the last line. Run as
+# `curl … | bash`, bash reads the script from the pipe a piece at a time, and
+# any command that reads its own input (docker compose run and exec do, even
+# with -T) takes the rest of the script with it: the installer then stopped
+# without an error partway through, before the organization was created and
+# before the first password was shown. A block is read to its end before any of
+# it runs, and from then on nothing reads the pipe. A download cut short is a
+# syntax error instead of half an install.
+# >>> piped-run guard
+{
+exec </dev/null
+# <<< piped-run guard
 # A failing command under errexit used to end the run with no output at all
 # (SUP-01). Name the line and command that stopped it.
 trap 'echo "install.sh: stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
@@ -1550,3 +1563,7 @@ if [[ "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; then
     warn "Could not remove ADMIN_PASSWORD from $ENV_FILE; delete that line by hand after logging in."
   fi
 fi
+
+# The end of the block opened at the top. Nothing may follow it.
+exit 0
+}

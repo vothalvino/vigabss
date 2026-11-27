@@ -1513,12 +1513,22 @@ jobs:
           exit 1
 
       - name: install.sh installs and starts VigaBSS
+        # Piped into bash, the way the documented one-line install runs it. Run
+        # as a file, a command that reads its own input cannot take the rest of
+        # the script with it, and that failure went unseen. The run must reach
+        # its last step: the first sign-in details.
         run: |
-          sudo env STY=ci SKIP_TLS=1 \
+          set -o pipefail
+          cat install.sh | sudo env STY=ci SKIP_TLS=1 \
             DOMAIN=install.example.com EMAIL=admin@example.com \
             ORG_NAME="Example ISP" ORG_COUNTRY=MX \
             INSTALL_DIR=/opt/vigabss \
-            bash install.sh
+            bash > install-output.txt 2>&1 || { sed -E 's/(Admin password:).*/\1 <hidden>/' install-output.txt; exit 1; }
+          sed -E 's/(Admin password:).*/\1 <hidden>/' install-output.txt
+          grep -q 'Organization and administrator created' install-output.txt
+          grep -q 'YOUR FIRST SIGN-IN' install-output.txt
+          grep -q 'Admin password:' install-output.txt
+          rm -f install-output.txt
 
       - name: Every container is healthy and the app answers over HTTPS
         run: |
