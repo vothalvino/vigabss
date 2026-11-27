@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.51 — 2026-11-27
+
 - **Changed: General Public invoices are built from a range of payment
   days.** "New General Public invoice" asks for the days, then lists the paid
   invoices that were never stamped because the client did not ask for an
