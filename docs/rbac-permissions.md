@@ -230,6 +230,12 @@ API token is another system, which has no drawer. Someone who may record
 payments (`payments.create`) but not open a cashier
 (`cash_reconciliation.create`) cannot record cash.
 
+Zones of resellers and collectors (`/point-zones`): reading them needs
+`cash_bags.view` or `resellers.view`, since the cash bags page filters by
+them; adding, renaming or removing a zone and putting a point in one need
+`resellers.update`. The cash bags dashboard (`GET /cash-bags/dashboard`) needs
+`cash_bags.view`.
+
 The money tie-out (`/money-tieout`: the month's report, the bank accounts and
 the safe's movements) is for whoever supervises the cash: every route needs
 `cash_reconciliation.approve`. It shows the whole organization's collections

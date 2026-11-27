@@ -110,6 +110,16 @@ router.get('/', requirePermission('cash_bags.view'), async (req, res, next) => {
 });
 
 // =============================================================================
+// GET /cash-bags/dashboard — the bags waiting and on their way, with their
+// cash, for every carrier and zone or only ?carrier_user_id= and ?zone_id=
+// =============================================================================
+router.get('/dashboard', requirePermission('cash_bags.view'), async (req, res, next) => {
+  try {
+    res.json({ data: await cashBags.dashboard(req.orgId, req.query) });
+  } catch (err) { next(err); }
+});
+
+// =============================================================================
 // GET /cash-bags/summary
 // =============================================================================
 router.get('/summary', requirePermission('cash_bags.view'), async (req, res, next) => {

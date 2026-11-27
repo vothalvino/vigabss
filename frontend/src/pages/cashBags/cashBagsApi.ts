@@ -34,6 +34,8 @@ export interface CashBag {
   created_at: string | null;
   updated_at: string | null;
   notes: string | null;
+  zone_id: number | null;
+  zone_name: string | null;
 }
 
 export interface CashBagEvent {
@@ -84,6 +86,9 @@ export const cashBagKeys = {
   all: ['cash-bags'] as const,
   list: (filters: Record<string, string | number | null>) => ['cash-bags', 'list', filters] as const,
   summary: ['cash-bags', 'summary'] as const,
+  dashboard: (carrier: number | null, zone: string) => ['cash-bags', 'dashboard', carrier, zone] as const,
+  zones: ['cash-bags', 'zones'] as const,
+  zonePoints: ['cash-bags', 'zone-points'] as const,
   detail: (id: number) => ['cash-bags', 'detail', id] as const,
   carriers: ['cash-bags', 'carriers'] as const,
   carrierResellers: (userId: number) => ['cash-bags', 'carrier-resellers', userId] as const,
@@ -137,6 +142,8 @@ export function toCashBag(raw: Raw): CashBag {
     created_at: str(raw.created_at),
     updated_at: str(raw.updated_at),
     notes: str(raw.notes),
+    zone_id: idOrNull(raw.zone_id),
+    zone_name: str(raw.zone_name),
   };
 }
 
@@ -194,7 +201,13 @@ export function toCarrier(raw: Raw): Carrier {
   };
 }
 
-export interface BagFilters { status?: string; reseller_id?: number | null; carrier_user_id?: number | null; serial?: string; page?: number; limit?: number }
+export type BagDateField = 'sealed' | 'picked_up' | 'received';
+export interface BagFilters {
+  status?: string; reseller_id?: number | null; carrier_user_id?: number | null; serial?: string; page?: number; limit?: number;
+  /** A zone id, or 'none' for points with no zone. */
+  zone?: string;
+  date_field?: BagDateField; date_from?: string; date_to?: string; has_variance?: boolean;
+}
 
 export async function fetchCashBags(f: BagFilters): Promise<{ data: CashBag[]; meta: ListMeta | null }> {
   const q = new URLSearchParams();
@@ -202,6 +215,11 @@ export async function fetchCashBags(f: BagFilters): Promise<{ data: CashBag[]; m
   if (f.reseller_id) q.set('reseller_id', String(f.reseller_id));
   if (f.carrier_user_id) q.set('carrier_user_id', String(f.carrier_user_id));
   if (f.serial) q.set('serial', f.serial);
+  if (f.zone) q.set('zone_id', f.zone);
+  if (f.date_from || f.date_to) q.set('date_field', f.date_field ?? 'sealed');
+  if (f.date_from) q.set('date_from', f.date_from);
+  if (f.date_to) q.set('date_to', f.date_to);
+  if (f.has_variance) q.set('has_variance', '1');
   q.set('page', String(f.page ?? 1));
   q.set('limit', String(f.limit ?? 25));
   const res = await apiFetch<{ data?: Raw[]; meta?: ListMeta }>(`/cash-bags?${q.toString()}`);
@@ -210,6 +228,49 @@ export async function fetchCashBags(f: BagFilters): Promise<{ data: CashBag[]; m
 
 export async function fetchCashBagSummary(): Promise<CashBagSummary> {
   return toSummary(obj((await apiFetch<{ data?: Raw }>('/cash-bags/summary'))?.data));
+}
+
+export interface BagDashboard { ready: { bags: number; amount: number }; in_transit: { bags: number; amount: number } }
+
+/** The bags waiting and on their way with their cash, for every carrier and zone or the ones given. */
+export async function fetchCashBagDashboard(carrier: number | null, zone: string): Promise<BagDashboard> {
+  const q = new URLSearchParams();
+  if (carrier) q.set('carrier_user_id', String(carrier));
+  if (zone) q.set('zone_id', zone);
+  const data = obj((await apiFetch<{ data?: Raw }>(`/cash-bags/dashboard?${q.toString()}`))?.data);
+  const part = (v: unknown) => ({ bags: num(obj(v).bags), amount: toAmount(money(obj(v).amount)) });
+  return { ready: part(data.ready), in_transit: part(data.in_transit) };
+}
+
+export interface PointZone { id: number; name: string; points: number }
+export interface ZonePoint { id: number; name: string; kind: string; city: string | null; zone_id: number | null }
+
+export async function fetchZones(): Promise<PointZone[]> {
+  const res = await apiFetch<{ data?: Raw[] }>('/point-zones');
+  return (Array.isArray(res?.data) ? res.data : []).map(z => ({ id: num(z.id), name: String(z.name ?? ''), points: num(z.points) }));
+}
+
+export async function fetchZonePoints(): Promise<ZonePoint[]> {
+  const res = await apiFetch<{ data?: Raw[] }>('/point-zones/points');
+  return (Array.isArray(res?.data) ? res.data : []).map(p => ({
+    id: num(p.id), name: String(p.name ?? ''), kind: String(p.kind ?? 'reseller'), city: str(p.city), zone_id: idOrNull(p.zone_id),
+  }));
+}
+
+export async function createZone(name: string): Promise<void> {
+  await apiFetch('/point-zones', { method: 'POST', body: JSON.stringify({ name }) });
+}
+
+export async function renameZone(id: number, name: string): Promise<void> {
+  await apiFetch(`/point-zones/${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+}
+
+export async function removeZone(id: number): Promise<void> {
+  await apiFetch(`/point-zones/${id}`, { method: 'DELETE' });
+}
+
+export async function assignPointZone(resellerId: number, zoneId: number | null): Promise<void> {
+  await apiFetch(`/point-zones/points/${resellerId}`, { method: 'PUT', body: JSON.stringify({ zone_id: zoneId }) });
 }
 
 export async function fetchCashBag(id: number): Promise<CashBagDetail> {

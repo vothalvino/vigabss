@@ -2,9 +2,11 @@
 // Bolsas de efectivo (/cash-bags) — staff
 // =============================================================================
 // The ISP's numbered cash bags for resellers who collect cash on its behalf:
-//   • Tablero (cash_bags.view): bags ready for pickup, on their way, recently
-//     received and the count differences; register bags, hand them to a
-//     carrier, receive (count) one, void or mark one lost;
+//   • Bolsas (cash_bags.view): the bags waiting and on their way with their
+//     cash, and the list of every bag with its filters; register bags, hand
+//     them to a carrier, receive (count) one, void or mark one lost;
+//   • Zonas (cash_bags.view; resellers.update to change): the zones and
+//     the zone of each point;
 //   • Transportistas (carriers.manage): carrier logins and the resellers
 //     each one serves.
 // A reseller's own bags are also on the reseller page's "Bolsas" tab.
@@ -17,12 +19,14 @@ import { can } from '@/auth/permissions';
 import { styles } from '../crudStyles';
 import { CarriersTab } from './CarriersTab';
 import { CashBagBoard } from './CashBagBoard';
+import { ZonesTab } from './ZonesTab';
 
-type Tab = 'board' | 'carriers';
+type Tab = 'board' | 'carriers' | 'zones';
 
 const TABS: { key: Tab; labelKey: string; permission: string }[] = [
   { key: 'board', labelKey: 'cashBags.tabs.board', permission: 'cash_bags.view' },
   { key: 'carriers', labelKey: 'cashBags.tabs.carriers', permission: 'carriers.manage' },
+  { key: 'zones', labelKey: 'cashBags.tabs.zones', permission: 'cash_bags.view' },
 ];
 
 export default function CashBagsPage() {
@@ -56,6 +60,7 @@ export default function CashBagsPage() {
       {tabs.length === 0 && <p style={styles.msg}>{t('cashBags.noAccess')}</p>}
       {active === 'board' && tabs.some(tab => tab.key === 'board') && <CashBagBoard />}
       {active === 'carriers' && tabs.some(tab => tab.key === 'carriers') && <CarriersTab />}
+      {active === 'zones' && tabs.some(tab => tab.key === 'zones') && <ZonesTab />}
     </div>
   );
 }

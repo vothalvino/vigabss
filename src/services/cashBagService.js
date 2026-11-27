@@ -51,6 +51,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessDayStartUtc, addDays } = require('../utils/businessDate');
 const logger = require('../utils/logger').child({ service: 'cashBag' });
 const money = require('../utils/money');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
@@ -1051,6 +1052,46 @@ function positiveIdFilter(raw, field) {
   return id;
 }
 
+// The bag's own dates a list can be narrowed by (?date_field=).
+const BAG_DATE_COLUMNS = { sealed: 'sealed_at', picked_up: 'picked_up_at', received: 'received_at' };
+
+/**
+ * The carrier and the zone of the point: the two filters the dashboard and
+ * the list share. A zone is the point's (resellers.zone_id); zone_id=none is
+ * points with no zone.
+ */
+function carrierZoneFilter(query, conditions, params) {
+  const carrierId = positiveIdFilter(query.carrier_user_id, 'carrier_user_id');
+  if (carrierId) { conditions.push('b.carrier_user_id = ?'); params.push(carrierId); }
+  if (query.zone_id === 'none') {
+    conditions.push(`EXISTS (SELECT 1 FROM resellers z WHERE z.id = b.reseller_id AND z.organization_id = b.organization_id
+                              AND z.zone_id IS NULL) /* includes deleted rows: a bag keeps the zone of a removed point */`);
+  } else {
+    const zoneId = positiveIdFilter(query.zone_id, 'zone_id');
+    if (zoneId) {
+      conditions.push(`EXISTS (SELECT 1 FROM resellers z WHERE z.id = b.reseller_id AND z.organization_id = b.organization_id
+                                AND z.zone_id = ?) /* includes deleted rows: a bag keeps the zone of a removed point */`);
+      params.push(zoneId);
+    }
+  }
+}
+
+/** ?date_from=&date_to= (business days, both included) on one of the bag's dates. */
+function bagDateFilter(query, conditions, params) {
+  const column = BAG_DATE_COLUMNS[query.date_field || 'sealed'];
+  if (!column) throw new ValidationError(`date_field must be one of ${Object.keys(BAG_DATE_COLUMNS).join(', ')}`);
+  for (const key of ['date_from', 'date_to']) {
+    const value = query[key];
+    if (value === undefined || value === null || value === '') continue;
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+      throw new ValidationError(`${key} must be a date (YYYY-MM-DD)`);
+    }
+    const from = key === 'date_from';
+    conditions.push(`b.${column} ${from ? '>=' : '<'} ?`);
+    params.push(businessDayStartUtc(from ? value : addDays(value, 1)));
+  }
+}
+
 /** GET /cash-bags: a page of the organization's bags, most recently changed first. */
 async function listBags(orgId, query, { limit, offset }) {
   requireOrgId(orgId, 'cashBagService.listBags');
@@ -1060,8 +1101,8 @@ async function listBags(orgId, query, { limit, offset }) {
   if (statuses) { conditions.push(`b.status IN (${inPlaceholders(statuses)})`); params.push(...statuses); }
   const resellerId = positiveIdFilter(query.reseller_id, 'reseller_id');
   if (resellerId) { conditions.push('b.reseller_id = ?'); params.push(resellerId); }
-  const carrierId = positiveIdFilter(query.carrier_user_id, 'carrier_user_id');
-  if (carrierId) { conditions.push('b.carrier_user_id = ?'); params.push(carrierId); }
+  carrierZoneFilter(query, conditions, params);
+  bagDateFilter(query, conditions, params);
   const serial = typeof query.serial === 'string' ? query.serial.trim().toUpperCase() : '';
   if (serial) {
     if (serial.length > 64) throw new ValidationError('serial is at most 64 characters');
@@ -1083,7 +1124,49 @@ async function listBags(orgId, query, { limit, offset }) {
     params,
   );
   const [[count]] = await db.query(`SELECT COUNT(*) AS total FROM cash_bags b WHERE ${where}`, params);
-  return { rows: await staffBags(orgId, rows), total: Number(count?.total) || 0 };
+  const bags = await staffBags(orgId, rows);
+  const zones = await pointZones(orgId, bags.map((b) => b.reseller_id));
+  return {
+    rows: bags.map((b) => ({ ...b, zone_id: zones.get(Number(b.reseller_id))?.id ?? null, zone_name: zones.get(Number(b.reseller_id))?.name ?? null })),
+    total: Number(count?.total) || 0,
+  };
+}
+
+/** The zone of each of these points: reseller id -> { id, name }. */
+async function pointZones(orgId, resellerIds) {
+  const list = [...new Set((resellerIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  const out = new Map();
+  if (!list.length) return out;
+  const [rows] = await db.query(
+    `/* includes deleted rows: a bag keeps naming the zone of a removed point */
+     SELECT r.id AS reseller_id, z.id, z.name
+       FROM resellers r
+       JOIN point_zones z ON z.id = r.zone_id AND z.organization_id = r.organization_id AND z.deleted_at IS NULL
+      WHERE r.organization_id = ? AND r.id IN (${inPlaceholders(list)})`,
+    [orgId, ...list],
+  );
+  for (const r of rows || []) out.set(Number(r.reseller_id), { id: Number(r.id), name: r.name });
+  return out;
+}
+
+/**
+ * The dashboard of the cash bags page: the sealed bags waiting at a point
+ * and the ones on their way, with the cash each holds, for every carrier and
+ * zone or only the ones asked for.
+ */
+async function dashboard(orgId, query = {}) {
+  requireOrgId(orgId, 'cashBagService.dashboard');
+  const conditions = ['b.organization_id = ?', 'b.deleted_at IS NULL', "b.status IN ('ready_for_pickup', 'in_transit')"];
+  const params = [orgId];
+  carrierZoneFilter(query, conditions, params);
+  const [rows] = await db.query(
+    `SELECT b.status, COUNT(*) AS bags, COALESCE(SUM(b.declared_amount), 0) AS amount
+       FROM cash_bags b WHERE ${conditions.join(' AND ')} GROUP BY b.status`,
+    params,
+  );
+  const by = Object.fromEntries((rows || []).map((r) => [r.status, r]));
+  const part = (status) => ({ bags: Number(by[status]?.bags) || 0, amount: toMoney(by[status]?.amount) });
+  return { ready: part('ready_for_pickup'), in_transit: part('in_transit') };
 }
 
 /** Per-status counts of the organization's bags (every status present, 0 when none). */
@@ -1260,6 +1343,7 @@ async function pickupCounts(orgId, resellerIds) {
 }
 
 module.exports = {
+  dashboard,
   BAG_STATUSES,
   TERMINAL_STATUSES,
   TRANSITIONS,

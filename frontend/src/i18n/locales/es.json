@@ -11794,7 +11794,8 @@
     "title": "Bolsas de efectivo",
     "noAccess": "No tienes acceso a las bolsas de efectivo.",
     "tabs": {
-      "board": "Tablero",
+      "board": "Bolsas",
+      "zones": "Zonas",
       "carriers": "Transportistas"
     },
     "status": {
@@ -11808,6 +11809,8 @@
       "lost": "Perdida"
     },
     "col": {
+      "zone": "Zona",
+      "sealed": "Sellada",
       "serial": "Número",
       "status": "Estado",
       "reseller": "Revendedor",
@@ -11830,6 +11833,59 @@
       "saving": "Guardando…",
       "invalidTransition": "Esta bolsa ya no está en un estado que lo permita. Recárgala para ver dónde está ahora.",
       "changed": "Esta bolsa cambió mientras guardabas. Recárgala e inténtalo de nuevo."
+    },
+    "dash": {
+      "title": "Efectivo en bolsas",
+      "readyBags": "Bolsas listas para recoger",
+      "transitBags": "Bolsas en camino",
+      "readyAmount": "Efectivo en bolsas listas para recoger",
+      "transitAmount": "Efectivo en bolsas en camino",
+      "help": "Bolsas selladas de todos los transportistas y zonas. Elige un transportista o una zona abajo para acotar estos números.",
+      "filtered": "Para el transportista y la zona elegidos abajo."
+    },
+    "filters": {
+      "title": "Filtros",
+      "allZones": "Todas las zonas",
+      "noZone": "Sin zona",
+      "dateOf": "Fecha",
+      "dates": {
+        "sealed": "De sellado",
+        "picked_up": "De recolección",
+        "received": "De recepción"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "differences": "Solo bolsas con diferencia en el conteo",
+      "clear": "Quitar filtros",
+      "count_one": "{{count}} bolsa",
+      "count_other": "{{count}} bolsas"
+    },
+    "zones": {
+      "help": "Las zonas agrupan a revendedores y cobradores por área. La lista de bolsas y sus números se pueden filtrar por zona.",
+      "title": "Zonas",
+      "id": "ID",
+      "name": "Nombre",
+      "points": "Puntos",
+      "none": "Aún no hay zonas.",
+      "newName": "Nombre de la nueva zona",
+      "add": "Agregar zona",
+      "rename": "Renombrar",
+      "remove": "Quitar",
+      "renameZone": "Renombrar zona {{name}}",
+      "removeZone": "Quitar zona {{name}}",
+      "renamePrompt": "Nuevo nombre de la zona",
+      "confirmRemove": "¿Quitar la zona {{name}}? Sus puntos quedarán sin zona.",
+      "failed": "No se pudo hacer.",
+      "pointsTitle": "Zona de cada punto",
+      "point": "Punto",
+      "kind": "Tipo",
+      "city": "Ciudad",
+      "zoneOf": "Zona de {{name}}",
+      "noPoints": "Aún no hay revendedores ni cobradores.",
+      "kinds": {
+        "reseller": "Revendedor",
+        "collector": "Cobrador"
+      }
     },
     "board": {
       "help": "Los revendedores sellan bolsas con el efectivo que declaran, y en ese momento el monto declarado se descuenta de su cuenta; un transportista las recoge y tú las cuentas cuando llegan. Al recibir una bolsa solo se registra la diferencia, si la hay, como ajuste en la cuenta del revendedor.",
