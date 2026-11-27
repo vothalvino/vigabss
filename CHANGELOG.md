@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.53 — 2026-11-27
+
 - **Added: choose the prefix of invoice numbers.** Billing setup, Invoice
   Settings has a new "Invoice number prefix" field, with an example of the
   next number. Use 1 to 10 letters, digits or dashes.
