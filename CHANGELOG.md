@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the installer asks everything at the start and shows the first
+  sign-in last.** On a first install the organization's name and where it
+  operates (Mexico or Global) are now asked right after the domain and email,
+  before anything is downloaded. The administrator's email and first password
+  are printed in their own block at the very end of the output. The page title
+  of Invoice Settings no longer says "Branding".
+
 ## 0.1.0-alpha.53 — 2026-11-27
 
 - **Added: choose the prefix of invoice numbers.** Billing setup, Invoice

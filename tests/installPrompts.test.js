@@ -101,3 +101,28 @@ test('answers that run out stop the installer instead of looping', () => {
   expect(ask('prompt DOMAIN "Public domain name"', []).stderr).toMatch(/DIE: No answer was given for: Public domain name/);
   expect(ask('choose_country', []).stderr).toMatch(/DIE: No answer was given for where the ISP operates/);
 });
+
+// Reported on a first install: nobody saw the organization questions or the
+// first password. Both exist, but the questions came minutes into the run and
+// the password sat in the middle of the closing summary.
+test('a first install asks about the organization with the other questions, before any long work', () => {
+  const email = INSTALL.indexOf('prompt EMAIL ');
+  const early = INSTALL.indexOf('prompt ORG_NAME ');
+  const firstWork = INSTALL.search(/^\$COMPOSE |^ {2}\$COMPOSE /m);
+  expect(email).toBeGreaterThan(-1);
+  expect(early).toBeGreaterThan(email);
+  expect(INSTALL.indexOf('choose_country', early)).toBeGreaterThan(early);
+  expect(INSTALL.slice(email, early)).toMatch(/SAVED_BOOTSTRAP_STATE" == "pending"/);
+  expect(firstWork).toBeGreaterThan(early);
+});
+
+test('the first sign-in details are the last thing the installer prints', () => {
+  const password = INSTALL.lastIndexOf('Admin password:');
+  expect(password).toBeGreaterThan(-1);
+  expect(INSTALL.match(/Admin password:/g)).toHaveLength(1);
+  // Nothing is echoed after the sign-in block closes.
+  const after = INSTALL.slice(INSTALL.indexOf('\nfi\n', password));
+  expect(after).not.toMatch(/^\s*echo /m);
+  // The password leaves the env file only after it was printed.
+  expect(INSTALL.indexOf('remove_env_key "$ENV_FILE" ADMIN_PASSWORD')).toBeGreaterThan(password);
+});
