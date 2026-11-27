@@ -11,6 +11,7 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   now prints its invoice, payment ID and payment date under the description
   ("INV-000055 · ID de pago: 55 · Fecha de pago: 2026-11-27"). On other
   CFDIs an item that has an identifier prints it too.
+
 - **Changed: the Cash Bags page is four numbers and one list.** The columns
   of cards are gone. On top: bags ready for pickup, bags on their way, and
   the cash in each group. Below: one list of every bag, with filters for
