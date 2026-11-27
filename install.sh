@@ -13,7 +13,7 @@
 #   DOMAIN              Public domain name (e.g. isp.example.com)
 #   EMAIL               Administrator login + Let's Encrypt contact
 #   ORG_NAME            Your organization's name (prompted on a fresh install)
-#   ORG_COUNTRY         Two-letter country code, e.g. MX (prompted on a fresh install)
+#   ORG_COUNTRY         MX or GLOBAL (chosen from a list on a fresh install)
 #   INSTALL_DIR         Target install directory (default: /opt/vigabss)
 #   SKIP_TLS            Set to 1 to use a self-signed cert instead of Let's Encrypt
 #   DB_PASSWORD         MySQL app user password     (auto-generated if omitted)
@@ -310,22 +310,72 @@ if [[ "${INSTALL_DEPS_ONLY:-0}" == "1" ]]; then
   exit 0
 fi
 
+# ── Questions ────────────────────────────────────────────────────────────────
+# The installer asks on the terminal, not on stdin: stdin is the script itself
+# when it is run as `curl … | bash`. VIGABSS_PROMPT_INPUT names another source
+# of answers, one per line, for tests. It is opened once and only when a
+# question is actually asked, so a run with every value supplied needs no
+# terminal at all.
+# >>> prompts
+PROMPT_INPUT="${VIGABSS_PROMPT_INPUT:-/dev/tty}"
+PROMPT_OPEN=0
+prompt_open() {
+  [[ "$PROMPT_OPEN" == "1" ]] && return
+  if ! exec 3<"$PROMPT_INPUT"; then
+    die "The installer has a question to ask but no terminal to ask it on.
+  Run it from a terminal, or pass the values up front, for example:
+    curl -fsSL <installer url> | DOMAIN=isp.example.com EMAIL=you@example.com ORG_NAME='My ISP' ORG_COUNTRY=MX bash"
+  fi
+  PROMPT_OPEN=1
+}
+
 # Prompt helper: skips the prompt when the variable is already set (env or
 # previous prompt) so the installer is fully non-interactive when all variables
 # are supplied upfront.
 prompt() {
   local var="$1" msg="$2" default="${3:-}" val=""
   if [[ -n "${!var:-}" ]]; then return; fi
+  prompt_open
   if [[ -n "$default" ]]; then
-    read -rp "$(echo -e "${BOLD}${msg}${RESET} [${default}]: ")" val </dev/tty
+    read -u 3 -rp "$(echo -e "${BOLD}${msg}${RESET} [${default}]: ")" val || true
     printf -v "$var" '%s' "${val:-${default}}"
   else
     while [[ -z "$val" ]]; do
-      read -rp "$(echo -e "${BOLD}${msg}${RESET}: ")" val </dev/tty
+      read -u 3 -rp "$(echo -e "${BOLD}${msg}${RESET}: ")" val \
+        || die "No answer was given for: ${msg}"
     done
     printf -v "$var" '%s' "$val"
   fi
 }
+
+# Where the ISP operates, chosen from a list instead of typed as a code:
+# Mexico turns on the SAT and IFT compliance features; Global is every other
+# country. ORG_COUNTRY set up front skips the question: MX, GLOBAL, or (as
+# before) any two-letter country code, which is treated as Global.
+choose_country() {
+  local answer=""
+  if [[ -n "${ORG_COUNTRY:-}" ]]; then
+    case "${ORG_COUNTRY^^}" in
+      MX|MEXICO) ORG_COUNTRY="MX" ;;
+      GLOBAL) ORG_COUNTRY="GLOBAL" ;;
+    esac
+    return
+  fi
+  prompt_open
+  echo -e "${BOLD}Where does this ISP operate?${RESET}"
+  echo "  1) Mexico  (turns on SAT and IFT compliance)"
+  echo "  2) Global  (any other country)"
+  while true; do
+    read -u 3 -rp "$(echo -e "${BOLD}Choose 1 or 2${RESET} [1]: ")" answer \
+      || die "No answer was given for where the ISP operates."
+    case "${answer:-1}" in
+      1|[Mm][Xx]|[Mm]exico) ORG_COUNTRY="MX"; return ;;
+      2|[Gg]lobal|GLOBAL) ORG_COUNTRY="GLOBAL"; return ;;
+      *) echo "Type 1 for Mexico or 2 for Global." ;;
+    esac
+  done
+}
+# <<< prompts
 
 # Ask Compose to parse the env file so retries use the exact same rules as
 # `docker compose up`: quotes, whitespace, comments and interpolation are all
@@ -1346,7 +1396,7 @@ if [[ "$RUN_INITIAL_SEED" == "1" ]]; then
   # active 2025 contracts that were then back-billed, and an active NAS with
   # the secret 'testing123' (OPS-03).
   prompt ORG_NAME "Your organization (ISP) name" "My ISP"
-  prompt ORG_COUNTRY "Country (two-letter code; MX turns on SAT/IFT compliance)" "MX"
+  choose_country
   info "Creating your organization and administrator account..."
   # The app service receives ADMIN_PASSWORD through its 0600 env_file; the
   # non-secret values below are passed on the command line.

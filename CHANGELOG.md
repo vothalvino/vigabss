@@ -5,6 +5,18 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the installer offers Mexico or Global instead of asking for a
+  country code.** On a new install it asks "Where does this ISP operate?"
+  with two choices: Mexico, which turns on the SAT and IFT compliance
+  features, and Global, for any other country. Enter takes Mexico.
+  `ORG_COUNTRY=MX` or `ORG_COUNTRY=GLOBAL` given up front skips the question;
+  a two-letter country code is still accepted and treated as Global.
+
+- **Fixed: the installer could wait forever with no terminal.** Run with a
+  value missing and no terminal to ask on (from an automation tool, for
+  example), it now stops and says how to pass the values, instead of hanging
+  or looping.
+
 - **Changed: the printed CFDI shows each item's payment ID and payment
   date.** The stamped General Public invoice already carried them in each
   item's identifier, but the printout showed only the description. Each item

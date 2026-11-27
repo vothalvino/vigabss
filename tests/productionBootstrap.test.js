@@ -59,6 +59,12 @@ describe('bootstrap.js', () => {
     expect(tables.sort()).toEqual(['organization_users', 'users']);
   });
 
+  test('GLOBAL is an organization with no country on the global locale', async () => {
+    const create = fresh();
+    await bootstrap({ ADMIN_EMAIL: 'ops@isp.example', ADMIN_PASSWORD: 'S3cret-initial', ORG_NAME: 'World ISP', ORG_COUNTRY: 'global' });
+    expect(create).toHaveBeenCalledWith({ name: 'World ISP', country: null, locale: 'global', status: 'active' });
+  });
+
   test('an install that already has an administrator is left alone', async () => {
     db.query.mockResolvedValueOnce([[{ id: 7, email: 'me@isp.example' }]]);
     const create = jest.spyOn(Organization, 'create');

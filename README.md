@@ -15,7 +15,9 @@ distributions work when the prerequisites are installed first):
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 ```
 
-The installer will prompt for your domain name and email, then automatically:
+The command is always the same. The installer asks for your domain name, your
+email, your organization's name and where it operates (Mexico or Global, chosen
+from a list), then automatically:
 
 - Clone the repository to `/opt/vigabss`
 - Generate strong random passwords and secrets
@@ -47,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 | `DOMAIN` | *(prompted)* | Public domain name pointing to this server |
 | `EMAIL` | *(prompted)* | Admin email — used for Let's Encrypt and first login |
 | `ORG_NAME` | *(prompted, `My ISP`)* | Your organization's name — the only organization a fresh install creates |
-| `ORG_COUNTRY` | *(prompted, `MX`)* | Two-letter country code; `MX` turns on the SAT/IFT compliance features |
+| `ORG_COUNTRY` | *(chosen from a list, Mexico first)* | `MX` (turns on the SAT/IFT compliance features) or `GLOBAL` (any other country) |
 | `INSTALL_DIR` | `/opt/vigabss` | Installation directory |
 | `SKIP_TLS` | `0` | Set to `1` to use a self-signed certificate (dev/testing) |
 | `DB_PASSWORD` | *(auto-generated)* | MySQL application user password |
