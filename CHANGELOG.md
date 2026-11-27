@@ -5,6 +5,17 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a General Public invoice could not be stamped.** The document is
+  addressed to no client, and a database rule required every CFDI's client to
+  be Mexican, so saving it was refused before it reached the PAC. A CFDI with
+  no client now needs its organization to be Mexican instead (migration 039).
+
+- **Fixed: a General Public invoice reported invoices at their full amount
+  after a credit note.** An invoice reduced by a credit note (a downgrade of
+  a month billed ahead, for example) went into the General Public invoice at
+  its original amount. It is now reported net of its credit notes, and an
+  invoice credited in full is left out.
+
 - **Changed: "Collected by" on Payments lists everyone who took a payment.**
   It listed only resellers and collectors. It now has the staff who recorded
   payments, the resellers, the collectors, and "Online and automatic" for

@@ -70,6 +70,28 @@ test('builds one PUBLICO EN GENERAL CFDI with the record period and one concepto
   expect(conn.commit).toHaveBeenCalledTimes(1);
 });
 
+test('an invoice is reported net of its credit notes, and one credited in full is left out', async () => {
+  wire({ invoices: [
+    { ...INVOICES[0] },
+    { ...INVOICES[1], credited_subtotal: '50.00', credited_tax: '8.00' },
+    { id: 13, invoice_number: 'INV-13', status: 'paid', subtotal: '300.00', tax_amount: '48.00', total: '348.00', tax_rate: '0.1600', currency: 'MXN', credited_subtotal: '300.00', credited_tax: '48.00' },
+  ] });
+  await facturaPublicaService.stampGlobal(3, 1, { userId: 5 });
+  // 100 + (200 - 50) = 250 before tax, 16 + (32 - 8) = 40 of IVA.
+  const [, docParams] = onTx(/INSERT INTO cfdi_documents/)[0];
+  expect(docParams).toEqual(expect.arrayContaining([250, 40, 290]));
+  const conceptos = onTx(/INSERT INTO cfdi_conceptos/);
+  expect(conceptos.map(([, p]) => p[2])).toEqual(['INV-11', 'INV-12']);
+  expect(conceptos[1][1]).toEqual(expect.arrayContaining([150]));
+  expect(onTx(/INSERT INTO cfdi_concepto_impuestos/).map(([, p]) => [p[1], p[3]])).toEqual([[100, 16], [150, 24]]);
+});
+
+test('a record whose invoices were all credited in full has nothing to report', async () => {
+  wire({ invoices: [{ ...INVOICES[0], credited_subtotal: '100.00', credited_tax: '16.00' }] });
+  await expect(facturaPublicaService.stampGlobal(3, 1)).rejects.toMatchObject({ code: 'FACTURA_PUBLICA_EMPTY' });
+  expect(onTx(/INSERT INTO cfdi_documents/)).toHaveLength(0);
+});
+
 test.each([
   ['an unpaid invoice', { invoices: [{ ...INVOICES[0], status: 'issued' }] }, 'FACTURA_PUBLICA_UNPAID'],
   ['an invoice with its own CFDI', { ownCfdi: [{ invoice_id: 11 }] }, 'FACTURA_PUBLICA_INVOICE_HAS_CFDI'],
