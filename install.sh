@@ -696,6 +696,14 @@ prompt DOMAIN "Public domain name (e.g. isp.example.com)"
   || die "DOMAIN must be a hostname such as isp.example.com (got: ${DOMAIN})."
 prompt EMAIL  "Administrator email (your login, and the Let's Encrypt contact)"
 
+# A first install also needs the organization. Ask now, with the other
+# questions: the bootstrap that uses the answers runs minutes later, after the
+# images are pulled and the database is migrated, when nobody may be watching.
+if [[ "$SAVED_BOOTSTRAP_STATE" == "pending" ]]; then
+  prompt ORG_NAME "Your organization (ISP) name" "My ISP"
+  choose_country
+fi
+
 SKIP_TLS="${SKIP_TLS:-0}"
 if [[ "$SKIP_TLS" == "1" ]]; then
   warn "SKIP_TLS=1 — ACME issuance is skipped; an existing pair is retained, otherwise a self-signed certificate is used."
@@ -1487,28 +1495,11 @@ echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
 echo -e "   1. Open https://${DOMAIN} in your browser"
 if [[ "$SHOW_INITIAL_ADMIN" == "1" ]]; then
-  echo -e "   2. Log in with the credentials below, then immediately change the password"
-  # Installs bootstrapped by an older installer (seed.js) log in as the demo
-  # address; newer ones recorded the administrator's own email.
-  _INITIAL_ADMIN_EMAIL="$(get_env_value "$ENV_FILE" VIGABSS_INITIAL_ADMIN_EMAIL 2>/dev/null || true)"
-  echo -e "      ${BOLD}Admin email   :${RESET} ${_INITIAL_ADMIN_EMAIL:-admin@demo-isp.com}"
-  echo -e "      ${BOLD}Admin password:${RESET} ${ADMIN_PASSWORD}"
-  echo -e "      ${YELLOW}(Shown once: it is now removed from ${ENV_FILE}.)${RESET}"
+  echo -e "   2. Sign in with the administrator email and password shown at the end of"
+  echo -e "      this output. You will be asked to choose a new password right away."
 else
   echo -e "   2. Existing administrator credentials were left unchanged"
   echo -e "      (use the current password or the normal password-reset flow)"
-fi
-
-# Mark one-time bootstrap instructions complete only after printing them. If an
-# SSH session dies earlier, `seeded` survives and the next run displays the
-# saved initial credential without rerunning demo data.
-if [[ "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; then
-  set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE complete
-  SAVED_BOOTSTRAP_STATE="complete"
-  # The initial password has been shown; do not leave it in plain text on disk.
-  if ! remove_env_key "$ENV_FILE" ADMIN_PASSWORD; then
-    warn "Could not remove ADMIN_PASSWORD from $ENV_FILE; delete that line by hand after logging in."
-  fi
 fi
 echo -e "   3. Configure SMTP in Settings → Organization → Email"
 echo -e "   4. Fill in your ISP organization details"
@@ -1528,3 +1519,34 @@ echo ""
 echo -e "  ${YELLOW}${BOLD}⚠  Store $ENV_FILE securely — it contains all generated credentials.${RESET}"
 echo -e "  ${YELLOW}${BOLD}⚠  Admin IP protection is initially off; configure and activate it in Security & Access Control.${RESET}"
 echo ""
+
+# The sign-in details go last, so they are what is left on the screen when the
+# installer ends instead of scrolling away above the command list.
+if [[ "$SHOW_INITIAL_ADMIN" == "1" ]]; then
+  # Installs bootstrapped by an older installer (seed.js) log in as the demo
+  # address; newer ones recorded the administrator's own email.
+  _INITIAL_ADMIN_EMAIL="$(get_env_value "$ENV_FILE" VIGABSS_INITIAL_ADMIN_EMAIL 2>/dev/null || true)"
+  echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${RESET}"
+  echo -e "  ${BOLD}YOUR FIRST SIGN-IN${RESET}"
+  echo ""
+  echo -e "      ${BOLD}Address       :${RESET} https://${DOMAIN}"
+  echo -e "      ${BOLD}Admin email   :${RESET} ${_INITIAL_ADMIN_EMAIL:-admin@demo-isp.com}"
+  echo -e "      ${BOLD}Admin password:${RESET} ${ADMIN_PASSWORD}"
+  echo ""
+  echo -e "  ${YELLOW}Write the password down now. It is shown only this once and is no longer${RESET}"
+  echo -e "  ${YELLOW}kept in ${ENV_FILE}. You choose a new one at your first sign-in.${RESET}"
+  echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${RESET}"
+  echo ""
+fi
+
+# Mark one-time bootstrap instructions complete only after printing them. If an
+# SSH session dies earlier, `seeded` survives and the next run displays the
+# saved initial credential without rerunning demo data.
+if [[ "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; then
+  set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE complete
+  SAVED_BOOTSTRAP_STATE="complete"
+  # The initial password has been shown; do not leave it in plain text on disk.
+  if ! remove_env_key "$ENV_FILE" ADMIN_PASSWORD; then
+    warn "Could not remove ADMIN_PASSWORD from $ENV_FILE; delete that line by hand after logging in."
+  fi
+fi

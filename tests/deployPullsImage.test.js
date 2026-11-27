@@ -485,12 +485,16 @@ describe('the installer does not compile on the target box', () => {
 
   it('does not redisclose a saved admin password on installer retry', () => {
     const summary = install.slice(install.indexOf('# ── Summary'));
+    // The password is printed once, inside a block that only a first install
+    // enters (the sign-in details are the last thing shown).
     const passwordAt = summary.indexOf('${ADMIN_PASSWORD}');
-    const freshGuardAt = summary.indexOf('if [[ "$SHOW_INITIAL_ADMIN" == "1" ]]');
-    const retryBranchAt = summary.indexOf('else', freshGuardAt);
+    expect(summary.indexOf('${ADMIN_PASSWORD}', passwordAt + 1)).toBe(-1);
+    const freshGuardAt = summary.lastIndexOf('if [[ "$SHOW_INITIAL_ADMIN" == "1" ]]', passwordAt);
+    const guardEndAt = summary.indexOf('\nfi\n', freshGuardAt);
     expect(freshGuardAt).toBeGreaterThanOrEqual(0);
     expect(passwordAt).toBeGreaterThan(freshGuardAt);
-    expect(passwordAt).toBeLessThan(retryBranchAt);
+    expect(passwordAt).toBeLessThan(guardEndAt);
+    expect(summary.slice(freshGuardAt, guardEndAt)).not.toMatch(/^else$/m);
     expect(summary).toContain('Existing administrator credentials were left unchanged');
   });
 
