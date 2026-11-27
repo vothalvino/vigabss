@@ -339,9 +339,11 @@ The rules that make all of this safe against a file holding `DB_PASSWORD`,
 
 ### Deploying from the web GUI (optional)
 
-**Settings → Version → Update now**. Nothing to install: `redeploy` puts the
-agent's systemd units in place and keeps them current, the same way it applies
-migrations. The button appears once the timer has ticked once (≤30s).
+**Settings → Version → Update now**. Nothing to install: the installer puts
+the agent's systemd units in place, and `redeploy` keeps them current, the same
+way it applies migrations. The button appears once the timer has ticked once
+(≤30s). A server installed before the installer did this gets the agent from
+its first `sudo redeploy`.
 
 Set `VIGABSS_DEPLOY_AGENT=0` in `.env.prod` if you would rather not have a timer
 on the box; GUI deploys are then unavailable and the CLI is unaffected. A host

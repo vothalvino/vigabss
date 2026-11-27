@@ -6960,7 +6960,7 @@
     "nothingToDeploy": "Estás en la última compilación — no hay nada que desplegar.",
     "comparisonUnknown": "VigaBSS no puede confirmar si hay una actualización hasta conocer ambos commits de compilación. Vuelve a comprobar antes de desplegar.",
     "enableCheckFirst": "La comprobación de actualizaciones está desactivada, así que no hay nada con qué comparar. Actívala para desplegar desde aquí.",
-    "agentPending": "El agente de despliegue aún no se ha registrado. Se instala automáticamente con redeploy y se registra en unos 30 segundos; si esto persiste, ejecuta: journalctl -u vigabss-deploy-agent -n 30",
+    "agentPending": "El agente de actualización del servidor aún no se ha reportado. El instalador y cada actualización lo activan, y se reporta en unos 30 segundos. Si este mensaje no desaparece, ejecuta una vez en el servidor: sudo redeploy. Para ver por qué no está en ejecución: journalctl -u vigabss-deploy-agent -n 30",
     "agentPendingWhy": "El agente se ejecuta en el servidor, fuera de Docker. VigaBSS nunca recibe permiso para reiniciar la pila: solo puede registrar tu solicitud, y por eso una intrusión aquí no permite tomar el control de la máquina."
   },
   "communicationOptIn": {

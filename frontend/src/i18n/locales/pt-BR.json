@@ -6960,7 +6960,7 @@
     "nothingToDeploy": "Você está na compilação mais recente — nada a implantar.",
     "comparisonUnknown": "O VigaBSS não pode confirmar se há uma atualização até que ambos os commits de compilação sejam conhecidos. Verifique novamente antes de implantar.",
     "enableCheckFirst": "A verificação de atualizações está desativada, portanto não há com o que comparar. Ative-a para implantar daqui.",
-    "agentPending": "O agente de implantação ainda não se registrou. Ele é instalado automaticamente pelo redeploy e se registra em cerca de 30 segundos; se isso persistir, execute: journalctl -u vigabss-deploy-agent -n 30",
+    "agentPending": "O agente de atualização do servidor ainda não se reportou. O instalador e cada atualização o ativam, e ele se reporta em cerca de 30 segundos. Se esta mensagem continuar, execute uma vez no servidor: sudo redeploy. Para ver por que ele não está em execução: journalctl -u vigabss-deploy-agent -n 30",
     "agentPendingWhy": "O agente roda no servidor, fora do Docker. O VigaBSS nunca recebe permissão para reiniciar a pilha: ele só pode registrar seu pedido, e é por isso que uma invasão aqui não permite assumir o controle da máquina."
   },
   "communicationOptIn": {

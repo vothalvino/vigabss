@@ -224,7 +224,15 @@ describe('deploy panel — before the agent is installed', () => {
     // that produced this whole thread.
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/has not reported in yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/has not reported in/i)).toBeInTheDocument();
+  });
+
+  it('names the command that turns the agent on', async () => {
+    // Reported from a new server: the message named only a log command, so
+    // there was no way to tell how to turn updates on.
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /Version/i }));
+    expect(await screen.findByText(/run this once on the server: sudo redeploy/i)).toBeInTheDocument();
   });
 
   it('names the one command that diagnoses a stuck agent', async () => {
