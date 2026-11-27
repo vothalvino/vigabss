@@ -6571,6 +6571,10 @@ CREATE TABLE IF NOT EXISTS factura_publica_invoices (
                                 COMMENT 'SAT c_Meses: 01-12=individual month, 13=Ene-Feb, 14=Mar-Abr, 15=May-Jun, 16=Jul-Ago, 17=Sep-Oct, 18=Nov-Dic',
     anio                    SMALLINT UNSIGNED NOT NULL
                                 COMMENT 'Fiscal year for the InformacionGlobal node (e.g. 2026)',
+    forma_pago              VARCHAR(2)       NULL
+                                COMMENT 'SAT c_FormaPago this record reports (01 cash, 02 check, 03 transfer, 04 credit card, 28 debit card); NULL on records made before migration 040, which report the predominant one',
+    date_from               DATE             NULL COMMENT 'First payment day the record covers (migration 040)',
+    date_to                 DATE             NULL COMMENT 'Last payment day the record covers (migration 040)',
 
     -- Aggregated totals (denormalized for quick reads)
     subtotal                DECIMAL(14, 2)   NOT NULL DEFAULT 0.00
@@ -6588,7 +6592,7 @@ CREATE TABLE IF NOT EXISTS factura_publica_invoices (
     updated_at              TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_factura_publica_invoices_period (organization_id, periodicidad, meses, anio),
+    KEY idx_factura_publica_invoices_period (organization_id, periodicidad, meses, anio),
     KEY idx_factura_publica_invoices_cfdi_document_id (cfdi_document_id),
     KEY idx_factura_publica_invoices_status (status),
     KEY idx_factura_publica_invoices_anio_meses (anio, meses),

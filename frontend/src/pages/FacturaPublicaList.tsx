@@ -7,18 +7,16 @@
 // its invoice set and stamp it (FacturaPublicaDetail).
 // =============================================================================
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
-import { useMutation } from '@/api/useMutation';
-import { parseApiError } from '@/api/errors';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { formatMoney } from '@/lib/money';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
-import { Modal } from '@/components/ui/Modal';
+import { GlobalInvoiceBuilder } from './facturaGlobal/GlobalInvoiceBuilder';
 import { FacturaPublicaDetail, type FacturaPublica } from './FacturaPublicaDetail';
 
 type FacturaPublicaPage = {
@@ -27,13 +25,6 @@ type FacturaPublicaPage = {
 };
 
 const DEFAULT_PAGE_SIZE = 50;
-
-// SAT c_Periodicidad.
-const PERIODICIDADES = ['01', '02', '03', '04', '05'] as const;
-// SAT c_Meses: 01-12 one month (every periodicidad but bimestral), 13-18 a
-// bimester (bimestral only).
-const MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
-const BIMESTERS = ['13', '14', '15', '16', '17', '18'];
 
 const STATUS_COLORS: StatusColors = {
   draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
@@ -45,77 +36,6 @@ async function fetchFacturas(page: number): Promise<FacturaPublicaPage> {
   const res = await api.GET('/facturas-publicas', { params: { query: { page, limit: DEFAULT_PAGE_SIZE } } });
   if (res.error) throw new Error('Failed to load facturas públicas');
   return res.data as FacturaPublicaPage;
-}
-
-function CreateFacturaModal({ open, onClose, onCreated }: {
-  open: boolean;
-  onClose: () => void;
-  onCreated: (f: FacturaPublica) => void;
-}) {
-  const { t } = useTranslation();
-  const now = new Date();
-  const [periodicidad, setPeriodicidad] = useState('04');
-  const [meses, setMeses] = useState(String(now.getMonth() + 1).padStart(2, '0'));
-  const [anio, setAnio] = useState(now.getFullYear());
-  const [error, setError] = useState<string | null>(null);
-  const options = periodicidad === '05' ? BIMESTERS : MONTHS;
-
-  const create = useMutation({
-    mutationFn: async () => {
-      const res = await api.POST('/facturas-publicas', { body: { periodicidad, meses, anio } });
-      if (res.error) throw new Error(parseApiError(res.error, t('facturaGlobal.actionFailed')));
-      return (res.data as { data: FacturaPublica }).data;
-    },
-    onSuccess: (f) => { setError(null); onCreated(f); },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : t('facturaGlobal.actionFailed')),
-  });
-
-  function onPeriodicidad(value: string) {
-    setPeriodicidad(value);
-    // Keep Meses valid for the new periodicidad.
-    if (value === '05' && !BIMESTERS.includes(meses)) setMeses('13');
-    if (value !== '05' && !MONTHS.includes(meses)) setMeses('01');
-  }
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    create.mutate();
-  }
-
-  return (
-    <Modal open={open} title={t('facturaGlobal.newTitle')} onClose={onClose}>
-      <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-        <label style={styles.label}>
-          {t('facturaGlobal.periodicidad')}
-          <select style={styles.filterSelect} value={periodicidad} onChange={e => onPeriodicidad(e.target.value)}>
-            {PERIODICIDADES.map(p => <option key={p} value={p}>{t(`facturaGlobal.periodicidades.${p}`)}</option>)}
-          </select>
-        </label>
-        <label style={styles.label}>
-          {t('facturaGlobal.meses')}
-          <select style={styles.filterSelect} value={meses} onChange={e => setMeses(e.target.value)}>
-            {options.map(m => <option key={m} value={m}>{t(`facturaGlobal.mesesNames.${m}`)}</option>)}
-          </select>
-        </label>
-        <label style={styles.label}>
-          {t('facturaGlobal.anio')}
-          <input
-            style={styles.input}
-            type="number"
-            min={2022}
-            max={2099}
-            value={anio}
-            onChange={e => setAnio(Number(e.target.value))}
-          />
-        </label>
-        {error && <p role="alert" style={styles.msgError}>{error}</p>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('facturaGlobal.cancel')}</button>
-          <button type="submit" style={styles.btnPrimary} disabled={create.isPending}>{t('facturaGlobal.create')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
 }
 
 export function FacturaPublicaList() {
@@ -164,6 +84,8 @@ export function FacturaPublicaList() {
                     <th style={styles.th}>{t('facturaGlobal.anio')}</th>
                     <th style={styles.th}>{t('facturaGlobal.meses')}</th>
                     <th style={styles.th}>{t('facturaGlobal.periodicidad')}</th>
+                    <th style={styles.th}>{t('facturaGlobal.builder.forma')}</th>
+                    <th style={styles.th}>{t('facturaGlobal.builder.days')}</th>
                     <th style={styles.thNum}>{t('facturaGlobal.col.subtotal')}</th>
                     <th style={styles.thNum}>{t('facturaGlobal.col.taxes')}</th>
                     <th style={styles.thNum}>{t('facturaGlobal.col.total')}</th>
@@ -178,6 +100,8 @@ export function FacturaPublicaList() {
                       <td style={{ ...styles.td, fontWeight: 500 }}>{f.anio}</td>
                       <td style={styles.td}>{f.meses ? t(`facturaGlobal.mesesNames.${f.meses}`, { defaultValue: f.meses }) : '—'}</td>
                       <td style={styles.td}>{t(`facturaGlobal.periodicidades.${f.periodicidad}`, { defaultValue: f.periodicidad })}</td>
+                      <td style={styles.td}>{f.forma_pago ? t(`facturaGlobal.builder.formas.${f.forma_pago}`, { defaultValue: f.forma_pago }) : (f.date_from ? t('facturaGlobal.builder.mixed') : '—')}</td>
+                      <td style={styles.td}>{f.date_from ? `${String(f.date_from).slice(0, 10)} – ${String(f.date_to ?? '').slice(0, 10)}` : '—'}</td>
                       <td style={styles.tdNum}>{formatMoney(f.subtotal)}</td>
                       <td style={styles.tdNum}>{formatMoney(f.total_impuestos)}</td>
                       <td style={{ ...styles.tdNum, fontWeight: 500 }}>{formatMoney(f.total)}</td>
@@ -216,14 +140,14 @@ export function FacturaPublicaList() {
       {open && <FacturaPublicaDetail key={open.id} factura={open} onClose={() => setOpenId(null)} />}
 
       {creating && (
-        <CreateFacturaModal
+        <GlobalInvoiceBuilder
           open={creating}
           onClose={() => setCreating(false)}
-          onCreated={(f) => {
+          onCreated={(ids) => {
             setCreating(false);
             qc.invalidateQueries({ queryKey: ['facturas-publicas'] });
             setPage(1);
-            setOpenId(f.id);
+            setOpenId(ids[0] ?? null);
           }}
         />
       )}

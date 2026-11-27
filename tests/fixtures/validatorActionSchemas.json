@@ -34,6 +34,7 @@
   "events.js:ticketStream",
   "facturasPublicas.js:addEligibleFacturaPublicaItems",
   "facturasPublicas.js:addFacturaPublicaItem",
+  "facturasPublicas.js:generateFacturaPublica",
   "firerelay.js:firerelayTunnelCommand",
   "import.js:importCsv",
   "inventorySerials.js:registerSerial",

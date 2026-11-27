@@ -12362,6 +12362,245 @@
         }
       }
     },
+    "/facturas-publicas/unreported-invoices": {
+      "get": {
+        "tags": [
+          "Facturas Publicas"
+        ],
+        "summary": "The paid invoices that were never stamped (no CFDI of their own, in no General Public invoice) whose settling payment falls in a range of days inside one month, each with that payment: its id, day, method and SAT form of payment. Amounts are net of credit notes",
+        "operationId": "listUnreportedInvoices",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoices with their payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "invoice_id": {
+                            "type": "integer"
+                          },
+                          "invoice_number": {
+                            "type": "string"
+                          },
+                          "client_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "client_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "payment_id": {
+                            "type": "integer"
+                          },
+                          "payment_date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "payment_method": {
+                            "type": "string"
+                          },
+                          "forma_pago": {
+                            "type": "string"
+                          },
+                          "total": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "date_from": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "date_to": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "periodicidad": {
+                          "type": "string"
+                        },
+                        "meses": {
+                          "type": "string"
+                        },
+                        "anio": {
+                          "type": "integer"
+                        },
+                        "invoices": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "by_forma": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "forma_pago": {
+                                "type": "string"
+                              },
+                              "invoices": {
+                                "type": "integer"
+                              },
+                              "total": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/facturas-publicas/generate": {
+      "post": {
+        "tags": [
+          "Facturas Publicas"
+        ],
+        "summary": "Create draft General Public invoices from the unreported invoices of a range of payment days: all of them, or only invoice_ids. With separate (the default) each form of payment gets its own draft; with separate false one draft holds them all. 422 FACTURA_PUBLICA_EMPTY when none is left to report",
+        "operationId": "generateFacturaPublica",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date_from",
+                  "date_to"
+                ],
+                "properties": {
+                  "date_from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "date_to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "invoice_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "separate": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The drafts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "periodicidad": {
+                            "type": "string"
+                          },
+                          "meses": {
+                            "type": "string"
+                          },
+                          "anio": {
+                            "type": "integer"
+                          },
+                          "forma_pago": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "date_from": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "date_to": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "invoices": {
+                            "type": "integer"
+                          },
+                          "total": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/facturas-publicas/{id}/stamp": {
       "post": {
         "tags": [
@@ -91809,6 +92048,29 @@
             "maximum": 3
           }
         }
+      },
+      "facturasPublicas_generateFacturaPublica": {
+        "type": "object",
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date"
+          },
+          "invoice_ids": {
+            "type": "string"
+          },
+          "separate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ]
       },
       "facturasPublicas_createFacturaPublica": {
         "type": "object",

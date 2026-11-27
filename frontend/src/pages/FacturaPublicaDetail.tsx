@@ -31,6 +31,9 @@ export type FacturaPublica = {
   total: string | number | null;
   status: string;
   cfdi_document_id: number | null;
+  forma_pago?: string | null;
+  date_from?: string | null;
+  date_to?: string | null;
 };
 
 type LinkedItem = {
