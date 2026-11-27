@@ -242,6 +242,22 @@ function hr(doc, y, color = COLORS.border) {
   return y + 6;
 }
 
+/**
+ * What an item prints as: its description and, when it has one, its
+ * identifier. An identifier written as "INVOICE PAGO id date" (a General
+ * Public invoice's item) is spelled out: invoice, payment ID, payment date.
+ */
+function conceptoText(c) {
+  const description = c.descripcion || '';
+  const ident = String(c.no_identificacion || '').trim();
+  if (!ident) return description;
+  const payment = ident.match(/^(.+) PAGO (\d+) (\d{4}-\d{2}-\d{2})$/);
+  const detail = payment
+    ? `${payment[1]} · ID de pago: ${payment[2]} · Fecha de pago: ${payment[3]}`
+    : `No. identificación: ${ident}`;
+  return description ? `${description}\n${detail}` : detail;
+}
+
 function kv(doc, x, y, label, value, opts = {}) {
   doc.font('Helvetica-Bold').fontSize(6).fillColor(COLORS.muted).text(label.toUpperCase(), x, y, { width: opts.width });
   doc.font('Helvetica').fontSize(opts.valueSize || 7.5).fillColor(COLORS.text)
@@ -339,10 +355,15 @@ async function renderRepresentacionImpresa({ xml, satStatus = 'vigente', headerC
     y = hr(doc, y + 9);
     doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.text);
     for (const c of model.conceptos) {
-      const descHeight = doc.heightOfString(c.descripcion || '', { width: 235 });
+      // The item's identifier (NoIdentificacion) is printed with its
+      // description. On a General Public invoice it names the invoice, the
+      // payment ID and the payment date of each sale, which is what ties the
+      // printed document to the money it reports.
+      const description = conceptoText(c);
+      const descHeight = doc.heightOfString(description, { width: 235 });
       doc.text(c.clave_prod_serv || '', PAGE_MARGIN, y, { width: 55 });
       doc.text(`${c.cantidad || ''} ${c.clave_unidad || ''}`.trim(), PAGE_MARGIN + 58, y, { width: 62 });
-      doc.text(c.descripcion || '', PAGE_MARGIN + 124, y, { width: 235 });
+      doc.text(description, PAGE_MARGIN + 124, y, { width: 235 });
       doc.text(money(c.valor_unitario), PAGE_MARGIN + 362, y, { width: 80, align: 'right' });
       doc.text(money(c.importe), PAGE_MARGIN + 448, y, { width: W - 448, align: 'right' });
       y += Math.max(11, descHeight + 3);
@@ -454,6 +475,7 @@ async function renderRepresentacionImpresa({ xml, satStatus = 'vigente', headerC
 }
 
 module.exports = {
+  conceptoText,
   parseCfdiXml, tfdCadena, satVerificationUrl, formatTotalForQr, totalConLetra,
   renderRepresentacionImpresa,
   // exported for the remisión marker on MX drafts (pdfService)

@@ -115,3 +115,20 @@ describe('renderRepresentacionImpresa', () => {
       .rejects.toThrow(/TimbreFiscalDigital/);
   });
 });
+
+describe('what an item prints', () => {
+  const { conceptoText } = require('../src/services/cfdiRepresentacionPdf');
+
+  test('a General Public invoice item spells out its invoice, payment ID and payment date', () => {
+    expect(conceptoText({ descripcion: 'Venta', no_identificacion: 'INV-000055 PAGO 55 2026-11-27' }))
+      .toBe('Venta\nINV-000055 · ID de pago: 55 · Fecha de pago: 2026-11-27');
+  });
+
+  test('any other identifier is printed as it is, and an item without one prints only its description', () => {
+    expect(conceptoText({ descripcion: 'Internet 100 Mbps', no_identificacion: 'SKU-9' })).toBe('Internet 100 Mbps\nNo. identificación: SKU-9');
+    expect(conceptoText({ descripcion: 'Internet 100 Mbps' })).toBe('Internet 100 Mbps');
+    expect(conceptoText({ descripcion: 'Internet', no_identificacion: '  ' })).toBe('Internet');
+    expect(conceptoText({ no_identificacion: 'INV-1 PAGO 2 2026-01-05' })).toBe('INV-1 · ID de pago: 2 · Fecha de pago: 2026-01-05');
+  });
+});
+
