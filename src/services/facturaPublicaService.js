@@ -34,6 +34,18 @@ const logger = require('../utils/logger').child({ service: 'facturaPublica' });
 const GLOBAL_CLAVE_PROD_SERV = '01010101';
 const GLOBAL_CLAVE_UNIDAD = 'ACT';
 
+/**
+ * What identifies a line of the global (NoIdentificacion, at most 100
+ * characters): the invoice, the id of the payment that settled it and the day
+ * of that payment, so each item can be traced to the money it reports.
+ */
+function conceptoReference(invoice) {
+  const parts = [String(invoice.invoice_number || invoice.id)];
+  if (invoice.payment_id) parts.push(`PAGO ${invoice.payment_id}`);
+  if (invoice.payment_date) parts.push(String(invoice.payment_date).slice(0, 10));
+  return parts.join(' ').slice(0, 100);
+}
+
 /** The forma de pago that carried the most money across these invoices. */
 async function predominantFormaPago(exec, invoiceIds) {
   const [rows] = await exec(
@@ -99,6 +111,11 @@ async function stampGlobal(facturaId, orgId, { userId = null } = {}) {
       // invoice with no CFDI of its own has no CFDI either, so the global is
       // the only place that reduction can be reported.
       `SELECT i.id, i.invoice_number, i.status, i.subtotal, i.tax_amount, i.total, i.tax_rate, i.currency,
+              (SELECT pa.payment_id FROM payment_allocations pa
+                WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL ORDER BY pa.id DESC LIMIT 1) AS payment_id,
+              (SELECT DATE_FORMAT(p.payment_date, '%Y-%m-%d') FROM payment_allocations pa
+                 JOIN payments p ON p.id = pa.payment_id AND p.organization_id = i.organization_id AND p.deleted_at IS NULL
+                WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL ORDER BY pa.id DESC LIMIT 1) AS payment_date,
               (SELECT COALESCE(SUM(cn.subtotal), 0) FROM credit_notes cn
                 WHERE cn.invoice_id = i.id AND cn.organization_id = i.organization_id
                   AND cn.status IN ('issued', 'applied') AND cn.deleted_at IS NULL) AS credited_subtotal,
@@ -190,7 +207,7 @@ async function stampGlobal(facturaId, orgId, { userId = null } = {}) {
         `INSERT INTO cfdi_conceptos
            (cfdi_document_id, clave_prod_serv, no_identificacion, clave_unidad, cantidad, descripcion, valor_unitario, importe, objeto_imp)
          VALUES (?, ?, ?, ?, 1, 'Venta', ?, ?, ?)`,
-        [docId, GLOBAL_CLAVE_PROD_SERV, String(line.invoice.invoice_number || line.invoice.id).slice(0, 100),
+        [docId, GLOBAL_CLAVE_PROD_SERV, conceptoReference(line.invoice),
           GLOBAL_CLAVE_UNIDAD, line.base, line.base, objetoImp],
       );
       if (line.rate > 0) {
@@ -370,12 +387,14 @@ async function removeItem(facturaId, itemId, orgId) {
 }
 
 // ---------------------------------------------------------------------------
-// Built from chosen payments (migration 040)
+// Built from a date range (migration 040)
 // ---------------------------------------------------------------------------
-// A General Public invoice states one form of payment, so it is made per form
-// from the payments of a date range. Staff choose the form and the days, see
-// the payments, untick any they want to leave out, and a draft is created
-// with the invoices those payments settled.
+// Staff choose a range of payment days. The paid invoices of that range that
+// were never stamped (the client did not ask for a CFDI) are listed, each
+// with the payment that settled it: its id, its day and its form. Staff untick
+// what they want to leave out and choose whether each form of payment gets
+// its own General Public invoice (a CFDI states one form of payment) or all
+// go into one.
 //
 // An invoice belongs to the payment that completed it (its latest
 // allocation): that payment's day and form are when and how it was collected.
@@ -396,121 +415,127 @@ const SETTLED_BY = `FROM invoices i
        LEFT JOIN clients c ON c.id = i.client_id AND c.organization_id = i.organization_id /* includes deleted rows: a payment keeps naming its client */
       WHERE i.organization_id = ? AND i.deleted_at IS NULL AND i.status = 'paid'
         AND p.payment_date >= ? AND p.payment_date <= ?
-        AND ${FORMA_SQL} = ?
         AND NOT EXISTS (SELECT 1 FROM cfdi_documents cd
                          WHERE cd.invoice_id = i.id AND cd.organization_id = i.organization_id
                            AND cd.sat_status IN ('draft', 'vigente', 'cancel_pending'))
         AND NOT EXISTS (SELECT 1 FROM factura_publica_invoice_items fi WHERE fi.invoice_id = i.id)`;
 
 const isDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+const FORMAS = [...new Set(Object.values(FORMA_PAGO_BY_METHOD))];
 
-/** The range a record may cover: real days, in order, inside one calendar month, with a known form of payment. */
-function checkSelection({ date_from: from, date_to: to, forma_pago: forma }) {
+/** The range a record may cover: real days, in order, inside one calendar month. */
+function checkRange({ date_from: from, date_to: to }) {
   if (!isDay(from) || !isDay(to)) throw new AppError('date_from and date_to must be dates (YYYY-MM-DD).', 422, 'VALIDATION_ERROR');
   if (from > to) throw new AppError('date_from is after date_to.', 422, 'VALIDATION_ERROR');
   if (from.slice(0, 7) !== to.slice(0, 7)) {
     throw new AppError('A General Public invoice covers days of one month. Make one per month.', 422, 'FACTURA_PUBLICA_RANGE');
   }
-  if (!Object.values(FORMA_PAGO_BY_METHOD).includes(forma)) {
-    throw new AppError('forma_pago is not a form of payment this system records.', 422, 'VALIDATION_ERROR');
-  }
   const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
   // SAT c_Periodicidad for the span: a day, a week, a fortnight, a month.
   const periodicidad = days === 1 ? '01' : days <= 7 ? '02' : days <= 16 ? '03' : '04';
-  return { from, to, forma, periodicidad, meses: from.slice(5, 7), anio: Number(from.slice(0, 4)) };
+  return { from, to, periodicidad, meses: from.slice(5, 7), anio: Number(from.slice(0, 4)) };
 }
 
 /**
- * The payments of a range and form of payment that settled invoices still to
- * be reported to General Public, each with those invoices. Amounts are net of
+ * The paid, never-stamped invoices whose settling payment falls in the range,
+ * each with that payment's id, day, method and SAT form. Amounts are net of
  * the invoices' credit notes, as the CFDI will report them.
  */
-async function eligiblePayments(orgId, selection, exec = db.query.bind(db)) {
-  const sel = checkSelection(selection);
+async function unreportedInvoices(orgId, range, exec = db.query.bind(db)) {
+  const sel = checkRange(range);
   const [rows] = await exec(
-    `SELECT p.id AS payment_id, p.payment_date, p.payment_method, p.amount AS payment_amount, p.reference_number,
-            p.client_id, c.name AS client_name,
-            i.id AS invoice_id, i.invoice_number,
+    `SELECT i.id AS invoice_id, i.invoice_number, i.client_id, c.name AS client_name,
+            p.id AS payment_id, p.payment_date, p.payment_method, ${FORMA_SQL} AS forma_pago,
             i.total - (SELECT COALESCE(SUM(cn.total), 0) FROM credit_notes cn
                         WHERE cn.invoice_id = i.id AND cn.organization_id = i.organization_id
                           AND cn.status IN ('issued', 'applied') AND cn.deleted_at IS NULL) AS net_total
        ${SETTLED_BY}
       ORDER BY p.payment_date, p.id, i.id
       LIMIT 5000`,
-    [orgId, sel.from, sel.to, sel.forma],
+    [orgId, sel.from, sel.to],
   );
-  const byPayment = new Map();
+  const data = [];
+  const byForma = new Map();
   for (const r of rows || []) {
-    const net = Math.round(Number(r.net_total) * 100) / 100;
-    if (!(net > 0)) continue; // credited in full: nothing was sold
-    if (!byPayment.has(r.payment_id)) {
-      byPayment.set(r.payment_id, {
-        payment_id: Number(r.payment_id), payment_date: r.payment_date, payment_method: r.payment_method,
-        payment_amount: Number(r.payment_amount), reference_number: r.reference_number,
-        client_id: r.client_id, client_name: r.client_name, invoices: [], total: 0,
-      });
-    }
-    const row = byPayment.get(r.payment_id);
-    row.invoices.push({ id: Number(r.invoice_id), invoice_number: r.invoice_number, total: net });
-    row.total = Math.round((row.total + net) * 100) / 100;
+    const total = Math.round(Number(r.net_total) * 100) / 100;
+    if (!(total > 0)) continue; // credited in full: nothing was sold
+    data.push({
+      invoice_id: Number(r.invoice_id), invoice_number: r.invoice_number,
+      client_id: r.client_id, client_name: r.client_name,
+      payment_id: Number(r.payment_id), payment_date: r.payment_date,
+      payment_method: r.payment_method, forma_pago: r.forma_pago, total,
+    });
+    const f = byForma.get(r.forma_pago) || { forma_pago: r.forma_pago, invoices: 0, total: 0 };
+    f.invoices += 1;
+    f.total = Math.round((f.total + total) * 100) / 100;
+    byForma.set(r.forma_pago, f);
   }
-  const data = [...byPayment.values()];
   return {
     data,
     meta: {
-      ...sel, date_from: sel.from, date_to: sel.to, forma_pago: sel.forma,
-      payments: data.length,
-      invoices: data.reduce((n, p) => n + p.invoices.length, 0),
-      total: Math.round(data.reduce((n, p) => n + p.total, 0) * 100) / 100,
+      date_from: sel.from, date_to: sel.to, periodicidad: sel.periodicidad, meses: sel.meses, anio: sel.anio,
+      invoices: data.length,
+      total: Math.round(data.reduce((n, r) => n + r.total, 0) * 100) / 100,
+      by_forma: [...byForma.values()].sort((a, b) => b.total - a.total),
     },
   };
 }
 
 /**
- * Create a draft General Public invoice from the payments of a range and
- * form of payment. `payment_ids` names the ones to include; left out, all of
- * them. What is eligible is read again inside the transaction, so a payment
- * that stopped being eligible since the list was shown is simply not taken.
+ * Create draft General Public invoices from the range's unreported invoices:
+ * all of them, or only `invoiceIds`. With `separate` (the default) each form
+ * of payment gets its own draft, which reports that form; without it, one
+ * draft holds them all and reports the form that carried the most money.
+ * What is eligible is read again inside the transaction, so an invoice that
+ * stopped being eligible since the list was shown is simply not taken.
  */
-async function generateFromPayments(orgId, selection, { paymentIds = null } = {}) {
-  const sel = checkSelection(selection);
-  if (paymentIds && (paymentIds.length > 5000 || paymentIds.some(id => !Number.isInteger(Number(id)) || Number(id) < 1))) {
-    throw new AppError('payment_ids must be a list of payment ids.', 422, 'VALIDATION_ERROR');
+async function generateFromRange(orgId, range, { invoiceIds = null, separate = true } = {}) {
+  const sel = checkRange(range);
+  if (invoiceIds && (invoiceIds.length > 5000 || invoiceIds.some(id => !Number.isInteger(Number(id)) || Number(id) < 1))) {
+    throw new AppError('invoice_ids must be a list of invoice ids.', 422, 'VALIDATION_ERROR');
   }
-  const wanted = paymentIds ? new Set(paymentIds.map(Number)) : null;
+  const wanted = invoiceIds ? new Set(invoiceIds.map(Number)) : null;
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
     const exec = conn.execute.bind(conn);
-    const eligible = await eligiblePayments(orgId, selection, exec);
-    const chosen = eligible.data.filter(p => !wanted || wanted.has(p.payment_id));
-    const invoiceIds = chosen.flatMap(p => p.invoices.map(i => i.id));
-    if (invoiceIds.length === 0) {
-      throw new AppError('None of the chosen payments has an invoice left to report.', 422, 'FACTURA_PUBLICA_EMPTY');
+    const eligible = await unreportedInvoices(orgId, range, exec);
+    const chosen = eligible.data.filter(r => !wanted || wanted.has(r.invoice_id));
+    if (chosen.length === 0) {
+      throw new AppError('None of the chosen invoices is left to report.', 422, 'FACTURA_PUBLICA_EMPTY');
     }
-    const [created] = await exec(
-      `INSERT INTO factura_publica_invoices (organization_id, periodicidad, meses, anio, forma_pago, date_from, date_to)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [orgId, sel.periodicidad, sel.meses, sel.anio, sel.forma, sel.from, sel.to],
-    );
-    for (const invoiceId of invoiceIds) {
-      await exec(
-        'INSERT INTO factura_publica_invoice_items (factura_publica_invoice_id, invoice_id) VALUES (?, ?)',
-        [created.insertId, invoiceId],
+    const groups = new Map();
+    for (const row of chosen) {
+      const key = separate ? row.forma_pago : null;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
+    }
+    const records = [];
+    for (const [forma, rows] of groups) {
+      const [created] = await exec(
+        `INSERT INTO factura_publica_invoices (organization_id, periodicidad, meses, anio, forma_pago, date_from, date_to)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [orgId, sel.periodicidad, sel.meses, sel.anio, forma, sel.from, sel.to],
       );
+      for (const row of rows) {
+        await exec(
+          'INSERT INTO factura_publica_invoice_items (factura_publica_invoice_id, invoice_id) VALUES (?, ?)',
+          [created.insertId, row.invoice_id],
+        );
+      }
+      records.push({
+        id: created.insertId, periodicidad: sel.periodicidad, meses: sel.meses, anio: sel.anio,
+        forma_pago: forma, date_from: sel.from, date_to: sel.to, status: 'draft',
+        invoices: rows.length, total: Math.round(rows.reduce((n, r) => n + r.total, 0) * 100) / 100,
+      });
     }
     await conn.commit();
-    return {
-      id: created.insertId, periodicidad: sel.periodicidad, meses: sel.meses, anio: sel.anio,
-      forma_pago: sel.forma, date_from: sel.from, date_to: sel.to, status: 'draft',
-      payments: chosen.length, invoices: invoiceIds.length,
-      total: Math.round(chosen.reduce((n, p) => n + p.total, 0) * 100) / 100,
-    };
+    return records;
   } catch (err) {
     await conn.rollback().catch(() => {});
     // Another draft took one of these invoices at the same moment.
     if (err && err.code === 'ER_DUP_ENTRY') {
-      throw new AppError('One of these invoices was just added to another General Public invoice. Load the payments again.', 409, 'FACTURA_PUBLICA_TAKEN');
+      throw new AppError('One of these invoices was just added to another General Public invoice. Load the invoices again.', 409, 'FACTURA_PUBLICA_TAKEN');
     }
     throw err;
   } finally {
@@ -520,5 +545,5 @@ async function generateFromPayments(orgId, selection, { paymentIds = null } = {}
 
 module.exports = {
   stampGlobal, predominantFormaPago, periodRange, listEligibleInvoices, addEligibleInvoices, removeItem,
-  eligiblePayments, generateFromPayments, checkSelection,
+  unreportedInvoices, generateFromRange, checkRange, FORMAS,
 };

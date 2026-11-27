@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// A General Public invoice built from chosen payments — against a real database
+// General Public invoices built from a range of payment days — against a real database
 // =============================================================================
 // services/facturaPublicaService.js picks the invoices to report from the
 // payments of a date range and one form of payment. Which invoice belongs to
@@ -47,7 +47,8 @@ describeDb('a General Public invoice from chosen payments against a real databas
     made[name] = { invoice, payment };
     return made[name];
   }
-  const eligible = (q) => api('get', `/facturas-publicas/eligible-payments?date_from=${q.from}&date_to=${q.to}&forma_pago=${q.forma}`);
+  const unreported = (from, to) => api('get', `/facturas-publicas/unreported-invoices?date_from=${from}&date_to=${to}`);
+  const generate = (body) => api('post', '/facturas-publicas/generate', body);
 
   beforeAll(async () => {
     relaxLimits();
@@ -67,48 +68,74 @@ describeDb('a General Public invoice from chosen payments against a real databas
 
   afterAll(teardown);
 
-  test('lists the payments of the range and form of payment, each with its invoices', async () => {
-    const res = await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '01' });
+  test('lists the unstamped paid invoices of the range, each with its payment id, day and form', async () => {
+    const res = await unreported('2026-10-01', '2026-10-31');
     expect(res.status).toBe(200);
-    expect(res.body.data.map(p => p.payment_id)).toEqual([made.cash1.payment, made.cash2.payment, made.cash3.payment]);
-    expect(res.body.data[1]).toMatchObject({ payment_method: 'cash', client_name: 'Walk-in', total: 232, invoices: [{ id: made.cash2.invoice, total: 232 }] });
-    expect(res.body.meta).toMatchObject({ payments: 3, invoices: 3, total: 464, periodicidad: '04', meses: '10', anio: 2026 });
-    // Card and transfer are their own documents; a narrower range is its own periodicity.
-    expect((await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '04' })).body.data.map(p => p.payment_id)).toEqual([made.card1.payment]);
-    expect((await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '03' })).body.data.map(p => p.payment_id)).toEqual([made.spei1.payment]);
-    const day = await eligible({ from: '2026-10-12', to: '2026-10-12', forma: '01' });
-    expect(day.body.data.map(p => p.payment_id)).toEqual([made.cash2.payment]);
-    expect(day.body.meta.periodicidad).toBe('01');
+    expect(res.body.data.map(r => r.invoice_id)).toEqual([made.cash1.invoice, made.cash2.invoice, made.card1.invoice, made.spei1.invoice, made.cash3.invoice]);
+    expect(res.body.data[1]).toMatchObject({
+      invoice_number: 'G-cash2', client_name: 'Walk-in', payment_id: made.cash2.payment, payment_method: 'cash', forma_pago: '01', total: 232,
+    });
+    expect(String(res.body.data[1].payment_date).slice(0, 10)).toBe('2026-10-12');
+    expect(res.body.meta).toMatchObject({ invoices: 5, total: 696, periodicidad: '04', meses: '10', anio: 2026 });
+    expect(res.body.meta.by_forma).toEqual([
+      { forma_pago: '01', invoices: 3, total: 464 }, { forma_pago: '04', invoices: 1, total: 116 }, { forma_pago: '03', invoices: 1, total: 116 },
+    ]);
+    // The span decides how it is filed: a day, a week, a fortnight, a month.
+    expect((await unreported('2026-10-12', '2026-10-12')).body.meta).toMatchObject({ periodicidad: '01', invoices: 3 });
+    expect((await unreported('2026-10-01', '2026-10-07')).body.meta).toMatchObject({ periodicidad: '02', invoices: 1 });
+    expect((await unreported('2026-10-01', '2026-10-15')).body.meta.periodicidad).toBe('03');
   });
 
-  test('a range across two months, dates out of order or an unknown form are refused', async () => {
-    expect((await eligible({ from: '2026-10-20', to: '2026-11-05', forma: '01' })).body.error.code).toBe('FACTURA_PUBLICA_RANGE');
-    expect((await eligible({ from: '2026-10-20', to: '2026-10-05', forma: '01' })).status).toBe(422);
-    expect((await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '99' })).status).toBe(422);
+  test('a range across two months or with its dates out of order is refused', async () => {
+    expect((await unreported('2026-10-20', '2026-11-05')).body.error.code).toBe('FACTURA_PUBLICA_RANGE');
+    expect((await unreported('2026-10-20', '2026-10-05')).status).toBe(422);
+    expect((await unreported('2026-10-20', 'soon')).status).toBe(422);
   });
 
-  test('a draft holds exactly the invoices of the payments left ticked, and they are then taken', async () => {
-    const res = await api('post', '/facturas-publicas/generate', {
-      date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '01', payment_ids: [made.cash1.payment, made.cash3.payment],
+  test('separated, each form of payment gets its own draft with the invoices left ticked', async () => {
+    const res = await generate({
+      date_from: '2026-10-01', date_to: '2026-10-15',
+      invoice_ids: [made.cash1.invoice, made.cash2.invoice, made.card1.invoice],
     });
     expect(res.status).toBe(201);
-    expect(res.body.data).toMatchObject({ status: 'draft', forma_pago: '01', payments: 2, invoices: 2, total: 232, periodicidad: '04', meses: '10', anio: 2026 });
-    const [items] = await db.query('SELECT invoice_id FROM factura_publica_invoice_items WHERE factura_publica_invoice_id = ? ORDER BY invoice_id', [res.body.data.id]);
-    expect(items.map(i => i.invoice_id)).toEqual([made.cash1.invoice, made.cash3.invoice].sort((a, b) => a - b));
-    const [[row]] = await db.query('SELECT forma_pago, date_from, date_to FROM factura_publica_invoices WHERE id = ?', [res.body.data.id]);
-    expect(row.forma_pago).toBe('01');
+    const byForma = Object.fromEntries(res.body.data.map(r => [r.forma_pago, r]));
+    expect(Object.keys(byForma).sort()).toEqual(['01', '04']);
+    expect(byForma['01']).toMatchObject({ status: 'draft', invoices: 2, total: 348, periodicidad: '03', meses: '10', anio: 2026 });
+    expect(byForma['04']).toMatchObject({ invoices: 1, total: 116 });
+    const [items] = await db.query('SELECT invoice_id FROM factura_publica_invoice_items WHERE factura_publica_invoice_id = ? ORDER BY invoice_id', [byForma['01'].id]);
+    expect(items.map(i => i.invoice_id)).toEqual([made.cash1.invoice, made.cash2.invoice].sort((a, b) => a - b));
 
-    // What is left for cash in October is the payment that was unticked.
-    const left = await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '01' });
-    expect(left.body.data.map(p => p.payment_id)).toEqual([made.cash2.payment]);
-    // A second record for the same month is allowed: by default it takes everything left.
-    const second = await api('post', '/facturas-publicas/generate', { date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '01' });
-    expect(second.status).toBe(201);
-    expect(second.body.data).toMatchObject({ payments: 1, invoices: 1, total: 232 });
-    // Nothing is left, so a third has nothing to report.
-    const third = await api('post', '/facturas-publicas/generate', { date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '01' });
-    expect(third.status).toBe(422);
-    expect(third.body.error.code).toBe('FACTURA_PUBLICA_EMPTY');
+    // What was taken is not offered again; the transfer that was unticked is.
+    const left = await unreported('2026-10-01', '2026-10-31');
+    expect(left.body.data.map(r => r.invoice_id)).toEqual([made.spei1.invoice, made.cash3.invoice]);
+  });
+
+  test('not separated, one draft holds every form; and a second draft for the same month is allowed', async () => {
+    const res = await generate({ date_from: '2026-10-01', date_to: '2026-10-31', separate: false });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({ forma_pago: null, invoices: 2, total: 232, periodicidad: '04' });
+    // Nothing is left, so another has nothing to report.
+    const again = await generate({ date_from: '2026-10-01', date_to: '2026-10-31' });
+    expect(again.status).toBe(422);
+    expect(again.body.error.code).toBe('FACTURA_PUBLICA_EMPTY');
+  });
+
+  test('each item of the stamped document names its invoice, payment id and payment day', async () => {
+    const cfdiService = require('../../../src/services/cfdiService');
+    jest.spyOn(cfdiService, 'getEmisorProfile').mockResolvedValue({ rfc: 'EKU9003173C9', razon_social: 'ESCUELA KEMPER URGATE', regimen_fiscal: '601', codigo_postal_fiscal: '26015', cfdi_serie_ingreso: 'A' });
+    jest.spyOn(cfdiService, 'generateXml').mockResolvedValue({ xml: '<x/>' });
+    jest.spyOn(cfdiService, 'stamp').mockResolvedValue({ uuid: 'UUID-TEST', status: 'vigente' });
+    const draft = (await generate({ date_from: '2026-11-01', date_to: '2026-11-30' })).body.data[0];
+    expect(draft).toMatchObject({ forma_pago: '01', invoices: 1 });
+    const { stampGlobal } = require('../../../src/services/facturaPublicaService');
+    const out = await stampGlobal(draft.id, ORG, { userId: admin.userId });
+    const [[doc]] = await db.query('SELECT client_id, forma_pago, metodo_pago, receptor_rfc, total FROM cfdi_documents WHERE id = ?', [out.cfdi_document_id]);
+    expect(doc).toMatchObject({ client_id: null, forma_pago: '01', metodo_pago: 'PUE', receptor_rfc: 'XAXX010101000' });
+    expect(Number(doc.total)).toBe(116);
+    const [conceptos] = await db.query('SELECT no_identificacion, descripcion FROM cfdi_conceptos WHERE cfdi_document_id = ?', [out.cfdi_document_id]);
+    expect(conceptos).toEqual([{ no_identificacion: `G-nov1 PAGO ${made.nov1.payment} 2026-11-02`, descripcion: 'Venta' }]);
+    jest.restoreAllMocks();
   });
 
   test('an invoice with its own CFDI, one credited in full, and another organization\'s payments are never offered', async () => {
@@ -133,11 +160,11 @@ describeDb('a General Public invoice from chosen payments against a real databas
     const theirs = await insert('clients', { organization_id: OTHER, name: 'Theirs', status: 'active' });
     await sale('theirs', { method: 'check', day: '2026-10-15', org: OTHER, clientId: theirs });
 
-    const res = await eligible({ from: '2026-10-01', to: '2026-10-31', forma: '02' });
+    const res = await unreported('2026-10-01', '2026-10-31');
     // Only the partly credited one, at what is left of it.
-    expect(res.body.data.map(p => [p.payment_id, p.total])).toEqual([[part.payment, 174]]);
-    // Naming another organization's payment takes nothing.
-    const stolen = await api('post', '/facturas-publicas/generate', { date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '02', payment_ids: [made.theirs.payment] });
+    expect(res.body.data.map(r => [r.invoice_id, r.payment_id, r.forma_pago, r.total])).toEqual([[part.invoice, part.payment, '02', 174]]);
+    // Naming another organization's invoice takes nothing.
+    const stolen = await generate({ date_from: '2026-10-01', date_to: '2026-10-31', invoice_ids: [made.theirs.invoice] });
     expect(stolen.status).toBe(422);
   });
 });

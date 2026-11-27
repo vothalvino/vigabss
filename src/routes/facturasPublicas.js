@@ -36,29 +36,32 @@ router.use(authenticate);
 router.use(orgScope);
 router.use(requireMxLocale);
 
-// The payments of a date range and form of payment whose invoices are still
-// to be reported to General Public. Before '/:id'.
-router.get('/eligible-payments', requirePermission('facturas_publicas.view'), async (req, res, next) => {
+// The paid invoices of a range of payment days that were never stamped, each
+// with the payment that settled it. Before '/:id'.
+router.get('/unreported-invoices', requirePermission('facturas_publicas.view'), async (req, res, next) => {
   try {
-    res.json(await facturaPublicaService.eligiblePayments(req.orgId, {
-      date_from: req.query.date_from, date_to: req.query.date_to, forma_pago: req.query.forma_pago,
+    res.json(await facturaPublicaService.unreportedInvoices(req.orgId, {
+      date_from: req.query.date_from, date_to: req.query.date_to,
     }));
   } catch (err) { next(err); }
 });
 
-// Create a draft from those payments: all of them, or the ones named.
+// Create drafts from them: all, or the ones named; one per form of payment
+// unless separate is false.
 router.post('/generate', requirePermission('facturas_publicas.create'), validate(generateFacturaPublica), async (req, res, next) => {
   try {
-    const created = await facturaPublicaService.generateFromPayments(
+    const records = await facturaPublicaService.generateFromRange(
       req.orgId,
-      { date_from: req.body.date_from, date_to: req.body.date_to, forma_pago: req.body.forma_pago },
-      { paymentIds: Array.isArray(req.body.payment_ids) ? req.body.payment_ids : null },
+      { date_from: req.body.date_from, date_to: req.body.date_to },
+      { invoiceIds: Array.isArray(req.body.invoice_ids) ? req.body.invoice_ids : null, separate: req.body.separate !== false },
     );
-    await auditLog.log({
-      userId: req.user.id, organizationId: req.orgId, action: 'create',
-      tableName: 'factura_publica_invoices', recordId: created.id, newValues: created,
-    });
-    res.status(201).json({ data: created });
+    for (const record of records) {
+      await auditLog.log({
+        userId: req.user.id, organizationId: req.orgId, action: 'create',
+        tableName: 'factura_publica_invoices', recordId: record.id, newValues: record,
+      });
+    }
+    res.status(201).json({ data: records });
   } catch (err) { next(err); }
 });
 

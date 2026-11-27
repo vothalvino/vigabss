@@ -94,77 +94,86 @@ describe('Facturas globales page', () => {
     expect(await screen.findByText(t('facturaGlobal.empty'))).toBeInTheDocument();
   });
 
-  it('builds a draft from the payments of a form and range, leaving out the ones unticked', async () => {
-    const payments = [
-      { payment_id: 7, payment_date: '2026-10-05', payment_method: 'cash', client_name: 'Walk-in', total: 116, invoices: [{ id: 70, invoice_number: 'INV-70', total: 116 }] },
-      { payment_id: 8, payment_date: '2026-10-12', payment_method: 'cash', client_name: 'Acme', total: 232, invoices: [{ id: 80, invoice_number: 'INV-80', total: 116 }, { id: 81, invoice_number: 'INV-81', total: 116 }] },
-    ];
+  const unreported = [
+    { invoice_id: 70, invoice_number: 'INV-70', client_name: 'Walk-in', payment_id: 7, payment_date: '2026-10-05', payment_method: 'cash', forma_pago: '01', total: 116 },
+    { invoice_id: 80, invoice_number: 'INV-80', client_name: 'Acme', payment_id: 8, payment_date: '2026-10-12', payment_method: 'cash', forma_pago: '01', total: 232 },
+    { invoice_id: 90, invoice_number: 'INV-90', client_name: 'Acme', payment_id: 9, payment_date: '2026-10-12', payment_method: 'card', forma_pago: '04', total: 58 },
+  ];
+  async function openBuilder(rows: unknown[] = unreported) {
     const base = mocks.GET.getMockImplementation()!;
-    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/eligible-payments'
-      ? Promise.resolve({ data: { data: payments, meta: { payments: 2, invoices: 3, total: 348 } }, error: undefined })
+    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/unreported-invoices'
+      ? Promise.resolve({ data: { data: rows, meta: {} }, error: undefined })
       : base(path, ...rest)));
     mocks.POST.mockImplementation((path: string) => (path === '/facturas-publicas/generate'
-      ? Promise.resolve({ data: { data: { id: 3, status: 'draft' } }, error: undefined })
+      ? Promise.resolve({ data: { data: [{ id: 3, status: 'draft' }, { id: 4, status: 'draft' }] }, error: undefined })
       : Promise.resolve({ data: { data: {} }, error: undefined })));
     renderList();
     await userEvent.click(await screen.findByRole('button', { name: t('facturaGlobal.new') }));
-    const dialog = await screen.findByRole('dialog');
-    // Nothing can be created before the payments are loaded.
+    return screen.findByRole('dialog');
+  }
+
+  it('loads the unstamped paid invoices of a range with their payment id and day, all included', async () => {
+    const dialog = await openBuilder();
+    // Nothing can be created before the invoices are loaded.
     expect(within(dialog).getByRole('button', { name: 'Create draft' })).toBeDisabled();
-    await userEvent.selectOptions(within(dialog).getByLabelText('Form of payment'), '01');
     fireEvent.change(within(dialog).getByLabelText('Payments from'), { target: { value: '2026-10-01' } });
     fireEvent.change(within(dialog).getByLabelText('To'), { target: { value: '2026-10-31' } });
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Load payments' }));
-    await waitFor(() => expect(mocks.GET).toHaveBeenCalledWith('/facturas-publicas/eligible-payments', {
-      params: { query: { date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '01' } },
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load invoices' }));
+    await waitFor(() => expect(mocks.GET).toHaveBeenCalledWith('/facturas-publicas/unreported-invoices', {
+      params: { query: { date_from: '2026-10-01', date_to: '2026-10-31' } },
     }));
-    // Every payment is included to start with.
-    expect(await within(dialog).findByText('INV-80, INV-81')).toBeInTheDocument();
-    expect(within(dialog).getByRole('status')).toHaveTextContent('2 of 2 payments included, $348.00');
-    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Include payment 7' }));
-    expect(within(dialog).getByRole('status')).toHaveTextContent('1 of 2 payments included, $232.00');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Create draft' }));
+    const row = (await within(dialog).findByText('INV-80')).closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent('Acme');
+    expect(row).toHaveTextContent('8');
+    expect(row).toHaveTextContent('2026-10-12');
+    expect(row).toHaveTextContent('Cash');
+    expect(within(dialog).getByText('Cash: 2, $348.00')).toBeInTheDocument();
+    expect(within(dialog).getByText('Credit card: 1, $58.00')).toBeInTheDocument();
+    // One invoice per form of payment by default: two forms, two documents.
+    expect(within(dialog).getByRole('status')).toHaveTextContent('3 of 3 invoices included, $406.00, in 2 General Public invoices');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create 2 drafts' }));
     await waitFor(() => expect(mocks.POST).toHaveBeenCalledWith('/facturas-publicas/generate', {
-      body: { date_from: '2026-10-01', date_to: '2026-10-31', forma_pago: '01', payment_ids: [8] },
+      body: { date_from: '2026-10-01', date_to: '2026-10-31', separate: true },
     }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('with every payment left ticked it asks for all of them, and a change of form clears the list', async () => {
-    const base = mocks.GET.getMockImplementation()!;
-    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/eligible-payments'
-      ? Promise.resolve({ data: { data: [{ payment_id: 7, payment_date: '2026-10-05', payment_method: 'card', client_name: 'Walk-in', total: 116, invoices: [{ id: 70, invoice_number: 'INV-70', total: 116 }] }], meta: {} }, error: undefined })
-      : base(path, ...rest)));
-    mocks.POST.mockResolvedValue({ data: { data: { id: 4, status: 'draft' } }, error: undefined });
-    renderList();
-    await userEvent.click(await screen.findByRole('button', { name: t('facturaGlobal.new') }));
-    const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Load payments' }));
+  it('leaves out an unticked invoice or a whole form of payment, and can put every form in one invoice', async () => {
+    const dialog = await openBuilder();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load invoices' }));
     await within(dialog).findByText('INV-70');
-    await userEvent.selectOptions(within(dialog).getByLabelText('Form of payment'), '04');
-    expect(within(dialog).queryByText('INV-70')).not.toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Load payments' }));
-    await within(dialog).findByText('INV-70');
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Include INV-70' }));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('2 of 3 invoices included, $290.00, in 2 General Public invoices');
+    // The whole card form off: only cash is left, so one document.
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Credit card: 1, $58.00' }));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('1 of 3 invoices included, $232.00, in 1 General Public invoice');
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Credit card: 1, $58.00' }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Make a separate invoice for each form of payment' }));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('2 of 3 invoices included, $290.00, in 1 General Public invoice');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create draft' }));
-    await waitFor(() => expect(mocks.POST).toHaveBeenCalled());
-    expect(mocks.POST.mock.calls[0][1].body).not.toHaveProperty('payment_ids');
-    expect(mocks.POST.mock.calls[0][1].body.forma_pago).toBe('04');
+    await waitFor(() => expect(mocks.POST).toHaveBeenCalledWith('/facturas-publicas/generate', {
+      body: { date_from: expect.any(String), date_to: expect.any(String), separate: false, invoice_ids: [80, 90] },
+    }));
   });
 
-  it('says so when no payment is left to report, and shows the server\'s reason on a refusal', async () => {
+  it('clears the list when the days change, says so when nothing is left, and shows the server\'s reason', async () => {
+    const dialog = await openBuilder();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load invoices' }));
+    await within(dialog).findByText('INV-70');
+    fireEvent.change(within(dialog).getByLabelText('Payments from'), { target: { value: '2026-10-01' } });
+    expect(within(dialog).queryByText('INV-70')).not.toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText('To'), { target: { value: '2026-10-20' } });
+
     const base = mocks.GET.getMockImplementation()!;
-    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/eligible-payments'
+    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/unreported-invoices'
       ? Promise.resolve({ data: { data: [], meta: {} }, error: undefined })
       : base(path, ...rest)));
-    renderList();
-    await userEvent.click(await screen.findByRole('button', { name: t('facturaGlobal.new') }));
-    const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Load payments' }));
-    expect(await within(dialog).findByText(/have invoices left to report/)).toBeInTheDocument();
-    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/eligible-payments'
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load invoices' }));
+    expect(await within(dialog).findByText(/is left to report/)).toBeInTheDocument();
+    mocks.GET.mockImplementation((path: string, ...rest: unknown[]) => (path === '/facturas-publicas/unreported-invoices'
       ? Promise.resolve({ data: undefined, error: { error: { message: 'A General Public invoice covers days of one month. Make one per month.' } } })
       : base(path, ...rest)));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Load payments' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load invoices' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('one month');
   });
 

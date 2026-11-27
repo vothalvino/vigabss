@@ -100,7 +100,7 @@ export function FacturaPublicaList() {
                       <td style={{ ...styles.td, fontWeight: 500 }}>{f.anio}</td>
                       <td style={styles.td}>{f.meses ? t(`facturaGlobal.mesesNames.${f.meses}`, { defaultValue: f.meses }) : '—'}</td>
                       <td style={styles.td}>{t(`facturaGlobal.periodicidades.${f.periodicidad}`, { defaultValue: f.periodicidad })}</td>
-                      <td style={styles.td}>{f.forma_pago ? t(`facturaGlobal.builder.formas.${f.forma_pago}`, { defaultValue: f.forma_pago }) : '—'}</td>
+                      <td style={styles.td}>{f.forma_pago ? t(`facturaGlobal.builder.formas.${f.forma_pago}`, { defaultValue: f.forma_pago }) : (f.date_from ? t('facturaGlobal.builder.mixed') : '—')}</td>
                       <td style={styles.td}>{f.date_from ? `${String(f.date_from).slice(0, 10)} – ${String(f.date_to ?? '').slice(0, 10)}` : '—'}</td>
                       <td style={styles.tdNum}>{formatMoney(f.subtotal)}</td>
                       <td style={styles.tdNum}>{formatMoney(f.total_impuestos)}</td>
@@ -143,11 +143,11 @@ export function FacturaPublicaList() {
         <GlobalInvoiceBuilder
           open={creating}
           onClose={() => setCreating(false)}
-          onCreated={(id) => {
+          onCreated={(ids) => {
             setCreating(false);
             qc.invalidateQueries({ queryKey: ['facturas-publicas'] });
             setPage(1);
-            setOpenId(id);
+            setOpenId(ids[0] ?? null);
           }}
         />
       )}

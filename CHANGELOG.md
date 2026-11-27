@@ -5,22 +5,28 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
-- **Changed: a General Public invoice is built from the payments you
-  choose.** "New General Public invoice" now asks for a form of payment
-  (cash, bank transfer, credit card, debit card or check) and a range of
-  payment days, then lists the payments whose invoices are still to be
-  reported, all ticked. Untick any to leave out and create the draft; it is
-  stamped from the draft as before. It replaces the dialog that asked for a
-  month and took everything paid in it.
-  - A General Public CFDI states a single form of payment, so there is now
-    one per form. A draft made this way reports its own form instead of the
-    one that carried the most money.
-  - Several can exist for the same month. An invoice can still be in only
-    one, so what one draft took is not offered again.
-  - The range has to stay inside one month. A single day is filed as daily,
+- **Changed: General Public invoices are built from a range of payment
+  days.** "New General Public invoice" asks for the days, then lists the paid
+  invoices that were never stamped because the client did not ask for an
+  invoice, all ticked, each with its payment ID, payment date, form of
+  payment, client and amount. It replaces the dialog that asked for a month
+  and took everything paid in it.
+  - Untick single invoices, or a whole form of payment at once.
+  - "Make a separate invoice for each form of payment" (on to start with)
+    creates one draft per form: cash, bank transfer, credit card, debit card,
+    check. Turned off, one draft holds them all and reports the form that
+    carried the most money. The screen says how many drafts will be made.
+  - The days have to stay inside one month. A single day is filed as daily,
     up to a week as weekly, up to 16 days as fortnightly, otherwise monthly.
-  - An invoice belongs to the payment that completed it. Amounts are shown
-    net of credit notes, as they will be reported (migration 040).
+  - Several drafts can exist for the same month. An invoice can still be in
+    only one, so what one took is not offered again.
+  - An invoice belongs to the payment that completed it. Amounts are net of
+    credit notes, as they will be reported (migration 040).
+
+- **Changed: each item of a General Public invoice names its payment.** The
+  item's identifier was the invoice number. It is now the invoice number, the
+  payment ID and the payment date ("INV-000041 PAGO 53 2026-11-26"), so every
+  item can be traced to the money it reports.
 
 - **Fixed: the image could miss a published OS security fix.** The image
   build applies Debian's updates, but CI reused a cached copy of that step
