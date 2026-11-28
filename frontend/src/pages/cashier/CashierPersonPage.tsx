@@ -19,11 +19,14 @@ import {
   type CashierPerson, type ReconciliationSession,
 } from '@/pages/CashReconciliationList';
 import { styles } from '../crudStyles';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
+import { CashierLimitBox, type PersonLimitRules } from './CashierLimitBox';
 
 interface PersonDetail {
   person: CashierPerson;
   scope: 'full' | 'supervisor';
-  rules: { max_open_hours: number; pickup_threshold: number; pickup_strict: boolean };
+  rules: { max_open_hours: number } & PersonLimitRules;
   sessions: ReconciliationSession[];
 }
 
@@ -48,6 +51,7 @@ function Fact({ label, value, alert = false }: { label: string; value: string; a
 export function CashierPersonPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const { userId } = useParams<{ userId: string }>();
   const id = Number(userId);
 
@@ -74,6 +78,8 @@ export function CashierPersonPage() {
 
   const { person, scope, rules, sessions } = data;
   const now = person.current;
+  // A supervisor sets other people's limits; only the company's admin their own.
+  const maySetLimit = can(user, 'cash_reconciliation.approve') && (person.user_id !== Number(user?.id) || user?.role === 'admin');
 
   return (
     <div style={styles.page}>
@@ -113,6 +119,16 @@ export function CashierPersonPage() {
           </p>
         )}
       </div>
+
+      {maySetLimit && (
+        <CashierLimitBox
+          userId={person.user_id}
+          name={person.name || `#${person.user_id}`}
+          rules={rules}
+          own={Boolean(person.limit?.own)}
+          onSaved={refresh}
+        />
+      )}
 
       <h2 style={{ fontSize: '1rem', margin: '0 0 4px' }}>
         {scope === 'full' ? t('cashierStaff.history') : t('cashierStaff.toReview')}

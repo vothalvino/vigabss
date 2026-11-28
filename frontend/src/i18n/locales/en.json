@@ -2739,9 +2739,9 @@
       }
     },
     "rules": {
-      "title": "Cash pickup rules",
-      "help": "Cash stays in the drawer between shifts. It is handed to a supervisor only once the drawer holds more than this limit.",
-      "threshold": "Cash limit per cashier",
+      "title": "Company cash limit",
+      "help": "Cash stays in the drawer between shifts. It is handed to a supervisor only once the drawer holds more than its limit. This is the limit for anyone with no limit of their own; open a person from the list to give them their own.",
+      "threshold": "Cash limit for everyone else",
       "strict": "Strict: stop a cashier over the limit from taking more cash",
       "offHint": "With a limit of 0 nobody is reminded to hand cash in.",
       "remindHint": "Over the limit, the cashier and the supervisors are reminded. Cash can still be taken.",
@@ -12327,5 +12327,21 @@
     "paymentDate": "Payment date",
     "createdDate": "Created",
     "openedDate": "Opened"
+  },
+  "cashierLimit": {
+    "title": "Cash limit of {{name}}",
+    "amount": "Cash the drawer may hold",
+    "strict": "Stop cash payments at the limit until a pickup",
+    "save": "Save limit",
+    "useDefault": "Use the company's limit",
+    "ownNote": "This limit was set for this person.",
+    "defaultNote": "This person follows the company's limit ({{amount}}). Save a limit here to give them their own.",
+    "none": "none",
+    "hint": "At this amount the person is reminded to hand cash to a supervisor. With the box ticked they cannot record another cash payment until some is picked up.",
+    "offHint": "0 means no limit for this person.",
+    "saved": "Limit saved.",
+    "reset": "Now following the company's limit.",
+    "failed": "The limit could not be saved.",
+    "invalid": "Enter an amount of 0 or more."
   }
 }

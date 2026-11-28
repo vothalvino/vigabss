@@ -5,6 +5,15 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the cash limit of a cashier is set per person.** A person's
+  page on the Cashier screen has a new box where a supervisor sets how much
+  cash that person's drawer may hold and whether reaching it stops them from
+  taking more cash until a pickup. Someone with no limit of their own follows
+  the company's limit, which the box on the Cashier screen still sets and now
+  says so. A limit of 0 means no limit for that person. A supervisor cannot
+  set their own limit; the company's admin can. Each line of the Cashier list
+  and the reminders use the person's own limit (migration 043).
+
 - **Fixed: a reseller's login appeared on the Cashier page.** The list of
   people showed the login of a reseller or collector that had opened a
   cashier before points stopped having one, with the cash of that old count

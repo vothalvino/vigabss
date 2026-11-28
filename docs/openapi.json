@@ -34169,6 +34169,132 @@
         }
       }
     },
+    "/cash-reconciliation/staff/{userId}/limit": {
+      "put": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "A supervisor sets one person's cash limit (0 = none for this person) and whether a cashier at the limit is stopped from taking more cash. A person with no limit of their own follows the organization's. Not one's own, except the company's admin (403 OWN_CASHIER). Needs cash_reconciliation.approve",
+        "operationId": "setCashierUserLimit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "pickup_threshold"
+                ],
+                "properties": {
+                  "pickup_threshold": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "pickup_strict": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The limit now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pickup_threshold": {
+                          "type": "number"
+                        },
+                        "pickup_strict": {
+                          "type": "boolean"
+                        },
+                        "own": {
+                          "type": "boolean",
+                          "description": "Set for this person, not taken from the organization"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "Put a person back on the organization's cash limit. Needs cash_reconciliation.approve",
+        "operationId": "clearCashierUserLimit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The limit now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pickup_threshold": {
+                          "type": "number"
+                        },
+                        "pickup_strict": {
+                          "type": "boolean"
+                        },
+                        "own": {
+                          "type": "boolean",
+                          "description": "Set for this person, not taken from the organization"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cash-reconciliation/staff/{userId}": {
       "get": {
         "tags": [
@@ -88486,6 +88612,22 @@
             "type": "boolean"
           }
         }
+      },
+      "cashReconciliation_userLimitSchema": {
+        "type": "object",
+        "properties": {
+          "pickup_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999.99
+          },
+          "pickup_strict": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pickup_threshold"
+        ]
       },
       "cfdi_generateXml": {
         "type": "object",

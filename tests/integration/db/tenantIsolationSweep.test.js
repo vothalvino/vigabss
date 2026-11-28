@@ -173,6 +173,7 @@ const PATH_PARAMS = {
   '/cash-bags/:id': 'cash_bags',
   '/money-tieout/safe-movements/:id': 'cash_safe_movements',
   '/point-zones/:id': 'point_zones',
+  '/cash-reconciliation/staff/:userId/limit': 'users',
   '/point-zones/points/:resellerId': 'resellers',
   '/carriers/:userId': 'users',
   '/cash-reconciliation/staff/:userId': 'users',

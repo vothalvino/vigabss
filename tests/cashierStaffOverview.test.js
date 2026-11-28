@@ -18,7 +18,7 @@ const db = require('../src/config/database');
 const service = require('../src/services/cashReconciliationService');
 
 /** Answers by what the statement is. `people` is keyed by user id. */
-function database({ settings = [], people = {}, users = [], history = [] } = {}) {
+function database({ settings = [], people = {}, users = [], history = [], limits = [] } = {}) {
   const calls = [];
   db.query.mockReset();
   db.query.mockImplementation(async (sql, params) => {
@@ -39,6 +39,7 @@ function database({ settings = [], people = {}, users = [], history = [] } = {})
       const owner = Object.values(people).find((p) => p.last.id === params[1]);
       return [(owner && owner.pickups) || []];
     }
+    if (/FROM cashier_user_limits/.test(text)) return [limits.filter((l) => params.slice(1).includes(l.user_id))];
     if (/FROM users WHERE id IN/.test(text)) return [users];
     if (/^SELECT \* FROM cash_reconciliation_sessions/.test(text)) return [history];
     return [[]];
@@ -147,7 +148,7 @@ describe('staffDetail', () => {
     const out = await service.staffDetail(1, 10, { full: true });
     expect(out.scope).toBe('full');
     expect(out.person).toMatchObject({ user_id: 10, name: 'Ana Ruiz' });
-    expect(out.rules).toEqual({ max_open_hours: 16, pickup_threshold: 0, pickup_strict: false });
+    expect(out.rules).toEqual({ max_open_hours: 16, pickup_threshold: 0, pickup_strict: false, default_pickup_threshold: 0, default_pickup_strict: false });
     expect(out.sessions.map((s) => [s.id, s.agent_name, s.approved_by_name])).toEqual([[7, 'Ana Ruiz', null], [5, 'Ana Ruiz', 'Beto Luna']]);
     const [text, params] = q.find(/^SELECT \* FROM cash_reconciliation_sessions/);
     expect(params).toEqual([1, 10]);
@@ -166,3 +167,54 @@ describe('staffDetail', () => {
     await expect(service.staffDetail(1, 99, { full: true })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
+
+describe('a cash limit per person', () => {
+  const settings = [{ setting_key: 'cashier_pickup_threshold', setting_value: '1000' }, { setting_key: 'cashier_pickup_strict', setting_value: 'false' }];
+
+  test('each person is judged against their own limit; without one, against the company\'s', async () => {
+    database({
+      settings, users: USERS,
+      limits: [{ user_id: 10, pickup_threshold: '2000.00', pickup_strict: 1 }, { user_id: 12, pickup_threshold: '0.00', pickup_strict: 0 }],
+      people: { 10: { last: open(7), collected: '900.00' }, 11: { last: open(8), collected: '900.00' }, 12: { last: open(9), collected: '5000.00' } },
+    });
+    const rows = await service.staffOverview(1);
+    // 1,400 in each of the first two drawers: under Ana's own 2,000, over the company's 1,000 for Beto.
+    expect(line(rows, 10)).toMatchObject({ reasons: [], limit: { pickup_threshold: 2000, pickup_strict: true, own: true } });
+    expect(line(rows, 11)).toMatchObject({ reasons: ['over_limit'], limit: { pickup_threshold: 1000, pickup_strict: false, own: false } });
+    // Caro's own limit is 0: no limit for her, whatever the company's.
+    expect(line(rows, 12)).toMatchObject({ reasons: [], limit: { pickup_threshold: 0, own: true } });
+  });
+
+  test('a strict limit of their own stops that person; a looser or non-strict one does not', async () => {
+    const withSession = (limits) => {
+      database({ settings, users: USERS, limits, people: { 10: { last: open(7), collected: '900.00' } } });
+      const base = db.query.getMockImplementation();
+      db.query.mockImplementation(async (sql, params) => (/AS overdue/.test(sql)
+        ? [[{ id: 7, agent_user_id: 10, opened_at: '2026-11-27 09:00:00', opening_total: '500.00', overdue: 0 }]]
+        : base(sql, params)));
+    };
+    // The drawer holds 1,400.
+    withSession([{ user_id: 10, pickup_threshold: '1200.00', pickup_strict: 1 }]);
+    await expect(service.assertMayTakeCash(1, 10)).rejects.toMatchObject({ code: 'CASHIER_OVER_LIMIT' });
+    withSession([{ user_id: 10, pickup_threshold: '1200.00', pickup_strict: 0 }]);
+    await expect(service.assertMayTakeCash(1, 10)).resolves.toBeUndefined();
+    withSession([{ user_id: 10, pickup_threshold: '5000.00', pickup_strict: 1 }]);
+    await expect(service.assertMayTakeCash(1, 10)).resolves.toBeUndefined();
+  });
+
+  test('saving a limit: an amount of 0 or more, strict only with a limit; clearing goes back to the company\'s', async () => {
+    const saved = database({ settings });
+    await service.setUserLimit(1, 10, { pickup_threshold: 1500, pickup_strict: true }, 3);
+    expect(saved.find(/INSERT INTO cashier_user_limits/)[1]).toEqual([1, 10, 1500, 1, 3]);
+    const zero = database({ settings });
+    await service.setUserLimit(1, 10, { pickup_threshold: 0, pickup_strict: true }, 3);
+    expect(zero.find(/INSERT INTO cashier_user_limits/)[1]).toEqual([1, 10, 0, 0, 3]);
+    for (const bad of [-1, 'abc', 10.001, undefined]) {
+      await expect(service.setUserLimit(1, 10, { pickup_threshold: bad }, 3)).rejects.toMatchObject({ statusCode: 422 });
+    }
+    const cleared = database({ settings });
+    expect(await service.clearUserLimit(1, 10)).toEqual({ pickupThreshold: 1000, pickupStrict: false, own: false });
+    expect(cleared.find(/DELETE FROM cashier_user_limits WHERE organization_id = \? AND user_id = \?/)).toBeDefined();
+  });
+});
+

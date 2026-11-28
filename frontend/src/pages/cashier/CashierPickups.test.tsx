@@ -149,8 +149,8 @@ describe('CashierRulesBox', () => {
   it('a supervisor sets the limit and makes it strict', async () => {
     authedFetch.mockResolvedValue(rules());
     wrapPlain(<CashierRulesBox canEdit />);
-    await screen.findByLabelText('Cash limit per cashier');
-    fireEvent.change(screen.getByLabelText('Cash limit per cashier'), { target: { value: '5000' } });
+    await screen.findByLabelText('Cash limit for everyone else');
+    fireEvent.change(screen.getByLabelText('Cash limit for everyone else'), { target: { value: '5000' } });
     expect(screen.getByText(/Cash can still be taken/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox'));
     expect(screen.getByText(/cannot record another cash payment until a supervisor picks up cash/)).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('CashierRulesBox', () => {
   it('someone who is not a supervisor reads the rules and cannot change them', async () => {
     authedFetch.mockResolvedValue(rules({ pickup_threshold: 5000, pickup_strict: true }));
     wrapPlain(<CashierRulesBox canEdit={false} />);
-    expect(await screen.findByLabelText('Cash limit per cashier')).toBeDisabled();
+    expect(await screen.findByLabelText('Cash limit for everyone else')).toBeDisabled();
     expect(screen.getByRole('checkbox')).toBeChecked();
     expect(screen.getByRole('checkbox')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();

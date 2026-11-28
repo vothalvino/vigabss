@@ -200,6 +200,37 @@ describeDb('the money tie-out against a real database', () => {
     expect(report.cash.differences.unexplained).toBe(0);
   });
 
+  test('a cash limit set for one person stops that person at it when strict, and clearing it goes back to the company\'s', async () => {
+    const [[client]] = await db.query('SELECT id FROM clients WHERE organization_id = ? LIMIT 1', [ORG]);
+    const cash = () => api('post', '/payments', { client_id: client.id, amount: 5, currency: 'MXN', payment_method: 'cash', payment_date: today() });
+    const limit = (body) => api('put', `/cash-reconciliation/staff/${admin.userId}/limit`, body);
+    // The admin's cashier is open with about 610 in it; the company has no limit.
+    expect((await cash()).status).toBe(201);
+
+    const strict = await limit({ pickup_threshold: 100, pickup_strict: true });
+    expect(strict.status).toBe(200);
+    expect(strict.body.data).toEqual({ pickup_threshold: 100, pickup_strict: true, own: true });
+    const refused = await cash();
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe('CASHIER_OVER_LIMIT');
+    const line = (await api('get', '/cash-reconciliation/staff')).body.data.find(p => p.user_id === admin.userId);
+    expect(line).toMatchObject({ reasons: expect.arrayContaining(['over_limit']), limit: { pickup_threshold: 100, pickup_strict: true, own: true } });
+
+    // Not strict: reminded, not stopped.
+    expect((await limit({ pickup_threshold: 100, pickup_strict: false })).body.data.pickup_strict).toBe(false);
+    expect((await cash()).status).toBe(201);
+    // 0 is no limit for this person.
+    expect((await limit({ pickup_threshold: 0, pickup_strict: true })).body.data).toEqual({ pickup_threshold: 0, pickup_strict: false, own: true });
+    expect((await limit({ pickup_threshold: -5 })).status).toBe(422);
+
+    const cleared = await api('delete', `/cash-reconciliation/staff/${admin.userId}/limit`);
+    expect(cleared.body.data).toEqual({ pickup_threshold: 0, pickup_strict: false, own: false });
+    // Someone with no cashier in this organization has no limit to set.
+    expect((await limit({ pickup_threshold: 100 })).status).toBe(200);
+    expect((await api('put', '/cash-reconciliation/staff/999999/limit', { pickup_threshold: 100 })).status).toBe(404);
+    await api('delete', `/cash-reconciliation/staff/${admin.userId}/limit`);
+  });
+
   test('the Cashier page lists staff, never the login of a reseller or collector', async () => {
     const [[point]] = await db.query('SELECT id FROM resellers WHERE organization_id = ? LIMIT 1', [ORG]);
     const login = await insert('users', {
