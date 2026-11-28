@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.56 — 2026-11-28
+
 - **Fixed: backups could not be restored.** The backup was taken with the
   MariaDB dump tool, which writes values for calculated columns, and MySQL
   refuses to load those. Every backup the system made would have stopped
