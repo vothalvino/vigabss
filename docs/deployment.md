@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying VigaBSS 0.1.0-alpha.55 in production environments. Choose the deployment method that best fits your infrastructure.
+This guide covers deploying VigaBSS 0.1.0-alpha.56 in production environments. Choose the deployment method that best fits your infrastructure.
 
 > **Alpha release:** validate restore, upgrade, billing, and device automation
 > against a non-production deployment before serving customers.
@@ -27,7 +27,7 @@ This guide covers deploying VigaBSS 0.1.0-alpha.55 in production environments. C
 
 ## One-Line Installer (recommended)
 
-The fastest way to deploy VigaBSS 0.1.0-alpha.55 on a fresh Ubuntu/Debian server:
+The fastest way to deploy VigaBSS 0.1.0-alpha.56 on a fresh Ubuntu/Debian server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
@@ -752,7 +752,7 @@ sudo chown -R vigabss:vigabss /opt/vigabss
 
 ```ini
 [Unit]
-Description=VigaBSS 0.1.0-alpha.55
+Description=VigaBSS 0.1.0-alpha.56
 After=network.target mysql.service
 
 [Service]
@@ -1138,7 +1138,7 @@ than the real client IP, and the allowlist will not work as expected.
 
 ```bash
 curl https://isp.example.com/health
-# {"status":"ok","version":"0.1.0-alpha.55","uptime":3600,"relay":"standalone","timestamp":"..."}
+# {"status":"ok","version":"0.1.0-alpha.56","uptime":3600,"relay":"standalone","timestamp":"..."}
 
 curl -H "Authorization: Bearer $METRICS_TOKEN" http://app:3000/health?detail=true
 # Adds memory usage and DB latency. In production this needs METRICS_TOKEN;
@@ -1219,7 +1219,7 @@ Available metrics:
 
 ## Kubernetes Deployment
 
-Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.55.
+Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.56.
 
 The checked-in raw manifests use the `vigabss` namespace, resource names,
 selectors, and PVC name. On a running cluster treat these as stable
@@ -1884,7 +1884,7 @@ JOB_QUEUE_CONCURRENCY=5
 
 ## Helm Chart Deployment
 
-VigaBSS 0.1.0-alpha.55 ships a production-grade Helm chart under `charts/vigabss/` that
+VigaBSS 0.1.0-alpha.56 ships a production-grade Helm chart under `charts/vigabss/` that
 templates every Kubernetes resource (Namespace, ConfigMap, Secret, Deployment,
 Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 
@@ -1924,7 +1924,7 @@ chmod 600 values-secret.yaml
 # Install into the vigabss namespace (creates it automatically)
 helm install vigabss oci://ghcr.io/vothalvino/charts/vigabss \
   --namespace vigabss --create-namespace \
-  --version 0.1.0-alpha.55 \
+  --version 0.1.0-alpha.56 \
   -f values-secret.yaml
 ```
 
@@ -1956,7 +1956,7 @@ replicaCount: 3
 
 image:
   repository: ghcr.io/vothalvino/vigabss
-  tag: "0.1.0-alpha.55"
+  tag: "0.1.0-alpha.56"
 
 ingress:
   hostname: isp.example.com
@@ -2026,9 +2026,9 @@ kubectl rollout status -n vigabss deployment/vigabss --timeout=180s
 ```bash
 helm upgrade vigabss oci://ghcr.io/vothalvino/charts/vigabss \
   --namespace vigabss \
-  --version 0.1.0-alpha.55 \
+  --version 0.1.0-alpha.56 \
   -f my-values.yaml \
-  --set-string image.tag=0.1.0-alpha.55
+  --set-string image.tag=0.1.0-alpha.56
 ```
 
 ### Uninstalling
@@ -2075,7 +2075,7 @@ spec:
 
   source:
     repoURL: https://github.com/vothalvino/vigabss
-    targetRevision: main          # or a tag, e.g. v0.1.0-alpha.55
+    targetRevision: main          # or a tag, e.g. v0.1.0-alpha.56
     path: charts/vigabss
     helm:
       valueFiles:
@@ -2085,7 +2085,7 @@ spec:
       # Fine-grained overrides (avoid plain-text secrets here):
       parameters:
         - name: image.tag
-          value: "0.1.0-alpha.55"
+          value: "0.1.0-alpha.56"
         - name: ingress.hostname
           value: isp.example.com
         - name: ingress.tls.enabled
@@ -2184,6 +2184,6 @@ To cut a new chart release, bump `version` in `charts/vigabss/Chart.yaml`
 (and `appVersion` if the app changed) and push a matching git tag:
 
 ```bash
-git tag v0.1.0-alpha.55
-git push origin v0.1.0-alpha.55
+git tag v0.1.0-alpha.56
+git push origin v0.1.0-alpha.56
 ```
