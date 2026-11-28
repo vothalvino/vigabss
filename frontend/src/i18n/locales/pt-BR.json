@@ -2739,9 +2739,9 @@
       }
     },
     "rules": {
-      "title": "Regras de retirada de dinheiro",
-      "help": "O dinheiro fica no caixa entre os turnos. Ele é entregue a um supervisor somente quando o caixa passa deste limite.",
-      "threshold": "Limite de dinheiro por caixa",
+      "title": "Limite de dinheiro da empresa",
+      "help": "O dinheiro fica no caixa entre os turnos. Ele é entregue a um supervisor somente quando o caixa passa do seu limite. Este é o limite de quem não tem um próprio; abra uma pessoa da lista para dar o dela.",
+      "threshold": "Limite de dinheiro para os demais",
       "strict": "Rígido: impedir que um caixa acima do limite receba mais dinheiro",
       "offHint": "Com limite 0 ninguém é lembrado de entregar dinheiro.",
       "remindHint": "Acima do limite, o caixa e os supervisores são lembrados. Ainda é possível receber dinheiro.",
@@ -12321,5 +12321,21 @@
     "paymentDate": "Data do pagamento",
     "createdDate": "Criado",
     "openedDate": "Aberto"
+  },
+  "cashierLimit": {
+    "title": "Limite de dinheiro de {{name}}",
+    "amount": "Dinheiro que o caixa pode ter",
+    "strict": "Parar recebimentos em dinheiro no limite até uma retirada",
+    "save": "Salvar limite",
+    "useDefault": "Usar o limite da empresa",
+    "ownNote": "Este limite foi definido para esta pessoa.",
+    "defaultNote": "Esta pessoa segue o limite da empresa ({{amount}}). Salve um limite aqui para dar o dela.",
+    "none": "nenhum",
+    "hint": "Ao chegar a este valor, a pessoa é lembrada de entregar dinheiro a um supervisor. Com a caixa marcada, não pode registrar outro recebimento em dinheiro até que parte seja retirada.",
+    "offHint": "0 significa sem limite para esta pessoa.",
+    "saved": "Limite salvo.",
+    "reset": "Agora segue o limite da empresa.",
+    "failed": "Não foi possível salvar o limite.",
+    "invalid": "Informe um valor de 0 ou mais."
   }
 }

@@ -35,6 +35,59 @@ async function rules(orgId, exec = db.query.bind(db)) {
 }
 
 /**
+ * The cash limit of each of these people (migration 043): their own when a
+ * supervisor set one, else the organization's. `own` says which.
+ */
+async function limitsFor(orgId, userIds, orgRules = null) {
+  const base = orgRules || await rules(orgId);
+  const ids = [...new Set((userIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  const out = new Map();
+  for (const id of ids) out.set(id, { pickupThreshold: base.pickupThreshold, pickupStrict: base.pickupStrict, own: false });
+  if (!ids.length) return out;
+  const [rows] = await db.query(
+    `SELECT user_id, pickup_threshold, pickup_strict FROM cashier_user_limits
+      WHERE organization_id = ? AND user_id IN (${ids.map(() => '?').join(', ')})`,
+    [orgId, ...ids],
+  );
+  for (const r of rows || []) {
+    out.set(Number(r.user_id), { pickupThreshold: Number(r.pickup_threshold), pickupStrict: Number(r.pickup_strict) === 1, own: true });
+  }
+  return out;
+}
+
+/** One person's cash limit. */
+async function limitFor(orgId, userId, orgRules = null) {
+  return (await limitsFor(orgId, [userId], orgRules)).get(Number(userId))
+    || { pickupThreshold: 0, pickupStrict: false, own: false };
+}
+
+/**
+ * A supervisor sets one person's cash limit and whether it is strict.
+ * `threshold` 0 means no limit for that person, whatever the organization's.
+ */
+async function setUserLimit(orgId, userId, { pickup_threshold: threshold, pickup_strict: strict }, actorId) {
+  const amount = Number(threshold);
+  if (threshold === undefined || threshold === null || !Number.isFinite(amount) || amount < 0 || amount > 9999999999.99
+      || Math.round(amount * 100) !== amount * 100) {
+    throw new ValidationError('pickup_threshold must be an amount of 0 or more with at most two decimals');
+  }
+  await db.query(
+    `INSERT INTO cashier_user_limits (organization_id, user_id, pickup_threshold, pickup_strict, updated_by)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE pickup_threshold = VALUES(pickup_threshold), pickup_strict = VALUES(pickup_strict),
+                             updated_by = VALUES(updated_by)`,
+    [orgId, userId, amount, strict && amount > 0 ? 1 : 0, actorId ?? null],
+  );
+  return limitFor(orgId, userId);
+}
+
+/** Back to the organization's setting for this person. */
+async function clearUserLimit(orgId, userId) {
+  await db.query('DELETE FROM cashier_user_limits WHERE organization_id = ? AND user_id = ?', [orgId, userId]);
+  return limitFor(orgId, userId);
+}
+
+/**
  * A supervisor sets when cash should be handed in and whether that is
  * enforced. The same keys are on the Settings page; this is the door for
  * whoever supervises the cashiers.
@@ -338,7 +391,9 @@ async function myOpenSession(orgId, userId) {
   );
   const session = rows[0];
   if (!session) return null;
-  const { maxOpenHours, pickupThreshold, pickupStrict } = await rules(orgId);
+  const orgRules = await rules(orgId);
+  const { maxOpenHours } = orgRules;
+  const { pickupThreshold, pickupStrict } = await limitFor(orgId, userId, orgRules);
   const state = await drawer(orgId, session);
   const minutes = Number(session.minutes_open) || 0;
   return {
@@ -403,7 +458,8 @@ async function addStaffNames(data) {
  * count did not match and nobody has reviewed yet.
  */
 async function attention(orgId) {
-  const { maxOpenHours, pickupThreshold, pickupStrict, tolerance } = await rules(orgId);
+  const orgRules = await rules(orgId);
+  const { maxOpenHours, pickupThreshold, pickupStrict, tolerance } = orgRules;
   const [open] = await db.query(
     `SELECT s.id, s.agent_user_id, s.opened_at, s.opening_total, s.opening_expected,
             TIMESTAMPDIFF(HOUR, s.opened_at, NOW()) AS hours_open,
@@ -429,9 +485,11 @@ async function attention(orgId) {
       WHERE organization_id = ? AND status = 'closed' AND deleted_at IS NULL`,
     [orgId],
   );
+  const limits = await limitsFor(orgId, (open || []).map((r) => r.agent_user_id), orgRules);
   const rows = (open || []).map((r) => {
     const opening = round2(r.opening_total || 0);
     return {
+      pickup_threshold: limits.get(Number(r.agent_user_id))?.pickupThreshold ?? pickupThreshold,
       id: Number(r.id), agent_user_id: Number(r.agent_user_id), agent_name: names.get(Number(r.agent_user_id)) || null,
       opened_at: r.opened_at, hours_open: Number(r.hours_open) || 0,
       cash_on_hand: round2(opening + Number(r.collected) - Number(r.handed_in)),
@@ -444,7 +502,8 @@ async function attention(orgId) {
     pickup_threshold: pickupThreshold,
     pickup_strict: pickupStrict,
     overdue_open: rows.filter((r) => r.hours_open >= maxOpenHours),
-    over_threshold: pickupThreshold > 0 ? rows.filter((r) => toCents(r.cash_on_hand) >= toCents(pickupThreshold)) : [],
+    // Each cashier against its own person's limit.
+    over_threshold: rows.filter((r) => r.pickup_threshold > 0 && toCents(r.cash_on_hand) >= toCents(r.pickup_threshold)),
     opening_differences: rows.filter((r) => !matches(r.opening_difference, tolerance)),
     awaiting_review: Number(review?.n) || 0,
   };
@@ -475,7 +534,8 @@ async function attention(orgId) {
  * answers 404.
  */
 async function staffOverview(orgId, { onlyUserId = null } = {}) {
-  const { maxOpenHours, pickupThreshold, tolerance } = await rules(orgId);
+  const orgRules = await rules(orgId);
+  const { maxOpenHours, tolerance } = orgRules;
   const one = onlyUserId === null || onlyUserId === undefined ? '' : 'AND s.agent_user_id = ?';
   const [people] = await db.query(
     `SELECT s.agent_user_id, MAX(s.id) AS last_session_id,
@@ -501,9 +561,12 @@ async function staffOverview(orgId, { onlyUserId = null } = {}) {
   );
   const lastById = new Map((sessions || []).map((r) => [Number(r.id), r]));
   const names = await staffNames(people.map((r) => r.agent_user_id));
+  const limits = await limitsFor(orgId, people.map((r) => r.agent_user_id), orgRules);
 
   const rows = [];
   for (const person of people) {
+    const limit = limits.get(Number(person.agent_user_id));
+    const pickupThreshold = limit.pickupThreshold;
     const last = lastById.get(Number(person.last_session_id));
     if (!last) continue;
     const open = last.status === 'open';
@@ -546,6 +609,8 @@ async function staffOverview(orgId, { onlyUserId = null } = {}) {
       current,
       awaiting_review: awaitingReview,
       disputed,
+      // This person's cash limit; own = set for them, not the organization's.
+      limit: { pickup_threshold: limit.pickupThreshold, pickup_strict: limit.pickupStrict, own: limit.own },
       status: reasons.length ? 'mismatch' : 'ok',
       reasons,
     });
@@ -574,11 +639,17 @@ async function staffDetail(orgId, userId, { full = false } = {}) {
     [orgId, userId],
   );
   await addStaffNames(sessions || []);
-  const { maxOpenHours, pickupThreshold, pickupStrict } = await rules(orgId);
+  const orgRules = await rules(orgId);
+  const { maxOpenHours } = orgRules;
+  const { pickupThreshold, pickupStrict } = await limitFor(orgId, userId, orgRules);
   return {
     person,
     scope: full ? 'full' : 'supervisor',
-    rules: { max_open_hours: maxOpenHours, pickup_threshold: pickupThreshold, pickup_strict: pickupStrict },
+    rules: {
+      max_open_hours: maxOpenHours, pickup_threshold: pickupThreshold, pickup_strict: pickupStrict,
+      // What this person would follow with no limit of their own.
+      default_pickup_threshold: orgRules.pickupThreshold, default_pickup_strict: orgRules.pickupStrict,
+    },
     sessions: sessions || [],
   };
 }
@@ -595,7 +666,9 @@ async function staffDetail(orgId, userId, { full = false } = {}) {
  */
 async function assertMayTakeCash(orgId, userId) {
   if (userId === null || userId === undefined) return;
-  const { maxOpenHours, pickupThreshold, pickupStrict } = await rules(orgId);
+  const orgRules = await rules(orgId);
+  const { maxOpenHours } = orgRules;
+  const { pickupThreshold, pickupStrict } = await limitFor(orgId, userId, orgRules);
   const [rows] = await db.query(
     `SELECT id, agent_user_id, opened_at, opening_total,
             opened_at <= DATE_SUB(NOW(), INTERVAL ? HOUR) AS overdue
@@ -815,5 +888,5 @@ module.exports = {
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
   myOpenSession, attention, assertMayTakeCash, assertRequestMayTakeCash, rules, setPickupRules, matches, addStaffNames,
   openingExpectation, drawer, createPickup, confirmPickup, cancelPickup, listPickups,
-  staffNames,
+  staffNames, limitsFor, limitFor, setUserLimit, clearUserLimit,
 };

@@ -17,7 +17,6 @@
   "cashReconciliation.js:approveSessionSchema",
   "cashReconciliation.js:closeSessionSchema",
   "cashReconciliation.js:disputeSessionSchema",
-  "cashReconciliation.js:pickupRulesSchema",
   "cfdi.js:cancel",
   "cfdi.js:generateXml",
   "cfdi.js:stamp",

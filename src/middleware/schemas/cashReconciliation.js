@@ -35,7 +35,13 @@ const pickupRulesSchema = {
   pickup_strict: { type: 'boolean' },
 };
 
+// One person's cash limit, set by a supervisor.
+const userLimitSchema = {
+  pickup_threshold: { type: 'number', required: true, min: 0, max: 9999999999.99 },
+  pickup_strict: { type: 'boolean' },
+};
+
 module.exports = {
   openSessionSchema, closeSessionSchema, approveSessionSchema, disputeSessionSchema,
-  pickupSchema, pickupRulesSchema,
+  pickupSchema, pickupRulesSchema, userLimitSchema,
 };

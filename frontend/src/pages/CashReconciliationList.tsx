@@ -81,6 +81,8 @@ export interface CashierPerson {
   } | null;
   awaiting_review: number;
   disputed: number;
+  /** This person's cash limit; own = set for them, not the company's. */
+  limit?: { pickup_threshold: number; pickup_strict: boolean; own: boolean };
   status: 'ok' | 'mismatch';
   reasons: CashierReason[];
 }

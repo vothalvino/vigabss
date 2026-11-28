@@ -8,11 +8,11 @@ const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission, userHasPermission } = require('../middleware/rbac');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, AppError } = require('../utils/errors');
 const { validate } = require('../middleware/validate');
 const {
   openSessionSchema, closeSessionSchema, approveSessionSchema, disputeSessionSchema,
-  pickupSchema, pickupRulesSchema,
+  pickupSchema, pickupRulesSchema, userLimitSchema,
 } = require('../middleware/schemas/cashReconciliation');
 const cashReconciliationService = require('../services/cashReconciliationService');
 const auditLog = require('../services/auditLog');
@@ -76,6 +76,50 @@ router.get('/staff/:userId', requirePermission(...ANY_CASHIER_PERMISSION), async
     const admin = isCompanyAdmin(req);
     if (!own && !admin && !await isSupervisor(req)) throw new NotFoundError('cash_reconciliation_sessions');
     res.json({ data: await cashReconciliationService.staffDetail(req.orgId, userId, { full: admin }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A supervisor sets one person's cash limit and whether it is strict, or
+// puts them back on the organization's setting. Never their own, except the
+// company's admin: the limit is a control on the person, not theirs to set.
+async function limitTarget(req) {
+  const userId = parseInt(req.params.userId, 10);
+  if (!Number.isInteger(userId) || userId < 1) throw new NotFoundError('cash_reconciliation_sessions');
+  if (userId === Number(req.user.id) && !isCompanyAdmin(req)) {
+    throw new AppError('Your own cash limit is set by another supervisor.', 403, 'OWN_CASHIER');
+  }
+  // Only a person who has a cashier in this organization (404 otherwise).
+  const [person] = await cashReconciliationService.staffOverview(req.orgId, { onlyUserId: userId });
+  if (!person) throw new NotFoundError('cash_reconciliation_sessions');
+  return userId;
+}
+const limitBody = (limit) => ({ pickup_threshold: limit.pickupThreshold, pickup_strict: limit.pickupStrict, own: limit.own });
+
+router.put('/staff/:userId/limit', requirePermission('cash_reconciliation.approve'), validate(userLimitSchema), async (req, res, next) => {
+  try {
+    const userId = await limitTarget(req);
+    const saved = await cashReconciliationService.setUserLimit(req.orgId, userId, req.body, req.user.id);
+    await auditLog.log({
+      userId: req.user.id, organizationId: req.orgId, action: 'update',
+      tableName: 'cashier_user_limits', recordId: userId, newValues: limitBody(saved),
+    });
+    res.json({ data: limitBody(saved) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/staff/:userId/limit', requirePermission('cash_reconciliation.approve'), async (req, res, next) => {
+  try {
+    const userId = await limitTarget(req);
+    const now = await cashReconciliationService.clearUserLimit(req.orgId, userId);
+    await auditLog.log({
+      userId: req.user.id, organizationId: req.orgId, action: 'delete',
+      tableName: 'cashier_user_limits', recordId: userId, newValues: limitBody(now),
+    });
+    res.json({ data: limitBody(now) });
   } catch (err) {
     next(err);
   }

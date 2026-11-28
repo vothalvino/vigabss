@@ -224,6 +224,11 @@ supervisor who recorded it cancels it while it waits
 (`POST /pickups/:id/cancel`). `GET /rules` and `GET /opening` are read by
 anyone who uses the cashier.
 
+The cash limit and its strict switch are per person (migration 043):
+`.approve` sets one person's (`PUT /staff/:userId/limit`) or puts them back on
+the organization's (`DELETE`), never their own except the organization's admin
+(403 `OWN_CASHIER`). A person with no limit of their own follows `PUT /rules`.
+
 The cash checks also apply to `POST /client-groups/:id/pay` with
 `payment_method: cash`. They apply to a person only: a request made with an
 API token is another system, which has no drawer. Someone who may record

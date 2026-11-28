@@ -2739,9 +2739,9 @@
       }
     },
     "rules": {
-      "title": "Reglas de retiro de efectivo",
-      "help": "El efectivo se queda en caja entre turnos. Se entrega a un supervisor solo cuando la caja supera este límite.",
-      "threshold": "Límite de efectivo por caja",
+      "title": "Límite de efectivo de la empresa",
+      "help": "El efectivo se queda en caja entre turnos. Se entrega a un supervisor solo cuando la caja supera su límite. Este es el límite de quien no tiene uno propio; abre a una persona de la lista para darle el suyo.",
+      "threshold": "Límite de efectivo para los demás",
       "strict": "Estricto: impedir que una caja sobre el límite reciba más efectivo",
       "offHint": "Con un límite de 0 no se recuerda a nadie que entregue efectivo.",
       "remindHint": "Sobre el límite, se le recuerda a la caja y a los supervisores. Aún se puede recibir efectivo.",
@@ -12321,5 +12321,21 @@
     "paymentDate": "Fecha de pago",
     "createdDate": "Creado",
     "openedDate": "Abierta"
+  },
+  "cashierLimit": {
+    "title": "Límite de efectivo de {{name}}",
+    "amount": "Efectivo que puede tener la caja",
+    "strict": "Detener cobros en efectivo al llegar al límite hasta un retiro",
+    "save": "Guardar límite",
+    "useDefault": "Usar el límite de la empresa",
+    "ownNote": "Este límite se fijó para esta persona.",
+    "defaultNote": "Esta persona sigue el límite de la empresa ({{amount}}). Guarda aquí un límite para darle el suyo.",
+    "none": "ninguno",
+    "hint": "Al llegar a este monto se le recuerda entregar efectivo a un supervisor. Con la casilla marcada no puede registrar otro cobro en efectivo hasta que se retire una parte.",
+    "offHint": "0 significa sin límite para esta persona.",
+    "saved": "Límite guardado.",
+    "reset": "Ahora sigue el límite de la empresa.",
+    "failed": "No se pudo guardar el límite.",
+    "invalid": "Escribe un monto de 0 o más."
   }
 }
