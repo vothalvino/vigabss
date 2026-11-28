@@ -132,17 +132,19 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
           ))}
         </div>
       </div>
-      {/* overdue (emphasis) — admin/billing only, jumps to overdue invoices */}
+      {/* overdue (emphasis) — admin/billing only, jumps to overdue invoices.
+          It is the highlighted tile, so it takes the theme colour (console.css
+          .fi-kpi.accent); amber stays for states that mean a warning. */}
       {(role === 'admin' || role === 'billing') && (
         <div className={linkClass('/invoices?status=overdue', ' accent')} {...linkProps('/invoices?status=overdue', 'Overdue — open invoice list filtered to overdue')}>
           <div className="fi-kpi-top">
-            <span className="fi-kpi-label" style={{ color: 'var(--warning)' }}>{t('ui.consoleWidgets.overdue')}</span>
-            <span className="fi-dot fi-live" style={{ background: 'var(--warning)' }} />
+            <span className="fi-kpi-label">{t('ui.consoleWidgets.overdue')}</span>
+            <span className="fi-dot fi-live" style={{ background: 'var(--accent)' }} />
           </div>
-          <div className="fi-kpi-num" style={{ color: 'var(--warning)' }}>
-            {k.overdue.value}<span className="unit" style={{ color: 'var(--warning)' }}>${k.overdue.amount}</span>
+          <div className="fi-kpi-num">
+            {k.overdue.value}<span className="unit">${k.overdue.amount}</span>
           </div>
-          <span className="fi-kpi-label" style={{ color: 'var(--warning)' }}>{k.overdue.note}</span>
+          <span className="fi-kpi-label">{k.overdue.note}</span>
         </div>
       )}
     </div>

@@ -5,6 +5,10 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **The Overdue card on the dashboard follows the theme colour.** It stayed
+  amber when the green theme was chosen. Site tiles keep amber and red,
+  because there the colour means devices are offline.
+
 ## 0.1.0-alpha.56 — 2026-11-28
 
 - **Fixed: backups could not be restored.** The backup was taken with the
