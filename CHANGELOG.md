@@ -5,6 +5,14 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Changed: the Cashier page shows one line per person.** Each line has the
+  cash in that person's drawer and a dot: green when all is well, red when a
+  count did not match, the cashier was opened with a different amount, it is
+  over the cash limit, or it has been open too long. A line opens the person's
+  page. The administrator sees a person's whole history there; a supervisor
+  sees the open cashier and the counts still to review; anyone else sees only
+  their own cashiers.
+
 - **Fixed: "Update now" works on a newly installed server.** The installer now
   turns on the update agent that Settings, Version needs. Before, the screen
   said the agent had not reported in and gave no way to turn it on. A server

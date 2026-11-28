@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
-import { CASHIER_ATTENTION_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
+import { CASHIER_ATTENTION_KEY, CASHIER_STAFF_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
 
 interface Rules { pickup_threshold: number; pickup_strict: boolean; match_tolerance: number; max_open_hours: number }
 const KEY = ['cashier-rules'] as const;
@@ -52,7 +52,7 @@ export function CashierRulesBox({ canEdit }: { canEdit: boolean }) {
         throw new Error(body.error?.message || t('cashReconciliation.rules.failed'));
       }
       setMsg({ ok: true, text: t('cashReconciliation.rules.saved') });
-      await Promise.all([KEY, MY_CASHIER_KEY, CASHIER_ATTENTION_KEY].map((queryKey) => qc.invalidateQueries({ queryKey })));
+      await Promise.all([KEY, MY_CASHIER_KEY, CASHIER_ATTENTION_KEY, CASHIER_STAFF_KEY].map((queryKey) => qc.invalidateQueries({ queryKey })));
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : t('cashReconciliation.rules.failed') });
     } finally {

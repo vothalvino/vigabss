@@ -40,6 +40,8 @@ export interface CashierAttentionRow {
 
 export const MY_CASHIER_KEY = ['my-cashier'] as const;
 export const CASHIER_ATTENTION_KEY = ['cashier-attention'] as const;
+/** The one-line-per-person list and each person's page. */
+export const CASHIER_STAFF_KEY = ['cashier-staff'] as const;
 const FIVE_MINUTES = 5 * 60 * 1000;
 
 async function read<T>(path: string): Promise<T | null> {

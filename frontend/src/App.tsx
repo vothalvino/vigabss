@@ -191,6 +191,7 @@ const PaymentTransactionList = lazy(() => import('@/pages/PaymentTransactionList
 const RecurringPaymentProfileList = lazy(() => import('@/pages/RecurringPaymentProfileList').then((m) => ({ default: m.RecurringPaymentProfileList })));
 const PaymentPlanList = lazy(() => import('@/pages/PaymentPlanList').then((m) => ({ default: m.PaymentPlanList })));
 const CashReconciliationList = lazy(() => import('@/pages/CashReconciliationList').then((m) => ({ default: m.CashReconciliationList })));
+const CashierPersonPage = lazy(() => import('@/pages/cashier/CashierPersonPage').then((m) => ({ default: m.CashierPersonPage })));
 const MoneyTieOut = lazy(() => import('@/pages/tieout/MoneyTieOut').then((m) => ({ default: m.MoneyTieOut })));
 const RefundRequestList = lazy(() => import('@/pages/RefundRequestList').then((m) => ({ default: m.RefundRequestList })));
 const BillingDisputeList = lazy(() => import('@/pages/BillingDisputeList').then((m) => ({ default: m.BillingDisputeList })));
@@ -446,6 +447,7 @@ export function App() {
                 <Route path="recurring-payment-profiles" element={<RecurringPaymentProfileList />} />
                 <Route path="payment-plans" element={<PaymentPlanList />} />
                 <Route path="cash-reconciliation" element={<CashReconciliationList />} />
+                <Route path="cash-reconciliation/staff/:userId" element={<CashierPersonPage />} />
                 <Route path="money-tieout" element={<MoneyTieOut />} />
                 <Route path="refund-requests" element={<RefundRequestList />} />
                 <Route path="billing-disputes" element={<BillingDisputeList />} />

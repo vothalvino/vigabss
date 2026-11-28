@@ -175,6 +175,7 @@ const PATH_PARAMS = {
   '/point-zones/:id': 'point_zones',
   '/point-zones/points/:resellerId': 'resellers',
   '/carriers/:userId': 'users',
+  '/cash-reconciliation/staff/:userId': 'users',
   '/support/kb/:id': 'kb_articles',
   '/support/channels/:channel': { table: 'support_channel_configs', column: 'channel' },
   '/wg-peers/:id': 'wg_user_peers',

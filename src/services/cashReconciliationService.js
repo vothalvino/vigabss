@@ -451,6 +451,129 @@ async function attention(orgId) {
 }
 
 /**
+ * One line per person who has a cashier in this organization: what their
+ * drawer holds and whether anything about it needs a look.
+ *
+ * The amount is live for an open cashier (opening + cash taken - confirmed
+ * pickups). Cash stays in the drawer between shifts, so for a closed one it is
+ * what the last close counted.
+ *
+ * `reasons` is empty when all is well (the green dot). Otherwise it names
+ * what is wrong (the red dot):
+ *   closing_difference  a count of theirs did not match and is waiting for a
+ *                       review, or was disputed and is not settled
+ *   opening_difference  the open cashier was opened with another amount than
+ *                       it had been closed with
+ *   over_limit          the open cashier holds the pickup threshold or more
+ *   open_too_long       the open cashier has been open past the allowed hours
+ *
+ * `onlyUserId` narrows it to one person (their own line, or a detail page).
+ */
+async function staffOverview(orgId, { onlyUserId = null } = {}) {
+  const { maxOpenHours, pickupThreshold, tolerance } = await rules(orgId);
+  const one = onlyUserId === null || onlyUserId === undefined ? '' : 'AND s.agent_user_id = ?';
+  const [people] = await db.query(
+    `SELECT s.agent_user_id, MAX(s.id) AS last_session_id,
+            SUM(s.status = 'closed') AS awaiting_review,
+            SUM(s.status = 'disputed') AS disputed
+       FROM cash_reconciliation_sessions s
+      WHERE s.organization_id = ? AND s.deleted_at IS NULL ${one}
+      GROUP BY s.agent_user_id
+      ORDER BY s.agent_user_id
+      LIMIT 500`,
+    one ? [orgId, onlyUserId] : [orgId],
+  );
+  if (!people || !people.length) return [];
+  const lastIds = people.map((r) => Number(r.last_session_id));
+  const [sessions] = await db.query(
+    `SELECT s.id, s.agent_user_id, s.status, s.opened_at, s.closed_at, s.opening_total, s.opening_expected,
+            s.counted_total, TIMESTAMPDIFF(HOUR, s.opened_at, NOW()) AS hours_open
+       FROM cash_reconciliation_sessions s
+      WHERE s.organization_id = ? AND s.deleted_at IS NULL AND s.id IN (${lastIds.map(() => '?').join(', ')})`,
+    [orgId, ...lastIds],
+  );
+  const lastById = new Map((sessions || []).map((r) => [Number(r.id), r]));
+  const names = await staffNames(people.map((r) => r.agent_user_id));
+
+  const rows = [];
+  for (const person of people) {
+    const last = lastById.get(Number(person.last_session_id));
+    if (!last) continue;
+    const open = last.status === 'open';
+    const awaitingReview = Number(person.awaiting_review) || 0;
+    const disputed = Number(person.disputed) || 0;
+    const reasons = [];
+    let cashOnHand = null;
+    let current = null;
+    if (open) {
+      const state = await drawer(orgId, last);
+      cashOnHand = state.cashOnHand;
+      const hoursOpen = Number(last.hours_open) || 0;
+      const openingDifference = last.opening_expected === null || last.opening_expected === undefined
+        ? 0 : round2(state.opening - Number(last.opening_expected));
+      current = {
+        session_id: Number(last.id), opened_at: last.opened_at, hours_open: hoursOpen,
+        opening_total: state.opening,
+        opening_expected: last.opening_expected === null || last.opening_expected === undefined ? null : round2(last.opening_expected),
+        opening_difference: openingDifference,
+        collected_total: state.collected, pickups_total: state.handedIn,
+        pending_pickups: state.pending, pending_pickups_total: state.pendingTotal,
+      };
+      if (!matches(openingDifference, tolerance)) reasons.push('opening_difference');
+      if (pickupThreshold > 0 && toCents(cashOnHand) >= toCents(pickupThreshold)) reasons.push('over_limit');
+      if (hoursOpen >= maxOpenHours) reasons.push('open_too_long');
+    } else if (last.counted_total !== null && last.counted_total !== undefined) {
+      cashOnHand = round2(last.counted_total);
+    }
+    if (awaitingReview + disputed > 0) reasons.unshift('closing_difference');
+    rows.push({
+      user_id: Number(person.agent_user_id),
+      name: names.get(Number(person.agent_user_id)) || null,
+      open,
+      cash_on_hand: cashOnHand,
+      last_session_id: Number(last.id),
+      last_closed_at: open ? null : last.closed_at,
+      current,
+      awaiting_review: awaitingReview,
+      disputed,
+      status: reasons.length ? 'mismatch' : 'ok',
+      reasons,
+    });
+  }
+  // What needs a look comes first, then by name.
+  rows.sort((a, b) => (b.reasons.length ? 1 : 0) - (a.reasons.length ? 1 : 0)
+    || String(a.name || '').localeCompare(String(b.name || '')) || a.user_id - b.user_id);
+  return rows;
+}
+
+/**
+ * One person's cashier page. `full` (the company's admin, or the person
+ * themself) lists every cashier they have had, newest first. Otherwise (a
+ * supervisor) only the ones a supervisor acts on: the open one, and the counts
+ * that did not match and are not settled.
+ */
+async function staffDetail(orgId, userId, { full = false } = {}) {
+  const [person] = await staffOverview(orgId, { onlyUserId: userId });
+  if (!person) throw new NotFoundError('cash_reconciliation_sessions');
+  const [sessions] = await db.query(
+    `SELECT * FROM cash_reconciliation_sessions
+      WHERE organization_id = ? AND agent_user_id = ? AND deleted_at IS NULL
+        ${full ? '' : "AND status IN ('open', 'closed', 'disputed')"}
+      ORDER BY id DESC
+      LIMIT 200`,
+    [orgId, userId],
+  );
+  await addStaffNames(sessions || []);
+  const { maxOpenHours, pickupThreshold, pickupStrict } = await rules(orgId);
+  return {
+    person,
+    scope: full ? 'full' : 'supervisor',
+    rules: { max_open_hours: maxOpenHours, pickup_threshold: pickupThreshold, pickup_strict: pickupStrict },
+    sessions: sessions || [],
+  };
+}
+
+/**
  * Before a person records a cash payment:
  *  - they need an open cashier. Cash taken with none open would go into a
  *    drawer that no count expects it in;
@@ -677,6 +800,8 @@ async function getSessionDetail(sessionId, orgId) {
 }
 
 module.exports = {
+  staffOverview,
+  staffDetail,
   openSession, closeSession, approveSession, disputeSession, getSessionDetail,
   myOpenSession, attention, assertMayTakeCash, assertRequestMayTakeCash, rules, setPickupRules, matches, addStaffNames,
   openingExpectation, drawer, createPickup, confirmPickup, cancelPickup, listPickups,

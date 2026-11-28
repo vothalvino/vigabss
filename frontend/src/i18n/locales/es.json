@@ -2648,6 +2648,47 @@
     "signOutAnyway": "Salir de todos modos",
     "goToCashier": "Ir a mi caja"
   },
+  "cashierStaff": {
+    "dot": {
+      "ok": "Todo en orden",
+      "mismatch": "Requiere revisión"
+    },
+    "allGood": "Todo en orden",
+    "needLook_one": "{{count}} requiere revisión",
+    "needLook_other": "{{count}} requieren revisión",
+    "nobody": "Nadie ha abierto una caja todavía.",
+    "view": "Ver",
+    "openSince": "Abierta desde {{when}}",
+    "closedAt": "Cerrada {{when}}",
+    "notFound": "No se encontró esta caja, o no tienes permiso para verla.",
+    "columns": {
+      "person": "Persona",
+      "cashier": "Caja",
+      "cash": "Efectivo en la caja",
+      "look": "Estado"
+    },
+    "reasons": {
+      "closing_difference_one": "{{count}} corte no cuadró",
+      "closing_difference_other": "{{count}} cortes no cuadraron",
+      "opening_difference": "Abrió con {{amount}} de diferencia respecto al último cierre",
+      "over_limit": "Por encima del límite de efectivo",
+      "open_too_long": "Abierta desde hace {{hours}} horas"
+    },
+    "inDrawerNow": "Efectivo en la caja ahora",
+    "inDrawerLastCount": "Efectivo en la caja (último corte)",
+    "facts": {
+      "openedAt": "Abierta",
+      "opening": "Contado al abrir",
+      "lastClose": "Contado en el último cierre",
+      "collected": "Efectivo cobrado desde entonces",
+      "pickedUp": "Retirado por supervisores",
+      "pendingPickups": "Retiros por confirmar",
+      "limit": "Límite de efectivo"
+    },
+    "history": "Todas las cajas de esta persona",
+    "toReview": "Caja abierta y cortes por revisar",
+    "supervisorNote": "Los cortes que cuadraron o ya se resolvieron solo los ve el administrador."
+  },
   "cashReconciliation": {
     "title": "Corte de caja",
     "openSession": "Abrir caja",
