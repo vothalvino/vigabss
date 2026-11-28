@@ -19,8 +19,9 @@
 // Usage:  node src/scripts/backup.js
 //         npm run backup
 //
-// Requires: mysqldump binary in PATH (the production image installs
-// default-mysql-client; see Dockerfile).
+// Requires: Oracle's mysqldump in PATH (the production image copies it from
+// the MySQL image; see Dockerfile). The MariaDB client's dump writes values
+// for generated columns, which MySQL will not load.
 //
 // Failure honesty: the dump runs as a direct spawn (no shell pipeline) with
 // gzip done in-process, because the previous `execSync('mysqldump … | gzip >
@@ -67,6 +68,11 @@ function runDump({ host, port, user, password, database, filepath }) {
     // Without this, mysqldump 8+ needs the global PROCESS privilege to dump
     // tablespace info — which the app's DB user correctly does not have.
     '--no-tablespaces',
+    // The primary runs with GTIDs on, where Oracle's mysqldump would add a
+    // SET @@GLOBAL.GTID_PURGED that needs RELOAD to dump and SUPER to load.
+    // A backup is restored as data, not as a replica seed. `loose-` lets a
+    // MariaDB client on a development machine skip the option it lacks.
+    '--loose-set-gtid-purged=OFF',
     database,
   ];
   const env = password ? { ...process.env, MYSQL_PWD: password } : { ...process.env };
@@ -200,7 +206,7 @@ async function doBackup(trigger) {
       fs.unlinkSync(filepath);
     }
     if (err.code === 'ENOENT') {
-      const msg = 'mysqldump not found in PATH — install the MySQL client tools (the production image ships default-mysql-client)';
+      const msg = 'mysqldump not found in PATH — install the MySQL client tools (the production image ships the Oracle mysqldump)';
       logger.error({ err }, msg);
       await finishRun({ status: 'failed', errorMessage: msg });
       throw new Error(msg, { cause: err });

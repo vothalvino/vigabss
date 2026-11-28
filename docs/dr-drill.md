@@ -10,14 +10,32 @@
 > all within the documented Recovery Time Objective (RTO < 1 hour for the
 > database layer).
 
-> **Automation:** Phase 1 (backup + size check) and Phase 4 (verification
-> queries) are run automatically by the `quarterly_dr_drill` scheduled task
-> at 02:00 UTC on the 1st of January, April, July, and October.  Results are
-> stored in the `dr_drill_logs` table and surfaced as a warning popup in the
-> admin frontend when the drill is overdue or the last automated run failed.
-> **Phases 2 and 3 (drop + restore) must still be performed manually** by
-> an on-call engineer against a test/staging instance — never against
-> production.
+> **Automation:** the drill runs by itself at 02:00 UTC on the 1st of
+> January, April, July and October, and on demand with **Run drill now** on
+> the Disaster-Recovery Drill page (install operator). Each run:
+>
+> 1. takes a fresh backup and checks its size and structure (Phase 1);
+> 2. checks the live database for broken links and money that does not add
+>    up (Phase 4);
+> 3. **restores that backup into a scratch database** (`<database>_drill`),
+>    compares its table count with the live database, runs the Phase 4
+>    checks on the restored copy, records how long the restore took, and
+>    drops the scratch database.
+>
+> The live database is never dropped or written. Results are stored in
+> `dr_drill_logs` and shown on the page, with a warning popup when the drill
+> is overdue or the last run failed.
+>
+> The restore test needs the application's database user to have rights on
+> the scratch database. `install.sh` and `redeploy` grant them; on a server
+> that has not been redeployed since, the page says the restore test was
+> not performed. It also needs free disk space and database memory for one
+> more copy of the data while it runs.
+>
+> **Phases 2 and 3 below (dropping and restoring the real database) remain a
+> manual rehearsal** for a test/staging instance — never production. The
+> automatic restore test proves the backup restores; the manual rehearsal
+> practises the whole recovery, including storage files.
 
 ---
 

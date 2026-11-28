@@ -5,6 +5,26 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: backups could not be restored.** The backup was taken with the
+  MariaDB dump tool, which writes values for calculated columns, and MySQL
+  refuses to load those. Every backup the system made would have stopped
+  partway through a restore. The new restore test in the disaster-recovery
+  drill found it. Backups are now taken and restored with MySQL's own tools.
+  **A backup made by an earlier version is not restorable as it is: take a
+  new backup after updating** (the nightly backup and the drill both do).
+
+- **The disaster-recovery drill now proves the backup can be restored, and
+  has a button.** The drill used to take a backup and check the live
+  database, but never restored anything. Each run now also loads the fresh
+  backup into a scratch copy of the database, compares it with the live one,
+  checks the restored data, records how long the restore took, and removes
+  the copy. The live database is not touched. The Disaster-Recovery Drill
+  page has a **Run drill now** button (install operator), shows while a
+  drill is running, and shows the restore result and backup size. `install`
+  and `redeploy` give the application the database rights the restore test
+  needs; until a server is redeployed once, the page says the restore test
+  was not performed.
+
 - **Fixed: the database was killed for lack of memory about twice a day.**
   The database container is limited to 1 GB, and MySQL was configured to use
   more than fits: within about half a day it reached the limit and the

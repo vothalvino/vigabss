@@ -9,6 +9,7 @@ const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const drDrillService = require('../services/drDrillService');
 const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
+const auditLog = require('../services/auditLog');
 
 const router = Router();
 
@@ -39,6 +40,26 @@ router.get('/status', requirePermission('settings.view'), async (req, res, next)
   try {
     const status = await drDrillService.getDrillStatus();
     res.json({ data: status });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /dr-drill/run
+// Start a drill now: a fresh backup, the integrity checks, and the restore
+// test into the scratch database. It runs in the background (restoring a
+// large database takes minutes); the page reads the result from /status.
+// Install operator only, like the rest of this router.
+router.post('/run', requirePermission('settings.update'), async (req, res, next) => {
+  try {
+    const out = drDrillService.startDrill();
+    if (out.started) {
+      await auditLog.log({
+        userId: req.user.id, organizationId: req.user.organizationId ?? null, action: 'create',
+        tableName: 'dr_drill_logs', recordId: null, newValues: { started_at: out.running_since, trigger: 'manual' },
+      });
+    }
+    res.status(202).json({ data: { started: out.started, running: true, running_since: out.running_since } });
   } catch (err) {
     next(err);
   }

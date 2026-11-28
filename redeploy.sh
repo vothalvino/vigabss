@@ -882,6 +882,16 @@ fi
 # old app deliberately remains stopped: restarting legacy code against a
 # partially tightened schema could reintroduce the secrets the migration just
 # removed. Repair or roll forward the migration, then rerun redeploy.
+# The disaster-recovery drill restores each backup into a scratch database
+# (<database>_drill) to prove the backup can be restored. The app's database
+# user owns only its own database, so root grants it that one more. Run on
+# every install and redeploy: it is idempotent, and it is how a server
+# installed before the drill had a restore test gets it. A failure only means
+# the drill reports its restore test as not performed.
+if ! dc exec -T db-primary sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --protocol=TCP -h 127.0.0.1 -uroot -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\\_drill\`.* TO \`${MYSQL_USER}\`@\`%\`"' >/dev/null 2>&1; then
+  echo "warning: could not grant the drill's scratch database to the app; the DR drill will skip its restore test." >&2
+fi
+
 echo "==> Running database migrations before application startup"
 if ! dc run --rm -T -e MIGRATE_ISOLATED_TENANTS=true app node src/scripts/migrate.js; then
   echo "error: database migration failed; the previous app remains stopped for data safety." >&2

@@ -11,7 +11,7 @@
 // so there are no mutations.
 // =============================================================================
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
@@ -30,6 +30,15 @@ interface DrDrillStatus {
   days_since_drill: number | null;
   overdue: boolean;
   last_error: string | null;
+  /** A drill started by hand is still going. */
+  running?: boolean;
+  duration_ms?: number | null;
+  backup_size_bytes?: number | null;
+  /** Whether the backup was restored into a scratch database and checked. */
+  restore?: {
+    performed: boolean; ok: boolean | null; reason: string | null; restore_ms: number | null;
+    tables_live: number | null; tables_restored: number | null;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +84,26 @@ export function DrDrillStatus() {
   const statusQ = useQuery({
     queryKey: ['dr-drill-status'],
     queryFn: fetchStatus,
+    // While a drill runs, ask again every few seconds until it is done.
+    refetchInterval: (query) => (query.state.data?.running ? 3000 : false),
   });
+  const [starting, setStarting] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+
+  async function runNow() {
+    if (!window.confirm(t('drDrillRun.confirm'))) return;
+    setStarting(true);
+    setRunError(null);
+    const res = await api.POST('/dr-drill/run', {});
+    setStarting(false);
+    const failure: unknown = res.error;
+    if (failure) {
+      const message = (failure as { error?: { message?: string } }).error?.message;
+      setRunError(message || t('drDrillRun.failed'));
+      return;
+    }
+    void statusQ.refetch();
+  }
 
   // The runbook document only changes with a code deploy — cache it long.
   const runbookQ = useQuery({
@@ -96,7 +124,15 @@ export function DrDrillStatus() {
           </span>
         )}
         <button
-          style={{ ...styles.btnSecondary, marginLeft: 'auto' }}
+          type="button"
+          style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
+          onClick={() => void runNow()}
+          disabled={starting || Boolean(status?.running)}
+        >
+          {status?.running ? t('drDrillRun.running') : t('drDrillRun.runNow')}
+        </button>
+        <button
+          style={styles.btnSecondary}
           onClick={() => statusQ.refetch()}
           disabled={statusQ.isFetching}
         >
@@ -105,8 +141,10 @@ export function DrDrillStatus() {
       </div>
 
       <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: 720 }}>
-        {t('ui.drDrillStatus.theAutomatedQuarterlyDrillTakes')}
+        {t('drDrillRun.what')}
       </p>
+      {status?.running && <p role="status" style={{ margin: '0 0 1rem', fontSize: '0.9rem' }}>{t('drDrillRun.inProgress')}</p>}
+      {runError && <p role="alert" style={{ ...styles.msgError, textAlign: 'left', padding: 0, margin: '0 0 1rem' }}>{runError}</p>}
 
       <div style={styles.tableCard}>
         {statusQ.isLoading ? (
@@ -136,6 +174,24 @@ export function DrDrillStatus() {
                   {status.overdue ? 'Yes' : 'No'}
                 </td>
               </tr>
+              <tr style={styles.tr}>
+                <td style={{ ...styles.td, fontWeight: 500 }}>{t('drDrillRun.restoreTest')}</td>
+                <td style={{ ...styles.td, color: status.restore?.performed ? (status.restore.ok ? 'var(--success)' : 'var(--danger)') : 'var(--warning)', fontWeight: 600 }}>
+                  {!status.restore
+                    ? t('drDrillRun.restoreNone')
+                    : !status.restore.performed
+                      ? t('drDrillRun.restoreSkipped')
+                      : status.restore.ok
+                        ? t('drDrillRun.restoreOk', { seconds: Math.max(1, Math.round((status.restore.restore_ms ?? 0) / 1000)), tables: status.restore.tables_restored })
+                        : t('drDrillRun.restoreBad', { restored: status.restore.tables_restored, live: status.restore.tables_live })}
+                </td>
+              </tr>
+              {status.backup_size_bytes != null && (
+                <tr style={styles.tr}>
+                  <td style={{ ...styles.td, fontWeight: 500 }}>{t('drDrillRun.backupSize')}</td>
+                  <td style={styles.td}>{t('drDrillRun.megabytes', { mb: (status.backup_size_bytes / 1048576).toFixed(1) })}</td>
+                </tr>
+              )}
               {status.last_error && (
                 <tr style={styles.tr}>
                   <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.lastError')}</td>

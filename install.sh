@@ -1359,6 +1359,16 @@ for i in $(seq 1 "$MAX_DB_WAIT_ITERATIONS"); do
 done
 
 # ── Database migrations ────────────────────────────────────────────────────────
+# The disaster-recovery drill restores each backup into a scratch database
+# (<database>_drill) to prove the backup can be restored. The app's database
+# user owns only its own database, so root grants it that one more. Run on
+# every install and redeploy: it is idempotent, and it is how a server
+# installed before the drill had a restore test gets it. A failure only means
+# the drill reports its restore test as not performed.
+if ! $COMPOSE exec -T db-primary sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --protocol=TCP -h 127.0.0.1 -uroot -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\\_drill\`.* TO \`${MYSQL_USER}\`@\`%\`"' >/dev/null 2>&1; then
+  warn "Could not grant the drill's scratch database to the app; the DR drill will skip its restore test."
+fi
+
 # A rerun against an existing database migrates real data; dump it first
 # (OPS-14). A fresh database is skipped by the script itself.
 info "Backing up existing databases before migrating..."

@@ -12343,5 +12343,20 @@
     "reset": "Now following the company's limit.",
     "failed": "The limit could not be saved.",
     "invalid": "Enter an amount of 0 or more."
+  },
+  "drDrillRun": {
+    "what": "The drill takes a fresh backup, checks that it is complete, restores it into a scratch copy of the database to prove it can be restored, and checks both the live data and the restored copy for broken links and money that does not add up. The live database is never touched. It runs by itself every quarter; run it by hand after an install and after loading real data.",
+    "runNow": "Run drill now",
+    "running": "Drill running…",
+    "confirm": "Run the disaster-recovery drill now? It takes a backup and restores a copy of the database, which can take a few minutes and uses disk space while it runs.",
+    "failed": "The drill could not be started.",
+    "inProgress": "A drill is running. This page updates by itself when it finishes.",
+    "restoreTest": "Restore test",
+    "restoreNone": "Not part of this run",
+    "restoreSkipped": "Not performed: the app has no rights on the scratch database. Run a redeploy of this server once, then run the drill again.",
+    "restoreOk": "Restored and checked in {{seconds}} s ({{tables}} tables)",
+    "restoreBad": "Failed: {{restored}} tables restored, {{live}} in the live database",
+    "megabytes": "{{mb}} MB",
+    "backupSize": "Backup size"
   }
 }
