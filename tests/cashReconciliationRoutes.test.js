@@ -597,7 +597,7 @@ describe('one line per person', () => {
     expect((await request(app).get('/api/v1/cash-reconciliation/staff/3')).status).toBe(401);
   });
 
-  test("a person's page: full for the admin and for the person, the supervisor's part for a supervisor", async () => {
+  test("a person's page: full for the admin only; a supervisor and the person themself get the open cashier and the counts not settled", async () => {
     cashReconciliationService.staffDetail.mockResolvedValue({ person: { user_id: 3 }, sessions: [] });
     mockAuthUser();
     expect((await get('/staff/3', authToken)).status).toBe(200);
@@ -606,8 +606,9 @@ describe('one line per person', () => {
     await get('/staff/3', signInAs(5, SUPERVISOR));
     expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 3, { full: false });
 
+    // Their own past counts would add up to everything they have taken in.
     await get('/staff/6', signInAs(6, CASHIER));
-    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 6, { full: true });
+    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 6, { full: false });
   });
 
   test("a cashier asking for someone else's page gets 404 and nothing is read", async () => {
@@ -639,9 +640,11 @@ describe('one line per person', () => {
       expect(await read(token, 3, 'approved')).toBe(404);
     });
 
-    test("a cashier reads their own, whatever its status, and nobody else's", async () => {
+    test("a cashier reads their own open cashier and counts not settled, not their settled ones, and nobody else's", async () => {
       const token = signInAs(6, CASHIER);
-      expect(await read(token, 6, 'approved')).toBe(200);
+      expect(await read(token, 6, 'open')).toBe(200);
+      expect(await read(token, 6, 'closed')).toBe(200);
+      expect(await read(token, 6, 'approved')).toBe(404);
       expect(await read(token, 3, 'open')).toBe(404);
     });
 
@@ -651,16 +654,27 @@ describe('one line per person', () => {
     });
   });
 
-  test("the session list is the caller's own unless they are the admin", async () => {
-    db.query.mockResolvedValue([[{ total: 0 }]]);
+  test('the session list: everything for the admin; for anyone else their own open cashier and counts not settled', async () => {
     cashReconciliationService.addStaffNames.mockResolvedValue();
-    await get('/sessions', signInAs(5, SUPERVISOR));
-    const own = db.query.mock.calls.filter(([sql, params]) => /cash_reconciliation_sessions/.test(sql) && /agent_user_id/.test(sql) && (params || []).map(String).includes('5'));
-    expect(own.length).toBeGreaterThan(0);
+    cashReconciliationService.staffDetail.mockResolvedValue({ sessions: [{ id: 9, agent_user_id: 5, status: 'open' }] });
+    let res = await get('/sessions', signInAs(5, SUPERVISOR));
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((r) => r.id)).toEqual([9]);
+    expect(res.body.meta.total).toBe(1);
+    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 5, { full: false });
 
-    db.query.mockClear();
+    // Someone who never had a cashier gets an empty list, not an error.
+    const { NotFoundError } = require('../src/utils/errors');
+    cashReconciliationService.staffDetail.mockRejectedValue(new NotFoundError('cash_reconciliation_sessions'));
+    res = await get('/sessions', signInAs(6, CASHIER));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+
+    cashReconciliationService.staffDetail.mockClear();
+    db.query.mockResolvedValue([[{ total: 0 }]]);
     mockAuthUser();
     await get('/sessions', authToken);
-    expect(db.query.mock.calls.some(([sql]) => /cash_reconciliation_sessions/.test(sql) && /agent_user_id\s*=/.test(sql))).toBe(false);
+    expect(cashReconciliationService.staffDetail).not.toHaveBeenCalled();
+    expect(db.query.mock.calls.some(([sql]) => /cash_reconciliation_sessions/.test(sql))).toBe(true);
   });
 });

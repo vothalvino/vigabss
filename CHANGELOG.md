@@ -9,9 +9,9 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   cash in that person's drawer and a dot: green when all is well, red when a
   count did not match, the cashier was opened with a different amount, it is
   over the cash limit, or it has been open too long. A line opens the person's
-  page. The administrator sees a person's whole history there; a supervisor
-  sees the open cashier and the counts still to review; anyone else sees only
-  their own cashiers.
+  page. Only the administrator sees a person's whole history there. A
+  supervisor sees the open cashier and the counts still to review; anyone else
+  sees the same of their own cashier, not their past counts.
 
 - **Fixed: "Update now" works on a newly installed server.** The installer now
   turns on the update agent that Settings, Version needs. Before, the screen

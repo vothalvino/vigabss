@@ -547,10 +547,10 @@ async function staffOverview(orgId, { onlyUserId = null } = {}) {
 }
 
 /**
- * One person's cashier page. `full` (the company's admin, or the person
- * themself) lists every cashier they have had, newest first. Otherwise (a
- * supervisor) only the ones a supervisor acts on: the open one, and the counts
- * that did not match and are not settled.
+ * One person's cashier page. `full` (the company's admin only) lists every
+ * cashier they have had, newest first. Otherwise (a supervisor, or the person
+ * themself) only the open one and the counts that did not match and are not
+ * settled.
  */
 async function staffDetail(orgId, userId, { full = false } = {}) {
   const [person] = await staffOverview(orgId, { onlyUserId: userId });

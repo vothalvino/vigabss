@@ -1,10 +1,10 @@
 // One person's cashier page, opened from their line on the Cashier page.
 //
 // Who sees what is decided by the server (GET /cash-reconciliation/staff/{userId}):
-//   scope "full"        the company's admin, or the person themself: every
-//                       cashier the person has had;
-//   scope "supervisor"  a supervisor: the open cashier, and the counts that
-//                       did not match and are not settled.
+//   scope "full"        the company's admin: every cashier the person has had;
+//   scope "supervisor"  a supervisor, or the person themself: the open
+//                       cashier, and the counts that did not match and are
+//                       not settled.
 // Someone who may not see the person gets a 404, shown here as "not found".
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
