@@ -12337,5 +12337,20 @@
     "reset": "Ahora sigue el límite de la empresa.",
     "failed": "No se pudo guardar el límite.",
     "invalid": "Escribe un monto de 0 o más."
+  },
+  "drDrillRun": {
+    "what": "El simulacro toma un respaldo nuevo, comprueba que esté completo, lo restaura en una copia de prueba de la base de datos para demostrar que se puede restaurar, y revisa tanto los datos en vivo como la copia restaurada en busca de enlaces rotos y dinero que no cuadra. La base de datos en vivo nunca se toca. Se ejecuta solo cada trimestre; ejecútalo a mano después de instalar y después de cargar datos reales.",
+    "runNow": "Ejecutar simulacro ahora",
+    "running": "Simulacro en curso…",
+    "confirm": "¿Ejecutar ahora el simulacro de recuperación? Toma un respaldo y restaura una copia de la base de datos, lo que puede tardar unos minutos y usa espacio en disco mientras corre.",
+    "failed": "No se pudo iniciar el simulacro.",
+    "inProgress": "Hay un simulacro en curso. Esta página se actualiza sola cuando termine.",
+    "restoreTest": "Prueba de restauración",
+    "restoreNone": "No formó parte de esta ejecución",
+    "restoreSkipped": "No realizada: la aplicación no tiene permisos sobre la base de datos de prueba. Haz una vez el redeploy de este servidor y ejecuta el simulacro de nuevo.",
+    "restoreOk": "Restaurado y verificado en {{seconds}} s ({{tables}} tablas)",
+    "restoreBad": "Falló: {{restored}} tablas restauradas, {{live}} en la base de datos en vivo",
+    "megabytes": "{{mb}} MB",
+    "backupSize": "Tamaño del respaldo"
   }
 }

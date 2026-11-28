@@ -4,6 +4,45 @@
 
 jest.mock('../src/config/database');
 jest.mock('../src/scripts/backup');
+// The restore test opens its own connections and runs the mysql client. By
+// default the scratch database is refused (an install that has not been
+// granted it yet); the restore-test block below turns it on.
+const mockScratch = { denied: true, liveTables: 12, restoredTables: 12, clientExit: 0, queries: [] };
+jest.mock('mysql2/promise', () => ({
+  ...jest.requireActual('mysql2/promise'),
+  createConnection: jest.fn(async () => ({
+    query: jest.fn(async (sql, params) => {
+      mockScratch.queries.push(sql);
+      const q = sql.toLowerCase();
+      if (q.startsWith('drop database') || q.startsWith('create database')) {
+        if (mockScratch.denied) throw Object.assign(new Error('Access denied'), { code: 'ER_DBACCESS_DENIED_ERROR' });
+        return [{}];
+      }
+      if (q.includes('information_schema.tables')) {
+        return [[{ n: params[0].endsWith('_drill') ? mockScratch.restoredTables : mockScratch.liveTables }]];
+      }
+      if (q.includes('count(*) as cnt')) return [[{ cnt: 5 }]];
+      return [[{ n: 0 }]];
+    }),
+    end: jest.fn(async () => {}),
+  })),
+}));
+jest.mock('child_process', () => ({
+  ...jest.requireActual('child_process'),
+  spawn: jest.fn(() => {
+    const { EventEmitter } = require('events');
+    const { PassThrough } = require('stream');
+    const child = new EventEmitter();
+    child.stdin = new PassThrough();
+    child.stderr = new EventEmitter();
+    child.stdin.resume();
+    child.stdin.on('finish', () => {
+      if (mockScratch.clientExit !== 0) child.stderr.emit('data', Buffer.from('ERROR 1064 (42000) at line 3: bad statement'));
+      child.emit('close', mockScratch.clientExit);
+    });
+    return child;
+  }),
+}));
 
 const db = require('../src/config/database');
 const { backup } = require('../src/scripts/backup');
@@ -281,3 +320,88 @@ describe('drDrillService.getDrillStatus', () => {
   });
 });
 
+describe('drDrillService restore test', () => {
+  let tmpFile;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.assign(mockScratch, { denied: false, liveTables: 12, restoredTables: 12, clientExit: 0, queries: [] });
+    setupHealthyDb();
+    tmpFile = path.join(require('os').tmpdir(), `drill_restore_${Date.now()}_${Math.round(process.hrtime()[1])}.sql.gz`);
+    fs.writeFileSync(tmpFile, healthyDumpGz());
+    backup.mockResolvedValue({ filepath: tmpFile, cloudUrl: null });
+  });
+  afterEach(() => {
+    mockScratch.denied = true;
+    try { fs.unlinkSync(tmpFile); } catch { /* gone */ }
+  });
+
+  it('restores the backup into the scratch database, checks it and drops it', async () => {
+    const out = await drDrillService.runDrill();
+    expect(out.status).toBe('pass');
+    expect(out.checks.restore).toMatchObject({ performed: true, ok: true, tables_live: 12, tables_restored: 12 });
+    const spawn = require('child_process').spawn;
+    expect(spawn).toHaveBeenCalledTimes(1);
+    const [command, args, opts] = spawn.mock.calls[0];
+    expect(command).toBe('mysql');
+    expect(args[args.length - 1]).toBe(drDrillService.scratchName());
+    // The password travels in the environment, never in the arguments.
+    expect(args.join(' ')).not.toMatch(/password/i);
+    expect(opts.shell).toBeUndefined();
+    const drops = mockScratch.queries.filter((q) => q.startsWith('DROP DATABASE'));
+    expect(drops).toHaveLength(2);
+    // Only ever the scratch database.
+    for (const q of mockScratch.queries.filter((x) => /^(DROP|CREATE) DATABASE/.test(x))) {
+      expect(q).toContain(`\`${drDrillService.scratchName()}\``);
+    }
+  });
+
+  it('fails the drill when the restored copy has fewer tables than the live database', async () => {
+    mockScratch.restoredTables = 9;
+    const out = await drDrillService.runDrill();
+    expect(out.status).toBe('fail');
+    expect(out.checks.restore.ok).toBe(false);
+    const insert = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO dr_drill_logs'));
+    expect(insert[1][4]).toMatch(/9 tables.*12/);
+  });
+
+  it('a backup the mysql client refuses is an error, and the scratch database is still dropped', async () => {
+    mockScratch.clientExit = 1;
+    await expect(drDrillService.runDrill()).rejects.toThrow(/Restoring the backup failed.*ERROR 1064/);
+    expect(mockScratch.queries.filter((q) => q.startsWith('DROP DATABASE'))).toHaveLength(2);
+  });
+
+  it('without rights on the scratch database the restore test is skipped and the drill still passes', async () => {
+    mockScratch.denied = true;
+    const out = await drDrillService.runDrill();
+    expect(out.status).toBe('pass');
+    expect(out.checks.restore).toEqual({ performed: false, reason: 'no_scratch_rights', database: drDrillService.scratchName() });
+    expect(require('child_process').spawn).not.toHaveBeenCalled();
+  });
+
+  it('the status reports the restore test and whether a drill is running', async () => {
+    db.query.mockResolvedValue([[{
+      run_at: new Date(), status: 'pass', error_message: null, duration_ms: 4200, backup_size_bytes: 2097152,
+      checks: JSON.stringify({ restore: { performed: true, ok: true, restore_ms: 3100, tables_live: 12, tables_restored: 12 } }),
+    }]]);
+    const status = await drDrillService.getDrillStatus();
+    expect(status.restore).toEqual({ performed: true, ok: true, reason: null, restore_ms: 3100, tables_live: 12, tables_restored: 12 });
+    expect(status).toMatchObject({ running: false, duration_ms: 4200, backup_size_bytes: 2097152 });
+  });
+
+  it('starts one drill at a time', async () => {
+    setupHealthyDb();
+    const first = drDrillService.startDrill();
+    const second = drDrillService.startDrill();
+    expect(first.started).toBe(true);
+    expect(second).toEqual({ started: false, running_since: first.running_since });
+    expect((await drDrillService.getDrillStatus()).running).toBe(true);
+    for (let i = 0; i < 200 && (await drDrillService.getDrillStatus()).running; i += 1) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect((await drDrillService.getDrillStatus()).running).toBe(false);
+    expect(drDrillService.startDrill().started).toBe(true);
+    for (let i = 0; i < 200 && (await drDrillService.getDrillStatus()).running; i += 1) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  });
+});

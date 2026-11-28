@@ -12337,5 +12337,20 @@
     "reset": "Agora segue o limite da empresa.",
     "failed": "Não foi possível salvar o limite.",
     "invalid": "Informe um valor de 0 ou mais."
+  },
+  "drDrillRun": {
+    "what": "O simulado faz um backup novo, verifica se está completo, restaura-o em uma cópia de teste do banco de dados para provar que pode ser restaurado, e verifica tanto os dados em produção quanto a cópia restaurada em busca de vínculos quebrados e dinheiro que não fecha. O banco em produção nunca é tocado. Ele roda sozinho a cada trimestre; rode-o manualmente após instalar e após carregar dados reais.",
+    "runNow": "Executar simulado agora",
+    "running": "Simulado em andamento…",
+    "confirm": "Executar agora o simulado de recuperação? Ele faz um backup e restaura uma cópia do banco de dados, o que pode levar alguns minutos e usa espaço em disco enquanto roda.",
+    "failed": "Não foi possível iniciar o simulado.",
+    "inProgress": "Há um simulado em andamento. Esta página se atualiza sozinha quando terminar.",
+    "restoreTest": "Teste de restauração",
+    "restoreNone": "Não fez parte desta execução",
+    "restoreSkipped": "Não realizado: o aplicativo não tem permissões sobre o banco de dados de teste. Faça uma vez o redeploy deste servidor e execute o simulado novamente.",
+    "restoreOk": "Restaurado e verificado em {{seconds}} s ({{tables}} tabelas)",
+    "restoreBad": "Falhou: {{restored}} tabelas restauradas, {{live}} no banco em produção",
+    "megabytes": "{{mb}} MB",
+    "backupSize": "Tamanho do backup"
   }
 }

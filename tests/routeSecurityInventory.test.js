@@ -72,6 +72,7 @@ const REVIEWED = {
   'GET /backup-settings/download/:filename': 'install-wide; requirePermission needs an organization context',
   'GET /dr-drill/status': 'install-wide; requirePermission needs an organization context',
   'GET /dr-drill/runbook': 'install-wide; requirePermission needs an organization context',
+  'POST /dr-drill/run': 'install-wide and install-operator only; requirePermission needs an organization context',
   'GET /queue-stats': 'install-wide; requirePermission needs an organization context',
   'GET /organizations': 'lists organizations the caller may access',
   'POST /organizations': 'install-wide; requirePermission needs an organization context',

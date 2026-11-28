@@ -48,10 +48,14 @@ COPY . .
 # ── Stage 2: production API server ────────────────────────────────────────────
 FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 
-# default-mysql-client provides mysqldump/mysql (MariaDB client — dumps and
-# restores MySQL 8.x fine, and unlike Oracle's mysqldump needs no GTID
-# special-casing against the replicated primary). Without a dump client in the
-# image, scheduled database_backup runs produced empty 20-byte "backups".
+# The backup and restore tools are Oracle's own mysqldump and mysql, copied
+# below from the same MySQL image the database runs (keep the two pins equal).
+# Debian's default-mysql-client is the MariaDB client, and mariadb-dump writes
+# a value for every generated column; MySQL refuses those on load (error
+# 3105), so every backup it took could not be restored. libssl3 and
+# libncurses6 are what the two binaries link against. Without a dump client
+# in the image, scheduled database_backup runs produced empty 20-byte
+# "backups".
 #
 # OS_PATCH_DAY makes this step run again when the day changes. Without it the
 # build cache keeps reusing the step from the day it was first built, so a
@@ -62,8 +66,12 @@ ARG OS_PATCH_DAY=unset
 RUN echo "OS packages as of ${OS_PATCH_DAY}" \
   && apt-get update \
   && apt-get upgrade -y --no-install-recommends \
-  && apt-get install -y --no-install-recommends wireguard-tools iproute2 nftables default-mysql-client \
+  && apt-get install -y --no-install-recommends wireguard-tools iproute2 nftables libssl3 libncurses6 \
   && rm -rf /var/lib/apt/lists/*
+COPY --from=mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 \
+  /usr/bin/mysqldump /usr/bin/mysql /usr/local/bin/
+# Fail the build, not the first backup, if the copied tools cannot run here.
+RUN mysqldump --version && mysql --version
 
 # A fixed uid/gid the Kubernetes manifests run as (runAsUser/runAsGroup/
 # fsGroup 10001): `--system` alone took whatever id the base image left free,

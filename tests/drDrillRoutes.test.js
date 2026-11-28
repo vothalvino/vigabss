@@ -112,4 +112,29 @@ describe('DR drill routes are install-operator only', () => {
     expect(res.body.data.overdue).toBe(false);
     spy.mockRestore();
   });
+
+  test('a tenant admin cannot start a drill', async () => {
+    mockAuthUser({ id: 7, organization_id: 2, is_install_operator: 0 });
+    const spy = jest.spyOn(drDrillService, 'startDrill');
+    const res = await request(app)
+      .post('/api/v1/dr-drill/run')
+      .set('Authorization', `Bearer ${makeToken({ sub: 7, orgId: 2 })}`)
+      .set('X-Org-Id', '2');
+    expect(res.status).toBe(403);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  test('the install operator starts a drill and gets 202 at once', async () => {
+    mockAuthUser();
+    const spy = jest.spyOn(drDrillService, 'startDrill')
+      .mockReturnValue({ started: true, running_since: '2026-01-01T00:00:00.000Z' });
+    const res = await request(app)
+      .post('/api/v1/dr-drill/run')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .set('X-Org-Id', '1');
+    expect(res.status).toBe(202);
+    expect(res.body.data).toEqual({ started: true, running: true, running_since: '2026-01-01T00:00:00.000Z' });
+    spy.mockRestore();
+  });
 });
