@@ -20,7 +20,6 @@
   "pages/BackupSettings.tsx": 3,
   "pages/BillingAdjustmentList.tsx": 1,
   "pages/BillingDisputeList.tsx": 1,
-  "pages/CashReconciliationList.tsx": 1,
   "pages/ChargebackList.tsx": 1,
   "pages/ChurnAnalytics.tsx": 2,
   "pages/ClientActivityTab.tsx": 1,

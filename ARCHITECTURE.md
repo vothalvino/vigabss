@@ -515,6 +515,20 @@ adjustments and payouts); whatever they do not explain is reported as
 split by how they are invoiced: a CFDI in the client's RFC, a stamped General
 Public invoice, paid invoices still to enter one, part payments, and credit.
 
+Who sees a staff cashier (`src/routes/cashReconciliation.js`) is decided by the
+server, three ways. The company's admin (`req.user.role === 'admin'`, the same
+test the review rules use) sees every person's cashiers and their whole
+history. A supervisor (`cash_reconciliation.approve`) sees one line per person
+(`GET /cash-reconciliation/staff`: what the drawer holds, live when open, the
+last count when closed, and the reasons its dot is red), each person's open
+cashier, and the counts that did not match and are not settled
+(`/staff/:userId` with scope `supervisor`; `/sessions/:id` only for a session
+that is `open`, `closed` or `disputed`). Anyone else sees their own cashiers
+only. `GET /sessions` lists every session for the admin and the caller's own
+for anyone else. A person the caller may not see answers 404, like a person
+with no cashier. The frontend (`CashReconciliationList`, `CashierPersonPage`)
+shows what it is sent and decides nothing.
+
 Phase 3 (migration 005) moves the cash in numbered money bags
 (`src/services/cashBagService.js`, the only writer of `cash_bags` and the
 append-only `cash_bag_events`). The bag's status is a state machine checked

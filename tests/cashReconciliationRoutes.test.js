@@ -29,6 +29,8 @@ jest.mock('../src/services/cashReconciliationService', () => ({
   getSessionDetail: jest.fn(),
   myOpenSession: jest.fn(),
   attention: jest.fn(),
+  staffOverview: jest.fn(),
+  staffDetail: jest.fn(),
 }));
 
 jest.mock('../src/utils/logger', () => {
@@ -554,5 +556,111 @@ describe('cash pickups', () => {
     expect(src).toMatch(/router\.put\('\/rules', requirePermission\('cash_reconciliation\.approve'\)/);
     expect(src).toMatch(/router\.post\('\/pickups\/:id\/confirm', requirePermission\('cash_reconciliation\.create'\)/);
     expect(src).toMatch(/router\.get\('\/opening', requirePermission\('cash_reconciliation\.create'\)/);
+  });
+});
+
+// =============================================================================
+// One line per person, and who sees what (owner decision, 2026-11-27)
+// =============================================================================
+describe('one line per person', () => {
+  // A signed-in person who is not the company's admin, with these permissions.
+  function signInAs(id, permissions) {
+    User.findById.mockResolvedValue({ id, email: `u${id}@example.com`, status: 'active', role: 'billing', organization_id: 1 });
+    User.getPermissions.mockResolvedValue(permissions);
+    return makeToken({ sub: id, role: 'billing' });
+  }
+  const SUPERVISOR = ['cash_reconciliation.view', 'cash_reconciliation.approve'];
+  const CASHIER = ['cash_reconciliation.view', 'cash_reconciliation.create'];
+  const get = (path, token) => request(app).get(`/api/v1/cash-reconciliation${path}`).set('Authorization', `Bearer ${token}`);
+
+  test('the admin and a supervisor get everyone; a cashier gets their own line', async () => {
+    cashReconciliationService.staffOverview.mockResolvedValue([{ user_id: 3, status: 'ok', reasons: [] }]);
+    mockAuthUser();
+    let res = await get('/staff', authToken);
+    expect(res.status).toBe(200);
+    expect(res.body.meta.scope).toBe('everyone');
+    expect(cashReconciliationService.staffOverview).toHaveBeenLastCalledWith(1, {});
+
+    res = await get('/staff', signInAs(5, SUPERVISOR));
+    expect(res.body.meta.scope).toBe('everyone');
+    expect(cashReconciliationService.staffOverview).toHaveBeenLastCalledWith(1, {});
+
+    res = await get('/staff', signInAs(6, CASHIER));
+    expect(res.status).toBe(200);
+    expect(res.body.meta.scope).toBe('own');
+    expect(cashReconciliationService.staffOverview).toHaveBeenLastCalledWith(1, { onlyUserId: 6 });
+  });
+
+  test('someone with no cashier permission is refused, and a sign-in is needed', async () => {
+    expect((await get('/staff', signInAs(7, ['invoices.view']))).status).toBe(403);
+    expect((await request(app).get('/api/v1/cash-reconciliation/staff')).status).toBe(401);
+    expect((await request(app).get('/api/v1/cash-reconciliation/staff/3')).status).toBe(401);
+  });
+
+  test("a person's page: full for the admin and for the person, the supervisor's part for a supervisor", async () => {
+    cashReconciliationService.staffDetail.mockResolvedValue({ person: { user_id: 3 }, sessions: [] });
+    mockAuthUser();
+    expect((await get('/staff/3', authToken)).status).toBe(200);
+    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 3, { full: true });
+
+    await get('/staff/3', signInAs(5, SUPERVISOR));
+    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 3, { full: false });
+
+    await get('/staff/6', signInAs(6, CASHIER));
+    expect(cashReconciliationService.staffDetail).toHaveBeenLastCalledWith(1, 6, { full: true });
+  });
+
+  test("a cashier asking for someone else's page gets 404 and nothing is read", async () => {
+    const res = await get('/staff/3', signInAs(6, CASHIER));
+    expect(res.status).toBe(404);
+    expect(cashReconciliationService.staffDetail).not.toHaveBeenCalled();
+    expect((await get('/staff/abc', signInAs(6, CASHIER))).status).toBe(404);
+  });
+
+  test('"staff" is not read as a session id', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'cashReconciliation.js'), 'utf8');
+    expect(src.indexOf("router.get('/staff'")).toBeGreaterThan(-1);
+    expect(src.indexOf("router.get('/staff'")).toBeLessThan(src.indexOf("router.get('/sessions/:id'"));
+  });
+
+  describe('a session', () => {
+    const detail = (agent, status) => ({ session: { id: 3, agent_user_id: agent, status }, payments: [] });
+    const read = async (token, agent, status) => {
+      cashReconciliationService.getSessionDetail.mockResolvedValueOnce(detail(agent, status));
+      cashReconciliationService.listPickups.mockResolvedValue([]);
+      return (await get('/sessions/3', token)).status;
+    };
+
+    test('a supervisor reads an open one and a count that is not settled, but not an approved one', async () => {
+      const token = signInAs(5, SUPERVISOR);
+      expect(await read(token, 3, 'open')).toBe(200);
+      expect(await read(token, 3, 'closed')).toBe(200);
+      expect(await read(token, 3, 'disputed')).toBe(200);
+      expect(await read(token, 3, 'approved')).toBe(404);
+    });
+
+    test("a cashier reads their own, whatever its status, and nobody else's", async () => {
+      const token = signInAs(6, CASHIER);
+      expect(await read(token, 6, 'approved')).toBe(200);
+      expect(await read(token, 3, 'open')).toBe(404);
+    });
+
+    test('the admin reads any', async () => {
+      mockAuthUser();
+      expect(await read(authToken, 3, 'approved')).toBe(200);
+    });
+  });
+
+  test("the session list is the caller's own unless they are the admin", async () => {
+    db.query.mockResolvedValue([[{ total: 0 }]]);
+    cashReconciliationService.addStaffNames.mockResolvedValue();
+    await get('/sessions', signInAs(5, SUPERVISOR));
+    const own = db.query.mock.calls.filter(([sql, params]) => /cash_reconciliation_sessions/.test(sql) && /agent_user_id/.test(sql) && (params || []).map(String).includes('5'));
+    expect(own.length).toBeGreaterThan(0);
+
+    db.query.mockClear();
+    mockAuthUser();
+    await get('/sessions', authToken);
+    expect(db.query.mock.calls.some(([sql]) => /cash_reconciliation_sessions/.test(sql) && /agent_user_id\s*=/.test(sql))).toBe(false);
   });
 });

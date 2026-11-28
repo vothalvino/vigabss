@@ -33468,7 +33468,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "List cash reconciliation sessions",
+        "summary": "List cash reconciliation sessions: all of them for the company's admin, the caller's own for anyone else",
         "operationId": "listCashReconciliationSessions",
         "security": [
           {
@@ -33550,7 +33550,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "Get session detail with included cash payments",
+        "summary": "Get session detail with included cash payments. The company's admin: any session; a supervisor: open sessions and counts not settled; anyone else: their own (404 otherwise)",
         "operationId": "getCashReconciliationSession",
         "security": [
           {
@@ -34136,6 +34136,68 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/staff": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "One line per person who has a cashier: what the drawer holds (live when open, the last count when closed), status 'ok' or 'mismatch', and reasons (closing_difference, opening_difference, over_limit, open_too_long). The company's admin and supervisors get everyone; anyone else only their own line (meta.scope)",
+        "operationId": "listCashierStaff",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cash-reconciliation/staff/{userId}": {
+      "get": {
+        "tags": [
+          "Cash Reconciliation"
+        ],
+        "summary": "One person's cashiers: their line, the rules, and sessions. scope 'full' (the company's admin, or the person themself) lists every session; scope 'supervisor' only the open one and the counts that did not match and are not settled. 404 for a person the caller may not see",
+        "operationId": "getCashierStaff",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }

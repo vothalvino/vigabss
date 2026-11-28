@@ -1,28 +1,32 @@
 // =============================================================================
 // VigaBSS 5.0 — Cash Reconciliation (§1.3 Billing+)
 // =============================================================================
-// Page for managing cash reconciliation sessions:
-//   • Table: all sessions with agent, status, opened/closed dates, expected /
-//     counted totals, variance
-//   • "Open Session" button (requires cash_reconciliation.create)
-//   • Row expand: cash payments included in the session
-//   • Close button (requires cash_reconciliation.update): enter counted total
-//   • Approve button (requires cash_reconciliation.approve): for closed sessions
-//   • Variance coloring: green = 0/positive, red = negative
+// The Cashier page: one line per person, with what their drawer holds and a
+// dot, green when all is well and red when something needs a look. A line
+// opens that person's page (pages/cashier/CashierPersonPage.tsx).
+//
+// CashierSessionsTable, used by that page, is the table of a person's
+// cashiers: expand for the cash payments and pickups, close an open one
+// (cash_reconciliation.update), approve or dispute a count that did not match
+// (cash_reconciliation.approve).
 // =============================================================================
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { unwrapList } from '@/api/envelope';
+import { formatMoney } from '@/lib/money';
+import { formatDate } from '@/lib/dates';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { CashierReviewDialog, type CashierDecision } from '@/pages/cashier/CashierReviewDialog';
 import { CashierOpenDialog } from '@/pages/cashier/CashierOpenDialog';
 import { CashierPickupsRow } from '@/pages/cashier/CashierPickups';
 import { CashierRulesBox } from '@/pages/cashier/CashierRulesBox';
-import { CASHIER_ATTENTION_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
+import { CASHIER_ATTENTION_KEY, CASHIER_STAFF_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
 import { styles } from './crudStyles';
 import {
   extractApiError,
@@ -34,13 +38,12 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
-import { ListFilters, EMPTY_LIST_FILTERS, listFilterKey, listFilterQuery, type ListFilterValue } from '@/components/ListFilters';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface ReconciliationSession {
+export interface ReconciliationSession {
   id: number;
   agent_user_id: number;
   status: string;
@@ -61,9 +64,25 @@ interface ReconciliationSession {
   pickups_total?: string | null;
 }
 
-interface SessionsResponse {
-  data: ReconciliationSession[];
-  meta: { total: number; page: number; limit: number; totalPages?: number };
+/** One person's line, from GET /cash-reconciliation/staff. */
+export type CashierReason = 'closing_difference' | 'opening_difference' | 'over_limit' | 'open_too_long';
+export interface CashierPerson {
+  user_id: number;
+  name: string | null;
+  open: boolean;
+  /** Live for an open cashier; the last count for a closed one; null when never counted. */
+  cash_on_hand: number | null;
+  last_session_id: number;
+  last_closed_at: string | null;
+  current: {
+    session_id: number; opened_at: string; hours_open: number;
+    opening_total: number; opening_expected: number | null; opening_difference: number;
+    collected_total: number; pickups_total: number; pending_pickups: number; pending_pickups_total: number;
+  } | null;
+  awaiting_review: number;
+  disputed: number;
+  status: 'ok' | 'mismatch';
+  reasons: CashierReason[];
 }
 
 interface CashPayment {
@@ -78,8 +97,6 @@ interface SessionDetail {
   id: number;
   payments: CashPayment[];
 }
-
-const PAGE_SIZE = 25;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -237,47 +254,49 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
 }
 
 // ---------------------------------------------------------------------------
-// CashReconciliationList
+// The dot: green when all is well, red when something needs a look
 // ---------------------------------------------------------------------------
 
-export function CashReconciliationList() {
+const DATE_TIME: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+
+export function CashierStatusDot({ status }: { status: 'ok' | 'mismatch' }) {
+  const { t } = useTranslation();
+  const label = t(`cashierStaff.dot.${status}`);
+  return (
+    <span role="img" aria-label={label} title={label} data-status={status}
+      style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: status === 'ok' ? 'var(--success)' : 'var(--danger)' }} />
+  );
+}
+
+/** What is wrong, in words; nothing when all is well. */
+export function CashierReasons({ person }: { person: CashierPerson }) {
+  const { t } = useTranslation();
+  if (!person.reasons.length) return <span style={{ color: 'var(--text-muted)' }}>{t('cashierStaff.allGood')}</span>;
+  return (
+    <span style={{ color: 'var(--danger)' }}>
+      {person.reasons.map((reason) => t(`cashierStaff.reasons.${reason}`, {
+        count: person.awaiting_review + person.disputed,
+        amount: formatMoney(person.current?.opening_difference ?? 0),
+        hours: person.current?.hours_open ?? 0,
+      })).join(' · ')}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// A person's cashiers
+// ---------------------------------------------------------------------------
+
+export function CashierSessionsTable({ sessions, onChanged }: { sessions: ReconciliationSession[]; onChanged: () => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [showOpen, setShowOpen] = useState(false);
   const [closingId, setClosingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-
-  const canCreate = can(user, 'cash_reconciliation.create');
   const canUpdate = can(user, 'cash_reconciliation.update');
   const canApprove = can(user, 'cash_reconciliation.approve');
 
   // A count that did not match waits here for a supervisor's decision.
   const [review, setReview] = useState<{ id: number; decision: CashierDecision; variance: string | null } | null>(null);
-
-  const [filters, setFilters] = useState<ListFilterValue>(EMPTY_LIST_FILTERS);
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['cash-sessions', page, listFilterKey(filters)],
-    queryFn: async () => {
-      const res = await api.GET('/cash-reconciliation/sessions', {
-        // Newest first: today's cashiers are what the page is opened for.
-        params: { query: { page, limit: PAGE_SIZE, order_by: 'id', order: 'desc', ...listFilterQuery(filters) } as never },
-      });
-      if (res.error) throw new Error('Failed to load sessions');
-      return res.data as unknown as SessionsResponse;
-    },
-  });
-
-  const sessions = data?.data ?? [];
-  const meta = data?.meta;
-  const totalPages = meta?.totalPages ?? (meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1);
-
-  const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['cash-sessions'] });
-    void qc.invalidateQueries({ queryKey: MY_CASHIER_KEY });
-    void qc.invalidateQueries({ queryKey: CASHIER_ATTENTION_KEY });
-  };
 
   const COLS = [
     t('cashReconciliation.columns.id'),
@@ -291,38 +310,16 @@ export function CashReconciliationList() {
     '',
   ];
 
+  if (sessions.length === 0) return <p style={styles.msg}>{t('ui.cashReconciliationList.noSessionsFound')}</p>;
+
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={styles.pageTitle}>{t('cashReconciliation.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.cashReconciliationList.total')}</span>}
-        {canCreate && (
-          <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
-            onClick={() => setShowOpen(true)}>
-            + {t('cashReconciliation.openSession')}
-          </button>
-        )}
-      </div>
-
-      <CashierRulesBox canEdit={canApprove} />
-
-      <ListFilters value={filters} dateLabel={t('listFilters.openedDate')} showClient={false} onChange={(next) => { setFilters(next); setPage(1); }} />
-
-      <div style={styles.tableCard}>
-        {isLoading ? (
-          <p style={styles.msg}>{t('common.loading')}</p>
-        ) : isError ? (
-          <p style={styles.msgError}>{t('ui.cashReconciliationList.failedToLoadReconciliationSessions')}</p>
-        ) : sessions.length === 0 ? (
-          <p style={styles.msg}>{t('ui.cashReconciliationList.noSessionsFound')}</p>
-        ) : (
-          <>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>{COLS.map((h, i) => <th key={i} style={styles.th}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
+    <>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={styles.table}>
+          <thead>
+            <tr>{COLS.map((h, i) => <th key={i} style={styles.th}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
                   {sessions.map(session => {
                     const variance = session.variance != null ? parseFloat(session.variance) : null;
                     const varianceColor = variance == null ? 'var(--text-secondary)' : variance < 0 ? 'var(--danger)' : 'var(--success)';
@@ -411,31 +408,15 @@ export function CashReconciliationList() {
                       </React.Fragment>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div style={styles.pagination}>
-                <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  {t('ui.cashReconciliationList.prev')}
-                </button>
-                <span style={styles.pageInfo}>{t('ui.cashReconciliationList.page')}{page} {t('ui.cashReconciliationList.of')}{totalPages}</span>
-                <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  {t('ui.cashReconciliationList.next')}
-                </button>
-              </div>
-            )}
-          </>
-        )}
+          </tbody>
+        </table>
       </div>
 
-      {showOpen && <CashierOpenDialog onClose={() => setShowOpen(false)} onOpened={refresh} />}
       {closingId !== null && (
         <CloseSessionModal
           sessionId={closingId}
           onClose={() => setClosingId(null)}
-          onClosed={refresh}
+          onClosed={onChanged}
         />
       )}
       {review && (
@@ -444,9 +425,106 @@ export function CashReconciliationList() {
           decision={review.decision}
           variance={review.variance}
           onClose={() => setReview(null)}
-          onDone={() => { setReview(null); refresh(); }}
+          onDone={() => { setReview(null); onChanged(); }}
         />
       )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CashReconciliationList: one line per person
+// ---------------------------------------------------------------------------
+
+export function CashReconciliationList() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [showOpen, setShowOpen] = useState(false);
+
+  const canCreate = can(user, 'cash_reconciliation.create');
+  const canApprove = can(user, 'cash_reconciliation.approve');
+
+  const { data: people = [], isLoading, isError } = useQuery({
+    queryKey: [...CASHIER_STAFF_KEY, 'list'],
+    queryFn: async () => {
+      const res = await api.GET('/cash-reconciliation/staff');
+      if (res.error) throw new Error('Failed to load cashiers');
+      return unwrapList<CashierPerson>(res.data);
+    },
+  });
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: CASHIER_STAFF_KEY });
+    void qc.invalidateQueries({ queryKey: MY_CASHIER_KEY });
+    void qc.invalidateQueries({ queryKey: CASHIER_ATTENTION_KEY });
+  };
+
+  const mine = people.find((p) => p.user_id === Number(user?.id));
+  const needLook = people.filter((p) => p.status === 'mismatch').length;
+
+  const COLS = ['', t('cashierStaff.columns.person'), t('cashierStaff.columns.cashier'), t('cashierStaff.columns.cash'), t('cashierStaff.columns.look'), ''];
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h1 style={styles.pageTitle}>{t('cashReconciliation.title')}</h1>
+        {people.length > 0 && (
+          <span style={styles.countBadge}>
+            {needLook > 0 ? t('cashierStaff.needLook', { count: needLook }) : t('cashierStaff.allGood')}
+          </span>
+        )}
+        {canCreate && !mine?.open && (
+          <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
+            onClick={() => setShowOpen(true)}>
+            + {t('cashReconciliation.openSession')}
+          </button>
+        )}
+      </div>
+
+      <CashierRulesBox canEdit={canApprove} />
+
+      <div style={styles.tableCard}>
+        {isLoading ? (
+          <p style={styles.msg}>{t('common.loading')}</p>
+        ) : isError ? (
+          <p style={styles.msgError}>{t('ui.cashReconciliationList.failedToLoadReconciliationSessions')}</p>
+        ) : people.length === 0 ? (
+          <p style={styles.msg}>{t('cashierStaff.nobody')}</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={styles.table}>
+              <thead>
+                <tr>{COLS.map((h, i) => <th key={i} style={styles.th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {people.map((person) => (
+                  <tr key={person.user_id} style={styles.tr} data-testid={`cashier-person-${person.user_id}`}>
+                    <td style={{ ...styles.td, width: 24 }}><CashierStatusDot status={person.status} /></td>
+                    <td style={styles.td}>
+                      <Link to={`/cash-reconciliation/staff/${person.user_id}`} style={{ fontWeight: 600 }}>
+                        {person.name || `#${person.user_id}`}
+                      </Link>
+                    </td>
+                    <td style={{ ...styles.td, color: 'var(--text-muted)' }}>
+                      {person.open
+                        ? t('cashierStaff.openSince', { when: formatDate(person.current?.opened_at, DATE_TIME) })
+                        : t('cashierStaff.closedAt', { when: formatDate(person.last_closed_at, DATE_TIME) })}
+                    </td>
+                    <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{formatMoney(person.cash_on_hand)}</td>
+                    <td style={styles.td}><CashierReasons person={person} /></td>
+                    <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
+                      <Link to={`/cash-reconciliation/staff/${person.user_id}`}>{t('cashierStaff.open')}</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showOpen && <CashierOpenDialog onClose={() => setShowOpen(false)} onOpened={refresh} />}
     </div>
   );
 }

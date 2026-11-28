@@ -2648,6 +2648,47 @@
     "signOutAnyway": "Sair mesmo assim",
     "goToCashier": "Ir para o meu caixa"
   },
+  "cashierStaff": {
+    "dot": {
+      "ok": "Tudo certo",
+      "mismatch": "Precisa de revisão"
+    },
+    "allGood": "Tudo certo",
+    "needLook_one": "{{count}} precisa de revisão",
+    "needLook_other": "{{count}} precisam de revisão",
+    "nobody": "Ninguém abriu um caixa ainda.",
+    "open": "Abrir",
+    "openSince": "Aberto desde {{when}}",
+    "closedAt": "Fechado {{when}}",
+    "notFound": "Este caixa não foi encontrado, ou você não tem permissão para vê-lo.",
+    "columns": {
+      "person": "Pessoa",
+      "cashier": "Caixa",
+      "cash": "Dinheiro no caixa",
+      "look": "Situação"
+    },
+    "reasons": {
+      "closing_difference_one": "{{count}} contagem não conferiu",
+      "closing_difference_other": "{{count}} contagens não conferiram",
+      "opening_difference": "Abriu com {{amount}} de diferença em relação ao último fechamento",
+      "over_limit": "Acima do limite de dinheiro",
+      "open_too_long": "Aberto há {{hours}} horas"
+    },
+    "inDrawerNow": "Dinheiro no caixa agora",
+    "inDrawerLastCount": "Dinheiro no caixa (última contagem)",
+    "facts": {
+      "openedAt": "Aberto",
+      "opening": "Contado ao abrir",
+      "lastClose": "Contado no último fechamento",
+      "collected": "Dinheiro recebido desde então",
+      "pickedUp": "Retirado por supervisores",
+      "pendingPickups": "Retiradas aguardando confirmação",
+      "limit": "Limite de dinheiro"
+    },
+    "history": "Todos os caixas desta pessoa",
+    "toReview": "Caixa aberto e contagens a revisar",
+    "supervisorNote": "As contagens que conferiram ou já foram resolvidas são mostradas apenas ao administrador."
+  },
   "cashReconciliation": {
     "title": "Fechamento de caixa",
     "openSession": "Abrir caixa",

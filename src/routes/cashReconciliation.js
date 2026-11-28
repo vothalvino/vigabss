@@ -7,7 +7,8 @@ const CashReconciliationSession = require('../models/CashReconciliationSession')
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
-const { requirePermission } = require('../middleware/rbac');
+const { requirePermission, userHasPermission } = require('../middleware/rbac');
+const { NotFoundError } = require('../utils/errors');
 const { validate } = require('../middleware/validate');
 const {
   openSessionSchema, closeSessionSchema, approveSessionSchema, disputeSessionSchema,
@@ -36,6 +37,47 @@ function withStaffNames(handler) {
     return handler(req, res, next);
   };
 }
+
+// Who sees what (owner decision, 2026-11-27):
+//   - the company's admin sees everyone's cashiers and their whole history;
+//   - a supervisor (cash_reconciliation.approve) sees one line per person, each
+//     person's open cashier, and the counts that did not match and are not
+//     settled, which is what a supervisor acts on;
+//   - anyone else sees their own cashiers only.
+// "Admin" is the same test the review rules below already use.
+const isCompanyAdmin = (req) => req.user.role === 'admin';
+const isSupervisor = (req) => userHasPermission(req, 'cash_reconciliation.approve');
+const SUPERVISOR_STATUSES = ['open', 'closed', 'disputed'];
+const ANY_CASHIER_PERMISSION = ['cash_reconciliation.create', 'cash_reconciliation.view', 'cash_reconciliation.approve'];
+
+// One line per person: what their drawer holds and whether it needs a look.
+// Before '/sessions/:id' and the other parameter routes.
+router.get('/staff', requirePermission(...ANY_CASHIER_PERMISSION), async (req, res, next) => {
+  try {
+    const everyone = isCompanyAdmin(req) || await isSupervisor(req);
+    res.json({
+      data: await cashReconciliationService.staffOverview(req.orgId, everyone ? {} : { onlyUserId: req.user.id }),
+      meta: { scope: everyone ? 'everyone' : 'own' },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// One person's cashiers. Someone who may not see this person gets the same
+// 404 as for a person with no cashier.
+router.get('/staff/:userId', requirePermission(...ANY_CASHIER_PERMISSION), async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    if (!Number.isInteger(userId) || userId < 1) throw new NotFoundError('cash_reconciliation_sessions');
+    const own = userId === Number(req.user.id);
+    const admin = isCompanyAdmin(req);
+    if (!own && !admin && !await isSupervisor(req)) throw new NotFoundError('cash_reconciliation_sessions');
+    res.json({ data: await cashReconciliationService.staffDetail(req.orgId, userId, { full: admin || own }) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Open a new session
 router.post('/sessions', requirePermission('cash_reconciliation.create'), validate(openSessionSchema, { strip: false }), async (req, res, next) => {
@@ -148,16 +190,33 @@ router.post('/pickups/:id/cancel', requirePermission('cash_reconciliation.create
   }
 });
 
-// List sessions
-router.get('/sessions', requirePermission('cash_reconciliation.view'), withStaffNames(ctrl.list));
+// List sessions: every cashier for the company's admin, the caller's own for
+// anyone else. Supervisors work from /staff and /staff/:userId.
+function ownSessionsUnlessAdmin(req, res, next) {
+  if (!isCompanyAdmin(req)) {
+    // Express 5 reads req.query through a getter; an own property replaces it.
+    Object.defineProperty(req, 'query', {
+      value: { ...req.query, agent_user_id: String(req.user.id) }, writable: true, configurable: true, enumerable: true,
+    });
+  }
+  next();
+}
+router.get('/sessions', requirePermission('cash_reconciliation.view'), ownSessionsUnlessAdmin, withStaffNames(ctrl.list));
 
 // Get session detail with payments
-router.get('/sessions/:id', requirePermission('cash_reconciliation.view'), async (req, res, next) => {
+router.get('/sessions/:id', requirePermission(...ANY_CASHIER_PERMISSION), async (req, res, next) => {
   try {
     const result = await cashReconciliationService.getSessionDetail(
       parseInt(req.params.id, 10),
       req.orgId,
     );
+    // The same 404 as a missing session for one the caller may not see.
+    const session = result.session || {};
+    const own = Number(session.agent_user_id) === Number(req.user.id);
+    if (!own && !isCompanyAdmin(req)
+        && !(SUPERVISOR_STATUSES.includes(session.status) && await isSupervisor(req))) {
+      throw new NotFoundError('cash_reconciliation_sessions');
+    }
     // The cash supervisors took out of it, newest first.
     result.pickups = await cashReconciliationService.listPickups(req.orgId, parseInt(req.params.id, 10));
     res.json({ data: result });

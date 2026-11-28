@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
-import { CASHIER_ATTENTION_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
+import { CASHIER_ATTENTION_KEY, CASHIER_STAFF_KEY, MY_CASHIER_KEY } from '@/components/cashierReminderData';
 
 export interface CashPickup {
   id: number;
@@ -67,6 +67,7 @@ export function CashierPickupsRow({ session, colSpan, userId, canTake }: Props) 
         qc.invalidateQueries({ queryKey: key }),
         qc.invalidateQueries({ queryKey: MY_CASHIER_KEY }),
         qc.invalidateQueries({ queryKey: CASHIER_ATTENTION_KEY }),
+        qc.invalidateQueries({ queryKey: CASHIER_STAFF_KEY }),
       ]);
     } catch (err) {
       setError(err instanceof Error && err.message !== 'failed' ? err.message : t('cashReconciliation.pickups.failed'));
