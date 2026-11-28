@@ -1,4 +1,4 @@
-# VigaBSS 0.1.0-alpha.54 — RBAC Permission Matrix
+# VigaBSS 0.1.0-alpha.55 — RBAC Permission Matrix
 
 > Extracted from `database/migrations/119_seed_default_roles_and_permissions.sql`.
 >
