@@ -43,7 +43,20 @@ max-connections    = 200
 # query (pool.execute) and keeps up to DB_MAX_PREPARED_STATEMENTS (128) per
 # connection; max-connections x 128 must stay below this (DB-04).
 max-prepared-stmt-count = 65536
-innodb-buffer-pool-size = 512M
+# --- Memory -------------------------------------------------------------------
+# The container is limited to 1 GB (docker-compose.prod.yml). What mysqld
+# allocates has to fit in that with room for connections, sorts and a bulk
+# load, or the kernel kills it: with a 512M buffer pool, the default 64M log
+# buffer and the performance schema on (about 250M with this many tables),
+# mysqld reached 1 GB within half a day and was killed about twice a day.
+# These three settings keep it near 550M. On a server with more memory, raise
+# the container limit and the buffer pool together (the pool is where a larger
+# database gains speed), keeping the pool at about a third of the limit.
+innodb-buffer-pool-size = 384M
+innodb-log-buffer-size  = 16M
+# Instrumentation the application does not read. Turn it on only to diagnose,
+# together with a higher container limit.
+performance-schema      = OFF
 # innodb-log-file-size was removed in MySQL 8.4; use innodb-redo-log-capacity
 # (256M = 2 × 128M that was previously configured via innodb-log-file-size)
 innodb-redo-log-capacity = 268435456

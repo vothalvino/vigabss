@@ -824,6 +824,45 @@ dc up -d db-primary redis
 echo "==> Stopping and draining the previous application before migration"
 dc stop -t 30 app
 
+# mysqld reads mysql/primary.cnf and replica.cnf only when it starts, and the
+# containers bind-mount those files, so a deploy that changes one would never
+# reach the running server (the same trap as nginx.conf below). With the app
+# drained, restart each database whose file changed and wait for it to answer.
+# A database that does not come back fails the redeploy before anything is
+# migrated.
+reload_database_config() {
+  local svc file deployed live
+  for svc in db-primary db-replica; do
+    dc config --services 2>/dev/null | grep -qx "$svc" || continue
+    dc ps --status running --services 2>/dev/null | grep -qx "$svc" || continue
+    file="${svc#db-}.cnf"
+    deployed="$(sha256sum "$APP_DIR/mysql/$file" 2>/dev/null | cut -d' ' -f1)"
+    live="$(dc exec -T "$svc" sha256sum "/etc/mysql/conf.d/$file" 2>/dev/null | cut -d' ' -f1)"
+    if [[ -z "$deployed" || -z "$live" || "$deployed" == "$live" ]]; then
+      continue
+    fi
+    echo "==> mysql/$file changed; restarting $svc to apply it"
+    if ! dc restart -t 60 "$svc" >/dev/null 2>&1; then
+      echo "error: $svc did not restart with the new mysql/$file." >&2
+      return 1
+    fi
+    for _ in $(seq 1 60); do
+      if dc exec -T "$svc" mysqladmin ping -h localhost >/dev/null 2>&1; then
+        echo "    $svc is back with the new configuration"
+        continue 2
+      fi
+      sleep 2
+    done
+    echo "error: $svc did not answer within 2 minutes of restarting with the new mysql/$file." >&2
+    echo "       Check: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs --tail=50 $svc" >&2
+    return 1
+  done
+}
+if ! reload_database_config; then
+  echo "       Nothing was migrated. Fix the database, then rerun sudo redeploy." >&2
+  exit 1
+fi
+
 # Migrations are forward-only, and nothing used to dump the databases first: a
 # migration that failed halfway left the app down with only last night's
 # backup, which did not cover isolated tenant databases (OPS-14). Dump every
