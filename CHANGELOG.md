@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.55 — 2026-11-28
+
 - **Changed: the cash limit of a cashier is set per person.** A person's
   page on the Cashier screen has a new box where a supervisor sets how much
   cash that person's drawer may hold and whether reaching it stops them from
