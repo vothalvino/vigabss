@@ -523,9 +523,11 @@ history. A supervisor (`cash_reconciliation.approve`) sees one line per person
 last count when closed, and the reasons its dot is red), each person's open
 cashier, and the counts that did not match and are not settled
 (`/staff/:userId` with scope `supervisor`; `/sessions/:id` only for a session
-that is `open`, `closed` or `disputed`). Anyone else sees their own cashiers
-only. `GET /sessions` lists every session for the admin and the caller's own
-for anyone else. A person the caller may not see answers 404, like a person
+that is `open`, `closed` or `disputed`). Anyone else sees the same of their own
+cashiers only: nobody but the admin reads settled history, their own included,
+because a list of past counts adds up to everything a person has taken in.
+`GET /sessions` lists every session for the admin, and for anyone else their
+own open cashier and counts not settled. A person the caller may not see answers 404, like a person
 with no cashier. The frontend (`CashReconciliationList`, `CashierPersonPage`)
 shows what it is sent and decides nothing.
 

@@ -33468,7 +33468,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "List cash reconciliation sessions: all of them for the company's admin, the caller's own for anyone else",
+        "summary": "List cash reconciliation sessions: all of them for the company's admin; for anyone else their own open session and their counts not settled",
         "operationId": "listCashReconciliationSessions",
         "security": [
           {
@@ -33550,7 +33550,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "Get session detail with included cash payments. The company's admin: any session; a supervisor: open sessions and counts not settled; anyone else: their own (404 otherwise)",
+        "summary": "Get session detail with included cash payments. The company's admin: any session; a supervisor: open sessions and counts not settled; anyone else: the same of their own (404 otherwise)",
         "operationId": "getCashReconciliationSession",
         "security": [
           {
@@ -34174,7 +34174,7 @@
         "tags": [
           "Cash Reconciliation"
         ],
-        "summary": "One person's cashiers: their line, the rules, and sessions. scope 'full' (the company's admin, or the person themself) lists every session; scope 'supervisor' only the open one and the counts that did not match and are not settled. 404 for a person the caller may not see",
+        "summary": "One person's cashiers: their line, the rules, and sessions. scope 'full' (the company's admin only) lists every session; scope 'supervisor' (a supervisor, or the person themself) only the open one and the counts that did not match and are not settled. 404 for a person the caller may not see",
         "operationId": "getCashierStaff",
         "security": [
           {

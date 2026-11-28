@@ -137,7 +137,7 @@ describe('staffDetail', () => {
     expect(text).not.toMatch(/status IN/);
   });
 
-  test("a supervisor's part: only the open cashier and the counts not settled", async () => {
+  test('not full (a supervisor, or the person themself): only the open cashier and the counts not settled', async () => {
     const q = database({ users: USERS, people: { 10: { last: open(7) } }, history: [history[0]] });
     const out = await service.staffDetail(1, 10);
     expect(out.scope).toBe('supervisor');
