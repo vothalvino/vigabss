@@ -68,6 +68,23 @@ describe('staffOverview', () => {
     expect(line(rows, 11)).toMatchObject({ name: 'Beto Luna', open: false, cash_on_hand: 820.5, current: null, status: 'ok', reasons: [], last_closed_at: '2026-11-26 18:00:00' });
   });
 
+  test('the login of a reseller or collector is never listed, and its page is not found', async () => {
+    const dbState = database({ users: USERS, people: { 10: { last: closed(5, '820.50') } } });
+    await service.staffOverview(1);
+    const [sql] = dbState.find(/MAX\(s\.id\) AS last_session_id/);
+    expect(sql).toMatch(/NOT EXISTS \(SELECT 1 FROM reseller_user_bindings rb WHERE rb\.user_id = s\.agent_user_id AND rb\.organization_id = s\.organization_id\)/);
+    // Someone the list leaves out has no page either.
+    database({ users: USERS, people: {} });
+    await expect(service.staffDetail(1, 99)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test('a cashier from before opening counts existed shows no cash in the drawer', async () => {
+    database({ users: USERS, people: { 10: { last: closed(5, '20.00', { opening_total: null, opening_expected: null }) }, 11: { last: closed(6, '820.50') } } });
+    const rows = await service.staffOverview(1);
+    expect(line(rows, 10)).toMatchObject({ open: false, cash_on_hand: null, status: 'ok' });
+    expect(line(rows, 11).cash_on_hand).toBe(820.5);
+  });
+
   test('red for a count that did not match and waits for a review, or was disputed', async () => {
     database({ users: USERS, people: { 10: { last: closed(5, '400.00', { status: 'closed' }), awaiting: 1 }, 11: { last: open(8), disputed: 1 }, 12: { last: closed(6, '100.00') } } });
     const rows = await service.staffOverview(1);

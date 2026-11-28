@@ -468,6 +468,11 @@ async function attention(orgId) {
  *   open_too_long       the open cashier has been open past the allowed hours
  *
  * `onlyUserId` narrows it to one person (their own line, or a detail page).
+ *
+ * The login of a reseller or a collector is never a person here: a point has
+ * no cashier, its cash is accounted for by its ledger and its bags. Sessions
+ * such a login opened before that rule are left out, so asking for its page
+ * answers 404.
  */
 async function staffOverview(orgId, { onlyUserId = null } = {}) {
   const { maxOpenHours, pickupThreshold, tolerance } = await rules(orgId);
@@ -478,6 +483,8 @@ async function staffOverview(orgId, { onlyUserId = null } = {}) {
             SUM(s.status = 'disputed') AS disputed
        FROM cash_reconciliation_sessions s
       WHERE s.organization_id = ? AND s.deleted_at IS NULL ${one}
+        AND NOT EXISTS (SELECT 1 FROM reseller_user_bindings rb
+                         WHERE rb.user_id = s.agent_user_id AND rb.organization_id = s.organization_id)
       GROUP BY s.agent_user_id
       ORDER BY s.agent_user_id
       LIMIT 500`,
@@ -522,7 +529,10 @@ async function staffOverview(orgId, { onlyUserId = null } = {}) {
       if (!matches(openingDifference, tolerance)) reasons.push('opening_difference');
       if (pickupThreshold > 0 && toCents(cashOnHand) >= toCents(pickupThreshold)) reasons.push('over_limit');
       if (hoursOpen >= maxOpenHours) reasons.push('open_too_long');
-    } else if (last.counted_total !== null && last.counted_total !== undefined) {
+    } else if (last.counted_total !== null && last.counted_total !== undefined
+      && last.opening_total !== null && last.opening_total !== undefined) {
+      // A cashier from before opening counts existed was handed in when it
+      // was closed: what it counted is not cash in a drawer today.
       cashOnHand = round2(last.counted_total);
     }
     if (awaitingReview + disputed > 0) reasons.unshift('closing_difference');
