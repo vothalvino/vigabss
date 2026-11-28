@@ -5,6 +5,21 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: the database was killed for lack of memory about twice a day.**
+  The database container is limited to 1 GB, and MySQL was configured to use
+  more than fits: within about half a day it reached the limit and the
+  system killed it. It restarted by itself in a few seconds, so this showed
+  only as brief "database unreachable" errors. MySQL now uses a smaller
+  memory pool (384M), a smaller log buffer, and no performance schema, which
+  nothing read. Loaded with a gigabyte of data it holds near 570M. The same
+  settings apply to the replica.
+
+- **Fixed: a change to the database configuration never reached a running
+  server.** MySQL reads its configuration only when it starts, and `redeploy`
+  did not restart it. `redeploy` now restarts a database whose configuration
+  file changed, after the application is stopped and before anything is
+  migrated, and stops if the database does not come back.
+
 ## 0.1.0-alpha.55 — 2026-11-28
 
 - **Changed: the cash limit of a cashier is set per person.** A person's
