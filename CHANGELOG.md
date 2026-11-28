@@ -5,6 +5,8 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+## 0.1.0-alpha.54 — 2026-11-27
+
 - **Changed: the Cashier page shows one line per person.** Each line has the
   cash in that person's drawer and a dot: green when all is well, red when a
   count did not match, the cashier was opened with a different amount, it is
@@ -28,8 +30,11 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
   sign-in last.** On a first install the organization's name and where it
   operates (Mexico or Global) are now asked right after the domain and email,
   before anything is downloaded. The administrator's email and first password
-  are printed in their own block at the very end of the output. The page title
-  of Invoice Settings no longer says "Branding".
+  are printed in their own block at the very end of the output.
+
+- **Changed: the Invoice Settings page is titled "Invoice Settings".** Its
+  title and tab no longer say "Branding", now that it also holds the invoice
+  number prefix.
 
 ## 0.1.0-alpha.53 — 2026-11-27
 

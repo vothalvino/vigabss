@@ -1,7 +1,7 @@
 {
   "name": "vigabss-frontend",
-  "version": "0.1.0-alpha.53",
-  "description": "VigaBSS 0.1.0-alpha.53 — Admin Panel (React + TypeScript + Vite)",
+  "version": "0.1.0-alpha.54",
+  "description": "VigaBSS 0.1.0-alpha.54 — Admin Panel (React + TypeScript + Vite)",
   "private": true,
   "type": "module",
   "scripts": {
