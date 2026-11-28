@@ -2657,7 +2657,7 @@
     "needLook_one": "{{count}} precisa de revisão",
     "needLook_other": "{{count}} precisam de revisão",
     "nobody": "Ninguém abriu um caixa ainda.",
-    "open": "Abrir",
+    "view": "Ver",
     "openSince": "Aberto desde {{when}}",
     "closedAt": "Fechado {{when}}",
     "notFound": "Este caixa não foi encontrado, ou você não tem permissão para vê-lo.",

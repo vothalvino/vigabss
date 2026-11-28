@@ -2657,7 +2657,7 @@
     "needLook_one": "{{count}} needs a look",
     "needLook_other": "{{count}} need a look",
     "nobody": "Nobody has opened a cashier yet.",
-    "open": "Open",
+    "view": "View",
     "openSince": "Open since {{when}}",
     "closedAt": "Closed {{when}}",
     "notFound": "This cashier was not found, or you may not see it.",

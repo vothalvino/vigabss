@@ -102,16 +102,15 @@ interface SessionDetail {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const DATE_TIME: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+
+// The same date and money formats as the rest of the page.
 function fmt(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return formatDate(dateStr, DATE_TIME);
 }
 
 function fmtAmount(amount: string | null | undefined): string {
-  if (!amount) return '—';
-  const n = parseFloat(amount);
-  if (Number.isNaN(n)) return amount;
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'MXN' }).format(n);
+  return formatMoney(amount);
 }
 
 // ---------------------------------------------------------------------------
@@ -256,8 +255,6 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
 // ---------------------------------------------------------------------------
 // The dot: green when all is well, red when something needs a look
 // ---------------------------------------------------------------------------
-
-const DATE_TIME: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
 
 export function CashierStatusDot({ status }: { status: 'ok' | 'mismatch' }) {
   const { t } = useTranslation();
@@ -514,7 +511,7 @@ export function CashReconciliationList() {
                     <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{formatMoney(person.cash_on_hand)}</td>
                     <td style={styles.td}><CashierReasons person={person} /></td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                      <Link to={`/cash-reconciliation/staff/${person.user_id}`}>{t('cashierStaff.open')}</Link>
+                      <Link to={`/cash-reconciliation/staff/${person.user_id}`}>{t('cashierStaff.view')}</Link>
                     </td>
                   </tr>
                 ))}
