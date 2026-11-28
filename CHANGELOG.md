@@ -5,6 +5,13 @@ deploys the newest one unless `VIGABSS_CHANNEL=main` is set in `.env.prod`.
 
 ## Unreleased
 
+- **Fixed: a reseller's login appeared on the Cashier page.** The list of
+  people showed the login of a reseller or collector that had opened a
+  cashier before points stopped having one, with the cash of that old count
+  as if it were in a drawer. A point's login is no longer listed, and a
+  cashier from before opening counts existed no longer shows cash in the
+  drawer.
+
 ## 0.1.0-alpha.54 — 2026-11-27
 
 - **Changed: the Cashier page shows one line per person.** Each line has the

@@ -200,6 +200,25 @@ describeDb('the money tie-out against a real database', () => {
     expect(report.cash.differences.unexplained).toBe(0);
   });
 
+  test('the Cashier page lists staff, never the login of a reseller or collector', async () => {
+    const [[point]] = await db.query('SELECT id FROM resellers WHERE organization_id = ? LIMIT 1', [ORG]);
+    const login = await insert('users', {
+      organization_id: ORG, first_name: 'Point', last_name: 'Login', email: `point-${ORG}@example.com`,
+      password_hash: 'not-a-login', role: 'billing', status: 'active',
+    });
+    await insert('reseller_user_bindings', { organization_id: ORG, user_id: login, reseller_id: point.id });
+    // A cashier that login closed before points stopped having one.
+    await insert('cash_reconciliation_sessions', {
+      organization_id: ORG, agent_user_id: login, status: 'approved', opened_at: '2026-10-01 15:00:00',
+      closed_at: '2026-10-01 23:00:00', expected_total: '20.00', counted_total: '20.00', variance: '0.00',
+    });
+    const list = await api('get', '/cash-reconciliation/staff');
+    expect(list.status).toBe(200);
+    expect(list.body.data.map(p => p.user_id)).toEqual([admin.userId]);
+    expect((await api('get', `/cash-reconciliation/staff/${login}`)).status).toBe(404);
+    expect((await api('get', `/cash-reconciliation/staff/${admin.userId}`)).status).toBe(200);
+  });
+
   test('another organization sees none of it', async () => {
     const other = await createOrgAdmin(db, ORG + 1, 'TIEOUT2');
     const res = await request(app).get('/api/v1/money-tieout').set('Authorization', `Bearer ${other.token}`);
